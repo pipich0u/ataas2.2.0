@@ -1,0 +1,2392 @@
+import {
+  ApartmentOutlined,
+  ArrowRightOutlined,
+  BarChartOutlined,
+  CheckCircleFilled,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  CodeSandboxOutlined,
+  DeploymentUnitOutlined,
+  DownOutlined,
+  ExclamationCircleOutlined,
+  EyeOutlined,
+  FileSearchOutlined,
+  InfoCircleOutlined,
+  LoadingOutlined,
+  MinusCircleOutlined,
+  NodeIndexOutlined,
+  PlusCircleOutlined,
+  PlusOutlined,
+  DeleteOutlined,
+  RocketOutlined,
+  SettingOutlined,
+  SwapRightOutlined,
+  ThunderboltOutlined,
+  WarningOutlined,
+} from '@ant-design/icons';
+import { Button, ConfigProvider, DatePicker, Drawer, Form, Input, InputNumber, message, Modal, Popover, Progress, Segmented, Select, Slider, Switch, Table, Tabs, Tag } from 'antd';
+import DeployList, { MOCK_DEPLOY_DATA, type DeployServiceItem } from './components/deployList';
+import type { ColumnsType } from 'antd/es/table';
+import * as echarts from 'echarts';
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import './index.less';
+
+type ClusterRecord = {
+  key: string;
+  name: string;
+  region: string;
+  nodes: number;
+  gpu: string;
+  gpuTypes: Array<{ name: string; nodes: number; cards: number; usage: number }>;
+  gpuUsage: number;
+  cpu: string;
+  memory: string;
+  models: number;
+  status: 'healthy' | 'warning' | 'error';
+  authInfo: string;
+};
+
+type ResourceCardRecord = {
+  key: string;
+  name: string;
+  subtitle: string;
+  family: string;
+  nodes: number;
+  models: number;
+  status: 'healthy' | 'warning' | 'error';
+  gpuUsage: number;
+  diskUsage: number;
+  cpuUsage: number;
+  memoryUsage: number;
+  chips: string[];
+  metaName: string;
+};
+
+type ImageRecord = {
+  key: string;
+  name: string;
+  tag: string;
+  size: string;
+  vendor: string;
+  gpuType: string;
+  engine: string;
+  runtime: string;
+  hardware: string;
+  models: string;
+  importMethod: string;
+  importStatus: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  section: '引擎镜像' | '基础镜像';
+  sectionDesc: string;
+};
+
+type GpuCardInfo = {
+  index: number;
+  model: string;
+  spec: string;
+  memoryTotal: string;
+  memoryUsed: string;
+  memoryFree: string;
+  utilization: number;
+  power: number;
+  temperature: number;
+  status: string;
+  replicas: string[];
+};
+
+type NodeRecord = {
+  key: string;
+  clusterKey: string;
+  name: string;
+  label: string;
+  clusterName: string;
+  status: 'normal' | 'error';
+  authStatus: 'authorized' | 'unauthorized';
+  modelCount: number;
+  runningInstances: number;
+  ip: string;
+  cpu: number;
+  cpuUsed: number;
+  memory: string;
+  memoryUsed: string;
+  gpu: number;
+  gpuMemory: string;
+  gpuMemoryUsed: string;
+  disk: string;
+  diskUsed: string;
+  gpuCards: GpuCardInfo[];
+};
+
+type ModelMonitorRecord = {
+  key: string;
+  name: string;
+  service: string;
+  cluster: string;
+  engine: string;
+  status: 'running' | 'warning';
+  totalToken: string;
+  inputToken: string;
+  outputToken: string;
+  calls: string;
+  successRate: number;
+  failRate: number;
+  ttft: number;
+  tpot: number;
+  tpm: string;
+  rpm: string;
+  concurrent: number;
+  cacheHit: number;
+  trend: number[];
+};
+
+type DeployEngineImage = {
+  key: string;
+  clusterKey: string;
+  name: string;
+  engine: string;
+  version: string;
+  accelerator: string;
+  status: 'ready' | 'scanning';
+};
+
+type DeployModelOption = {
+  key: string;
+  name: string;
+  size: string;
+  format: string;
+  scene: string;
+};
+
+type DeployNodeOption = {
+  key: string;
+  clusterKey: string;
+  name: string;
+  ip: string;
+  gpuType: string;
+  totalCards: number;
+  availableCards: number;
+  status: 'ready' | 'busy' | 'error';
+};
+
+type PdGroupConfig = {
+  key: string;
+  pCount: number;
+  dCount: number;
+  pNodes: number;
+  dNodes: number;
+  pParams: Array<{ key: string; value: string }>;
+  dParams: Array<{ key: string; value: string }>;
+  routerTarget: 'p' | 'd';
+};
+
+const clusters: ClusterRecord[] = [
+  { key: 'c1', name: 'beijing-prod', region: '北京一区', nodes: 38, gpu: 'A100 80G x 160 / H20 x 64', gpuTypes: [{ name: 'A100', nodes: 24, cards: 160, usage: 78 }, { name: 'H20', nodes: 14, cards: 64, usage: 62 }], gpuUsage: 72, cpu: '1,824 / 2,432 Core', memory: '9.4 / 14.8 TB', models: 18, status: 'healthy', authInfo: '36/38' },
+  { key: 'c2', name: 'shanghai-online', region: '上海二区', nodes: 46, gpu: 'H20 x 304 / 910B x 64', gpuTypes: [{ name: 'H20', nodes: 38, cards: 304, usage: 68 }, { name: '910B', nodes: 8, cards: 64, usage: 54 }], gpuUsage: 66, cpu: '2,118 / 2,944 Core', memory: '11.2 / 18.1 TB', models: 24, status: 'healthy', authInfo: '42/46' },
+  { key: 'c3', name: 'guangzhou-test', region: '广州测试', nodes: 19, gpu: 'L20 x 72 / A100 x 24', gpuTypes: [{ name: 'L20', nodes: 15, cards: 72, usage: 38 }, { name: 'A100', nodes: 4, cards: 24, usage: 52 }], gpuUsage: 92, cpu: '742 / 1,216 Core', memory: '3.7 / 7.6 TB', models: 9, status: 'warning', authInfo: '15/19' },
+  { key: 'c4', name: 'wuhan-kunpeng', region: '武汉专区', nodes: 16, gpu: 'Ascend 910B x 64 / L20 x 24', gpuTypes: [{ name: '910B', nodes: 8, cards: 64, usage: 61 }, { name: 'L20', nodes: 4, cards: 24, usage: 45 }], gpuUsage: 58, cpu: '624 / 1,024 Core', memory: '2.9 / 6.4 TB', models: 7, status: 'healthy', authInfo: '16/16' },
+];
+
+const nodes: NodeRecord[] = [
+  { key: 'n1', clusterKey: 'c1', name: 'qujing4', label: 'GPU=RTX_4090', clusterName: 'default', status: 'normal', authStatus: 'authorized', modelCount: 0, runningInstances: 0, ip: '192.168.110.4', cpu: 128, cpuUsed: 42, memory: '1007.56 GB', memoryUsed: '352.6 GB', gpu: 4, gpuMemory: '191.95 GB', gpuMemoryUsed: '95.9 GB', disk: '3.86 TB', diskUsed: '1.54 TB', gpuCards: [{ index: 0, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '12.0 GB', memoryFree: '11.99 GB', utilization: 52, power: 315, temperature: 72, status: 'active', replicas: [] }, { index: 1, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 98, power: 425, temperature: 81, status: 'active', replicas: [] }, { index: 2, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 95, power: 410, temperature: 78, status: 'active', replicas: [] }, { index: 3, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 87, power: 380, temperature: 75, status: 'active', replicas: [] }] },
+  { key: 'n2', clusterKey: 'c1', name: 'qujing7', label: 'GPU=RTX_4090', clusterName: 'default', status: 'normal', authStatus: 'authorized', modelCount: 0, runningInstances: 0, ip: '192.168.110.21', cpu: 192, cpuUsed: 68, memory: '1.48 TB', memoryUsed: '521.3 GB', gpu: 4, gpuMemory: '191.95 GB', gpuMemoryUsed: '115.2 GB', disk: '12.6 TB', diskUsed: '5.04 TB', gpuCards: [{ index: 0, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '12.0 GB', memoryFree: '11.99 GB', utilization: 48, power: 300, temperature: 68, status: 'active', replicas: [] }, { index: 1, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 92, power: 400, temperature: 76, status: 'active', replicas: [] }, { index: 2, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 94, power: 405, temperature: 77, status: 'active', replicas: [] }, { index: 3, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 88, power: 385, temperature: 74, status: 'active', replicas: [] }] },
+  { key: 'n3', clusterKey: 'c1', name: 'qujing21', label: 'GPU=RTX_4090', clusterName: 'default', status: 'normal', authStatus: 'unauthorized', modelCount: 0, runningInstances: 0, ip: '192.168.109.6', cpu: 192, cpuUsed: 56, memory: '1007.51 GB', memoryUsed: '483.6 GB', gpu: 2, gpuMemory: '95.97 GB', gpuMemoryUsed: '67.2 GB', disk: '3.86 TB', diskUsed: '2.12 TB', gpuCards: [{ index: 0, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '19.2 GB', memoryFree: '4.79 GB', utilization: 78, power: 350, temperature: 71, status: 'active', replicas: [] }, { index: 1, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 96, power: 420, temperature: 82, status: 'active', replicas: [] }] },
+  { key: 'n4', clusterKey: 'c1', name: 'qujing1', label: 'GPU=RTX_5000', clusterName: 'default', status: 'error', authStatus: 'unauthorized', modelCount: 0, runningInstances: 0, ip: '192.168.200.10', cpu: 192, cpuUsed: 0, memory: '1007.39 GB', memoryUsed: '0 GB', gpu: 2, gpuMemory: '95.97 GB', gpuMemoryUsed: '0 GB', disk: '3.86 TB', diskUsed: '1.89 TB', gpuCards: [{ index: 0, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 35, status: 'idle', replicas: [] }, { index: 1, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 34, status: 'idle', replicas: [] }] },
+  { key: 'n5', clusterKey: 'c1', name: 'qujing24', label: 'GPU=RTX_4090', clusterName: 'default', status: 'normal', authStatus: 'authorized', modelCount: 0, runningInstances: 0, ip: '192.168.109.23', cpu: 96, cpuUsed: 38, memory: '503.35 GB', memoryUsed: '176.2 GB', gpu: 2, gpuMemory: '95.97 GB', gpuMemoryUsed: '57.6 GB', disk: '5.68 TB', diskUsed: '2.27 TB', gpuCards: [{ index: 0, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '14.4 GB', memoryFree: '9.59 GB', utilization: 58, power: 320, temperature: 69, status: 'active', replicas: [] }, { index: 1, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 93, power: 408, temperature: 79, status: 'active', replicas: [] }] },
+  { key: 'n6', clusterKey: 'c1', name: 'qujing20', label: 'GPU=RTX_4011', clusterName: 'default', status: 'normal', authStatus: 'authorized', modelCount: 0, runningInstances: 0, ip: '192.168.110.20', cpu: 192, cpuUsed: 72, memory: '1007.51 GB', memoryUsed: '604.5 GB', gpu: 2, gpuMemory: '95.97 GB', gpuMemoryUsed: '72.0 GB', disk: '3.86 TB', diskUsed: '1.62 TB', gpuCards: [{ index: 0, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '16.8 GB', memoryFree: '7.19 GB', utilization: 68, power: 340, temperature: 70, status: 'active', replicas: [] }, { index: 1, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 91, power: 395, temperature: 76, status: 'active', replicas: [] }] },
+  { key: 'n7', clusterKey: 'c2', name: 'nj-h20-001', label: 'GPU=H20', clusterName: 'online', status: 'normal', authStatus: 'authorized', modelCount: 1, runningInstances: 2, ip: '192.168.120.1', cpu: 256, cpuUsed: 112, memory: '2.01 TB', memoryUsed: '824.1 GB', gpu: 8, gpuMemory: '383.9 GB', gpuMemoryUsed: '230.3 GB', disk: '8.5 TB', diskUsed: '4.25 TB', gpuCards: Array.from({ length: 8 }, (_, i) => ({ index: i, model: 'H20', spec: '48 GB', memoryTotal: '47.99 GB', memoryUsed: i < 5 ? '47.9 GB' : '23.9 GB', memoryFree: i < 5 ? '0.09 GB' : '24.09 GB', utilization: i < 5 ? 95 : 48, power: i < 5 ? 280 : 160, temperature: i < 5 ? 78 : 62, status: 'active', replicas: i < 5 ? ['deepseek-prod-r1-p1', 'deepseek-prod-r1-p2'] : [] })) },
+  { key: 'n8', clusterKey: 'c2', name: 'nj-h20-002', label: 'GPU=H20', clusterName: 'online', status: 'normal', authStatus: 'authorized', modelCount: 2, runningInstances: 4, ip: '192.168.120.2', cpu: 256, cpuUsed: 148, memory: '2.01 TB', memoryUsed: '1.21 TB', gpu: 8, gpuMemory: '383.9 GB', gpuMemoryUsed: '287.9 GB', disk: '8.5 TB', diskUsed: '5.53 TB', gpuCards: Array.from({ length: 8 }, (_, i) => ({ index: i, model: 'H20', spec: '48 GB', memoryTotal: '47.99 GB', memoryUsed: i < 6 ? '47.9 GB' : '23.9 GB', memoryFree: i < 6 ? '0.09 GB' : '24.09 GB', utilization: i < 6 ? 97 : 52, power: i < 6 ? 285 : 165, temperature: i < 6 ? 80 : 64, status: 'active', replicas: i < 6 ? ['qwen3-coding-p1', 'qwen3-coding-p2'] : [] })) },
+  { key: 'n9', clusterKey: 'c2', name: 'nj-910b-001', label: 'GPU=Ascend_910B', clusterName: 'online', status: 'warning', authStatus: 'authorized', modelCount: 0, runningInstances: 0, ip: '192.168.120.10', cpu: 128, cpuUsed: 96, memory: '1.01 TB', memoryUsed: '757.5 GB', gpu: 8, gpuMemory: '191.95 GB', gpuMemoryUsed: '153.6 GB', disk: '4.2 TB', diskUsed: '2.94 TB', gpuCards: Array.from({ length: 8 }, (_, i) => ({ index: i, model: 'Ascend 910B', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '19.2 GB', memoryFree: '4.79 GB', utilization: i > 4 ? 82 : 76, power: 220, temperature: 72, status: 'active', replicas: [] })) },
+  { key: 'n10', clusterKey: 'c3', name: 'gz-l20-001', label: 'GPU=L20', clusterName: 'test', status: 'normal', authStatus: 'unauthorized', modelCount: 0, runningInstances: 0, ip: '192.168.130.5', cpu: 192, cpuUsed: 84, memory: '1007.51 GB', memoryUsed: '453.4 GB', gpu: 4, gpuMemory: '191.95 GB', gpuMemoryUsed: '115.2 GB', disk: '3.86 TB', diskUsed: '1.35 TB', gpuCards: Array.from({ length: 4 }, (_, i) => ({ index: i, model: 'L20', spec: '48 GB', memoryTotal: '47.99 GB', memoryUsed: '23.9 GB', memoryFree: '24.09 GB', utilization: 52 + i * 8, power: 180, temperature: 66, status: 'active', replicas: [] })) },
+];
+
+const overviewModelCards = [
+  { name: 'DeepSeek-R1-Distill-Qwen-1.5B-1', top: 'TOP 1', token: '4.0 万', calls: 43, success: '100.00%', rpm: '18.6K', tpm: '812K', ttft: [30, 5, 15, 4, 5, 5, 5, 5, 6, 5, 5, 7, 5, 5], tpot: [4.4, 0, 4.1, 0, 0, 0, 0, 0, 4.1, 3.9, 0, 0] },
+  { name: 'DeepSeek-R1-Distill-Qwen-7B-1', top: 'TOP 2', token: '3272', calls: 20, success: '100.00%', rpm: '9.7K', tpm: '392K', ttft: [0, 32, 5, 30, 0, 30, 31, 30, 29, 30, 0, 32, 0, 31], tpot: [0, 15.5, 0, 0, 15.4, 15.2, 0, 0, 0, 0, 0, 0] },
+  { name: 'DeepSeek-R1-Distill-Qwen-1.5B-2', top: 'TOP 3', token: '1205', calls: 36, success: '100.00%', rpm: '7.2K', tpm: '278K', ttft: [6, 5, 0, 5, 5, 5, 5, 15, 5, 5, 5, 15, 5, 5], tpot: [4.0, 4.2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+];
+
+const overviewCallRank = [
+  { name: 'DeepSeek-R1-Distill-Qwen-1.5B-1', tpm: '812K', rpm: '18.6K' },
+  { name: 'Qwen2.5-72B-Instruct-GPTQ-Int4', tpm: '646K', rpm: '14.8K' },
+  { name: 'DeepSeek-R1-Distill-Qwen-7B-1', tpm: '392K', rpm: '9.7K' },
+  { name: 'Qwen2.5-7B-Instruct', tpm: '278K', rpm: '7.2K' },
+  { name: 'DeepSeek-R1-Distill-Qwen-1.5B-2', tpm: '198K', rpm: '5.4K' },
+  { name: 'DeepSeek-R1-Distill-Qwen-7B', tpm: '145K', rpm: '3.8K' },
+  { name: 'Qwen2.5-7B-test33333', tpm: '98K', rpm: '2.1K' },
+  { name: 'DeepSeek-R1-Distill-Qwen-1.5B-3', tpm: '72K', rpm: '1.6K' },
+  { name: 'Qwen2.5-7B-Instruct-1', tpm: '42K', rpm: '1.1K' },
+  { name: 'bge-whh-test', tpm: '12K', rpm: '312' },
+];
+
+const modelMonitors: ModelMonitorRecord[] = [
+  { key: 'm1', name: 'DeepSeek-R1-671B', service: 'rbg-deepseek-prod', cluster: 'beijing-a100-prod', engine: 'vLLM', status: 'running', totalToken: '4.82B', inputToken: '2.91B', outputToken: '1.91B', calls: '1,248万', successRate: 99.92, failRate: 0.08, ttft: 318, tpot: 24, tpm: '812K', rpm: '18.6K', concurrent: 1240, cacheHit: 68, trend: [36, 42, 39, 51, 58, 62, 74, 78, 86, 91, 88, 96] },
+  { key: 'm2', name: 'Qwen3-235B-A22B', service: 'qwen3-coding-slo', cluster: 'shanghai-h20-online', engine: 'SGLang', status: 'running', totalToken: '3.16B', inputToken: '1.86B', outputToken: '1.30B', calls: '984万', successRate: 99.71, failRate: 0.29, ttft: 286, tpot: 21, tpm: '646K', rpm: '14.8K', concurrent: 980, cacheHit: 74, trend: [32, 34, 41, 45, 49, 53, 58, 66, 70, 76, 72, 79] },
+  { key: 'm3', name: 'GLM-4.5-Air', service: 'glm-air-batch', cluster: 'guangzhou-l20-test', engine: 'vLLM', status: 'warning', totalToken: '1.78B', inputToken: '1.09B', outputToken: '690M', calls: '612万', successRate: 98.94, failRate: 1.06, ttft: 241, tpot: 18, tpm: '392K', rpm: '9.7K', concurrent: 520, cacheHit: 51, trend: [28, 31, 30, 39, 35, 42, 48, 44, 52, 57, 54, 61] },
+  { key: 'm4', name: 'Kimi-K2-Instruct', service: 'kimi-router-canary', cluster: 'wuhan-kunpeng-npu', engine: 'MindIE', status: 'running', totalToken: '1.22B', inputToken: '760M', outputToken: '460M', calls: '438万', successRate: 99.51, failRate: 0.49, ttft: 352, tpot: 29, tpm: '278K', rpm: '7.2K', concurrent: 430, cacheHit: 63, trend: [18, 21, 25, 29, 28, 33, 37, 39, 44, 48, 47, 52] },
+];
+
+const serviceEvents = [
+  { name: 'rbg-deepseek-prod', stage: '模型加载完成', status: 'success', time: '14:32:08' },
+  { name: 'qwen3-coding-slo', stage: 'Decode 扩容 2 -> 4', status: 'processing', time: '14:29:41' },
+  { name: 'glm-air-batch', stage: 'Hicache 命中率回升', status: 'success', time: '14:21:12' },
+  { name: 'kimi-router-canary', stage: '灰度路由校验中', status: 'processing', time: '14:08:55' },
+];
+
+const operationLogs = [
+  { user: 'admin', action: '创建 PD 分离服务', object: 'deepseek-prod', status: '成功', time: '14:35' },
+  { user: 'ops-lilei', action: '上传镜像', object: 'sglang:v0.4.8-h20', status: '成功', time: '14:18' },
+  { user: 'zhaomin', action: '调整 SLO', object: 'qwen3-coding', status: '执行中', time: '13:57' },
+  { user: 'admin', action: '节点标签变更', object: 'gpu-worker-021', status: '成功', time: '13:42' },
+  { user: 'system', action: '异常节点隔离', object: 'worker-a100-017', status: '告警', time: '13:20' },
+];
+
+const alerts = [
+  { level: 'critical', title: 'GPU 显存不足', detail: 'beijing-prod / worker-a100-012', time: '2026-05-29 14:32' },
+  { level: 'warning', title: 'TTFT 超时阈值', detail: 'qwen3-coding-slo / 平均 512ms', time: '2026-05-29 14:28' },
+  { level: 'critical', title: '节点离线', detail: 'guangzhou-test / gz-l20-worker-005', time: '2026-05-29 14:15' },
+  { level: 'warning', title: '模型加载失败', detail: 'DeepSeek-R1 / 镜像拉取超时', time: '2026-05-29 13:58' },
+  { level: 'info', title: '集群扩容完成', detail: 'shanghai-online / +4 H20 节点', time: '2026-05-29 13:40' },
+];
+
+type AlertRecord = {
+  key: string;
+  target: string;
+  time: string;
+  objectType: string;
+  cluster: string;
+  description: string;
+  suggestion: string;
+  count: number;
+  status: string;
+  level: string;
+};
+
+const alertList: AlertRecord[] = [
+  { key: 'a1', target: 'worker-a100-012', time: '2026-05-29 14:32', objectType: '节点', cluster: 'beijing-a100-prod', description: 'GPU 显存使用率 97%，剩余 2.4 GB', suggestion: '建议迁移部分模型至其他节点或扩容', count: 12, status: '未处理', level: 'critical' },
+  { key: 'a2', target: 'qwen3-coding-slo', time: '2026-05-29 14:28', objectType: '模型服务', cluster: 'shanghai-h20-online', description: 'TTFT 平均 512ms，超过阈值 300ms', suggestion: '检查 Decode 节点负载，考虑扩容', count: 8, status: '处理中', level: 'warning' },
+  { key: 'a3', target: 'gz-l20-worker-005', time: '2026-05-29 14:15', objectType: '节点', cluster: 'guangzhou-l20-test', description: '节点心跳中断，已离线 5 分钟', suggestion: '检查网络连通性及 kubelet 状态', count: 3, status: '未处理', level: 'critical' },
+  { key: 'a4', target: 'DeepSeek-R1', time: '2026-05-29 13:58', objectType: '模型服务', cluster: 'beijing-a100-prod', description: '模型加载失败，镜像拉取超时', suggestion: '检查镜像仓库连通性，重试拉取', count: 2, status: '已恢复', level: 'warning' },
+  { key: 'a5', target: 'shanghai-online', time: '2026-05-29 13:40', objectType: '集群', cluster: 'shanghai-h20-online', description: '集群扩容完成，新增 4 个 H20 节点', suggestion: '-', count: 1, status: '已恢复', level: 'info' },
+  { key: 'a6', target: 'nj-910b-001', time: '2026-05-29 12:10', objectType: '节点', cluster: 'shanghai-h20-online', description: '磁盘使用率 88%，剩余 512 GB', suggestion: '建议清理过期日志和镜像缓存', count: 6, status: '未处理', level: 'warning' },
+  { key: 'a7', target: 'glm-air-batch', time: '2026-05-29 11:25', objectType: '模型服务', cluster: 'guangzhou-l20-test', description: 'TPOT 延迟飙升至 45ms，正常范围 <20ms', suggestion: '检查 GPU 是否被其他任务抢占', count: 4, status: '处理中', level: 'warning' },
+  { key: 'a8', target: 'deepseek-prod', time: '2026-05-28 23:15', objectType: '模型服务', cluster: 'beijing-a100-prod', description: '并发请求数超过限制 1240/1000', suggestion: '检查是否遭受异常流量，考虑扩容', count: 15, status: '已恢复', level: 'critical' },
+  { key: 'a9', target: 'worker-a100-008', time: '2026-05-28 21:30', objectType: '节点', cluster: 'beijing-a100-prod', description: 'GPU 温度 89°C 超过告警阈值 85°C', suggestion: '检查散热系统，降低负载或关机冷却', count: 7, status: '已恢复', level: 'critical' },
+];
+
+const images: ImageRecord[] = [
+  { key: 'i1', name: 'vLLM 推理服务镜像', tag: 'registry.qujing.io/vllm/vllm-openai:v0.9.1-a100', size: '18.6 GB', vendor: 'NVIDIA', gpuType: 'A100', engine: 'vLLM', runtime: 'CUDA 12.4 / Driver 550+', hardware: 'NVIDIA A100/H20', models: 'Qwen2.5-72B, DeepSeek-R1', importMethod: '在线拉取', importStatus: '已可用', status: '可用', createdAt: '2026-05-15 09:30', updatedAt: '2026-05-18 13:20', section: '引擎镜像', sectionDesc: 'vLLM 0.9.1 / A100 优化' },
+  { key: 'i2', name: 'SGLang 网关缓存镜像', tag: 'registry.qujing.io/sglang/sglang-router:h20-pd-cache', size: '21.3 GB', vendor: 'NVIDIA', gpuType: 'H20', engine: 'SGLang', runtime: 'CUDA 12.4 / Driver 550+', hardware: 'NVIDIA H20/910B', models: 'Qwen2.5-72B, GLM-4-Air', importMethod: '在线拉取', importStatus: '已可用', status: '可用', createdAt: '2026-05-14 14:15', updatedAt: '2026-05-18 11:42', section: '引擎镜像', sectionDesc: 'SGLang 0.4.8 / PD 缓存' },
+  { key: 'i3', name: 'KLLM 标准推理镜像', tag: 'registry.qujing.io/kllm/kllm-standard:v4.3.0-h20', size: '22.1 GB', vendor: 'NVIDIA', gpuType: 'H20', engine: 'KLLM', runtime: 'CUDA 12.4 / Driver 550+', hardware: 'NVIDIA H20/RTX 6000', models: 'Qwen2.5-72B, DeepSeek-R1-Distill', importMethod: '在线拉取', importStatus: '已可用', status: '可用', createdAt: '2026-05-09 08:00', updatedAt: '2026-05-15 16:30', section: '引擎镜像', sectionDesc: 'KLLM 4.3 / 标准版' },
+  { key: 'i4', name: 'Triton 推理服务镜像', tag: 'nvcr.io/nvidia/tritonserver:24.08-py3', size: '12.4 GB', vendor: 'NVIDIA', gpuType: '通用', engine: 'Triton', runtime: 'CUDA 12.4 / Driver 550+', hardware: 'NVIDIA A100/H20/L20', models: 'Qwen2.5-72B, InternVL2', importMethod: '在线拉取', importStatus: '已可用', status: '可用', createdAt: '2026-05-12 10:00', updatedAt: '2026-05-16 08:30', section: '引擎镜像', sectionDesc: 'Triton 24.08 / 多 GPU' },
+  { key: 'i5', name: 'MindIE 昇腾推理镜像', tag: 'ascendhub.huawei.com/mindie/mindie:2.0.RC1-910b', size: '15.2 GB', vendor: 'Ascend', gpuType: 'Ascend 910B', engine: 'MindIE', runtime: 'CANN 8.0 / Driver 24.1+', hardware: '昇腾 910B', models: 'GLM-4-Air, Qwen2.5-7B', importMethod: '在线拉取', importStatus: '已可用', status: '可用', createdAt: '2026-05-10 16:20', updatedAt: '2026-05-10 17:45', section: '引擎镜像', sectionDesc: 'MindIE 2.0 / 昇腾适配' },
+  { key: 'i8', name: 'Base LLM 运行时镜像', tag: 'registry.qujing.io/base/llm-runtime:py311-cu124', size: '4.2 GB', vendor: '平台自研', gpuType: '通用', engine: '-', runtime: 'CUDA 12.4 / Driver 550+', hardware: '通用', models: '-', importMethod: '镜像包上传', importStatus: '已可用', status: '可用', createdAt: '2026-05-07 11:00', updatedAt: '2026-05-13 09:45', section: '基础镜像', sectionDesc: 'Python 3.11 / CUDA 12.4' },
+  { key: 'i9', name: 'Custom Agent 基础镜像', tag: 'registry.qujing.io/custom/agent-base:py311-fastapi', size: '3.6 GB', vendor: '平台自研', gpuType: '通用', engine: '-', runtime: 'CPU / Python 3.11', hardware: '通用', models: '-', importMethod: '镜像包上传', importStatus: '已可用', status: '可用', createdAt: '2026-05-06 15:30', updatedAt: '2026-05-12 08:20', section: '基础镜像', sectionDesc: 'FastAPI / 无 GPU' },
+  { key: 'i12', name: 'Custom ROCm 客户镜像', tag: 'registry.qujing.io/customer/custom-runtime:rocm62-dcu', size: '25.4 GB', vendor: '客户上传', gpuType: 'DCU', engine: '-', runtime: 'ROCm 6.2 / Driver 6.x+', hardware: '海光 DCU BW1000/1100', models: '客户私有模型', importMethod: '镜像包上传', importStatus: '已可用', status: '可用', createdAt: '2026-05-04 16:40', updatedAt: '2026-05-09 11:20', section: '基础镜像', sectionDesc: 'ROCm 6.2 / 海光 DCU' },
+];
+
+const deployEngineImages: DeployEngineImage[] = [
+  { key: 'e1', clusterKey: 'c1', name: 'vllm-openai:v0.9.1-a100', engine: 'vLLM', version: '0.9.1', accelerator: 'A100 / H20', status: 'ready' },
+  { key: 'e2', clusterKey: 'c1', name: 'sglang:v0.4.8-a100', engine: 'SGLang', version: '0.4.8', accelerator: 'A100', status: 'ready' },
+  { key: 'e3', clusterKey: 'c2', name: 'sglang-router:h20-pd-cache', engine: 'SGLang', version: '0.4.8', accelerator: 'H20 / 910B', status: 'ready' },
+  { key: 'e4', clusterKey: 'c2', name: 'vllm-openai:v0.8.5-h20', engine: 'vLLM', version: '0.8.5', accelerator: 'H20', status: 'ready' },
+  { key: 'e5', clusterKey: 'c3', name: 'vllm-openai:v0.8.4-l20', engine: 'vLLM', version: '0.8.4', accelerator: 'L20 / A100', status: 'ready' },
+  { key: 'e6', clusterKey: 'c4', name: 'mindie:2.0.RC1-910b', engine: 'MindIE', version: '2.0.RC1', accelerator: 'Ascend 910B', status: 'ready' },
+  { key: 'e7', clusterKey: 'c4', name: 'sglang-ascend:0.4.8-910b', engine: 'SGLang', version: '0.4.8', accelerator: 'Ascend 910B', status: 'ready' },
+];
+
+const deployModels: DeployModelOption[] = [
+  { key: 'dm1', name: 'Qwen2.5-72B-Instruct', size: '72B', format: 'BF16', scene: '通用推理' },
+  { key: 'dm2', name: 'DeepSeek-R1-Distill-Qwen-32B', size: '32B', format: 'BF16', scene: '推理增强' },
+  { key: 'dm3', name: 'Qwen2.5-7B-Instruct', size: '7B', format: 'BF16', scene: '低延迟问答' },
+  { key: 'dm4', name: 'GLM-4.5-Air', size: '106B-A12B', format: 'BF16', scene: '长文本' },
+  { key: 'dm5', name: 'bge-m3', size: '568M', format: 'FP16', scene: '向量检索' },
+];
+
+const deployNodes: DeployNodeOption[] = [
+  { key: 'dn1', clusterKey: 'c1', name: 'qujing4', ip: '192.168.110.4', gpuType: 'RTX 4090', totalCards: 8, availableCards: 8, status: 'ready' },
+  { key: 'dn2', clusterKey: 'c1', name: 'qujing7', ip: '192.168.110.21', gpuType: 'RTX 4090', totalCards: 8, availableCards: 8, status: 'ready' },
+  { key: 'dn3', clusterKey: 'c1', name: 'qujing21', ip: '192.168.109.6', gpuType: 'RTX 4090', totalCards: 8, availableCards: 8, status: 'ready' },
+  { key: 'dn4', clusterKey: 'c1', name: 'qujing1', ip: '192.168.200.10', gpuType: 'RTX 4090', totalCards: 8, availableCards: 8, status: 'ready' },
+  { key: 'dn5', clusterKey: 'c1', name: 'qujing24', ip: '192.168.109.23', gpuType: 'RTX 4090', totalCards: 8, availableCards: 8, status: 'ready' },
+  { key: 'dn6', clusterKey: 'c1', name: 'qujing20', ip: '192.168.110.20', gpuType: 'RTX 4090', totalCards: 8, availableCards: 8, status: 'ready' },
+  { key: 'dn7', clusterKey: 'c2', name: 'nj-h20-001', ip: '192.168.120.1', gpuType: 'H20', totalCards: 8, availableCards: 4, status: 'ready' },
+  { key: 'dn8', clusterKey: 'c2', name: 'nj-h20-002', ip: '192.168.120.2', gpuType: 'H20', totalCards: 8, availableCards: 6, status: 'ready' },
+  { key: 'dn9', clusterKey: 'c2', name: 'nj-910b-001', ip: '192.168.120.10', gpuType: 'Ascend 910B', totalCards: 8, availableCards: 2, status: 'busy' },
+  { key: 'dn10', clusterKey: 'c3', name: 'gz-l20-001', ip: '192.168.130.5', gpuType: 'L20', totalCards: 4, availableCards: 4, status: 'ready' },
+  { key: 'dn11', clusterKey: 'c3', name: 'gz-a100-001', ip: '192.168.130.6', gpuType: 'A100', totalCards: 8, availableCards: 6, status: 'ready' },
+];
+
+const miniTrend = [18, 22, 19, 31, 27, 36, 33, 42, 48, 44, 53, 61];
+
+const useChart = (option: echarts.EChartsOption) => {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!ref.current) return undefined;
+    const chart = echarts.init(ref.current);
+    chart.setOption(option);
+    const onResize = () => chart.resize();
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      chart.dispose();
+    };
+  }, [option]);
+  return ref;
+};
+
+const createLineOption = (name: string, color: string, values = miniTrend): echarts.EChartsOption => ({
+  grid: { left: 0, right: 0, top: 8, bottom: 0 },
+  xAxis: { type: 'category', show: false, data: values.map((_, i) => i + '') },
+  yAxis: { type: 'value', show: false, min: 0 },
+  series: [{ name, type: 'line', smooth: true, showSymbol: false, lineStyle: { width: 2, color }, areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: color + '55' }, { offset: 1, color: color + '05' }] } }, data: values }],
+  tooltip: { trigger: 'axis' },
+});
+
+const MetricCard = ({ title, value, desc, tone, icon }: { title: string; value: string; desc: string; tone: string; icon: React.ReactNode }) => (
+  <div className="ataas-metric-card">
+    <div className={`ataas-metric-icon ataas-metric-icon-${tone}`}>{icon}</div>
+    <div className="ataas-metric-title">{title}</div>
+    <div className="ataas-metric-value">{value}</div>
+    <div className="ataas-metric-desc">{desc}</div>
+  </div>
+);
+
+const alertPopoverContent = (
+  <div style={{ width: 360, maxHeight: 260, overflowY: 'auto' }}>
+    {alerts.map((alert, i) => (
+      <div key={i} style={{ padding: '8px 0', borderBottom: i < alerts.length - 1 ? '1px solid #f0f0f0' : 'none', display: 'flex', gap: 8 }}>
+        <span style={{ color: '#f53f3f', fontWeight: 600, whiteSpace: 'nowrap', fontSize: 12, marginTop: 2 }}>[严重]</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 12, color: '#333', lineHeight: 1.5, wordBreak: 'break-all' }}>{alert.title} — {alert.detail}</div>
+          <div style={{ fontSize: 11, color: '#999', marginTop: 4 }}>{alert.time}</div>
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+const OverviewSummary = () => (
+  <div className="ataas-overview-summary-card">
+      <div className="ataas-overview-summary-item">
+        <div>
+          <span className="ataas-overview-label">集群数量</span>
+          <div className="ataas-overview-value">4<em>个</em></div>
+        </div>
+        <div className="ataas-overview-split">
+          <span><i className="ataas-dot-green" />授权 3</span>
+          <span><i className="ataas-dot-orange" />未授权 1</span>
+        </div>
+      </div>
+      <div className="ataas-overview-summary-item">
+        <div>
+          <span className="ataas-overview-label">节点数量</span>
+          <div className="ataas-overview-value">119<em>台</em></div>
+        </div>
+        <div className="ataas-overview-split">
+          <span><i className="ataas-dot-green" />正常 116</span>
+          <span><i className="ataas-dot-red" />异常 3</span>
+        </div>
+      </div>
+      <div className="ataas-overview-summary-item">
+        <div>
+          <span className="ataas-overview-label">GPU 总数</span>
+          <div className="ataas-overview-value">512<em>片</em></div>
+        </div>
+        <div className="ataas-overview-split">
+          <span><i className="ataas-dot-green" />剩余 286</span>
+        </div>
+      </div>
+      <div className="ataas-overview-summary-item">
+        <div>
+          <span className="ataas-overview-label">24 小时 Token</span>
+          <div className="ataas-overview-value">10.98<em>B</em></div>
+        </div>
+        <div className="ataas-overview-split">
+          <span><i className="ataas-dot-blue" />输入 6.42B</span>
+          <span><i className="ataas-dot-green" />输出 4.56B</span>
+        </div>
+      </div>
+      <div className="ataas-overview-summary-item">
+        <div>
+          <span className="ataas-overview-label">模型</span>
+          <div className="ataas-overview-value">58<em>个</em></div>
+        </div>
+        <div className="ataas-overview-split">
+          <span><i className="ataas-dot-green" />正常 52</span>
+          <span><i className="ataas-dot-red" />异常 6</span>
+        </div>
+      </div>
+      <Popover content={alertPopoverContent} title="最近严重告警" trigger="hover" placement="bottom">
+        <div className="ataas-overview-summary-item" style={{ cursor: 'pointer' }} onClick={() => { document.getElementById('ataas-alerts-section')?.scrollIntoView({ behavior: 'smooth' }); }}>
+          <div>
+            <span className="ataas-overview-label">严重告警</span>
+            <div className="ataas-overview-value" style={{ color: '#f53f3f' }}>{alerts.length}<em>条</em></div>
+          </div>
+          <div className="ataas-overview-split">
+            <span><i className="ataas-dot-red" />最近 {alerts.length} 条</span>
+          </div>
+        </div>
+      </Popover>
+    </div>
+);
+
+const getClusterFamily = (gpu: string) => {
+  if (/910B|Ascend/i.test(gpu)) return 'Ascend 910B';
+  if (/H20/i.test(gpu)) return 'H20';
+  if (/L20/i.test(gpu)) return 'L20';
+  return 'RTX 4090';
+};
+
+const getClusterHostName = (item: ClusterRecord) => {
+  if (item.key === 'c1') return 'qujing4';
+  if (item.key === 'c2') return 'sh-h20-worker-021';
+  if (item.key === 'c3') return 'gz-l20-worker-009';
+  return 'wh-910b-worker-002';
+};
+
+const gpuTypeCards: ResourceCardRecord[] = [
+  { key: 'g1', name: 'A100 80G', subtitle: 'NVIDIA A100 PCIe 80GB', family: 'Ampere', nodes: 28, models: 15, status: 'healthy', gpuUsage: 72, diskUsage: 44.6, cpuUsage: 8.6, memoryUsage: 7.7, chips: ['A100'], metaName: 'a100-server' },
+  { key: 'g2', name: 'H20 141G', subtitle: 'NVIDIA H20 141GB', family: 'Hopper', nodes: 52, models: 24, status: 'healthy', gpuUsage: 66, diskUsage: 52.8, cpuUsage: 21.7, memoryUsage: 34.2, chips: ['H20'], metaName: 'h20-server' },
+  { key: 'g3', name: 'L20 48G', subtitle: 'NVIDIA L20 48GB', family: 'Ada Lovelace', nodes: 19, models: 9, status: 'warning', gpuUsage: 41, diskUsage: 31.4, cpuUsage: 13.9, memoryUsage: 22.5, chips: ['L20'], metaName: 'l20-server' },
+  { key: 'g4', name: 'Ascend 910B', subtitle: '华为昇腾 910B 64GB', family: 'Ascend', nodes: 16, models: 7, status: 'healthy', gpuUsage: 58, diskUsage: 47.2, cpuUsage: 18.4, memoryUsage: 28.1, chips: ['910B'], metaName: '910b-server' },
+];
+
+const toClusterResourceCard = (item: ClusterRecord): ResourceCardRecord => {
+  const chips = item.gpuTypes.map((gpu) => gpu.name);
+  const diskUsage = item.key === 'c1' ? 44.6 : item.key === 'c2' ? 52.8 : item.key === 'c3' ? 31.4 : 47.2;
+  const cpuUsage = item.key === 'c1' ? 8.6 : item.key === 'c2' ? 21.7 : item.key === 'c3' ? 13.9 : 18.4;
+  const memoryUsage = item.key === 'c1' ? 7.7 : item.key === 'c2' ? 34.2 : item.key === 'c3' ? 22.5 : 28.1;
+  return {
+    key: item.key, name: item.name, subtitle: item.region, family: getClusterFamily(item.gpu),
+    nodes: item.nodes, models: item.models, status: item.status, gpuUsage: item.gpuUsage,
+    diskUsage, cpuUsage, memoryUsage, chips, metaName: getClusterHostName(item),
+  };
+};
+
+const gpuIconMap: Record<string, React.ReactNode> = {
+  'RTX 4090': <ThunderboltOutlined />,
+  H20: <NodeIndexOutlined />,
+  L20: <CodeSandboxOutlined />,
+  'Ascend 910B': <DeploymentUnitOutlined />,
+  '910B': <DeploymentUnitOutlined />,
+  A100: <RocketOutlined />,
+};
+
+const GpuIcon = ({ name }: { name: string }) => {
+  const icon = gpuIconMap[name];
+  return icon ? <>{icon} </> : null;
+};
+
+const ClusterCard = ({ item }: { item: ResourceCardRecord }) => (
+  <div className="ataas-cluster-card">
+    <div className="ataas-machine-head">
+      <div>
+        <div className="ataas-cluster-name"><DeploymentUnitOutlined style={{ marginRight: 6 }} />{item.name}</div>
+        <div className="ataas-cluster-region">{item.subtitle}</div>
+      </div>
+    </div>
+    <div className="ataas-machine-visual">
+      <div className="ataas-server-placeholder">
+        <EyeOutlined style={{ fontSize: 32, color: '#b8c8e0' }} />
+        <span>服务器图片</span>
+      </div>
+    </div>
+    <div className="ataas-machine-metrics">
+      <div><span>GPU 使用率</span><strong>{item.gpuUsage}<em>%</em></strong></div>
+      <div><span>CPU 使用率</span><strong>{item.cpuUsage}<em>%</em></strong></div>
+      <div><span>内存使用率</span><strong>{item.memoryUsage}<em>%</em></strong></div>
+      <div><span>磁盘使用率</span><strong>{item.diskUsage}<em>%</em></strong></div>
+    </div>
+    <div className="ataas-cluster-meta">
+      <span>{item.nodes} 节点</span>
+      <span>{item.models} 模型</span>
+      {item.chips.map((c) => <span key={c}><GpuIcon name={c} />{c}</span>)}
+    </div>
+  </div>
+);
+
+const MiniMetricChart = ({ values, color, height, showAxis }: { values: number[]; color: string; height?: number; showAxis?: boolean }) => {
+  const max = Math.max(...values, 1);
+  const len = values.length;
+  const points = values.map((value, index) => `${(index / Math.max(len - 1, 1)) * 100},${28 - (value / max) * 26}`).join(' ');
+  const timeLabels = showAxis ? ['08:00', '10:00', '12:00', '14:00', '16:00'] : [];
+  return (
+    <div className="ataas-mini-chart" style={height ? { height } : undefined}>
+      <div className="ataas-mini-chart-grid" />
+      <svg viewBox="0 0 100 30" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id={`grad-${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity={0.25} />
+            <stop offset="100%" stopColor={color} stopOpacity={0.02} />
+          </linearGradient>
+        </defs>
+        <polyline fill={`url(#grad-${color.replace('#', '')})`} points={`0,28 ${points} 100,28`} />
+        <polyline fill="none" stroke={color} strokeWidth="0.5" points={points} />
+      </svg>
+      {showAxis && <div className="ataas-mini-axis">{timeLabels.map((t, i) => <span key={i}>{t}</span>)}</div>}
+    </div>
+  );
+};
+
+const TopModelCard = ({ item, index, activeMetric }: { item: typeof overviewModelCards[0]; index: number; activeMetric: 'tpm' | 'rpm' }) => {
+  return (
+    <div className="ataas-model-top-card">
+      <div className="ataas-model-top-head">
+        <span className="ataas-model-bird">TOP {index + 1}</span>
+        <div className="ataas-model-top-name"><CodeSandboxOutlined style={{ fontSize: 14, marginRight: 6, color: '#3370ff' }} /><strong>{item.name}</strong></div>
+        <span style={{ color: '#3370ff' }}>{item.token}</span>
+      </div>
+      <div className="ataas-model-top-stats">
+        <div style={{ color: activeMetric === 'rpm' ? '#3370ff' : undefined, fontWeight: activeMetric === 'rpm' ? 600 : undefined }}><span>RPM</span><strong>{item.rpm}</strong></div>
+        <div style={{ color: activeMetric === 'tpm' ? '#3370ff' : undefined, fontWeight: activeMetric === 'tpm' ? 600 : undefined }}><span>TPM</span><strong>{item.tpm}</strong></div>
+        <div><span>成功率</span><strong>{item.success}</strong></div>
+      </div>
+      <div className="ataas-model-chart-block">
+        <span>TTFT(s)</span>
+        <MiniMetricChart values={item.ttft} color="#3370ff" height={60} showAxis />
+      </div>
+      <div className="ataas-model-chart-block">
+        <span>TPOT(s)</span>
+        <MiniMetricChart values={item.tpot} color="#3370ff" height={60} showAxis />
+      </div>
+    </div>
+  );
+};
+
+const EmptyEntry = ({ title, description }: { title: string; description: string }) => (
+  <div className="ataas-empty-entry">
+    <InfoCircleOutlined style={{ fontSize: 36, color: '#c9d4e0', marginBottom: 16 }} />
+    <h3>{title}</h3>
+    <p>{description}</p>
+  </div>
+);
+
+const LogBoardCard = ({ icon, label, detail, time, status }: { icon: React.ReactNode; label: string; detail: string; time: string; status: 'success' | 'warning' }) => (
+  <div className="ataas-log-card">
+    <span className={status === 'success' ? 'ataas-log-ok' : 'ataas-log-warning'}>{icon}</span>
+    <div><strong>{label}</strong><span>{detail}</span></div>
+    <em>{time}</em>
+  </div>
+);
+
+const AtAasDesign = () => {
+  const [activeTab, setActiveTab] = useState('overview');
+  const [clusterViewMode, setClusterViewMode] = useState<'cluster' | 'gpu'>('cluster');
+  const [callRankMode, setCallRankMode] = useState<'tpm' | 'rpm'>('tpm');
+  const [clusterPanel, setClusterPanel] = useState<'clusters' | 'nodes'>('clusters');
+  const [selectedClusterKey, setSelectedClusterKey] = useState('all');
+  const [clusterCreateOpen, setClusterCreateOpen] = useState(false);
+  const [clusterCreateName, setClusterCreateName] = useState('');
+  const [clusterCreateUrl, setClusterCreateUrl] = useState('');
+  const [clusterCreateAccessKey, setClusterCreateAccessKey] = useState('');
+  const [clusterEditNameOpen, setClusterEditNameOpen] = useState(false);
+  const [clusterEditNameTarget, setClusterEditNameTarget] = useState<ClusterRecord | null>(null);
+  const [clusterEditNameValue, setClusterEditNameValue] = useState('');
+  const [clusterTokenOpen, setClusterTokenOpen] = useState(false);
+  const [clusterTokenTarget, setClusterTokenTarget] = useState<ClusterRecord | null>(null);
+  const [clusterTokenText, setClusterTokenText] = useState('');
+  const [clusterDeleteConfirm, setClusterDeleteConfirm] = useState<ClusterRecord | null>(null);
+  const [clusterList, setClusterList] = useState<ClusterRecord[]>(clusters);
+  const [clusterSearchText, setClusterSearchText] = useState('');
+  const [clusterNodeSearch, setClusterNodeSearch] = useState('');
+  const filteredClusterList = useMemo(() => {
+    if (!clusterSearchText) return clusterList;
+    const q = clusterSearchText.toLowerCase();
+    return clusterList.filter((c) => c.name.toLowerCase().includes(q) || c.region.toLowerCase().includes(q) || c.gpu.toLowerCase().includes(q));
+  }, [clusterList, clusterSearchText]);
+  const [logSearchText, setLogSearchText] = useState('');
+  const [logSearchField, setLogSearchField] = useState('all');
+  const [logDateRange, setLogDateRange] = useState<[string, string] | null>(null);
+  const [logDetailRecord, setLogDetailRecord] = useState<typeof logData[0] | null>(null);
+  const [alertTabMode, setAlertTabMode] = useState<'history' | 'realtime'>('realtime');
+  const [alertDateRange, setAlertDateRange] = useState<[string, string] | null>(null);
+  const logData: Array<{ user: string; action: string; object: string; objectType: string; cluster: string; status: string; time: string; detail: string }> = [
+    { user: 'admin', action: '创建服务', object: 'deepseek-prod', objectType: '模型服务', cluster: 'beijing-a100-prod', status: '成功', time: '2026-05-29 14:35', detail: '部署模式: PD 分离, 引擎: SGLang, GPU: H20 x 4, 实例: 2' },
+    { user: 'ops-lilei', action: '上传镜像', object: 'sglang:v0.4.8-h20', objectType: '引擎镜像', cluster: '-', status: '成功', time: '2026-05-29 14:18', detail: '镜像大小: 21.3 GB, 标签: h20-pd-cache, 来源: 在线拉取' },
+    { user: 'zhaomin', action: '调整参数', object: 'qwen3-coding-slo', objectType: '模型服务', cluster: 'shanghai-h20-online', status: '执行中', time: '2026-05-29 13:57', detail: 'TTFT 阈值: 500ms → 300ms, TPOT 阈值: 50ms → 30ms' },
+    { user: 'admin', action: '修改标签', object: 'gpu-worker-021', objectType: '节点', cluster: 'shanghai-h20-online', status: '成功', time: '2026-05-29 13:42', detail: '标签变更: GPU=H20 → GPU=H20_PD, 节点: sh-h20-worker-021' },
+    { user: 'system', action: '节点隔离', object: 'worker-a100-017', objectType: '节点', cluster: 'beijing-a100-prod', status: '告警', time: '2026-05-29 13:20', detail: '原因: GPU 温度过高(89°C), 自动隔离, 影响服务: deepseek-prod' },
+    { user: 'admin', action: '部署模型', object: 'glm-air-batch', objectType: '模型服务', cluster: 'guangzhou-l20-test', status: '成功', time: '2026-05-29 12:58', detail: '模型: GLM-4.5-Air, 引擎: vLLM, 集群: guangzhou-l20-test, 实例: 2' },
+    { user: 'ops-wang', action: '集群扩容', object: 'guangzhou-test', objectType: '集群', cluster: 'guangzhou-l20-test', status: '成功', time: '2026-05-29 12:15', detail: '新增节点: 4 台, GPU: L20 x 16, 扩容后总量: 19 台 / 72 卡' },
+    { user: 'zhaomin', action: '更新配置', object: 'vLLM 0.9.1', objectType: '引擎镜像', cluster: '-', status: '成功', time: '2026-05-29 11:42', detail: '配置参数: max_model_len=8192, gpu_memory_utilization=0.9' },
+    { user: 'admin', action: '删除镜像', object: 'triton:23.12-py3', objectType: '引擎镜像', cluster: '-', status: '成功', time: '2026-05-29 11:08', detail: '镜像标签: triton:23.12-py3, 大小: 12.4 GB, 已清理存储' },
+    { user: 'system', action: '节点恢复', object: 'gz-l20-worker-005', objectType: '节点', cluster: 'guangzhou-l20-test', status: '成功', time: '2026-05-29 10:35', detail: '节点离线后自动恢复, 当前状态: 正常, 运行服务: 3 个' },
+    { user: 'ops-lilei', action: '创建命名空间', object: 'ns-aimon-002', objectType: '命名空间', cluster: '-', status: '成功', time: '2026-05-29 09:54', detail: '命名空间: ns-aimon-002, 配额: CPU 32核, 内存 128GB, GPU 8卡' },
+    { user: 'admin', action: '绑定配额', object: 'aimon-team', objectType: '配额', cluster: '-', status: '成功', time: '2026-05-29 09:12', detail: '团队: aimon-team, GPU 配额: 32 卡, 有效期: 永久' },
+  ];
+  const filteredLogs = useMemo(() => {
+    let list = logData;
+    if (logDateRange) {
+      list = list.filter((item) => item.time >= logDateRange[0] && item.time <= logDateRange[1]);
+    }
+    if (logSearchText) {
+      const keyword = logSearchText.toLowerCase();
+      list = list.filter((item) => {
+        if (logSearchField === 'all') return item.user.toLowerCase().includes(keyword) || item.action.toLowerCase().includes(keyword) || item.object.toLowerCase().includes(keyword) || item.status.includes(keyword);
+        if (logSearchField === 'user') return item.user.toLowerCase().includes(keyword);
+        if (logSearchField === 'action') return item.action.toLowerCase().includes(keyword);
+        if (logSearchField === 'object') return item.object.toLowerCase().includes(keyword);
+        if (logSearchField === 'status') return item.status.includes(keyword);
+        return true;
+      });
+    }
+    return list;
+  }, [logSearchText, logSearchField, logDateRange]);
+  const filteredAlerts = useMemo(() => {
+    let list = alertList;
+    if (alertTabMode === 'history') {
+      list = list.filter((item) => item.status === '已恢复');
+    } else {
+      list = list.filter((item) => item.status !== '已恢复');
+    }
+    if (alertDateRange) {
+      list = list.filter((item) => item.time >= alertDateRange[0] && item.time <= alertDateRange[1]);
+    }
+    return list;
+  }, [alertTabMode, alertDateRange]);
+  const [selectedModelKey, setSelectedModelKey] = useState('m1');
+  const [deployEntry, setDeployEntry] = useState<'smart' | 'normal'>('normal');
+  const [deployMode, setDeployMode] = useState<string>('single');
+  const [selectedDeployNodes, setSelectedDeployNodes] = useState<string[]>([]);
+  const [deployMachineCount, setDeployMachineCount] = useState(4);
+  const [imageDrawerOpen, setImageDrawerOpen] = useState(false);
+  const [imageDrawerRecord, setImageDrawerRecord] = useState<ImageRecord | null>(null);
+  const [imageUploadOpen, setImageUploadOpen] = useState(false);
+  const [deployDrawerOpen, setDeployDrawerOpen] = useState(false);
+  const [deployServices, setDeployServices] = useState<DeployServiceItem[]>(MOCK_DEPLOY_DATA);
+  const handleDeployDetail = (item: DeployServiceItem) => {
+    message.info('查看详情: ' + item.name);
+  };
+  const handleDeployStop = (item: DeployServiceItem) => {
+    Modal.confirm({
+      title: '确认停止',
+      content: '确定要停止服务 ' + item.name + ' 吗？',
+      onOk: () => {
+        setDeployServices((prev) => prev.map((s) => s.id === item.id ? { ...s, status: 'ready' as const, timeStr: '未部署' } : s));
+        message.success('已停止');
+      },
+    });
+  };
+  const handleDeployExperience = (item: DeployServiceItem) => {
+    message.info('体验功能: ' + item.name);
+  };
+  const handleDeployLog = (item: DeployServiceItem, logId: number) => {
+    message.info('查看日志: ' + item.name + ' - ' + (item.modelInfo.logs.find((l) => l.id === logId)?.name || ''));
+  };
+  const handleRestartToggle = (item: DeployServiceItem) => {
+    setDeployServices((prev) => prev.map((s) => s.id === item.id ? { ...s, modelInfo: { ...s.modelInfo, restartStatus: !s.modelInfo.restartStatus } } : s));
+  };
+  const handleConcurrencyToggle = (item: DeployServiceItem) => {
+    setDeployServices((prev) => prev.map((s) => s.id === item.id ? { ...s, modelInfo: { ...s.modelInfo, concurrencyControllStatus: !s.modelInfo.concurrencyControllStatus } } : s));
+  };
+  const [scalePdOpen, setScalePdOpen] = useState(false);
+  const [scalePdTarget, setScalePdTarget] = useState<DeployServiceItem | null>(null);
+  const [scalePdGroups, setScalePdGroups] = useState<PdGroupConfig[]>([]);
+  const [scalePdGroupCount, setScalePdGroupCount] = useState(1);
+  const [scaleActivePdGroupKey, setScaleActivePdGroupKey] = useState('pd-1');
+  const [scalePNodeMap, setScalePNodeMap] = useState<Record<string, string[]>>({});
+  const [scaleDNodeMap, setScaleDNodeMap] = useState<Record<string, string[]>>({});
+  const [scaleCardCount, setScaleCardCount] = useState(8);
+  const [scaleNodePickerOpen, setScaleNodePickerOpen] = useState(false);
+  const [scaleNodePickerMode, setScaleNodePickerMode] = useState<'p' | 'd'>('p');
+  const [scaleNodePickerGroupKey, setScaleNodePickerGroupKey] = useState('pd-1');
+  const [scaleNodePickerSelected, setScaleNodePickerSelected] = useState<string[]>([]);
+  const handleScalePd = (item: DeployServiceItem) => {
+    setScalePdTarget(item);
+    const groups = defaultPdGroup;
+    setScalePdGroups(groups);
+    setScalePdGroupCount(1);
+    setScaleActivePdGroupKey('pd-1');
+    const readyNodes = deployNodes.filter((n) => n.status === 'ready');
+    const pInitMap: Record<string, string[]> = {};
+    const dInitMap: Record<string, string[]> = {};
+    groups.forEach((g) => {
+      const pNeeded = g.pCount * g.pNodes;
+      const dNeeded = g.dCount * g.dNodes;
+      const total = pNeeded + dNeeded;
+      const picked = readyNodes.slice(0, total);
+      pInitMap[g.key] = picked.slice(0, pNeeded).map((n) => n.key);
+      dInitMap[g.key] = picked.slice(pNeeded, total).map((n) => n.key);
+    });
+    setScalePNodeMap(pInitMap);
+    setScaleDNodeMap(dInitMap);
+    setScaleCardCount(8);
+    setScalePdOpen(true);
+  };
+  // 同步 scalePdGroupCount → scalePdGroups + auto-assign nodes
+  useEffect(() => {
+    const prevLength = scalePdGroups.length;
+    if (scalePdGroupCount > prevLength) {
+      const toAdd = scalePdGroupCount - prevLength;
+      const added = Array.from({ length: toAdd }, (_, i) => ({
+        key: 'pd-' + (prevLength + i + 1),
+        pCount: 1, dCount: 1, pNodes: 1, dNodes: 1, routerTarget: 'p' as const,
+        pParams: [{ key: 'max_model_len', value: '8192' }, { key: 'gpu_memory_utilization', value: '0.9' }],
+        dParams: [{ key: 'max_model_len', value: '8192' }, { key: 'gpu_memory_utilization', value: '0.9' }],
+      }));
+      setScalePdGroups((prev) => [...prev, ...added]);
+      const readyList = deployNodes.filter((n) => n.status === 'ready');
+      setScalePNodeMap((prevMap) => {
+        const next = { ...prevMap };
+        const usedKeys = new Set(Object.values(next).flat());
+        added.forEach((g) => {
+          const pNeeded = g.pCount * g.pNodes;
+          const picked: string[] = [];
+          for (const n of readyList) {
+            if (picked.length >= pNeeded) break;
+            if (!usedKeys.has(n.key)) { picked.push(n.key); usedKeys.add(n.key); }
+          }
+          next[g.key] = picked;
+        });
+        return next;
+      });
+      setScaleDNodeMap((prevMap) => {
+        const next = { ...prevMap };
+        const usedKeys = new Set(Object.values(next).flat());
+        added.forEach((g) => {
+          const dNeeded = g.dCount * g.dNodes;
+          const picked: string[] = [];
+          for (const n of readyList) {
+            if (picked.length >= dNeeded) break;
+            if (!usedKeys.has(n.key)) { picked.push(n.key); usedKeys.add(n.key); }
+          }
+          next[g.key] = picked;
+        });
+        return next;
+      });
+    } else if (scalePdGroupCount < prevLength) {
+      const removedKeys = scalePdGroups.slice(scalePdGroupCount).map((g) => g.key);
+      setScalePdGroups((prev) => prev.slice(0, scalePdGroupCount));
+      setScalePNodeMap((prevMap) => {
+        const next = { ...prevMap };
+        removedKeys.forEach((k) => delete next[k]);
+        return next;
+      });
+      setScaleDNodeMap((prevMap) => {
+        const next = { ...prevMap };
+        removedKeys.forEach((k) => delete next[k]);
+        return next;
+      });
+    }
+  }, [scalePdGroupCount]);
+  // 同步 scalePdGroups → active tab
+  useEffect(() => {
+    if (!scalePdGroups.find((g) => g.key === scaleActivePdGroupKey)) {
+      setScaleActivePdGroupKey(scalePdGroups[0]?.key || 'pd-1');
+    }
+  }, [scalePdGroups]);
+  const handleOpenCreate = () => {
+    resetDeployForm();
+    setDeployDrawerOpen(true);
+  };
+  const [clusterNodeModal, setClusterNodeModal] = useState(false);
+  const [clusterNodeModalTitle, setClusterNodeModalTitle] = useState('');
+  const [singleNodeModal, setSingleNodeModal] = useState(false);
+  const [singleNodeSearch, setSingleNodeSearch] = useState('');
+  const [singleNodeGpuFilter, setSingleNodeGpuFilter] = useState<string>('all');
+  const [selectedSingleNode, setSelectedSingleNode] = useState<string | null>(null);
+  const [deployParams, setDeployParams] = useState<Array<{ key: string; value: string }>>([
+    { key: 'max_model_len', value: '8192' },
+    { key: 'gpu_memory_utilization', value: '0.9' },
+    { key: 'tensor_parallel_size', value: '8' },
+    { key: 'pipeline_parallel_size', value: '1' },
+  ]);
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+  const [singleCardCount, setSingleCardCount] = useState<number>(0);
+  const [deployServiceName, setDeployServiceName] = useState('');
+  const [deployDescription, setDeployDescription] = useState('');
+  const [deployCluster, setDeployCluster] = useState<string | undefined>(undefined);
+  const [deployEngine, setDeployEngine] = useState<string | undefined>(undefined);
+  const [deployModel, setDeployModel] = useState<string | undefined>(undefined);
+  const [pdGroups, setPdGroups] = useState<PdGroupConfig[]>(() => [
+    { key: 'pd-1', pCount: 1, dCount: 1, pNodes: 1, dNodes: 1, routerTarget: 'p', pParams: [{ key: 'max_model_len', value: '8192' }, { key: 'gpu_memory_utilization', value: '0.9' }], dParams: [{ key: 'max_model_len', value: '8192' }, { key: 'gpu_memory_utilization', value: '0.9' }] },
+  ]);
+  const [pdGroupCount, setPdGroupCount] = useState(1);
+  const [activePdGroupKey, setActivePdGroupKey] = useState('pd-1');
+  const [gatewayPort, setGatewayPort] = useState(8443);
+  const [groupWeights, setGroupWeights] = useState<number[]>([100]);
+
+  const defaultPdGroup: PdGroupConfig[] = [
+    { key: 'pd-1', pCount: 1, dCount: 1, pNodes: 1, dNodes: 1, routerTarget: 'p', pParams: [{ key: 'max_model_len', value: '8192' }, { key: 'gpu_memory_utilization', value: '0.9' }], dParams: [{ key: 'max_model_len', value: '8192' }, { key: 'gpu_memory_utilization', value: '0.9' }] },
+  ];
+  const resetDeployForm = () => {
+    setDeployServiceName('');
+    setDeployDescription('');
+    setDeployCluster(undefined);
+    setDeployEngine(undefined);
+    setDeployModel(undefined);
+    setDeployMode('single');
+    setSelectedSingleNode(null);
+    setSingleCardCount(0);
+    setSelectedDeployNodes([]);
+    setDeployMachineCount(4);
+    setDeployParams([
+      { key: 'max_model_len', value: '8192' },
+      { key: 'gpu_memory_utilization', value: '0.9' },
+      { key: 'tensor_parallel_size', value: '8' },
+      { key: 'pipeline_parallel_size', value: '1' },
+    ]);
+    setExpandedSections({});
+    setPdGroups(defaultPdGroup);
+    setPdGroupCount(1);
+    setActivePdGroupKey('pd-1');
+    setGatewayPort(8443);
+    setGroupWeights([100]);
+    setDeployDrawerOpen(false);
+  };
+
+  const readyNodeCount = useMemo(() => {
+    if (!deployCluster) return 0;
+    return deployNodes.filter((n) => n.clusterKey === deployCluster && n.status === 'ready').length;
+  }, [deployCluster]);
+
+  const maxPdGroups = useMemo(() => {
+    if (!deployCluster || readyNodeCount === 0) return 10;
+    const g = pdGroups[0];
+    if (!g) return 1;
+    const nodesPerGroup = g.pCount * g.pNodes + g.dCount * g.dNodes;
+    return Math.max(1, Math.floor(readyNodeCount / nodesPerGroup));
+  }, [deployCluster, readyNodeCount, pdGroups]);
+
+  // 进入部署步骤时自动选择默认值
+  useEffect(() => {
+    const ready = deployNodes.find((n) => n.status === 'ready');
+    if (Boolean(deployCluster && deployEngine && deployModel) && deployMode === 'pd-separation') {
+      if (pdGroups.length === 0) {
+        setPdGroups([
+          { key: 'pd-1', pCount: 1, dCount: 1, pNodes: 1, dNodes: 1, routerTarget: 'p', pParams: [{ key: 'max_model_len', value: '8192' }, { key: 'gpu_memory_utilization', value: '0.9' }], dParams: [{ key: 'max_model_len', value: '8192' }, { key: 'gpu_memory_utilization', value: '0.9' }] },
+        ]);
+        setPdGroupCount(1);
+      }
+      if (ready && !selectedSingleNode) {
+        setSelectedSingleNode(ready.key);
+      }
+    }
+    if (Boolean(deployCluster && deployEngine && deployModel) && deployMode === 'single' && !selectedSingleNode) {
+        if (ready) {
+          setSelectedSingleNode(ready.key);
+          setSingleCardCount(1);
+        }
+      }
+  }, [deployCluster, deployEngine, deployModel, deployMode]);
+
+  // 分布式部署自动选择默认节点和卡数
+  useEffect(() => {
+    if (Boolean(deployCluster && deployEngine && deployModel) && deployMode === 'distributed' && selectedDeployNodes.length === 0) {
+      const readyList = deployNodes.filter((n) => n.status === 'ready');
+      if (readyList.length > 0) {
+        const count = Math.min(deployMachineCount, readyList.length);
+        const selected = readyList.slice(0, count).map((n) => n.key);
+        setSelectedDeployNodes(selected);
+        const minCards = Math.min(...selected.map((k) => deployNodes.find((d) => d.key === k)?.availableCards ?? 0));
+        if (minCards >= 8) setSingleCardCount(8);
+        else if (minCards >= 4) setSingleCardCount(4);
+        else if (minCards >= 2) setSingleCardCount(2);
+        else if (minCards > 0) setSingleCardCount(minCards);
+      }
+    }
+  }, [deployCluster, deployEngine, deployModel, deployMode]);
+
+  // 机器数量变化→增加/删除节点，同时更新卡数
+  useEffect(() => {
+    if (Boolean(deployCluster && deployEngine && deployModel) && deployMode === 'distributed' && deployMachineCount > 0) {
+      setSelectedDeployNodes((prev) => {
+        const readyList = deployNodes.filter((n) => n.status === 'ready');
+        if (deployMachineCount > prev.length) {
+          const existingKeys = new Set(prev);
+          const available = readyList.filter((n) => !existingKeys.has(n.key));
+          const toAdd = available.slice(0, deployMachineCount - prev.length);
+          return [...prev, ...toAdd.map((n) => n.key)];
+        } else if (deployMachineCount < prev.length) {
+          return prev.slice(0, deployMachineCount);
+        }
+        return prev;
+      });
+    }
+  }, [deployCluster, deployEngine, deployModel, deployMachineCount, deployMode]);
+
+  // 节点变化时默认选8卡（不足则取最小可用卡数）
+  useEffect(() => {
+    if (deployMode === 'distributed' && selectedDeployNodes.length > 0) {
+      const minCards = Math.min(...selectedDeployNodes.map((k) => deployNodes.find((d) => d.key === k)?.availableCards ?? 0));
+      if (minCards >= 8) setSingleCardCount(8);
+      else if (minCards >= 4) setSingleCardCount(4);
+      else if (minCards >= 2) setSingleCardCount(2);
+      else if (minCards >= 1) setSingleCardCount(minCards);
+    } else if (deployMode === 'distributed' && selectedDeployNodes.length === 0) {
+      setSingleCardCount(0);
+    }
+  }, [selectedDeployNodes.length, deployMode]);
+
+  // 节点增删→机器数量同步
+  useEffect(() => {
+    if (deployMode === 'distributed' && selectedDeployNodes.length > 0) {
+      setDeployMachineCount(selectedDeployNodes.length);
+    }
+  }, [selectedDeployNodes.length, deployMode]);
+
+  // TP/PP 自动同步
+  useEffect(() => {
+    setDeployParams((prev) => prev.map((p) => {
+      if (p.key === 'tensor_parallel_size') return { ...p, value: String(singleCardCount || 1) };
+      if (p.key === 'pipeline_parallel_size') return { ...p, value: String(deployMachineCount) };
+      return p;
+    }));
+  }, [singleCardCount, deployMachineCount]);
+
+  // PD 组数变化时同步 pdGroups
+  useEffect(() => {
+    setPdGroups((prev) => {
+      if (pdGroupCount > prev.length) {
+        const added = Array.from({ length: pdGroupCount - prev.length }, (_, i) => ({
+          key: `pd-${prev.length + i + 1}`,
+          pCount: 1, dCount: 1, pNodes: 1, dNodes: 1, routerTarget: 'p',
+          pParams: [{ key: 'max_model_len', value: '8192' }, { key: 'gpu_memory_utilization', value: '0.9' }],
+          dParams: [{ key: 'max_model_len', value: '8192' }, { key: 'gpu_memory_utilization', value: '0.9' }],
+        }));
+        return [...prev, ...added];
+      }
+      if (pdGroupCount < prev.length) return prev.slice(0, pdGroupCount);
+      return prev;
+    });
+  }, [pdGroupCount]);
+
+  // PD 组删除时重置激活的 tab
+  useEffect(() => {
+    if (!pdGroups.find((g) => g.key === activePdGroupKey)) {
+      setActivePdGroupKey(pdGroups[0]?.key || 'pd-1');
+    }
+  }, [pdGroups]);
+
+  // 组数变化时自动均衡流量权重
+  useEffect(() => {
+    setGroupWeights((prev) => {
+      if (prev.length === pdGroups.length) return prev;
+      const equal = Math.floor(100 / pdGroups.length);
+      const remainder = 100 - equal * (pdGroups.length - 1);
+      return Array.from({ length: pdGroups.length }, (_, i) =>
+        i === 0 ? remainder : equal,
+      );
+    });
+  }, [pdGroups.length]);
+
+  const toggleDeployNode = (key: string) => {
+    setSelectedDeployNodes((prev) => prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]);
+  };
+
+  const nodeColumns: ColumnsType<NodeRecord> = [
+    { title: '节点名称', dataIndex: 'name', key: 'name', render: (v, r) => <><Button type="link" className="ataas-table-link" onClick={() => { setClusterNodeModalTitle(r.name); setClusterNodeModal(true); }}>{v}</Button></> },
+    { title: '节点标签', dataIndex: 'label', key: 'label' },
+    { title: '集群名称', dataIndex: 'clusterName', key: 'clusterName' },
+    { title: '节点状态', dataIndex: 'status', key: 'status', render: (v: string) => <Tag className={v === 'normal' ? 'ataas-status-normal' : 'ataas-status-error'}>{v === 'normal' ? '正常' : '异常'}</Tag> },
+    { title: '授权状态', dataIndex: 'authStatus', key: 'authStatus', render: (v: string) => <Tag className="ataas-auth-tag">{v === 'authorized' ? '已认证' : '未认证'}</Tag> },
+    { title: '模型数量', dataIndex: 'modelCount', key: 'modelCount' },
+    { title: '节点 IP', dataIndex: 'ip', key: 'ip' },
+    { title: 'CPU', dataIndex: 'cpu', key: 'cpu' },
+    { title: 'GPU', dataIndex: 'gpu', key: 'gpu' },
+    { title: 'GPU 显存', dataIndex: 'gpuMemory', key: 'gpuMemory' },
+    { title: '内存', dataIndex: 'memory', key: 'memory' },
+  ];
+
+  const logColumns: ColumnsType<typeof logData[0]> = [
+    { title: '状态', dataIndex: 'status', key: 'status', width: 72, render: (v: string) => <Tag color={v === '成功' ? 'green' : v === '执行中' ? 'processing' : 'red'}>{v}</Tag> },
+    { title: '行为', dataIndex: 'action', key: 'action', width: 100 },
+    { title: '对象', dataIndex: 'object', key: 'object', width: 140 },
+    { title: '对象类型', dataIndex: 'objectType', key: 'objectType', width: 90 },
+    { title: '集群', dataIndex: 'cluster', key: 'cluster', width: 140 },
+    { title: '操作时间', dataIndex: 'time', key: 'time', width: 160 },
+    { title: '操作人', dataIndex: 'user', key: 'user', width: 80 },
+    { title: '操作', key: 'action', width: 80, render: (_, r) => <Button type="link" size="small" onClick={() => setLogDetailRecord(r)}>查看详情</Button> },
+  ];
+
+  const imageColumns: ColumnsType<ImageRecord> = [
+    { title: '镜像名称', dataIndex: 'name', key: 'name', render: (v, r) => <><Button type="link" className="ataas-table-link" onClick={() => { setImageDrawerRecord(r); setImageDrawerOpen(true); }}>{v}</Button><span className="ataas-table-sub">{r.tag}</span></> },
+    { title: '大小', dataIndex: 'size', key: 'size' },
+    { title: '引擎', dataIndex: 'engine', key: 'engine' },
+    { title: 'GPU 类型', dataIndex: 'gpuType', key: 'gpuType' },
+    { title: '状态', dataIndex: 'status', key: 'status', render: (v: string) => <Tag color={v === '可用' ? 'green' : 'orange'}>{v}</Tag> },
+    { title: '导入方式', dataIndex: 'importMethod', key: 'importMethod' },
+    { title: '更新时间', dataIndex: 'updatedAt', key: 'updatedAt' },
+  ];
+
+  const filteredNodes = useMemo(() => {
+    let list = nodes;
+    if (selectedClusterKey !== 'all') list = list.filter((n) => n.clusterKey === selectedClusterKey);
+    if (clusterNodeSearch) {
+      const q = clusterNodeSearch.toLowerCase();
+      list = list.filter((n) => n.name.toLowerCase().includes(q) || n.ip.includes(q));
+    }
+    return list;
+  }, [selectedClusterKey, clusterNodeSearch]);
+
+  const SIDEBAR_ITEMS = [
+    { key: 'overview', icon: <BarChartOutlined />, label: '概览' },
+    { key: 'clusters', icon: <DeploymentUnitOutlined />, label: '集群管理' },
+    { key: 'deploy', icon: <RocketOutlined />, label: '模型部署' },
+    { key: 'images', icon: <CodeSandboxOutlined />, label: '镜像仓库' },
+    { key: 'monitoring', icon: <BarChartOutlined />, label: '模型监控' },
+    { key: 'logs', icon: <FileSearchOutlined />, label: '操作日志' },
+    { key: 'alerts', icon: <WarningOutlined />, label: '告警' },
+  ];
+
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'overview': return (
+		<div className="ataas-section-stack">
+              <OverviewSummary />
+
+              <div className="ataas-panel">
+                <div className="ataas-panel-head">
+                  <div>
+                    <h2>集群概览</h2>
+                    <span>多集群 GPU 资源总览</span>
+                  </div>
+                  <Segmented value={clusterViewMode} onChange={(v) => setClusterViewMode(v as 'cluster' | 'gpu')} options={[{ value: 'cluster', label: '集群分类' }, { value: 'gpu', label: '显卡分类' }]} />
+                </div>
+                <div className="ataas-cluster-scroll">
+                  {clusterViewMode === 'cluster'
+                    ? clusterList.map((cl) => <ClusterCard key={cl.key} item={toClusterResourceCard(cl)} />)
+                    : gpuTypeCards.map((gpu) => <ClusterCard key={gpu.key} item={gpu} />)}
+                </div>
+              </div>
+
+              <div className="ataas-two-col">
+                <div className="ataas-panel">
+                  <div className="ataas-panel-head">
+                    <div>
+                      <h2>模型数据</h2>
+                      <span>按调用量与 Token 量排行 TOP 3</span>
+                    </div>
+                  </div>
+                  <div className="ataas-model-top-panel">
+                    {overviewModelCards.map((item, i) => (
+                      <TopModelCard key={i} item={item} index={i} activeMetric={callRankMode} />
+                    ))}
+                  </div>
+                </div>
+                <div className="ataas-panel">
+                  <div className="ataas-panel-head">
+                    <div>
+                      <h2>模型热门榜单</h2>
+                      <span>按 {callRankMode === 'tpm' ? 'TPM' : 'RPM'} 排行 TOP 10</span>
+                    </div>
+                    <Segmented value={callRankMode} onChange={(v) => setCallRankMode(v as 'tpm' | 'rpm')} options={[{ value: 'tpm', label: 'TPM' }, { value: 'rpm', label: 'RPM' }]} />
+                  </div>
+                  <div className="ataas-model-call-list">
+                    {[...overviewCallRank].sort((a, b) => {
+                      const parseNum = (s: string) => { const n = parseFloat(s); return s.includes('K') ? n * 1000 : n; };
+                      const aVal = parseNum(callRankMode === 'tpm' ? a.tpm : a.rpm);
+                      const bVal = parseNum(callRankMode === 'tpm' ? b.tpm : b.rpm);
+                      return bVal - aVal;
+                    }).slice(0, 6).map((item, i) => {
+                      const parseNum = (s: string) => { const n = parseFloat(s); return s.includes('K') ? n * 1000 : n; };
+                      const vals = overviewCallRank.map((r) => parseNum(callRankMode === 'tpm' ? r.tpm : r.rpm));
+                      const max = Math.max(...vals);
+                      const val = parseNum(callRankMode === 'tpm' ? item.tpm : item.rpm);
+                      const pct = max > 0 ? (val / max) * 100 : 0;
+                      return (
+                        <div key={i}>
+                          <div className="ataas-model-call-main">
+                            <span className="ataas-model-bird">{String(i + 1).padStart(2, '0')}</span>
+                            <strong>{item.name}</strong>
+                            <em>{callRankMode === 'tpm' ? item.tpm : item.rpm}</em>
+                          </div>
+                          <div className="ataas-model-call-track"><i style={{ width: `${pct}%` }} /></div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              <div className="ataas-two-col">
+                <div className="ataas-panel" id="ataas-alerts-section">
+                  <div className="ataas-panel-head">
+                    <div>
+                      <h2>告警列表</h2>
+                      <span>实时告警概览</span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    {alertList.filter((a) => a.status !== '已恢复').slice(0, 5).map((alert, i) => (
+                      <div key={alert.key} style={{ display: 'flex', gap: 10, padding: '10px 0', borderBottom: i < 4 ? '1px solid #f0f2f5' : 'none', alignItems: 'flex-start' }}>
+                        <div style={{ width: 3, height: 32, borderRadius: 2, flexShrink: 0, marginTop: 4, background: alert.level === 'critical' ? '#f53f3f' : alert.level === 'warning' ? '#ff7d00' : '#86909c' }} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 500, color: '#1d2129', lineHeight: '20px' }}>{alert.target}</div>
+                          <div style={{ fontSize: 12, color: '#86909c', lineHeight: '18px', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{alert.description}</div>
+                        </div>
+                        <div style={{ fontSize: 11, color: '#c9cdd4', whiteSpace: 'nowrap', marginTop: 2 }}>{alert.time}</div>
+                      </div>
+                    ))}
+                    {alertList.filter((a) => a.status !== '已恢复').length === 0 && <div style={{ padding: '24px 0', textAlign: 'center', color: '#c9cdd4', fontSize: 13 }}>暂无告警</div>}
+                  </div>
+                </div>
+                <div className="ataas-panel">
+                  <div className="ataas-panel-head">
+                    <div>
+                      <h2>操作日志</h2>
+                      <span>最近 5 条平台操作记录</span>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    {logData.slice(0, 5).map((log, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 0', borderBottom: i < 4 ? '1px solid #f0f2f5' : 'none' }}>
+                        <span style={{ flexShrink: 0, fontSize: 14, lineHeight: 1, color: log.status === '成功' ? '#00b42a' : log.status === '执行中' ? '#ff7d00' : '#f53f3f' }}>
+                          {log.status === '成功' ? <CheckCircleOutlined /> : log.status === '执行中' ? <LoadingOutlined /> : <ExclamationCircleOutlined />}
+                        </span>
+                        <span style={{ fontSize: 12, color: '#1d2129', fontWeight: 500, flexShrink: 0 }}>{log.user}</span>
+                        <span style={{ fontSize: 12, color: '#4e5969', flexShrink: 0 }}>{log.action}</span>
+                        <span style={{ fontSize: 12, color: '#86909c', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: 1 }}>{log.object}</span>
+                        <span style={{ fontSize: 11, color: '#c9cdd4', flexShrink: 0 }}>{log.time}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+      case 'clusters': return (
+		<div className="ataas-section-stack">
+              <div className="ataas-panel">
+                <div className="ataas-panel-head">
+                  <h2>集群管理</h2>
+                  <Segmented value={clusterPanel} onChange={(v) => setClusterPanel(v as 'clusters' | 'nodes')} options={[{ value: 'clusters', label: '集群列表' }, { value: 'nodes', label: '节点管理' }]} />
+                </div>
+                {clusterPanel === 'clusters' ? (
+                  <div>
+                    <div style={{ display: 'flex', gap: 32, padding: '16px 0 8px', borderBottom: '1px solid #e8ecf4', marginBottom: 16 }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                        <span style={{ fontSize: 13, color: '#86909c' }}>集群数量</span>
+                        <span style={{ fontSize: 24, fontWeight: 700, color: '#1d2129' }}>{clusters.length}</span>
+                        <span style={{ fontSize: 12, color: '#86909c' }}>个</span>
+                      </div>
+                      <div style={{ width: 1, height: 32, background: '#e8ecf4', alignSelf: 'center' }} />
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                        <span style={{ fontSize: 13, color: '#86909c' }}>授权集群</span>
+                        <span style={{ fontSize: 24, fontWeight: 700, color: '#00b42a' }}>{clusters.filter(c => { const [a, b] = c.authInfo.split('/'); return parseInt(a) / parseInt(b) >= 0.8; }).length}</span>
+                        <span style={{ fontSize: 12, color: '#86909c' }}>个</span>
+                      </div>
+                      <div style={{ width: 1, height: 32, background: '#e8ecf4', alignSelf: 'center' }} />
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                        <span style={{ fontSize: 13, color: '#86909c' }}>异常集群</span>
+                        <span style={{ fontSize: 24, fontWeight: 700, color: '#f53f3f' }}>{clusters.filter(c => c.status !== 'healthy').length}</span>
+                        <span style={{ fontSize: 12, color: '#86909c' }}>个</span>
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Button icon={<PlusOutlined />} type="primary" onClick={() => setClusterCreateOpen(true)}>纳管新集群</Button>
+                      <Input.Search placeholder="搜索集群名称、区域、GPU..." className="ataas-filter" style={{ width: 280 }} value={clusterSearchText} onChange={(e) => setClusterSearchText(e.target.value)} allowClear />
+                    </div>
+                    <Table dataSource={filteredClusterList} rowKey="key" pagination={{ pageSize: 8, showSizeChanger: true, showTotal: (t) => `共 ${t} 个集群` }} expandable={{
+                      expandedRowRender: (r) => (
+                        <Tabs size="small" style={{ padding: '8px 0' }} items={[
+                          {
+                            key: 'machines',
+                            label: '显卡机器详情',
+                            children: (
+                              <div style={{ display: 'flex', gap: 16 }}>
+                                {r.gpuTypes.map((gpu, i) => (
+                                  <div key={i} style={{ flex: 1, padding: '10px 14px', border: '1px solid #edf0f7', borderRadius: 8, background: '#fafbff' }}>
+                                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}><GpuIcon name={gpu.name} />{gpu.name}</div>
+                                    <div style={{ fontSize: 12, color: '#4e5969', lineHeight: '22px' }}>
+                                      节点 {gpu.nodes} 台 · 显卡 {gpu.cards} 片 · 使用率 {gpu.usage}%
+                                    </div>
+                                    <Progress percent={gpu.usage} size="small" style={{ marginTop: 4 }} />
+                                  </div>
+                                ))}
+                              </div>
+                            ),
+                          },
+                          {
+                            key: 'models',
+                            label: '模型',
+                            children: (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 0' }}>
+                                {modelMonitors.slice(0, Math.min(5, r.models)).map((m) => (
+                                  <div key={m.key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', border: '1px solid #edf0f7', borderRadius: 8, background: '#fafbff' }}>
+                                    <CodeSandboxOutlined style={{ fontSize: 16, color: '#3370ff' }} />
+                                    <div style={{ flex: 1 }}>
+                                      <div style={{ fontSize: 13, fontWeight: 600, color: '#1d2129' }}>{m.name}</div>
+                                      <div style={{ fontSize: 11, color: '#86909c' }}>{m.service}</div>
+                                    </div>
+                                    <Tag color={m.status === 'running' ? 'green' : 'orange'}>{m.status === 'running' ? '运行中' : '警告'}</Tag>
+                                    <div style={{ fontSize: 11, color: '#4e5969', textAlign: 'right' }}>
+                                      <div>TPM {m.tpm}</div>
+                                      <div>RPM {m.rpm}</div>
+                                    </div>
+                                  </div>
+                                ))}
+                                {r.models > 5 && (
+                                  <Button type="link" style={{ fontSize: 12 }} onClick={() => { setActiveTab('monitoring'); }}>
+                                    查看全部 {r.models} 个模型 <ArrowRightOutlined />
+                                  </Button>
+                                )}
+                              </div>
+                            ),
+                          },
+                        ]} />
+                      ),
+                      rowExpandable: () => true,
+                    }} columns={[
+                      { title: '集群名称', dataIndex: 'name', key: 'name', render: (v, r) => <><strong>{v}</strong><span className="ataas-table-sub">{r.region}</span></> },
+                      { title: '节点数', dataIndex: 'nodes', key: 'nodes', render: (v: number, r) => <Button type="link" style={{ padding: 0 }} onClick={() => { setSelectedClusterKey(r.key); setClusterPanel('nodes'); }}>{v} 台</Button> },
+                      { title: 'GPU 配置', dataIndex: 'gpu', key: 'gpu', render: (_, r) => r.gpuTypes.map((g) => <Tag key={g.name} style={{ marginRight: 4 }}><GpuIcon name={g.name} />{g.name}</Tag>) },
+                      { title: 'GPU 使用率', dataIndex: 'gpuUsage', key: 'gpuUsage', render: (v: number) => <Progress percent={v} size="small" strokeColor={v > 85 ? '#f53f3f' : v > 60 ? '#faad14' : '#52c41a'} /> },
+                      { title: 'CPU', dataIndex: 'cpu', key: 'cpu' },
+                      { title: '内存', dataIndex: 'memory', key: 'memory' },
+                      { title: '模型数', dataIndex: 'models', key: 'models' },
+                      { title: '授权', dataIndex: 'authInfo', key: 'authInfo' },
+                      { title: '状态', dataIndex: 'status', key: 'status', render: (v: string) => <Tag color={v === 'healthy' ? 'green' : 'red'}>{v === 'healthy' ? '正常' : '异常'}</Tag> },
+                      {
+                        title: '操作', key: 'action', render: (_, r) => (
+                          <span style={{ display: 'flex', gap: 8 }}>
+                            <Button type="link" size="small" onClick={() => { setClusterEditNameTarget(r); setClusterEditNameValue(r.name); setClusterEditNameOpen(true); }}>编辑</Button>
+                            <Button type="link" size="small" onClick={() => setClusterDeleteConfirm(r)}>删除</Button>
+                          </span>
+                        ),
+                      },
+                    ]} />
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ display: 'flex', gap: 32, padding: '0 0 12px', borderBottom: '1px solid #e8ecf4', marginBottom: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                        <span style={{ fontSize: 13, color: '#86909c' }}>节点数量</span>
+                        <span style={{ fontSize: 24, fontWeight: 700, color: '#1d2129' }}>{nodes.length}</span>
+                        <span style={{ fontSize: 12, color: '#86909c' }}>台</span>
+                      </div>
+                      <div style={{ width: 1, height: 32, background: '#e8ecf4', alignSelf: 'center' }} />
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                        <span style={{ fontSize: 13, color: '#86909c' }}>授权节点</span>
+                        <span style={{ fontSize: 24, fontWeight: 700, color: '#00b42a' }}>{nodes.filter(n => n.authStatus === 'authorized').length}</span>
+                        <span style={{ fontSize: 12, color: '#86909c' }}>台</span>
+                      </div>
+                      <div style={{ width: 1, height: 32, background: '#e8ecf4', alignSelf: 'center' }} />
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                        <span style={{ fontSize: 13, color: '#86909c' }}>异常节点</span>
+                        <span style={{ fontSize: 24, fontWeight: 700, color: '#f53f3f' }}>{nodes.filter(n => n.status !== 'normal').length}</span>
+                        <span style={{ fontSize: 12, color: '#86909c' }}>台</span>
+                      </div>
+                      <div style={{ width: 1, height: 32, background: '#e8ecf4', alignSelf: 'center' }} />
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                        <span style={{ fontSize: 13, color: '#86909c' }}>显卡数量</span>
+                        <span style={{ fontSize: 24, fontWeight: 700, color: '#1d2129' }}>{nodes.reduce((s, n) => s + n.gpu, 0)}</span>
+                        <span style={{ fontSize: 12, color: '#86909c' }}>片</span>
+                      </div>
+                      <div style={{ width: 1, height: 32, background: '#e8ecf4', alignSelf: 'center' }} />
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                        <span style={{ fontSize: 13, color: '#86909c' }}>授权显卡</span>
+                        <span style={{ fontSize: 24, fontWeight: 700, color: '#00b42a' }}>{nodes.filter(n => n.authStatus === 'authorized').reduce((s, n) => s + n.gpu, 0)}</span>
+                        <span style={{ fontSize: 12, color: '#86909c' }}>片</span>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
+                      <Select value={selectedClusterKey} className="ataas-node-cluster-select" onChange={setSelectedClusterKey} options={[{ value: 'all', label: '全部集群' }, ...clusters.map((c) => ({ value: c.key, label: c.name }))]} />
+                      <Input.Search placeholder="搜索节点名或 IP..." className="ataas-node-search" value={clusterNodeSearch} onChange={(e) => setClusterNodeSearch(e.target.value)} />
+                    </div>
+                    <Table dataSource={filteredNodes} rowKey="key" columns={nodeColumns} pagination={{ pageSize: 8, showSizeChanger: true, showTotal: (t) => `共 ${t} 个节点` }} expandable={{
+                      expandedRowRender: (r) => (
+                        <Tabs size="small" style={{ padding: '8px 0' }} items={[
+                          {
+                            key: 'details',
+                            label: '节点详情',
+                            children: (
+                              <div style={{ fontSize: 13, lineHeight: 2.2 }}>
+                                <div style={{ display: 'flex', borderBottom: '1px solid #f0f0f0', padding: '4px 0' }}><span style={{ width: 90, color: '#86909c' }}>CPU</span><span>{r.cpu} 核（已用 {r.cpuUsed} 核）</span></div>
+                                <div style={{ display: 'flex', borderBottom: '1px solid #f0f0f0', padding: '4px 0' }}><span style={{ width: 90, color: '#86909c' }}>内存</span><span>{r.memory}（已用 {r.memoryUsed}）</span></div>
+                                <div style={{ display: 'flex', borderBottom: '1px solid #f0f0f0', padding: '4px 0' }}><span style={{ width: 90, color: '#86909c' }}>GPU</span><span>{r.gpu} 片（显存 {r.gpuMemoryUsed} / {r.gpuMemory}）</span></div>
+                                <div style={{ display: 'flex', borderBottom: '1px solid #f0f0f0', padding: '4px 0' }}><span style={{ width: 90, color: '#86909c' }}>磁盘</span><span>{r.disk}（已用 {r.diskUsed}）</span></div>
+                                <div style={{ display: 'flex', borderBottom: '1px solid #f0f0f0', padding: '4px 0' }}><span style={{ width: 90, color: '#86909c' }}>模型</span><span>{r.modelCount} 个 / {r.runningInstances} 实例</span></div>
+                                <div>
+                                  <div style={{ fontSize: 13, fontWeight: 600, color: '#1d2129', marginBottom: 6, paddingBottom: 6, borderBottom: '1px solid #f2f3f5' }}>显卡列表</div>
+                                  <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                                    <colgroup>
+                                      <col style={{ width: '5%' }} />
+                                      <col style={{ width: '11%' }} />
+                                      <col style={{ width: '8%' }} />
+                                      <col style={{ width: '11%' }} />
+                                      <col style={{ width: '11%' }} />
+                                      <col style={{ width: '8%' }} />
+                                      <col style={{ width: '7%' }} />
+                                      <col style={{ width: '7%' }} />
+                                      <col style={{ width: 'auto' }} />
+                                    </colgroup>
+                                    <thead>
+                                      <tr style={{ color: '#86909c' }}>
+                                        <th style={{ textAlign: 'left', fontWeight: 400, padding: '4px 6px', borderBottom: '1px solid #f2f3f5' }}>卡号</th>
+                                        <th style={{ textAlign: 'left', fontWeight: 400, padding: '4px 6px', borderBottom: '1px solid #f2f3f5' }}>显卡型号</th>
+                                        <th style={{ textAlign: 'left', fontWeight: 400, padding: '4px 6px', borderBottom: '1px solid #f2f3f5' }}>规格</th>
+                                        <th style={{ textAlign: 'right', fontWeight: 400, padding: '4px 6px', borderBottom: '1px solid #f2f3f5' }}>已使用显存</th>
+                                        <th style={{ textAlign: 'right', fontWeight: 400, padding: '4px 6px', borderBottom: '1px solid #f2f3f5' }}>剩余显存</th>
+                                        <th style={{ textAlign: 'right', fontWeight: 400, padding: '4px 6px', borderBottom: '1px solid #f2f3f5' }}>利用率</th>
+                                        <th style={{ textAlign: 'right', fontWeight: 400, padding: '4px 6px', borderBottom: '1px solid #f2f3f5' }}>温度</th>
+                                        <th style={{ textAlign: 'right', fontWeight: 400, padding: '4px 6px', borderBottom: '1px solid #f2f3f5' }}>功耗</th>
+                                        <th style={{ textAlign: 'left', fontWeight: 400, padding: '4px 6px', borderBottom: '1px solid #f2f3f5' }}>部署模型副本</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {r.gpuCards.map((card) => (
+                                        <tr key={card.index}>
+                                          <td style={{ padding: '5px 6px', borderBottom: '1px solid #f8f8f8', color: '#4e5969', fontWeight: 500 }}>{card.index}</td>
+                                          <td style={{ padding: '5px 6px', borderBottom: '1px solid #f8f8f8', color: '#1d2129' }}>{card.model}</td>
+                                          <td style={{ padding: '5px 6px', borderBottom: '1px solid #f8f8f8', color: '#4e5969', fontSize: 11 }}>{card.spec}</td>
+                                          <td style={{ padding: '5px 6px', borderBottom: '1px solid #f8f8f8', textAlign: 'right', color: '#4e5969' }}>{card.memoryUsed}</td>
+                                          <td style={{ padding: '5px 6px', borderBottom: '1px solid #f8f8f8', textAlign: 'right', color: '#4e5969' }}>{card.memoryFree}</td>
+                                          <td style={{ padding: '5px 6px', borderBottom: '1px solid #f8f8f8', textAlign: 'right', color: card.utilization > 90 ? '#f53f3f' : '#4e5969' }}>{card.utilization}%</td>
+                                          <td style={{ padding: '5px 6px', borderBottom: '1px solid #f8f8f8', textAlign: 'right', color: '#4e5969' }}>{card.temperature}°C</td>
+                                          <td style={{ padding: '5px 6px', borderBottom: '1px solid #f8f8f8', textAlign: 'right', color: '#4e5969' }}>{card.power}W</td>
+                                          <td style={{ padding: '5px 6px', borderBottom: '1px solid #f8f8f8', color: '#4e5969', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.replicas.length > 0 ? card.replicas.join('、') : '-'}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            ),
+                          },
+                          {
+                            key: 'models',
+                            label: '模型详情',
+                            children: (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 0' }}>
+                                {modelMonitors.filter((m) => m.cluster === r.clusterName).slice(0, 5).map((m) => (
+                                  <div key={m.key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', border: '1px solid #edf0f7', borderRadius: 8, background: '#fafbff' }}>
+                                    <CodeSandboxOutlined style={{ fontSize: 16, color: '#3370ff' }} />
+                                    <div style={{ flex: 1 }}>
+                                      <div style={{ fontSize: 13, fontWeight: 600, color: '#1d2129' }}>{m.name}</div>
+                                      <div style={{ fontSize: 11, color: '#86909c' }}>{m.service}</div>
+                                    </div>
+                                    <Tag color={m.status === 'running' ? 'green' : 'orange'}>{m.status === 'running' ? '运行中' : '警告'}</Tag>
+                                    <div style={{ fontSize: 11, color: '#4e5969', textAlign: 'right' }}>
+                                      <div>TPM {m.tpm}</div>
+                                      <div>RPM {m.rpm}</div>
+                                    </div>
+                                  </div>
+                                ))}
+                                {(() => { const cnt = modelMonitors.filter((m) => m.cluster === r.clusterName).length; return cnt > 5 ? (
+                                  <Button type="link" style={{ fontSize: 12 }} onClick={() => { setActiveTab('monitoring'); }}>
+                                    查看全部 {cnt} 个模型 <ArrowRightOutlined />
+                                  </Button>
+                                ) : null; })()}
+                              </div>
+                            ),
+                          },
+                        ]} />
+                      ),
+                      rowExpandable: () => true,
+                    }} />
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+      case 'deploy': return (
+            <div className="ataas-section-stack">
+              <DeployList
+                data={deployServices}
+                onDetail={handleDeployDetail}
+                onStop={handleDeployStop}
+                onExperience={handleDeployExperience}
+                onLog={handleDeployLog}
+                onRestartToggle={handleRestartToggle}
+                onConcurrencyToggle={handleConcurrencyToggle}
+                onOpenCreate={handleOpenCreate}
+                onScalePd={handleScalePd}
+              />
+            </div>
+          );
+      case 'images': return (
+            <div className="ataas-section-stack">
+              <div className="ataas-panel">
+                <div className="ataas-panel-head">
+                  <h2>镜像列表</h2>
+                  <Button icon={<PlusOutlined />} type="primary" onClick={() => setImageUploadOpen(true)}>上传镜像</Button>
+                </div>
+                <Table dataSource={images} rowKey="key" columns={imageColumns} pagination={false} />
+              </div>
+            </div>
+          );
+      case 'monitoring': return (
+            <div className="ataas-section-stack" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 400 }}>
+              <div style={{ textAlign: 'center', color: '#86909c' }}>
+                <BarChartOutlined style={{ fontSize: 48, color: '#c9d4e0', marginBottom: 16 }} />
+                <h3 style={{ margin: '0 0 8px', color: '#4e5969' }}>模型监控</h3>
+                <p style={{ margin: 0, fontSize: 13 }}>该模块将跳转至 Grafana 监控面板，详情请联系开发同学接入。</p>
+              </div>
+            </div>
+          );
+      case 'logs': return (
+            <div className="ataas-section-stack">
+              <div className="ataas-panel">
+                <div className="ataas-panel-head">
+                  <h2>操作日志</h2>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 0 12px', borderBottom: '1px solid #e8ecf4', marginBottom: 12 }}>
+                  <Select size="small" variant="borderless" style={{ width: 96 }} defaultValue="all" onChange={(v) => {
+                    if (v === 'all') { setLogDateRange(null); return; }
+                    const now = new Date();
+                    const start = new Date(now.getTime() - parseInt(v) * 60 * 1000);
+                    setLogDateRange([start.toISOString().slice(0, 16).replace('T', ' '), now.toISOString().slice(0, 16).replace('T', ' ')]);
+                  }} options={[
+                    { value: 'all', label: '全部时间' },
+                    { value: '60', label: '近1小时' },
+                    { value: '360', label: '近6小时' },
+                    { value: '1440', label: '近24小时' },
+                    { value: '10080', label: '近7天' },
+                  ]} />
+                  <span style={{ color: '#c9d0d9' }}>|</span>
+                  <DatePicker.RangePicker
+                    size="small"
+                    variant="borderless"
+                    style={{ width: 218 }}
+                    placeholder={['开始日期', '结束日期']}
+                    onChange={(dates) => {
+                      if (dates && dates[0] && dates[1]) {
+                        setLogDateRange([dates[0].format('YYYY-MM-DD'), dates[1].format('YYYY-MM-DD 23:59')]);
+                      } else {
+                        setLogDateRange(null);
+                      }
+                    }}
+                  />
+                  <div style={{ flex: 1 }} />
+                  <Select value={logSearchField} onChange={setLogSearchField} size="small" variant="borderless" style={{ width: 80 }} options={[
+                    { value: 'all', label: '全部' },
+                    { value: 'user', label: '操作人' },
+                    { value: 'action', label: '操作' },
+                    { value: 'object', label: '对象' },
+                    { value: 'status', label: '状态' },
+                  ]} />
+                  <Input.Search placeholder="搜索日志..." value={logSearchText} onChange={(e) => setLogSearchText(e.target.value)} allowClear size="small" style={{ width: 180 }} />
+                </div>
+                <Table dataSource={filteredLogs} rowKey={(_, i) => String(i)} columns={logColumns} pagination={{ pageSize: 10 }} />
+              </div>
+            </div>
+          );
+      case 'alerts': {
+            const alertColumns: ColumnsType<AlertRecord> = [
+              { title: '告警对象', dataIndex: 'target', key: 'target', width: 140 },
+              { title: '发生时间', dataIndex: 'time', key: 'time', width: 160 },
+              { title: '对象类型', dataIndex: 'objectType', key: 'objectType', width: 90 },
+              { title: '所属集群', dataIndex: 'cluster', key: 'cluster', width: 150 },
+              { title: '问题描述', dataIndex: 'description', key: 'description', width: 220 },
+              { title: '处置建议', dataIndex: 'suggestion', key: 'suggestion', width: 200 },
+              { title: '发生次数', dataIndex: 'count', key: 'count', width: 80, align: 'center' as const },
+              { title: '状态', dataIndex: 'status', key: 'status', width: 80, render: (v: string) => {
+                const colorMap: Record<string, string> = { '未处理': 'red', '处理中': 'orange', '已恢复': 'green' };
+                return <Tag color={colorMap[v] || 'default'}>{v}</Tag>;
+              }},
+              { title: '操作', key: 'action', width: 110, render: (_, r) => (
+                r.status !== '已恢复' ? (
+                  <>
+                    <Button type="link" size="small" style={{ padding: 0, marginRight: 8 }} onClick={() => message.success('已恢复: ' + r.target)}>恢复</Button>
+                    <Button type="link" size="small" style={{ padding: 0, color: '#999' }} onClick={() => message.info('已忽略: ' + r.target)}>忽略</Button>
+                  </>
+                ) : (
+                  <span style={{ color: '#c9d0d9', fontSize: 12 }}>--</span>
+                )
+              )},
+            ];
+            return (
+              <div className="ataas-section-stack">
+                <div className="ataas-panel">
+                  <div className="ataas-panel-head">
+                    <h2>告警</h2>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 0 12px', borderBottom: '1px solid #e8ecf4', marginBottom: 12 }}>
+                    <Select size="small" variant="borderless" style={{ width: 100 }} defaultValue="1440" onChange={(v) => {
+                      if (v === 'all') { setAlertDateRange(null); return; }
+                      const now = new Date();
+                      const start = new Date(now.getTime() - parseInt(v) * 60 * 1000);
+                      setAlertDateRange([start.toISOString().slice(0, 16).replace('T', ' '), now.toISOString().slice(0, 16).replace('T', ' ')]);
+                    }} options={[
+                      { value: 'all', label: '全部时间' },
+                      { value: '60', label: '近1小时' },
+                      { value: '360', label: '近6小时' },
+                      { value: '1440', label: '近24小时' },
+                      { value: '10080', label: '近7天' },
+                    ]} />
+                    <span style={{ color: '#c9d0d9' }}>|</span>
+                    <DatePicker.RangePicker
+                      size="small"
+                      variant="borderless"
+                      style={{ width: 218 }}
+                      placeholder={['开始日期', '结束日期']}
+                      onChange={(dates) => {
+                        if (dates && dates[0] && dates[1]) {
+                          setAlertDateRange([dates[0].format('YYYY-MM-DD'), dates[1].format('YYYY-MM-DD 23:59')]);
+                        } else {
+                          setAlertDateRange(null);
+                        }
+                      }}
+                    />
+                    <div style={{ flex: 1 }} />
+                    <Segmented
+                      value={alertTabMode}
+                      onChange={(v) => setAlertTabMode(v as 'history' | 'realtime')}
+                      options={[
+                        { value: 'history', label: '历史告警' },
+                        { value: 'realtime', label: '实时告警' },
+                      ]}
+                      size="small"
+                    />
+                  </div>
+                  <Table dataSource={filteredAlerts} rowKey="key" columns={alertColumns} pagination={{ pageSize: 10 }} />
+                </div>
+              </div>
+            );
+          }
+      default: return null;
+    }
+  };
+
+  return (
+    <div className="ataas-page">
+      <div className="ataas-body">
+        <div className="ataas-sidebar">
+          <div className="ataas-sidebar-header">ATaaS 设计预览 v2.0</div>
+          {SIDEBAR_ITEMS.map((item) => (
+            <div key={item.key} className={'ataas-sidebar-item' + (activeTab === item.key ? ' active' : '')} onClick={() => setActiveTab(item.key)}>
+              {item.icon}
+              <span>{item.label}</span>
+            </div>
+          ))}
+        </div>
+        <div className="ataas-content">
+          {renderTabContent()}
+        </div>
+      </div>
+
+      <Modal title="纳管集群" open={clusterCreateOpen} onCancel={() => { setClusterCreateName(''); setClusterCreateUrl(''); setClusterCreateAccessKey(''); setClusterCreateOpen(false); }} onOk={() => { if (clusterCreateName && clusterCreateUrl && clusterCreateAccessKey) { setClusterList((prev) => [...prev, { key: `cluster-${Date.now()}`, name: clusterCreateName, url: clusterCreateUrl, region: '-', gpu: '-', status: 'online', nodes: 0, usedCards: 0, authTime: '-' }]); setClusterCreateName(''); setClusterCreateUrl(''); setClusterCreateAccessKey(''); setClusterCreateOpen(false); } }} okText="确认纳管" width={560}>
+        <div style={{ marginBottom: 16, padding: '12px 16px', background: '#f7f8fa', borderRadius: 6, fontSize: 13, lineHeight: 1.8 }}>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>获取访问 Key 的方式</div>
+          <div>1. 登录集群控制台</div>
+          <div>2. 进入「系统设置 → 访问密钥」页面</div>
+          <div>3. 创建或复制已有的 Access Key</div>
+          <div>4. 将 Key 粘贴到下方输入框中</div>
+        </div>
+        <Form layout="vertical" className="ataas-basic-form">
+          <Form.Item label="集群名称" required>
+            <Input placeholder="例如：beijing-prod" value={clusterCreateName} onChange={(e) => setClusterCreateName(e.target.value)} />
+          </Form.Item>
+          <Form.Item label="链接" required>
+            <Input placeholder="https://kubernetes.default.svc" value={clusterCreateUrl} onChange={(e) => setClusterCreateUrl(e.target.value)} />
+          </Form.Item>
+          <Form.Item label="访问 Key" required>
+            <Input.TextArea rows={3} placeholder="粘贴集群访问 Key" value={clusterCreateAccessKey} onChange={(e) => setClusterCreateAccessKey(e.target.value)} />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal title="编辑集群名称" open={clusterEditNameOpen} onCancel={() => setClusterEditNameOpen(false)} onOk={() => { if (clusterEditNameTarget) { setClusterList((prev) => prev.map((c) => c.key === clusterEditNameTarget!.key ? { ...c, name: clusterEditNameValue } : c)); } setClusterEditNameOpen(false); }}><Input value={clusterEditNameValue} onChange={(e) => setClusterEditNameValue(e.target.value)} /></Modal>
+
+      <Modal title="集群认证" open={clusterTokenOpen} onCancel={() => setClusterTokenOpen(false)} onOk={() => setClusterTokenOpen(false)}><Input.TextArea rows={4} value={clusterTokenText} onChange={(e) => setClusterTokenText(e.target.value)} /></Modal>
+
+      <Modal title="确认删除" open={!!clusterDeleteConfirm} onCancel={() => setClusterDeleteConfirm(null)} onOk={() => { if (clusterDeleteConfirm) { setClusterList((prev) => prev.filter((c) => c.key !== clusterDeleteConfirm!.key)); } setClusterDeleteConfirm(null); }} okText="删除"><p>确定要删除集群 <strong>{clusterDeleteConfirm?.name}</strong> 吗？此操作不可撤销。</p></Modal>
+
+      <Modal title="操作详情" open={!!logDetailRecord} onCancel={() => setLogDetailRecord(null)} footer={null} width={520}>
+        {logDetailRecord && (
+          <div className="ataas-single-config-summary">
+            <div><span>操作人</span><strong>{logDetailRecord.user}</strong></div>
+            <div><span>操作</span><strong>{logDetailRecord.action}</strong></div>
+            <div><span>操作对象</span><strong>{logDetailRecord.object}</strong></div>
+            <div><span>状态</span><strong>{logDetailRecord.status}</strong></div>
+            <div><span>时间</span><strong>{logDetailRecord.time}</strong></div>
+            <div><span>详情</span><strong style={{ fontSize: 12, fontWeight: 400, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{logDetailRecord.detail}</strong></div>
+          </div>
+        )}
+      </Modal>
+
+      <Modal title="镜像详情" open={imageDrawerOpen} onCancel={() => setImageDrawerOpen(false)} footer={null} width={640}>{imageDrawerRecord && <div className="ataas-single-config-summary"><div><span>镜像名称</span><strong>{imageDrawerRecord.name}</strong></div><div><span>标签</span><strong style={{ fontSize: 12 }}>{imageDrawerRecord.tag}</strong></div><div><span>大小</span><strong>{imageDrawerRecord.size}</strong></div><div><span>引擎</span><strong>{imageDrawerRecord.engine}</strong></div><div><span>GPU 类型</span><strong>{imageDrawerRecord.gpuType}</strong></div><div><span>运行时</span><strong style={{ fontSize: 12 }}>{imageDrawerRecord.runtime}</strong></div><div><span>硬件兼容</span><strong style={{ fontSize: 12 }}>{imageDrawerRecord.hardware}</strong></div><div><span>适用模型</span><strong style={{ fontSize: 12 }}>{imageDrawerRecord.models}</strong></div><div><span>导入方式</span><strong>{imageDrawerRecord.importMethod}</strong></div></div>}</Modal>
+
+      <Drawer title="上传镜像" open={imageUploadOpen} onClose={() => setImageUploadOpen(false)} width={480}><Form layout="vertical"><Form.Item label="镜像名称"><Input /></Form.Item><Form.Item label="镜像标签"><Input /></Form.Item><Form.Item label="引擎类型"><Select options={[{ value: 'vLLM', label: 'vLLM' }, { value: 'SGLang', label: 'SGLang' }, { value: 'Triton', label: 'Triton' }, { value: 'MindIE', label: 'MindIE' }]} /></Form.Item><Form.Item label="GPU 类型"><Select mode="multiple" options={[{ value: 'A100', label: 'A100' }, { value: 'H20', label: 'H20' }, { value: 'L20', label: 'L20' }, { value: '910B', label: 'Ascend 910B' }]} /></Form.Item><Form.Item label="描述"><Input.TextArea rows={4} /></Form.Item><Button type="primary" block>开始上传</Button></Form></Drawer>
+
+      <Modal title="选择节点" open={singleNodeModal} onCancel={() => { if (deployMode !== 'distributed') setSingleNodeModal(false); }} footer={deployMode === 'distributed' ? (() => {
+        const currentGpuType = selectedDeployNodes.length > 0 ? deployNodes.find((n) => n.key === selectedDeployNodes[0])?.gpuType : null;
+        return <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ fontSize: 12, color: '#86909c' }}>已选 {selectedDeployNodes.length} 个节点{currentGpuType ? `（${currentGpuType}）` : ''}，仅可选择同类型显卡节点</span><div><Button onClick={() => setSingleNodeModal(false)} style={{ marginRight: 8 }}>取消</Button><Button type="primary" onClick={() => { setDeployMachineCount(selectedDeployNodes.length); setSingleNodeModal(false); }}>确认</Button></div></div>;
+      })() : null} width={700}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          <Select value={singleNodeGpuFilter} onChange={setSingleNodeGpuFilter} style={{ width: 160 }} options={[
+            { value: 'all', label: '全部显卡' },
+            ...Array.from(new Set(deployNodes.map((n) => n.gpuType))).map((g) => ({ value: g, label: g })),
+          ]} />
+          <Input.Search placeholder="搜索节点名或 IP..." style={{ flex: 1 }} value={singleNodeSearch} onChange={(e) => setSingleNodeSearch(e.target.value)} allowClear />
+        </div>
+        {deployMode === 'distributed' ? (
+          (() => {
+            const currentGpuType = selectedDeployNodes.length > 0 ? deployNodes.find((n) => n.key === selectedDeployNodes[0])?.gpuType : null;
+            return (
+              <Table dataSource={deployNodes.filter((n) => {
+                if (singleNodeGpuFilter !== 'all' && n.gpuType !== singleNodeGpuFilter) return false;
+                if (singleNodeSearch) {
+                  const q = singleNodeSearch.toLowerCase();
+                  return n.name.toLowerCase().includes(q) || n.ip.includes(q);
+                }
+                return true;
+              })} rowKey="key" pagination={{ pageSize: 6, showSizeChanger: true, showTotal: (t) => `共 ${t} 个节点` }}
+                rowSelection={{
+                  type: 'checkbox',
+                  selectedRowKeys: selectedDeployNodes,
+                  onSelect: (record) => {
+                    if (currentGpuType && record.gpuType !== currentGpuType) return;
+                    setSelectedDeployNodes((prev) =>
+                      prev.includes(record.key) ? prev.filter((k) => k !== record.key) : [...prev, record.key]
+                    );
+                  },
+                  getCheckboxProps: (r) => ({
+                    disabled: r.status !== 'ready' || (currentGpuType !== null && currentGpuType !== r.gpuType),
+                  }),
+                }}
+                columns={[
+                  { title: '节点名称', dataIndex: 'name', key: 'name', render: (v, r) => <><strong>{v}</strong><span className="ataas-table-sub">{r.ip}</span></> },
+                  { title: '显卡类型', dataIndex: 'gpuType', key: 'gpuType', render: (v) => <Tag>{v}</Tag> },
+                  { title: '可用卡数', key: 'cards', render: (_, r) => <span>{r.availableCards} / {r.totalCards}</span> },
+                  { title: '状态', dataIndex: 'status', key: 'status', render: (v) => <Tag color={v === 'ready' ? 'green' : v === 'busy' ? 'orange' : 'red'}>{v === 'ready' ? '可用' : v === 'busy' ? '繁忙' : '异常'}</Tag> },
+                ]} />
+            );
+          })()
+        ) : (
+          <Table dataSource={deployNodes.filter((n) => {
+            if (singleNodeGpuFilter !== 'all' && n.gpuType !== singleNodeGpuFilter) return false;
+            if (singleNodeSearch) {
+              const q = singleNodeSearch.toLowerCase();
+              return n.name.toLowerCase().includes(q) || n.ip.includes(q);
+            }
+            return true;
+          })} rowKey="key" pagination={{ pageSize: 6, showSizeChanger: true, showTotal: (t) => `共 ${t} 个节点` }} onRow={(r) => ({
+            onClick: () => { if (r.status === 'ready') { setSelectedSingleNode(r.key); setSingleCardCount(0); setSingleNodeModal(false); } },
+            style: { cursor: r.status === 'ready' ? 'pointer' : 'not-allowed', opacity: r.status === 'ready' ? 1 : 0.5 },
+          })} columns={[
+            { title: '节点名称', dataIndex: 'name', key: 'name', render: (v, r) => <><strong>{v}</strong><span className="ataas-table-sub">{r.ip}</span></> },
+            { title: '显卡类型', dataIndex: 'gpuType', key: 'gpuType', render: (v) => <Tag>{v}</Tag> },
+            { title: '可用卡数', key: 'cards', render: (_, r) => <span>{r.availableCards} / {r.totalCards}</span> },
+            { title: '状态', dataIndex: 'status', key: 'status', render: (v) => <Tag color={v === 'ready' ? 'green' : v === 'busy' ? 'orange' : 'red'}>{v === 'ready' ? '可用' : v === 'busy' ? '繁忙' : '异常'}</Tag> },
+            { title: '操作', key: 'action', render: (_, r) => <span style={{ color: r.status === 'ready' ? '#3370ff' : '#c9cdd4' }}>{selectedSingleNode === r.key ? '已选' : '选择'}</span> },
+          ]} />
+        )}
+      </Modal>
+
+<Drawer title={`节点详情 - ${clusterNodeModalTitle}`} open={clusterNodeModal} onClose={() => setClusterNodeModal(false)} width={520}>
+        <div className="ataas-node-stat-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+          <div className="ataas-node-stat-card"><span>CPU</span><strong>192<em>Core</em></strong></div>
+          <div className="ataas-node-stat-card"><span>内存</span><strong>1<em>TB</em></strong></div>
+          <div className="ataas-node-stat-card"><span>GPU</span><strong>4<em>卡</em></strong></div>
+        </div>
+        <p className="ataas-node-muted">节点详细监控数据（待对接后端 API）</p>
+      </Drawer>
+      <Drawer title="模型部署" open={deployDrawerOpen} onClose={() => setDeployDrawerOpen(false)} width={780}>
+            <div className="ataas-deploy-page">
+              <div className="ataas-entry-toggle">
+                <button className={deployEntry === 'smart' ? 'ataas-entry-active' : ''} onClick={() => setDeployEntry('smart')}>
+                  <ThunderboltOutlined style={{ fontSize: 22, color: '#3370ff', marginBottom: 8 }} />
+                  <strong>智能决策部署</strong>
+                  <span>AI 根据场景 &amp; SLO 自动选择最优部署策略</span>
+                </button>
+                <button className={deployEntry === 'normal' ? 'ataas-entry-active' : ''} onClick={() => setDeployEntry('normal')}>
+                  <DeploymentUnitOutlined style={{ fontSize: 22, color: '#722ed1', marginBottom: 8 }} />
+                  <strong>普通部署</strong>
+                  <span>手动选择引擎、模型、节点，自定义部署参数</span>
+                </button>
+              </div>
+
+              {deployEntry === 'smart' ? (
+                <div className="ataas-empty-entry" style={{ minHeight: 400, marginTop: 24 }}>
+                  <ThunderboltOutlined style={{ fontSize: 48, color: '#c9d4e0', marginBottom: 16 }} />
+                  <h3>智能决策部署</h3>
+                  <p>AI 根据场景 &amp; SLO 自动选择最优部署策略</p>
+                </div>
+              ) : (
+                <>
+                      <Form layout="vertical" size="middle">
+                        <Form.Item label="服务名称" required><Input placeholder="例如：my-inference-service" value={deployServiceName} onChange={(e) => setDeployServiceName(e.target.value)} /></Form.Item>
+                        <Form.Item label="描述"><Input.TextArea rows={3} placeholder="描述服务的用途和特点" value={deployDescription} onChange={(e) => setDeployDescription(e.target.value)} /></Form.Item>
+                        <Form.Item label="模型" required>
+                          <Select placeholder="选择模型" value={deployModel} onChange={setDeployModel} options={deployModels.map((m) => ({ value: m.key, label: `${m.name} (${m.size})` }))} />
+                        </Form.Item>
+                        <Form.Item label="推理引擎" required>
+                          <Select placeholder="选择推理引擎" value={deployEngine} onChange={(v) => setDeployEngine(v)} options={
+                            deployMode === 'pd-separation'
+                              ? [{ value: 'sglang', label: 'SGLang' }]
+                              : [{ value: 'sglang', label: 'SGLang' }, { value: 'vllm', label: 'vLLM' }]
+                          } />
+                        </Form.Item>
+                        <Form.Item label="部署集群" required>
+                          <Select placeholder="选择部署集群" value={deployCluster} onChange={setDeployCluster} optionRender={(o) => {
+                            const c = clusters.find((x) => x.key === o.value);
+                            return c ? <span style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}><span>{c.name} ({c.region})</span><span style={{ color: '#86909c', fontSize: 12 }}>{c.gpuTypes.map(g => g.name).join(' / ')}</span></span> : o.label;
+                          }} options={clusters.map((c) => ({ value: c.key, label: `${c.name} (${c.region})` }))} />
+                        </Form.Item>
+                        <Form.Item label="部署方式">
+                          <div style={{ display: 'flex', gap: 12 }}>
+                            {[
+                              { value: 'single', label: '单机部署', desc: '单台机器部署', icon: <CodeSandboxOutlined /> },
+                              { value: 'pd-separation', label: 'PD 分离', desc: 'Prefill/Decode 分离部署', icon: <DeploymentUnitOutlined /> },
+                              { value: 'distributed', label: '分布式部署', desc: '多节点分布式部署', icon: <ApartmentOutlined /> },
+                            ].map((mode) => (
+                              <button key={mode.value} onClick={() => { setDeployMode(mode.value); setSelectedSingleNode(null); setSingleCardCount(0); }} style={{
+                                flex: 1, padding: '18px 12px 16px', border: `1px solid ${deployMode === mode.value ? '#3370ff' : '#e8ecf4'}`, borderRadius: 12,
+                                background: deployMode === mode.value ? '#f5f8ff' : '#fff', cursor: 'pointer', textAlign: 'center',
+                                boxShadow: deployMode === mode.value ? '0 2px 8px rgba(51,112,255,0.1)' : '0 1px 2px rgba(0,0,0,0.02)',
+                                transition: 'all 0.25s ease',
+                              }}>
+                                <div style={{ fontSize: 22, color: deployMode === mode.value ? '#3370ff' : '#bcc2cc', marginBottom: 8 }}>{mode.icon}</div>
+                                <div style={{ fontSize: 14, fontWeight: 600, color: deployMode === mode.value ? '#3370ff' : '#1d2129' }}>{mode.label}</div>
+                                <div style={{ fontSize: 12, color: '#86909c', marginTop: 3, lineHeight: '1.4' }}>{mode.desc}</div>
+                              </button>
+                            ))}
+                          </div>
+                        </Form.Item>
+                      </Form>
+                    {deployMode === 'single' && (
+                      <div style={{ marginTop: 20, background: '#f8f9fc', border: '1px solid #e8ecf4', borderRadius: 12, padding: '16px 20px' }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: '#1d2129', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CodeSandboxOutlined style={{ fontSize: 16, color: '#3370ff' }} />
+                          <span>单机部署</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                          <span style={{ fontSize: 13, color: '#4e5969' }}>机器数量</span>
+                          <span style={{ fontSize: 14, fontWeight: 600, color: '#3370ff' }}>1 台</span>
+                        </div>
+                      </div>
+                    )}
+                    {deployMode === 'distributed' && (
+                      <div style={{ marginTop: 20, background: '#f8f9fc', border: '1px solid #e8ecf4', borderRadius: 12, padding: '16px 20px' }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: '#1d2129', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <ApartmentOutlined style={{ fontSize: 16, color: '#3370ff' }} />
+                          <span>分布式部署</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <span style={{ fontSize: 13, color: '#4e5969' }}>机器数量</span>
+                          <InputNumber min={1} max={readyNodeCount || 1} value={deployMachineCount} onChange={(v) => v && setDeployMachineCount(v)} style={{ width: 72 }} />
+                          <span style={{ fontSize: 12, color: '#86909c' }}>{'' + readyNodeCount + ' 节点可用'}</span>
+                        </div>
+                      </div>
+                    )}
+                    {deployMode === 'pd-separation' && (
+                      <div style={{ marginTop: 20, background: '#f8f9fc', border: '1px solid #e8ecf4', borderRadius: 12, padding: '16px 20px' }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: '#1d2129', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <DeploymentUnitOutlined style={{ fontSize: 16, color: '#3370ff' }} />
+                          <span>PD 实例拓扑</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ fontSize: 13, color: '#4e5969' }}>PD 组数</span>
+                            <InputNumber min={1} max={deployCluster ? maxPdGroups : 10} value={pdGroupCount} onChange={(v) => v && setPdGroupCount(v)} style={{ width: 64 }} size="small" />
+                            <span style={{ fontSize: 12, color: '#86909c' }}>{deployCluster ? '最多' + maxPdGroups + '组' : ''}</span>
+                          </div>
+                          <div style={{ width: 1, height: 24, background: '#e5e8f4' }} />
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: '#3370ff' }}>P</span>
+                            <span style={{ fontSize: 13, color: '#4e5969' }}>实例数</span>
+                            <InputNumber min={1} max={deployCluster ? readyNodeCount : 10} value={pdGroups[0]?.pCount ?? 1} onChange={(v) => { if (v) { setPdGroups((prev) => prev.map((g) => ({ ...g, pCount: v }))); } }} style={{ width: 64 }} size="small" />
+                          </div>
+                          <div style={{ width: 1, height: 24, background: '#e5e8f4' }} />
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: '#722ed1' }}>D</span>
+                            <span style={{ fontSize: 13, color: '#4e5969' }}>实例数</span>
+                            <InputNumber min={1} max={deployCluster ? readyNodeCount : 10} value={pdGroups[0]?.dCount ?? 1} onChange={(v) => { if (v) { setPdGroups((prev) => prev.map((g) => ({ ...g, dCount: v }))); } }} style={{ width: 64 }} size="small" />
+                          </div>
+                          <div style={{ width: 1, height: 24, background: '#e5e8f4' }} />
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ fontSize: 13, color: '#4e5969' }}>节点/实例</span>
+                            <InputNumber min={1} max={deployCluster ? Math.min(readyNodeCount, 8) : 8} value={pdGroups[0]?.pNodes ?? 1} onChange={(v) => { if (v) { setPdGroups((prev) => prev.map((g) => ({ ...g, pNodes: v, dNodes: v }))); } }} style={{ width: 64 }} size="small" />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {Boolean(deployCluster && deployEngine && deployModel) && (
+                      <div>
+                        {/* 部署配置 */}
+                        {deployMode === 'single' && (
+                          <div style={{ marginTop: 16, border: '1px solid #e8ecf4', borderRadius: 12, overflow: 'hidden', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+                            <div onClick={() => setExpandedSections((p) => ({ ...p, config: !p.config }))} style={{ padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', background: expandedSections.config ? '#f8f9fc' : '#fff', borderBottom: expandedSections.config ? '1px solid #e8ecf4' : 'none', transition: 'all 0.2s' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <SettingOutlined style={{ fontSize: 15, color: '#3370ff' }} />
+                                <span style={{ fontSize: 13, fontWeight: 600, color: '#1d2129' }}>部署配置</span>
+                                {selectedSingleNode ? (() => {
+                                  const n = deployNodes.find((d) => d.key === selectedSingleNode);
+                                  return n ? <span style={{ fontSize: 12, color: '#86909c', marginLeft: 4 }}>{n.name} · {singleCardCount || '-'}卡</span> : null;
+                                })() : <span style={{ fontSize: 12, color: '#bcc2cc', marginLeft: 4 }}>未配置</span>}
+                              </div>
+                              <span style={{ color: '#86909c', fontSize: 12 }}>{expandedSections.config ? '收起' : '展开'} <DownOutlined style={{ transform: expandedSections.config ? 'rotate(180deg)' : 'none', transition: '0.25s', fontSize: 10 }} /></span>
+                            </div>
+                            {expandedSections.config && (
+                              <div style={{ padding: 16 }}>
+                                <div style={{ fontSize: 13, fontWeight: 600, color: '#1d2129', marginBottom: 12 }}>节点配置</div>
+                                <Form.Item label="部署节点" required style={{ marginBottom: 12 }}>
+                                  <div onClick={() => setSingleNodeModal(true)} style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '10px 12px', border: '1.5px dashed #d0d5e0', borderRadius: 10, cursor: 'pointer', minHeight: 40, background: '#fafbff', transition: 'all 0.2s' }}>
+                                    {selectedSingleNode ? (() => {
+                                      const n = deployNodes.find((d) => d.key === selectedSingleNode);
+                                      return n ? <Tag closable onClose={(e) => { e.stopPropagation(); setSelectedSingleNode(null); }} style={{ padding: '2px 10px', fontSize: 12, borderRadius: 6, border: 'none', background: '#eef2ff' }}>{n.name} · {n.gpuType}</Tag> : <span style={{ color: '#bcc2cc', fontSize: 13 }}>点击选择节点</span>;
+                                    })() : <span style={{ color: '#bcc2cc', fontSize: 13 }}>点击选择节点</span>}
+                                  </div>
+                                </Form.Item>
+                                <Form.Item label="使用卡数" required style={{ marginBottom: 16 }}>
+                                  <div style={{ display: 'flex', gap: 8 }}>
+                                    {[1, 2, 4, 8].map((n) => {
+                                      const node = selectedSingleNode ? deployNodes.find((d) => d.key === selectedSingleNode) : null;
+                                      const disabled = node ? n > node.availableCards : true;
+                                      return (
+                                        <div key={n} onClick={() => { if (!disabled) setSingleCardCount(n); }} style={{
+                                          width: 56, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                          border: `1.5px solid ${singleCardCount === n ? '#3370ff' : disabled ? '#f0f0f0' : '#e0e3ea'}`,
+                                          borderRadius: 10, background: singleCardCount === n ? '#f0f5ff' : disabled ? '#fafafa' : '#fff',
+                                          color: singleCardCount === n ? '#3370ff' : disabled ? '#d9d9d9' : '#1d2129',
+                                          fontSize: 14, fontWeight: singleCardCount === n ? 700 : 500, cursor: disabled ? 'not-allowed' : 'pointer',
+                                          transition: 'all 0.2s', userSelect: 'none',
+                                        }}>{n}卡</div>
+                                      );
+                                    })}
+                                  </div>
+                                </Form.Item>
+                                <div style={{ height: 1, background: '#e5e8f4', margin: '0 -16px 16px' }} />
+                                <div onClick={() => setExpandedSections((p) => ({ ...p, advanced: !p.advanced }))} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', marginBottom: 10 }}>
+                                  <div style={{ fontSize: 13, fontWeight: 600, color: '#1d2129' }}>高级参数</div>
+                                  <span style={{ color: '#86909c', fontSize: 12 }}>{expandedSections.advanced ? '收起' : '展开'} <DownOutlined style={{ transform: expandedSections.advanced ? 'rotate(180deg)' : 'none', transition: '0.2s', fontSize: 10 }} /></span>
+                                </div>
+                                {expandedSections.advanced && (<>
+                                  {deployParams.length === 0 ? (
+                                    <div style={{ textAlign: 'center', padding: '12px 0', color: '#86909c', fontSize: 13 }}>暂无自定义参数</div>
+                                  ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                      {deployParams.map((param, i) => (
+                                        <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                                          <Input placeholder="参数名" value={param.key} onChange={(e) => { const next = [...deployParams]; next[i] = { ...next[i], key: e.target.value }; setDeployParams(next); }} style={{ flex: 1 }} />
+                                          <Input placeholder="参数值" value={param.value} onChange={(e) => { const next = [...deployParams]; next[i] = { ...next[i], value: e.target.value }; setDeployParams(next); }} style={{ flex: 1 }} />
+                                          <Button icon={<DeleteOutlined />} danger size="small" onClick={() => setDeployParams(deployParams.filter((_, j) => j !== i))} />
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+                                    <Button size="small" icon={<PlusOutlined />} onClick={() => setDeployParams([...deployParams, { key: '', value: '' }])}>添加参数</Button>
+                                  </div>
+                                </>)}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {deployMode === 'pd-separation' && (
+                          <div style={{ marginTop: 16, border: '1px solid #e8ecf4', borderRadius: 12, overflow: 'hidden', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+                            <div onClick={() => setExpandedSections((p) => ({ ...p, config: !p.config }))} style={{ padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', background: expandedSections.config ? '#f8f9fc' : '#fff', borderBottom: expandedSections.config ? '1px solid #e8ecf4' : 'none', transition: 'all 0.2s' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <SettingOutlined style={{ fontSize: 15, color: '#3370ff' }} />
+                                <span style={{ fontSize: 13, fontWeight: 600, color: '#1d2129' }}>部署配置</span>
+                                <span style={{ fontSize: 12, color: '#86909c', marginLeft: 4 }}>{pdGroups.length}组 · {pdGroups[0]?.pCount ?? 1}p{pdGroups[0]?.dCount ?? 1}d</span>
+                              </div>
+                              <span style={{ color: '#86909c', fontSize: 12 }}>{expandedSections.config ? '收起' : '展开'} <DownOutlined style={{ transform: expandedSections.config ? 'rotate(180deg)' : 'none', transition: '0.25s', fontSize: 10 }} /></span>
+                            </div>
+                            {expandedSections.config && (
+                              <div style={{ padding: 16, paddingTop: 12 }}>
+                                <div style={{ background: '#fff', border: '1px solid #e8ecf4', borderRadius: 10, padding: 16, marginBottom: 12 }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                                    <DeploymentUnitOutlined style={{ fontSize: 16, color: '#3370ff' }} />
+                                    <span style={{ fontSize: 14, fontWeight: 600, color: '#1d2129' }}>PD 设置</span>
+                                  </div>
+                                  <Segmented
+                                  value={activePdGroupKey}
+                                  onChange={(v) => setActivePdGroupKey(v as string)}
+                                  options={pdGroups.map((group, gi) => ({
+                                    label: `组${gi + 1}`,
+                                    value: group.key,
+                                  }))}
+                                  style={{ marginBottom: 12 }}
+                                />
+                                {(() => {
+                                  const gi = pdGroups.findIndex((g) => g.key === activePdGroupKey);
+                                  if (gi === -1) return null;
+                                  const group = pdGroups[gi];
+                                  return (
+                                    <>
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                                        {/* Prefill 实例配置 */}
+                                        <div style={{ background: '#fff', border: '1px solid #e8ecf4', borderRadius: 10, padding: 16 }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                                            <ThunderboltOutlined style={{ fontSize: 16, color: '#3370ff' }} />
+                                            <span style={{ fontSize: 14, fontWeight: 600, color: '#1d2129' }}>Prefill 实例</span>
+                                          </div>
+                                          {/* 节点选择 */}
+                                          <div style={{ marginBottom: 12 }}>
+                                            <div style={{ fontSize: 12, color: '#86909c', marginBottom: 6 }}>部署节点</div>
+                                            <div onClick={() => setSingleNodeModal(true)} style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '10px 12px', border: '1.5px dashed #d0d5e0', borderRadius: 10, cursor: 'pointer', minHeight: 40, background: '#fafbff', transition: 'all 0.2s' }}>
+                                              {selectedSingleNode ? (() => {
+                                                const n = deployNodes.find((d) => d.key === selectedSingleNode);
+                                                return n ? <Tag closable onClose={(e) => { e.stopPropagation(); setSelectedSingleNode(null); }} style={{ padding: '2px 10px', fontSize: 12, borderRadius: 6, border: 'none', background: '#eef2ff' }}>{n.name} · {n.gpuType}</Tag> : <span style={{ color: '#bcc2cc', fontSize: 13 }}>点击选择节点</span>;
+                                              })() : <span style={{ color: '#bcc2cc', fontSize: 13 }}>点击选择节点</span>}
+                                            </div>
+                                          </div>
+                                          <div style={{ fontSize: 12, color: '#86909c' }}>卡数：<span style={{ fontWeight: 600, color: '#1d2129' }}>8卡</span></div>
+                                          <div onClick={() => setExpandedSections((p) => ({ ...p, ['pd-p-adv-' + gi]: !p['pd-p-adv-' + gi] }))} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '6px 10px', background: '#f7f8fa', borderRadius: 6 }}>
+                                            <span style={{ fontSize: 12, color: '#1d2129' }}>高级参数</span>
+                                            <span style={{ color: '#86909c', fontSize: 12 }}>{expandedSections['pd-p-adv-' + gi] ? '收起' : '展开'} <DownOutlined style={{ transform: expandedSections['pd-p-adv-' + gi] ? 'rotate(180deg)' : 'none', transition: '0.2s', fontSize: 10 }} /></span>
+                                          </div>
+                                          {expandedSections['pd-p-adv-' + gi] && (
+                                            <div style={{ marginTop: 10 }}>
+                                              {group.pParams.length === 0 ? (
+                                                <div style={{ textAlign: 'center', padding: '8px 0', color: '#86909c', fontSize: 12 }}>暂无自定义参数</div>
+                                              ) : (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                                  {group.pParams.map((param, pi) => (
+                                                    <div key={pi} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                                      <Input placeholder="参数名" value={param.key} onChange={(e) => { const next = [...pdGroups]; next[gi] = { ...next[gi], pParams: next[gi].pParams.map((p, j) => j === pi ? { ...p, key: e.target.value } : p) }; setPdGroups(next); }} style={{ flex: 1 }} size="small" />
+                                                      <Input placeholder="参数值" value={param.value} onChange={(e) => { const next = [...pdGroups]; next[gi] = { ...next[gi], pParams: next[gi].pParams.map((p, j) => j === pi ? { ...p, value: e.target.value } : p) }; setPdGroups(next); }} style={{ flex: 1 }} size="small" />
+                                                      <Button icon={<DeleteOutlined />} danger size="small" onClick={() => { const next = [...pdGroups]; next[gi] = { ...next[gi], pParams: next[gi].pParams.filter((_, j) => j !== pi) }; setPdGroups(next); }} />
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              )}
+                                              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                                                <Button size="small" icon={<PlusOutlined />} onClick={() => { const next = [...pdGroups]; next[gi] = { ...next[gi], pParams: [...next[gi].pParams, { key: '', value: '' }] }; setPdGroups(next); }}>添加参数</Button>
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                        {/* Decode 实例配置 */}
+                                        <div style={{ background: '#fff', border: '1px solid #e8ecf4', borderRadius: 10, padding: 16 }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                                            <BarChartOutlined style={{ fontSize: 16, color: '#722ed1' }} />
+                                            <span style={{ fontSize: 14, fontWeight: 600, color: '#1d2129' }}>Decode 实例</span>
+                                          </div>
+                                          {/* 节点选择 */}
+                                          <div style={{ marginBottom: 12 }}>
+                                            <div style={{ fontSize: 12, color: '#86909c', marginBottom: 6 }}>部署节点</div>
+                                            <div onClick={() => setSingleNodeModal(true)} style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '10px 12px', border: '1.5px dashed #d0d5e0', borderRadius: 10, cursor: 'pointer', minHeight: 40, background: '#fafbff', transition: 'all 0.2s' }}>
+                                              {selectedSingleNode ? (() => {
+                                                const n = deployNodes.find((d) => d.key === selectedSingleNode);
+                                                return n ? <Tag closable onClose={(e) => { e.stopPropagation(); setSelectedSingleNode(null); }} style={{ padding: '2px 10px', fontSize: 12, borderRadius: 6, border: 'none', background: '#f3eaff' }}>{n.name} · {n.gpuType}</Tag> : <span style={{ color: '#bcc2cc', fontSize: 13 }}>点击选择节点</span>;
+                                              })() : <span style={{ color: '#bcc2cc', fontSize: 13 }}>点击选择节点</span>}
+                                            </div>
+                                          </div>
+                                          <div style={{ fontSize: 12, color: '#86909c' }}>卡数：<span style={{ fontWeight: 600, color: '#1d2129' }}>8卡</span></div>
+                                          <div onClick={() => setExpandedSections((p) => ({ ...p, ['pd-d-adv-' + gi]: !p['pd-d-adv-' + gi] }))} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '6px 10px', background: '#f7f8fa', borderRadius: 6 }}>
+                                            <span style={{ fontSize: 12, color: '#1d2129' }}>高级参数</span>
+                                            <span style={{ color: '#86909c', fontSize: 12 }}>{expandedSections['pd-d-adv-' + gi] ? '收起' : '展开'} <DownOutlined style={{ transform: expandedSections['pd-d-adv-' + gi] ? 'rotate(180deg)' : 'none', transition: '0.2s', fontSize: 10 }} /></span>
+                                          </div>
+                                          {expandedSections['pd-d-adv-' + gi] && (
+                                            <div style={{ marginTop: 10 }}>
+                                              {group.dParams.length === 0 ? (
+                                                <div style={{ textAlign: 'center', padding: '8px 0', color: '#86909c', fontSize: 12 }}>暂无自定义参数</div>
+                                              ) : (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                                  {group.dParams.map((param, pi) => (
+                                                    <div key={pi} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                                      <Input placeholder="参数名" value={param.key} onChange={(e) => { const next = [...pdGroups]; next[gi] = { ...next[gi], dParams: next[gi].dParams.map((p, j) => j === pi ? { ...p, key: e.target.value } : p) }; setPdGroups(next); }} style={{ flex: 1 }} size="small" />
+                                                      <Input placeholder="参数值" value={param.value} onChange={(e) => { const next = [...pdGroups]; next[gi] = { ...next[gi], dParams: next[gi].dParams.map((p, j) => j === pi ? { ...p, value: e.target.value } : p) }; setPdGroups(next); }} style={{ flex: 1 }} size="small" />
+                                                      <Button icon={<DeleteOutlined />} danger size="small" onClick={() => { const next = [...pdGroups]; next[gi] = { ...next[gi], dParams: next[gi].dParams.filter((_, j) => j !== pi) }; setPdGroups(next); }} />
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              )}
+                                              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                                                <Button size="small" icon={<PlusOutlined />} onClick={() => { const next = [...pdGroups]; next[gi] = { ...next[gi], dParams: [...next[gi].dParams, { key: '', value: '' }] }; setPdGroups(next); }}>添加参数</Button>
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                      {/* Router 配置 */}
+                                      <div style={{ marginTop: 12, background: '#fff', border: '1px solid #e8ecf4', borderRadius: 10, padding: 16 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                                          <SwapRightOutlined style={{ fontSize: 16, color: '#722ed1' }} />
+                                          <span style={{ fontSize: 14, fontWeight: 600, color: '#1d2129' }}>Router</span>
+                                        </div>
+                                        <div>
+                                          <div style={{ fontSize: 12, color: '#86909c', marginBottom: 6 }}>部署节点</div>
+                                          <div onClick={() => setSingleNodeModal(true)} style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '10px 12px', border: '1.5px dashed #d0d5e0', borderRadius: 10, cursor: 'pointer', minHeight: 40, background: '#fafbff', transition: 'all 0.2s' }}>
+                                            {selectedSingleNode ? (() => {
+                                              const n = deployNodes.find((d) => d.key === selectedSingleNode);
+                                              return n ? <Tag closable onClose={(e) => { e.stopPropagation(); setSelectedSingleNode(null); }} style={{ padding: '2px 10px', fontSize: 12, borderRadius: 6, border: 'none', background: '#eef2ff' }}>{n.name} · {n.gpuType}</Tag> : <span style={{ color: '#bcc2cc', fontSize: 13 }}>点击选择节点</span>;
+                                            })() : <span style={{ color: '#bcc2cc', fontSize: 13 }}>点击选择节点</span>}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </>
+                                  );
+                                })()}
+                              </div>
+                                {/* 高性能网关 */}
+                                <div style={{ background: '#fff', border: '1px solid #e8ecf4', borderRadius: 10, padding: 16 }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                                    <SwapRightOutlined style={{ fontSize: 16, color: '#722ed1' }} />
+                                    <span style={{ fontSize: 14, fontWeight: 600, color: '#1d2129' }}>高性能网关</span>
+                                  </div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                                    <span style={{ fontSize: 12, color: '#86909c', whiteSpace: 'nowrap' }}>端口号</span>
+                                    <InputNumber min={1024} max={65535} value={gatewayPort} onChange={(v) => v && setGatewayPort(v)} style={{ width: 120 }} />
+                                  </div>
+                                  <div style={{ height: 1, background: '#f0f0f0', marginBottom: 14 }} />
+                                  <div style={{ fontSize: 12, color: '#86909c', marginBottom: 12 }}>流量分发（请求按比例分配到各组）</div>
+                                  {pdGroups.map((g, wi) => {
+                                    const w = groupWeights[wi] ?? Math.floor(100 / pdGroups.length);
+                                    return (
+                                      <div key={g.key} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                                        <span style={{ fontSize: 12, color: '#1d2129', width: 36, flexShrink: 0 }}>组{wi + 1}</span>
+                                        <InputNumber
+                                          min={0} max={100}
+                                          value={w}
+                                          onChange={(v) => {
+                                            if (v === null) return;
+                                            setGroupWeights((prev) => {
+                                              const next = [...prev];
+                                              next[wi] = v;
+                                              return next;
+                                            });
+                                          }}
+                                          style={{ width: 64 }}
+                                          size="small"
+                                        />
+                                        <span style={{ fontSize: 12, color: '#86909c', width: 16 }}>%</span>
+                                        <Progress
+                                          percent={w}
+                                          size="small"
+                                          style={{ flex: 1, marginBottom: 0 }}
+                                          strokeColor={wi === 0 ? '#3370ff' : wi === 1 ? '#722ed1' : '#52c41a'}
+                                          showInfo={false}
+                                        />
+                                      </div>
+                                    );
+                                  })}
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                                    <span style={{ fontSize: 12, color: groupWeights.reduce((a, b) => a + b, 0) === 100 ? '#52c41a' : '#ff4d4f' }}>
+                                      合计 {groupWeights.reduce((a, b) => a + b, 0)}%{groupWeights.reduce((a, b) => a + b, 0) === 100 ? ' ✓' : '（需等于 100%）'}
+                                    </span>
+                                    <Button size="small" onClick={() => {
+                                      const equal = Math.floor(100 / pdGroups.length);
+                                      const remainder = 100 - equal * (pdGroups.length - 1);
+                                      setGroupWeights(Array.from({ length: pdGroups.length }, (_, i) => i === 0 ? remainder : equal));
+                                    }}>均衡分配</Button>
+                                  </div>
+                                </div>
+                            </div>
+                            )}
+                          </div>
+                        )}
+
+                        {deployMode === 'distributed' && (
+                          <div style={{ marginTop: 16, border: '1px solid #e8ecf4', borderRadius: 12, overflow: 'hidden', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+                            <div onClick={() => setExpandedSections((p) => ({ ...p, config: !p.config }))} style={{ padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', background: expandedSections.config ? '#f8f9fc' : '#fff', borderBottom: expandedSections.config ? '1px solid #e8ecf4' : 'none', transition: 'all 0.2s' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <SettingOutlined style={{ fontSize: 15, color: '#3370ff' }} />
+                                <span style={{ fontSize: 13, fontWeight: 600, color: '#1d2129' }}>部署配置</span>
+                                {selectedDeployNodes.length > 0 ? <span style={{ fontSize: 12, color: '#86909c', marginLeft: 4 }}>{selectedDeployNodes.length} 台 · {singleCardCount}卡</span> : <span style={{ fontSize: 12, color: '#bcc2cc', marginLeft: 4 }}>未配置</span>}
+                              </div>
+                              <span style={{ color: '#86909c', fontSize: 12 }}>{expandedSections.config ? '收起' : '展开'} <DownOutlined style={{ transform: expandedSections.config ? 'rotate(180deg)' : 'none', transition: '0.25s', fontSize: 10 }} /></span>
+                            </div>
+                            {expandedSections.config && (
+                              <div style={{ padding: 16 }}>
+                                <div style={{ fontSize: 13, fontWeight: 600, color: '#1d2129', marginBottom: 12 }}>节点配置</div>
+                                <Form.Item label="部署节点" required style={{ marginBottom: 16 }}>
+                                  <div onClick={() => setSingleNodeModal(true)} style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '10px 12px', border: '1.5px dashed #d0d5e0', borderRadius: 10, cursor: 'pointer', minHeight: 40, background: '#fafbff', transition: 'all 0.2s' }}>
+                                    {selectedDeployNodes.length > 0 ? selectedDeployNodes.map((key) => {
+                                      const n = deployNodes.find((d) => d.key === key);
+                                      return n ? (
+                                        <Tag key={key} closable onClose={(e) => { e.stopPropagation(); setSelectedDeployNodes((prev) => prev.filter((k) => k !== key)); }} style={{ padding: '2px 10px', fontSize: 12, borderRadius: 6, border: 'none', background: '#eef2ff' }}>{n.name}</Tag>
+                                      ) : null;
+                                    }) : <span style={{ color: '#bcc2cc', fontSize: 13 }}>点击选择节点</span>}
+                                  </div>
+                                </Form.Item>
+                                <Form.Item label="使用卡数" required style={{ marginBottom: 16 }}>
+                                  <div style={{ display: 'flex', gap: 6 }}>
+                                    {[1, 2, 4, 8].map((n) => {
+                                      const minAvailable = selectedDeployNodes.length > 0 ? Math.min(...selectedDeployNodes.map((k) => deployNodes.find((d) => d.key === k)?.availableCards ?? 0)) : 0;
+                                      const disabled = n > minAvailable;
+                                      return (
+                                        <div key={n} onClick={() => { if (!disabled) setSingleCardCount(n); }} style={{
+                                          width: 52, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                          border: `1px solid ${singleCardCount === n ? '#3370ff' : disabled ? '#f0f0f0' : '#d9d9d9'}`,
+                                          borderRadius: 8, background: singleCardCount === n ? '#f0f5ff' : disabled ? '#fafafa' : '#fff',
+                                          color: singleCardCount === n ? '#3370ff' : disabled ? '#d9d9d9' : '#1d2129',
+                                          fontSize: 13, fontWeight: singleCardCount === n ? 600 : 400, cursor: disabled ? 'not-allowed' : 'pointer',
+                                          transition: 'all 0.2s', userSelect: 'none',
+                                        }}>{n}卡</div>
+                                      );
+                                    })}
+                                  </div>
+                                </Form.Item>
+                                <div style={{ height: 1, background: '#e5e8f4', margin: '0 -16px 16px' }} />
+                                <div onClick={() => setExpandedSections((p) => ({ ...p, advanced: !p.advanced }))} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', marginBottom: 10 }}>
+                                  <div style={{ fontSize: 13, fontWeight: 600, color: '#1d2129' }}>高级参数</div>
+                                  <span style={{ color: '#86909c', fontSize: 12 }}>{expandedSections.advanced ? '收起' : '展开'} <DownOutlined style={{ transform: expandedSections.advanced ? 'rotate(180deg)' : 'none', transition: '0.2s', fontSize: 10 }} /></span>
+                                </div>
+                                {expandedSections.advanced && (<>
+                                  {deployParams.length === 0 ? (
+                                    <div style={{ textAlign: 'center', padding: '12px 0', color: '#86909c', fontSize: 13 }}>暂无自定义参数</div>
+                                  ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                      {deployParams.map((param, i) => (
+                                        <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                                          <Input placeholder="参数名" value={param.key} onChange={(e) => { const next = [...deployParams]; next[i] = { ...next[i], key: e.target.value }; setDeployParams(next); }} style={{ flex: 1 }} />
+                                          <Input placeholder="参数值" value={param.value} onChange={(e) => { const next = [...deployParams]; next[i] = { ...next[i], value: e.target.value }; setDeployParams(next); }} style={{ flex: 1 }} />
+                                          <Button icon={<DeleteOutlined />} danger size="small" onClick={() => setDeployParams(deployParams.filter((_, j) => j !== i))} />
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+                                    <Button size="small" icon={<PlusOutlined />} onClick={() => setDeployParams([...deployParams, { key: '', value: '' }])}>添加参数</Button>
+                                  </div>
+                                </>)}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                      </div>
+                    )}
+                    <div style={{ marginTop: 24, display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+                      <Button onClick={resetDeployForm}>取消</Button>
+                      <Button type="primary" disabled={!(deployCluster && deployEngine && deployModel && deployServiceName)} onClick={() => { alert('部署提交成功！'); setDeployDrawerOpen(false); }}>部署</Button>
+                    </div>
+                </>
+              )}
+            </div>
+      </Drawer>
+
+      <Modal title={'PD 扩容 - ' + (scalePdTarget?.name || '')} open={scalePdOpen} onCancel={() => setScalePdOpen(false)} width={720} footer={
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <Button onClick={() => setScalePdOpen(false)}>取消</Button>
+          <Button type="primary" onClick={() => { alert('扩容提交成功！请等待部署完成。'); setScalePdOpen(false); }}>确认扩容</Button>
+        </div>
+      }>
+        {/* PD 组数 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, padding: '14px 18px', border: '1px solid #e8ecf4', borderRadius: 10, background: '#fbfcff' }}>
+          <span style={{ fontSize: 13, color: '#4e5969' }}>PD 组数</span>
+          <InputNumber min={1} max={10} value={scalePdGroupCount} onChange={(v) => v && setScalePdGroupCount(v)} style={{ width: 68 }} size="small" />
+          <span style={{ fontSize: 12, color: '#86909c' }}>{'当前 1 组，扩容后共 ' + scalePdGroupCount + ' 组'}</span>
+        </div>
+
+        {/* 组切换 */}
+        <Segmented value={scaleActivePdGroupKey} onChange={(v) => setScaleActivePdGroupKey(v as string)} options={scalePdGroups.map((g, gi) => ({ label: '组' + (gi + 1), value: g.key }))} style={{ marginBottom: 14 }} />
+
+        {(() => {
+          const gi = scalePdGroups.findIndex((g) => g.key === scaleActivePdGroupKey);
+          if (gi === -1) return null;
+          const g = scalePdGroups[gi];
+          const pSelectedKeys = scalePNodeMap[g.key] || [];
+          const dSelectedKeys = scaleDNodeMap[g.key] || [];
+          const pRequired = g.pCount * g.pNodes;
+          const dRequired = g.dCount * g.dNodes;
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+              {/* PD 实例拓扑 - always visible */}
+              <div style={{ padding: '12px 16px', border: '1px solid #e8ecf4', borderRadius: 8, background: '#f8f9fc' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#3370ff' }}>P</span>
+                    <span style={{ fontSize: 13, color: '#4e5969' }}>实例数</span>
+                    <InputNumber min={1} max={10} value={g.pCount} onChange={(v) => { if (v) { setScalePdGroups((prev) => prev.map((pg, pi) => pi === gi ? { ...pg, pCount: v } : pg)); } }} style={{ width: 64 }} size="small" />
+                  </div>
+                  <div style={{ width: 1, height: 24, background: '#e5e8f4' }} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#722ed1' }}>D</span>
+                    <span style={{ fontSize: 13, color: '#4e5969' }}>实例数</span>
+                    <InputNumber min={1} max={10} value={g.dCount} onChange={(v) => { if (v) { setScalePdGroups((prev) => prev.map((pg, pi) => pi === gi ? { ...pg, dCount: v } : pg)); } }} style={{ width: 64 }} size="small" />
+                  </div>
+                  <div style={{ width: 1, height: 24, background: '#e5e8f4' }} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 13, color: '#4e5969' }}>节点/实例</span>
+                    <InputNumber min={1} max={8} value={g.pNodes} onChange={(v) => { if (v) { setScalePdGroups((prev) => prev.map((pg, pi) => pi === gi ? { ...pg, pNodes: v, dNodes: v } : pg)); } }} style={{ width: 64 }} size="small" />
+                  </div>
+                </div>
+              </div>
+              {/* Prefill 实例配置 - 可折叠 */}
+              <div style={{ padding: 0, border: '1px solid #edf0f7', borderRadius: 8, background: '#fff', overflow: 'hidden' }}>
+                <div onClick={() => setExpandedSections((p) => ({ ...p, ['scale-p-body-' + gi]: !p['scale-p-body-' + gi] }))} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '12px 16px', background: '#f8f9fc', borderBottom: expandedSections['scale-p-body-' + gi] ? '1px solid #edf0f7' : 'none', transition: 'all 0.2s' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <ThunderboltOutlined style={{ fontSize: 16, color: '#3370ff' }} />
+                    <span style={{ fontSize: 14, fontWeight: 600, color: '#1d2129' }}>Prefill 实例</span>
+                    <span style={{ fontSize: 12, color: '#86909c' }}>{pRequired}节点 · {pSelectedKeys.length >= pRequired ? '已选择' : '待配置'}</span>
+                  </div>
+                  <span style={{ color: '#86909c', fontSize: 12 }}>{expandedSections['scale-p-body-' + gi] ? '收起配置' : '展开配置'} <DownOutlined style={{ transform: expandedSections['scale-p-body-' + gi] ? 'rotate(180deg)' : 'none', transition: '0.2s', fontSize: 10 }} /></span>
+                </div>
+                {expandedSections['scale-p-body-' + gi] && (
+                  <div style={{ padding: 16 }}>
+                    {/* 节点选择 */}
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 12, color: '#86909c', marginBottom: 6 }}>部署节点 <span style={{ color: pSelectedKeys.length >= pRequired ? '#52c41a' : '#ff4d4f' }}>{pSelectedKeys.length}/{pRequired}</span></div>
+                      <div onClick={() => {
+                        setScaleNodePickerMode('p');
+                        setScaleNodePickerGroupKey(g.key);
+                        setScaleNodePickerSelected([...pSelectedKeys]);
+                        setScaleNodePickerOpen(true);
+                      }} style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '10px 12px', border: '1.5px dashed ' + (pSelectedKeys.length >= pRequired ? '#d0d5e0' : '#ff4d4f'), borderRadius: 10, cursor: 'pointer', minHeight: 40, background: '#fafbff', transition: 'all 0.2s' }}>
+                        {pSelectedKeys.length > 0 ? pSelectedKeys.map((k) => {
+                          const n = deployNodes.find((d) => d.key === k);
+                          return n ? <Tag key={k} closable onClose={(e) => { e.stopPropagation(); setScalePNodeMap((prev) => ({ ...prev, [g.key]: prev[g.key] ? prev[g.key].filter((x) => x !== k) : [] })); }} style={{ padding: '2px 10px', fontSize: 12, borderRadius: 6, border: 'none', background: '#eef2ff' }}>{n.name} · {n.gpuType}</Tag> : null;
+                        }) : <span style={{ color: '#bcc2cc', fontSize: 13 }}>点击选择节点</span>}
+                      </div>
+                    </div>
+                    {/* 卡数 */}
+                    <div style={{ fontSize: 12, color: '#86909c', marginBottom: 12 }}>卡数：<span style={{ fontWeight: 600, color: '#1d2129' }}>{scaleCardCount}卡</span></div>
+                    {/* 高级参数 */}
+                    <div onClick={(e) => { e.stopPropagation(); setExpandedSections((p) => ({ ...p, ['scale-p-adv-' + gi]: !p['scale-p-adv-' + gi] })); }} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '6px 10px', background: '#f7f8fa', borderRadius: 6 }}>
+                      <span style={{ fontSize: 12, color: '#1d2129' }}>高级参数</span>
+                      <span style={{ color: '#86909c', fontSize: 12 }}>{expandedSections['scale-p-adv-' + gi] ? '收起' : '展开'} <DownOutlined style={{ transform: expandedSections['scale-p-adv-' + gi] ? 'rotate(180deg)' : 'none', transition: '0.2s', fontSize: 10 }} /></span>
+                    </div>
+                    {expandedSections['scale-p-adv-' + gi] && (
+                      <div style={{ marginTop: 10 }}>
+                        {g.pParams.length === 0 ? (
+                          <div style={{ textAlign: 'center', padding: '8px 0', color: '#86909c', fontSize: 12 }}>暂无自定义参数</div>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {g.pParams.map((param, pi) => (
+                              <div key={pi} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                <Input placeholder="参数名" value={param.key} onChange={(e) => { const next = [...scalePdGroups]; next[gi] = { ...next[gi], pParams: next[gi].pParams.map((p, j) => j === pi ? { ...p, key: e.target.value } : p) }; setScalePdGroups(next); }} style={{ flex: 1 }} size="small" />
+                                <Input placeholder="参数值" value={param.value} onChange={(e) => { const next = [...scalePdGroups]; next[gi] = { ...next[gi], pParams: next[gi].pParams.map((p, j) => j === pi ? { ...p, value: e.target.value } : p) }; setScalePdGroups(next); }} style={{ flex: 1 }} size="small" />
+                                <Button icon={<DeleteOutlined />} danger size="small" onClick={() => { const next = [...scalePdGroups]; next[gi] = { ...next[gi], pParams: next[gi].pParams.filter((_, j) => j !== pi) }; setScalePdGroups(next); }} />
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                          <Button size="small" icon={<PlusOutlined />} onClick={() => { const next = [...scalePdGroups]; next[gi] = { ...next[gi], pParams: [...next[gi].pParams, { key: '', value: '' }] }; setScalePdGroups(next); }}>添加参数</Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Decode 实例配置 - 可折叠 */}
+              <div style={{ padding: 0, border: '1px solid #edf0f7', borderRadius: 8, background: '#fff', overflow: 'hidden' }}>
+                <div onClick={() => setExpandedSections((p) => ({ ...p, ['scale-d-body-' + gi]: !p['scale-d-body-' + gi] }))} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '12px 16px', background: '#f8f9fc', borderBottom: expandedSections['scale-d-body-' + gi] ? '1px solid #edf0f7' : 'none', transition: 'all 0.2s' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <BarChartOutlined style={{ fontSize: 16, color: '#722ed1' }} />
+                    <span style={{ fontSize: 14, fontWeight: 600, color: '#1d2129' }}>Decode 实例</span>
+                    <span style={{ fontSize: 12, color: '#86909c' }}>{dRequired}节点 · {dSelectedKeys.length >= dRequired ? '已选择' : '待配置'}</span>
+                  </div>
+                  <span style={{ color: '#86909c', fontSize: 12 }}>{expandedSections['scale-d-body-' + gi] ? '收起配置' : '展开配置'} <DownOutlined style={{ transform: expandedSections['scale-d-body-' + gi] ? 'rotate(180deg)' : 'none', transition: '0.2s', fontSize: 10 }} /></span>
+                </div>
+                {expandedSections['scale-d-body-' + gi] && (
+                  <div style={{ padding: 16 }}>
+                    {/* 节点选择 */}
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 12, color: '#86909c', marginBottom: 6 }}>部署节点 <span style={{ color: dSelectedKeys.length >= dRequired ? '#52c41a' : '#ff4d4f' }}>{dSelectedKeys.length}/{dRequired}</span></div>
+                      <div onClick={() => {
+                        setScaleNodePickerMode('d');
+                        setScaleNodePickerGroupKey(g.key);
+                        setScaleNodePickerSelected([...dSelectedKeys]);
+                        setScaleNodePickerOpen(true);
+                      }} style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '10px 12px', border: '1.5px dashed ' + (dSelectedKeys.length >= dRequired ? '#d0d5e0' : '#ff4d4f'), borderRadius: 10, cursor: 'pointer', minHeight: 40, background: '#fafbff', transition: 'all 0.2s' }}>
+                        {dSelectedKeys.length > 0 ? dSelectedKeys.map((k) => {
+                          const n = deployNodes.find((d) => d.key === k);
+                          return n ? <Tag key={k} closable onClose={(e) => { e.stopPropagation(); setScaleDNodeMap((prev) => ({ ...prev, [g.key]: prev[g.key] ? prev[g.key].filter((x) => x !== k) : [] })); }} style={{ padding: '2px 10px', fontSize: 12, borderRadius: 6, border: 'none', background: '#f3eaff' }}>{n.name} · {n.gpuType}</Tag> : null;
+                        }) : <span style={{ color: '#bcc2cc', fontSize: 13 }}>点击选择节点</span>}
+                      </div>
+                    </div>
+                    {/* 卡数 */}
+                    <div style={{ fontSize: 12, color: '#86909c', marginBottom: 12 }}>卡数：<span style={{ fontWeight: 600, color: '#1d2129' }}>{scaleCardCount}卡</span></div>
+                    {/* 高级参数 */}
+                    <div onClick={(e) => { e.stopPropagation(); setExpandedSections((p) => ({ ...p, ['scale-d-adv-' + gi]: !p['scale-d-adv-' + gi] })); }} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '6px 10px', background: '#f7f8fa', borderRadius: 6 }}>
+                      <span style={{ fontSize: 12, color: '#1d2129' }}>高级参数</span>
+                      <span style={{ color: '#86909c', fontSize: 12 }}>{expandedSections['scale-d-adv-' + gi] ? '收起' : '展开'} <DownOutlined style={{ transform: expandedSections['scale-d-adv-' + gi] ? 'rotate(180deg)' : 'none', transition: '0.2s', fontSize: 10 }} /></span>
+                    </div>
+                    {expandedSections['scale-d-adv-' + gi] && (
+                      <div style={{ marginTop: 10 }}>
+                        {g.dParams.length === 0 ? (
+                          <div style={{ textAlign: 'center', padding: '8px 0', color: '#86909c', fontSize: 12 }}>暂无自定义参数</div>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {g.dParams.map((param, pi) => (
+                              <div key={pi} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                <Input placeholder="参数名" value={param.key} onChange={(e) => { const next = [...scalePdGroups]; next[gi] = { ...next[gi], dParams: next[gi].dParams.map((p, j) => j === pi ? { ...p, key: e.target.value } : p) }; setScalePdGroups(next); }} style={{ flex: 1 }} size="small" />
+                                <Input placeholder="参数值" value={param.value} onChange={(e) => { const next = [...scalePdGroups]; next[gi] = { ...next[gi], dParams: next[gi].dParams.map((p, j) => j === pi ? { ...p, value: e.target.value } : p) }; setScalePdGroups(next); }} style={{ flex: 1 }} size="small" />
+                                <Button icon={<DeleteOutlined />} danger size="small" onClick={() => { const next = [...scalePdGroups]; next[gi] = { ...next[gi], dParams: next[gi].dParams.filter((_, j) => j !== pi) }; setScalePdGroups(next); }} />
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                          <Button size="small" icon={<PlusOutlined />} onClick={() => { const next = [...scalePdGroups]; next[gi] = { ...next[gi], dParams: [...next[gi].dParams, { key: '', value: '' }] }; setScalePdGroups(next); }}>添加参数</Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* 高性能网关权重分配 */}
+        {(() => {
+          const equal = Math.floor(100 / scalePdGroupCount);
+          const remainder = 100 - equal * (scalePdGroupCount - 1);
+          const weights = Array.from({ length: scalePdGroupCount }, (_, i) => i === 0 ? remainder : equal);
+          return (
+            <div style={{ padding: 16, border: '1px solid #edf0f7', borderRadius: 8, background: '#fbfcff' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                <SwapRightOutlined style={{ fontSize: 16, color: '#722ed1' }} />
+                <span style={{ fontSize: 14, fontWeight: 600, color: '#1d2129' }}>高性能网关</span>
+                <span style={{ fontSize: 12, color: '#86909c' }}>扩容后各组流量比例</span>
+              </div>
+              {scalePdGroups.map((g, wi) => {
+                const w = weights[wi] || 0;
+                return (
+                  <div key={g.key} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                    <span style={{ fontSize: 12, color: '#1d2129', width: 36, flexShrink: 0 }}>{'组' + (wi + 1)}</span>
+                    <div style={{ flex: 1, height: 8, borderRadius: 4, background: '#f0f0f0', overflow: 'hidden' }}>
+                      <div style={{ width: w + '%', height: '100%', borderRadius: 4, background: wi === 0 ? '#3370ff' : wi === 1 ? '#722ed1' : '#52c41a', transition: 'width 0.3s' }} />
+                    </div>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#1d2129', width: 32, textAlign: 'right' }}>{w}%</span>
+                  </div>
+                );
+              })}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, paddingTop: 8, borderTop: '1px solid #f0f0f0' }}>
+                <span style={{ fontSize: 12, color: '#86909c' }}>合计</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#52c41a' }}>{weights.reduce((a, b) => a + b, 0)}%</span>
+              </div>
+            </div>
+          );
+        })()}
+      </Modal>
+      {/* 节点选择弹窗 - 扩容PD组 */}
+      <Modal title={'选择' + (scaleNodePickerMode === 'p' ? 'Prefill' : 'Decode') + '节点'} open={scaleNodePickerOpen} onCancel={() => setScaleNodePickerOpen(false)} footer={
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <Button onClick={() => setScaleNodePickerOpen(false)}>取消</Button>
+          <Button type="primary" onClick={() => {
+            if (scaleNodePickerMode === 'p') {
+              setScalePNodeMap((prev) => ({ ...prev, [scaleNodePickerGroupKey]: scaleNodePickerSelected }));
+            } else {
+              setScaleDNodeMap((prev) => ({ ...prev, [scaleNodePickerGroupKey]: scaleNodePickerSelected }));
+            }
+            setScaleNodePickerOpen(false);
+          }}>确认（{scaleNodePickerSelected.length}个）</Button>
+        </div>
+      } width={600}>
+        <Table
+          dataSource={deployNodes.filter((n) => n.status === 'ready')}
+          rowKey="key" pagination={{ pageSize: 5, showSizeChanger: false }}
+          rowSelection={{
+            type: 'checkbox',
+            selectedRowKeys: scaleNodePickerSelected,
+            onSelect: (record) => {
+              setScaleNodePickerSelected((prev) =>
+                prev.includes(record.key) ? prev.filter((k) => k !== record.key) : [...prev, record.key]
+              );
+            },
+            onSelectAll: (selected, _selectedRows, changeRows) => {
+              setScaleNodePickerSelected((prev) => {
+                const changeKeys = changeRows.map((r) => r.key);
+                if (selected) {
+                  return [...new Set([...prev, ...changeKeys])];
+                }
+                return prev.filter((k) => !changeKeys.includes(k));
+              });
+            },
+          }}
+          columns={[
+            { title: '节点名称', dataIndex: 'name', key: 'name', render: (v, r) => <><strong>{v}</strong><span className="ataas-table-sub">{r.ip}</span></> },
+            { title: '显卡类型', dataIndex: 'gpuType', key: 'gpuType', render: (v) => <Tag>{v}</Tag> },
+            { title: '可用卡数', key: 'cards', render: (_, r) => <span>{r.availableCards} / {r.totalCards}</span> },
+            { title: '状态', dataIndex: 'status', key: 'status', render: (v) => <Tag color={v === 'ready' ? 'green' : v === 'busy' ? 'orange' : 'red'}>{v === 'ready' ? '可用' : v === 'busy' ? '繁忙' : '异常'}</Tag> },
+          ]}
+        />
+      </Modal>
+    </div>
+  );
+};
+
+export default AtAasDesign;
