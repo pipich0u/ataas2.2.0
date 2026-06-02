@@ -1,6 +1,6 @@
 import { Button, ConfigProvider, Dropdown, Image, Input, InputNumber, Modal, Popconfirm, Select, Switch, Table, Tag, Tooltip } from 'antd';
 import type { ThemeConfig } from 'antd';
-import { AppstoreOutlined, BarsOutlined, ClockCircleOutlined, CodeOutlined, EllipsisOutlined, InfoCircleOutlined, PlayCircleOutlined, PlusCircleOutlined, PlusOutlined, PoweroffOutlined } from '@ant-design/icons';
+import { AppstoreOutlined, BarChartOutlined, BarsOutlined, CodeOutlined, InfoCircleOutlined, PlayCircleOutlined, PlusCircleOutlined, PlusOutlined, PoweroffOutlined } from '@ant-design/icons';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import deepseekLogo from '../deepseek-logo.svg';
 import glmLogo from '../glm-logo.svg';
@@ -19,6 +19,7 @@ type RestartRecord = { id: number; name: string; works: string; createTime: stri
 export type DeployServiceItem = {
   id: number;
   name: string;
+  description?: string;
   logo: string;
   status: DeployStatus;
   category: DeployCategory;
@@ -44,6 +45,11 @@ export type DeployServiceItem = {
     memory: string;
     disk: string;
     vram: string;
+    contextLength: string;
+    attentionHeads: string;
+    layers: string;
+    engine: string;
+    engineVersion: string;
     restartStatus: boolean;
     restartNumber: number;
     restartCount: number;
@@ -126,7 +132,7 @@ const DEPLOY_THEME: ThemeConfig = {
   },
 };
 
-const getDeployModelLogo = (item: DeployServiceItem) => {
+export const getDeployModelLogo = (item: DeployServiceItem) => {
   const text = `${item.name} ${item.typeStr} ${item.modelInfo.name} ${item.modelInfo.supplier}`.toLowerCase();
   if (text.includes('deepseek') || text.includes('深度求索')) return deepseekLogo;
   if (text.includes('qwen') || text.includes('通义')) return qwenLogo;
@@ -138,21 +144,21 @@ const getDeployModelLogo = (item: DeployServiceItem) => {
 };
 
 export const MOCK_DEPLOY_DATA: DeployServiceItem[] = [
-  { id: 1, name: 'deepseek-r1-prod', logo: 'https://api.dicebear.com/7.x/identicon/svg?seed=deepseek', status: 'running', category: 'llm', typeStr: 'DeepSeek-R1-671B', timeStr: '运行 12天', updateTime: '2026-05-28 10:30', deployMode: 'PD 分离', modelInfo: { name: 'DeepSeek-R1-671B', supplier: '深度求索', number: 2, works: 'qujing4, qujing7', size: '671B', tokens: '4.82B', point: 'BF16', memory: '128 GB', disk: '256 GB', vram: '320 GB', restartStatus: true, restartNumber: 0, restartCount: 3, restartPage: [], concurrencyControllStatus: true, concurrencyControllCount: 100, logs: [{ id: 1, name: '实例-1 运行日志' }, { id: 2, name: '实例-2 运行日志' }], updateTime: '2026-05-28' } },
-  { id: 2, name: 'glm-4-air-prod', logo: glmLogo, status: 'running', category: 'llm', typeStr: 'GLM-4-Air', timeStr: '运行 15天', updateTime: '2026-05-27 08:00', deployMode: '单机部署', modelInfo: { name: 'GLM-4-Air', supplier: '智谱AI', number: 1, works: 'qujing4', size: '9B', tokens: '1.26B', point: 'BF16', memory: '48 GB', disk: '96 GB', vram: '48 GB', restartStatus: true, restartNumber: 0, restartCount: 3, restartPage: [], concurrencyControllStatus: true, concurrencyControllCount: 200, logs: [{ id: 6, name: '运行日志' }], updateTime: '2026-05-27' } },
+  { id: 1, name: 'deepseek-r1-prod', description: '生产环境 DeepSeek-R1 模型服务，671B 参数规模', logo: 'https://api.dicebear.com/7.x/identicon/svg?seed=deepseek', status: 'running', category: 'llm', typeStr: 'DeepSeek-R1-671B', timeStr: '运行 12天', updateTime: '2026-05-28 10:30', deployMode: 'PD 分离', modelInfo: { name: 'DeepSeek-R1-671B', supplier: '深度求索', number: 2, works: 'qujing4, qujing7', size: '671B', tokens: '4.82B', point: 'BF16', memory: '128 GB', disk: '256 GB', vram: '320 GB', contextLength: '128K', attentionHeads: '96', layers: '64', engine: 'vLLM', engineVersion: '0.6.2', restartStatus: true, restartNumber: 0, restartCount: 3, restartPage: [], concurrencyControllStatus: true, concurrencyControllCount: 100, logs: [{ id: 1, name: '实例-1 运行日志' }, { id: 2, name: '实例-2 运行日志' }], updateTime: '2026-05-28' } },
+  { id: 2, name: 'glm-4-air-prod', description: '生产环境 GLM-4-Air 模型服务，9B 参数规模', logo: glmLogo, status: 'running', category: 'llm', typeStr: 'GLM-4-Air', timeStr: '运行 15天', updateTime: '2026-05-27 08:00', deployMode: '单机部署', modelInfo: { name: 'GLM-4-Air', supplier: '智谱AI', number: 1, works: 'qujing4', size: '9B', tokens: '1.26B', point: 'BF16', memory: '48 GB', disk: '96 GB', vram: '48 GB', contextLength: '128K', attentionHeads: '64', layers: '40', engine: 'vLLM', engineVersion: '0.6.1', restartStatus: true, restartNumber: 0, restartCount: 3, restartPage: [], concurrencyControllStatus: true, concurrencyControllCount: 200, logs: [{ id: 6, name: '运行日志' }], updateTime: '2026-05-27' } },
 ];
 
 interface DeployListProps {
   data: DeployServiceItem[];
   onDetail: (item: DeployServiceItem) => void;
   onStop: (item: DeployServiceItem) => void;
+  onMonitor: (item: DeployServiceItem) => void;
   onExperience: (item: DeployServiceItem) => void;
   onLog: (item: DeployServiceItem, logId: number) => void;
   onRestartToggle: (item: DeployServiceItem) => void;
   onConcurrencyToggle: (item: DeployServiceItem) => void;
   onOpenCreate: () => void;
   onScalePd?: (item: DeployServiceItem) => void;
-  onCreateSchedule?: (item: DeployServiceItem) => void;
   onNodeFilter?: (item: DeployServiceItem) => void;
   onScheduleDetail?: (item: DeployServiceItem) => void;
   viewModeValue?: ViewMode;
@@ -161,7 +167,7 @@ interface DeployListProps {
   onClusterFilterChange?: (value: string) => void;
 }
 
-export default function DeployList({ data, onDetail, onStop, onExperience, onLog, onRestartToggle, onConcurrencyToggle, onOpenCreate, onScalePd, onCreateSchedule, onNodeFilter, onScheduleDetail, viewModeValue, onViewModeChange, clusterFilterValue, onClusterFilterChange }: DeployListProps) {
+export default function DeployList({ data, onDetail, onStop, onMonitor, onExperience, onLog, onRestartToggle, onConcurrencyToggle, onOpenCreate, onScalePd, onNodeFilter, onScheduleDetail, viewModeValue, onViewModeChange, clusterFilterValue, onClusterFilterChange }: DeployListProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('card');
   const [statusFilter, setStatusFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -209,20 +215,6 @@ export default function DeployList({ data, onDetail, onStop, onExperience, onLog
   }, [filtered, viewMode, page, pageSize]);
 
   const hasMore = filtered.length > page * pageSize;
-
-  const getMoreActionItems = (item: DeployServiceItem) => [
-    {
-      label: '扩缩容PD组',
-      key: 'scale',
-      icon: <PlusCircleOutlined />,
-      disabled: item.deployMode !== 'PD 分离' || !onScalePd,
-    },
-    {
-      label: '创建定时任务',
-      key: 'schedule',
-      icon: <ClockCircleOutlined />,
-    },
-  ];
 
   const serviceGroupOptions = useMemo(() => {
     const groupMap = new Map<string, string>();
@@ -313,7 +305,6 @@ export default function DeployList({ data, onDetail, onStop, onExperience, onLog
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 16 }}>
             {paginated.map((item) => {
               const modelLogo = getDeployModelLogo(item);
-              const actionMenuItems = getMoreActionItems(item);
               return (
                 <div key={item.id} className="ataas-deploy-service-card">
                   <div className="ataas-deploy-service-card-glow" />
@@ -356,23 +347,10 @@ export default function DeployList({ data, onDetail, onStop, onExperience, onLog
 
                   {/* 操作栏 */}
                   <div className="ataas-deploy-service-actions">
+                    <IconActionButton title="部署详情" icon={<InfoCircleOutlined />} disabled={item.status === 'loading'} onClick={() => onDetail(item)} />
                     <IconActionButton title="停止" icon={<PoweroffOutlined />} onClick={() => onStop(item)} />
+                    <IconActionButton title="监控" icon={<BarChartOutlined />} disabled={item.status !== 'running'} onClick={() => onMonitor(item)} />
                     <IconActionButton title="去体验" icon={<PlayCircleOutlined />} disabled={item.status !== 'running'} onClick={() => onExperience(item)} />
-                    <IconActionButton title="详情" icon={<InfoCircleOutlined />} disabled={item.status === 'loading'} onClick={() => onDetail(item)} />
-                    <Dropdown
-                      trigger={['click']}
-                      menu={{
-                        items: actionMenuItems,
-                        onClick: ({ key }) => {
-                          if (key === 'scale' && onScalePd) onScalePd(item);
-                          if (key === 'schedule') onCreateSchedule?.(item);
-                        },
-                      }}
-                    >
-                      <button type="button" className="ataas-deploy-service-icon-action" aria-label="更多功能">
-                        <EllipsisOutlined />
-                      </button>
-                    </Dropdown>
                   </div>
                 </div>
               );
@@ -407,26 +385,12 @@ export default function DeployList({ data, onDetail, onStop, onExperience, onLog
               { title: '自动重启', key: 'restart', width: 80, render: (_, r) => <Switch size="small" checked={r.modelInfo.restartStatus} disabled={r.status !== 'running'} onChange={() => onRestartToggle(r)} /> },
               { title: '并发控制', key: 'concurrency', width: 80, render: (_, r) => <Switch size="small" checked={r.modelInfo.concurrencyControllStatus} disabled={r.status !== 'running'} onChange={() => onConcurrencyToggle(r)} /> },
               { title: '操作', key: 'action', width: 180, render: (_, r) => {
-                const actionMenuItems = getMoreActionItems(r);
                 return (
                   <div className="ataas-deploy-table-actions ataas-deploy-table-service-actions">
+                    <IconActionButton title="部署详情" icon={<InfoCircleOutlined />} disabled={r.status === 'loading'} onClick={() => onDetail(r)} />
                     <IconActionButton title="停止" icon={<PoweroffOutlined />} onClick={() => onStop(r)} />
+                    <IconActionButton title="监控" icon={<BarChartOutlined />} disabled={r.status !== 'running'} onClick={() => onMonitor(r)} />
                     <IconActionButton title="去体验" icon={<PlayCircleOutlined />} disabled={r.status !== 'running'} onClick={() => onExperience(r)} />
-                    <IconActionButton title="详情" icon={<InfoCircleOutlined />} disabled={r.status === 'loading'} onClick={() => onDetail(r)} />
-                    <Dropdown
-                      trigger={['click']}
-                      menu={{
-                        items: actionMenuItems,
-                        onClick: ({ key }) => {
-                          if (key === 'scale' && onScalePd) onScalePd(r);
-                          if (key === 'schedule') onCreateSchedule?.(r);
-                        },
-                      }}
-                    >
-                      <button type="button" className="ataas-deploy-service-icon-action" aria-label="更多功能">
-                        <EllipsisOutlined />
-                      </button>
-                    </Dropdown>
                   </div>
                 );
               }},

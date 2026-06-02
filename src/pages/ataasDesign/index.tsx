@@ -9,7 +9,6 @@ import {
   CodeSandboxOutlined,
   DeploymentUnitOutlined,
   DownOutlined,
-  EditOutlined,
   ExclamationCircleOutlined,
   EyeOutlined,
   FileSearchOutlined,
@@ -26,10 +25,12 @@ import {
   SettingOutlined,
   SwapRightOutlined,
   ThunderboltOutlined,
+  UploadOutlined,
   WarningOutlined,
+  PoweroffOutlined,
 } from '@ant-design/icons';
 import { Button, Checkbox, ConfigProvider, DatePicker, Drawer, Dropdown, Form, Input, InputNumber, message, Modal, Popover, Progress, Segmented, Select, Slider, Switch, Table, Tabs, Tag, Tooltip, Upload } from 'antd';
-import DeployList, { MOCK_DEPLOY_DATA, type DeployServiceItem, type ViewMode } from './components/deployList';
+import DeployList, { MOCK_DEPLOY_DATA, getDeployModelLogo, type DeployServiceItem, type ViewMode } from './components/deployList';
 import BenchmarkPage from './components/benchmarkPage';
 import PlaygroundChatPage from './components/playgroundChatPage';
 import type { ColumnsType } from 'antd/es/table';
@@ -456,12 +457,12 @@ type AlertRecord = {
 
 const alertList: AlertRecord[] = [
   { key: 'a1', target: 'worker-a100-012', time: '2026-05-29 14:32', objectType: '节点', cluster: 'beijing-a100-prod', description: 'GPU 显存使用率 97%，剩余 2.4 GB', suggestion: '建议迁移部分模型至其他节点或扩容', count: 12, status: '未处理', level: 'critical' },
-  { key: 'a2', target: 'qwen3-coding-slo', time: '2026-05-29 14:28', objectType: '模型服务', cluster: 'shanghai-h20-online', description: 'TTFT 平均 512ms，超过阈值 300ms', suggestion: '检查 Decode 节点负载，考虑扩容', count: 8, status: '处理中', level: 'warning' },
+  { key: 'a2', target: 'qwen3-coding-slo', time: '2026-05-29 14:28', objectType: '模型服务', cluster: 'shanghai-h20-online', description: 'TTFT 平均 512ms，超过阈值 300ms', suggestion: '检查 Decode 节点负载，考虑扩容', count: 8, status: '未处理', level: 'warning' },
   { key: 'a3', target: 'gz-l20-worker-005', time: '2026-05-29 14:15', objectType: '节点', cluster: 'guangzhou-l20-test', description: '节点心跳中断，已离线 5 分钟', suggestion: '检查网络连通性及 kubelet 状态', count: 3, status: '未处理', level: 'critical' },
   { key: 'a4', target: 'DeepSeek-R1', time: '2026-05-29 13:58', objectType: '模型服务', cluster: 'beijing-a100-prod', description: '模型加载失败，镜像拉取超时', suggestion: '检查镜像仓库连通性，重试拉取', count: 2, status: '已恢复', level: 'warning' },
   { key: 'a5', target: 'shanghai-online', time: '2026-05-29 13:40', objectType: '集群', cluster: 'shanghai-h20-online', description: '集群扩容完成，新增 4 个 H20 节点', suggestion: '-', count: 1, status: '已恢复', level: 'info' },
   { key: 'a6', target: 'nj-910b-001', time: '2026-05-29 12:10', objectType: '节点', cluster: 'shanghai-h20-online', description: '磁盘使用率 88%，剩余 512 GB', suggestion: '建议清理过期日志和镜像缓存', count: 6, status: '未处理', level: 'warning' },
-  { key: 'a7', target: 'glm-air-batch', time: '2026-05-29 11:25', objectType: '模型服务', cluster: 'guangzhou-l20-test', description: 'TPOT 延迟飙升至 45ms，正常范围 <20ms', suggestion: '检查 GPU 是否被其他任务抢占', count: 4, status: '处理中', level: 'warning' },
+  { key: 'a7', target: 'glm-air-batch', time: '2026-05-29 11:25', objectType: '模型服务', cluster: 'guangzhou-l20-test', description: 'TPOT 延迟飙升至 45ms，正常范围 <20ms', suggestion: '检查 GPU 是否被其他任务抢占', count: 4, status: '未处理', level: 'warning' },
   { key: 'a8', target: 'deepseek-prod', time: '2026-05-28 23:15', objectType: '模型服务', cluster: 'beijing-a100-prod', description: '并发请求数超过限制 1240/1000', suggestion: '检查是否遭受异常流量，考虑扩容', count: 15, status: '已恢复', level: 'critical' },
   { key: 'a9', target: 'worker-a100-008', time: '2026-05-28 21:30', objectType: '节点', cluster: 'beijing-a100-prod', description: 'GPU 温度 89°C 超过告警阈值 85°C', suggestion: '检查散热系统，降低负载或关机冷却', count: 7, status: '已恢复', level: 'critical' },
 ];
@@ -951,7 +952,6 @@ const ClusterCard = ({ item, compact }: { item: ResourceCardRecord; compact?: bo
     <div className="ataas-machine-head">
       <div>
         <div className="ataas-cluster-name"><DeploymentUnitOutlined style={{ marginRight: 6 }} />{item.name}</div>
-        <div className="ataas-cluster-region">{item.subtitle}</div>
         <div className="ataas-cluster-stats">
           <span>{item.nodes} 节点</span>
           {item.gpuCards !== undefined && (
@@ -1256,9 +1256,6 @@ const AtAasDesign = () => {
   const [clusterCreateName, setClusterCreateName] = useState('');
   const [clusterCreateUrl, setClusterCreateUrl] = useState('');
   const [clusterCreateAccessKey, setClusterCreateAccessKey] = useState('');
-  const [clusterEditNameOpen, setClusterEditNameOpen] = useState(false);
-  const [clusterEditNameTarget, setClusterEditNameTarget] = useState<ClusterRecord | null>(null);
-  const [clusterEditNameValue, setClusterEditNameValue] = useState('');
   const [clusterNodeList, setClusterNodeList] = useState<NodeRecord[]>(nodes);
   const [clusterNodeEditTarget, setClusterNodeEditTarget] = useState<NodeRecord | null>(null);
   const [clusterNodeEditName, setClusterNodeEditName] = useState('');
@@ -1282,7 +1279,7 @@ const AtAasDesign = () => {
   const filteredClusterList = useMemo(() => {
     if (!clusterSearchText) return clusterList;
     const q = clusterSearchText.toLowerCase();
-    return clusterList.filter((c) => c.name.toLowerCase().includes(q) || c.region.toLowerCase().includes(q) || c.gpu.toLowerCase().includes(q));
+    return clusterList.filter((c) => c.name.toLowerCase().includes(q));
   }, [clusterList, clusterSearchText]);
   const [logSearchText, setLogSearchText] = useState('');
   const [logSearchField, setLogSearchField] = useState('all');
@@ -1296,15 +1293,16 @@ const AtAasDesign = () => {
   const [monitorReportRow, setMonitorReportRow] = useState<typeof monitorRows[0] | null>(null);
   const [monitorRefreshMode, setMonitorRefreshMode] = useState('手动刷新');
   const [monitorTimePrecision, setMonitorTimePrecision] = useState<MonitorTimePrecision>('minute');
-  const [alertTabMode, setAlertTabMode] = useState<'history' | 'realtime'>('realtime');
   const [alertDateRange, setAlertDateRange] = useState<[string, string] | null>(null);
   const [alertClusterFilter, setAlertClusterFilter] = useState<string | null>(null);
+  const [alertLevelFilter, setAlertLevelFilter] = useState<string>('all');
+  const [alertSearchText, setAlertSearchText] = useState<string>('');
   const logData: Array<{ user: string; action: string; object: string; objectType: string; cluster: string; status: string; time: string; detail: string }> = [
     { user: 'admin', action: '创建服务', object: 'deepseek-prod', objectType: '模型服务', cluster: 'beijing-a100-prod', status: '成功', time: '2026-05-29 14:35', detail: '部署模式: PD 分离, 引擎: SGLang, GPU: H20 x 4, 实例: 2' },
     { user: 'ops-lilei', action: '上传镜像', object: 'sglang:v0.4.8-h20', objectType: '引擎镜像', cluster: '-', status: '成功', time: '2026-05-29 14:18', detail: '镜像大小: 21.3 GB, 标签: h20-pd-cache, 来源: 在线拉取' },
-    { user: 'zhaomin', action: '调整参数', object: 'qwen3-coding-slo', objectType: '模型服务', cluster: 'shanghai-h20-online', status: '执行中', time: '2026-05-29 13:57', detail: 'TTFT 阈值: 500ms → 300ms, TPOT 阈值: 50ms → 30ms' },
+    { user: 'zhaomin', action: '调整参数', object: 'qwen3-coding-slo', objectType: '模型服务', cluster: 'shanghai-h20-online', status: '成功', time: '2026-05-29 13:57', detail: 'TTFT 阈值: 500ms → 300ms, TPOT 阈值: 50ms → 30ms' },
     { user: 'admin', action: '修改标签', object: 'gpu-worker-021', objectType: '节点', cluster: 'shanghai-h20-online', status: '成功', time: '2026-05-29 13:42', detail: '标签变更: GPU=H20 → GPU=H20_PD, 节点: sh-h20-worker-021' },
-    { user: 'system', action: '节点隔离', object: 'worker-a100-017', objectType: '节点', cluster: 'beijing-a100-prod', status: '告警', time: '2026-05-29 13:20', detail: '原因: GPU 温度过高(89°C), 自动隔离, 影响服务: deepseek-prod' },
+    { user: 'system', action: '节点隔离', object: 'worker-a100-017', objectType: '节点', cluster: 'beijing-a100-prod', status: '失败', time: '2026-05-29 13:20', detail: '原因: GPU 温度过高(89°C), 自动隔离, 影响服务: deepseek-prod' },
     { user: 'admin', action: '部署模型', object: 'glm-air-batch', objectType: '模型服务', cluster: 'guangzhou-l20-test', status: '成功', time: '2026-05-29 12:58', detail: '模型: GLM-4.5-Air, 引擎: vLLM, 集群: guangzhou-l20-test, 实例: 2' },
     { user: 'ops-wang', action: '集群扩容', object: 'guangzhou-test', objectType: '集群', cluster: 'guangzhou-l20-test', status: '成功', time: '2026-05-29 12:15', detail: '新增节点: 4 台, GPU: L20 x 16, 扩容后总量: 19 台 / 72 卡' },
     { user: 'zhaomin', action: '更新配置', object: 'vLLM 0.9.1', objectType: '引擎镜像', cluster: '-', status: '成功', time: '2026-05-29 11:42', detail: '配置参数: max_model_len=8192, gpu_memory_utilization=0.9' },
@@ -1333,19 +1331,21 @@ const AtAasDesign = () => {
   }, [logSearchText, logSearchField, logDateRange]);
   const filteredAlerts = useMemo(() => {
     let list = alertList;
-    if (alertTabMode === 'history') {
-      list = list.filter((item) => item.status === '已恢复');
-    } else {
-      list = list.filter((item) => item.status !== '已恢复');
-    }
     if (alertDateRange) {
       list = list.filter((item) => item.time >= alertDateRange[0] && item.time <= alertDateRange[1]);
     }
     if (alertClusterFilter) {
       list = list.filter((item) => item.cluster === alertClusterFilter);
     }
+    if (alertLevelFilter !== 'all') {
+      list = list.filter((item) => item.level === alertLevelFilter);
+    }
+    if (alertSearchText) {
+      const kw = alertSearchText.toLowerCase();
+      list = list.filter((item) => item.target.toLowerCase().includes(kw) || item.description.toLowerCase().includes(kw) || item.cluster.toLowerCase().includes(kw));
+    }
     return list;
-  }, [alertTabMode, alertDateRange, alertClusterFilter]);
+  }, [alertDateRange, alertClusterFilter, alertLevelFilter, alertSearchText]);
   const [imageVendorFilter, setImageVendorFilter] = useState<string>('all');
   const [imageEngineFilter, setImageEngineFilter] = useState<string>('all');
   const filteredImages = useMemo(() => {
@@ -1380,7 +1380,6 @@ const AtAasDesign = () => {
       return item.name.toLowerCase().includes(keyword) || item.family.toLowerCase().includes(keyword) || item.description.toLowerCase().includes(keyword);
     });
   }, [modelRepoSearch, modelRepoCategory, modelRepoFamily, modelRepoSource]);
-  const [deployEntry, setDeployEntry] = useState<'smart' | 'normal' | 'schedule'>('normal');
   const [deployListViewMode, setDeployListViewMode] = useState<ViewMode>('card');
   const [deployListClusterFilter, setDeployListClusterFilter] = useState('');
   const [deployMode, setDeployMode] = useState<string>('single');
@@ -1412,7 +1411,11 @@ const AtAasDesign = () => {
   const [deployDrawerOpen, setDeployDrawerOpen] = useState(false);
   const [deployServices, setDeployServices] = useState<DeployServiceItem[]>(MOCK_DEPLOY_DATA);
   const [scheduleDetailTarget, setScheduleDetailTarget] = useState<DeployServiceItem | null>(null);
+  const [deployDetailItem, setDeployDetailItem] = useState<DeployServiceItem | null>(null);
   const handleDeployDetail = (item: DeployServiceItem) => {
+    setDeployDetailItem(item);
+  };
+  const handleDeployMonitor = (item: DeployServiceItem) => {
     setMonitorSearchText(item.name);
     setMonitorExactServiceName(item.name);
     setMonitorClusterFilter('');
@@ -1443,8 +1446,12 @@ const AtAasDesign = () => {
   };
   const [scalePdOpen, setScalePdOpen] = useState(false);
   const [scalePdTarget, setScalePdTarget] = useState<DeployServiceItem | null>(null);
+  const [scalePdRouterParamMode, setScalePdRouterParamMode] = useState<'template' | 'manual'>('template');
+  const [scalePdPrefillParamMode, setScalePdPrefillParamMode] = useState<'template' | 'manual'>('template');
+
   const [scalePdRouterCount, setScalePdRouterCount] = useState(1);
   const [scalePdRouterNodes, setScalePdRouterNodes] = useState<string[]>([]);
+  const [scalePdRouterParams, setScalePdRouterParams] = useState<Array<{key: string; value: string}>>([]);
   const [scalePdPrefillCount, setScalePdPrefillCount] = useState(1);
   const [scalePdPrefillNodes, setScalePdPrefillNodes] = useState<string[]>([]);
   const [scalePdPrefillParams, setScalePdPrefillParams] = useState<Array<{key: string; value: string}>>([]);
@@ -1454,6 +1461,15 @@ const AtAasDesign = () => {
   const [scaleNodePickerOpen, setScaleNodePickerOpen] = useState(false);
   const [scaleNodePickerMode, setScaleNodePickerMode] = useState<'router' | 'prefill' | 'decode'>('router');
   const [scaleNodePickerSelected, setScaleNodePickerSelected] = useState<string[]>([]);
+  const [scalePdRouterUploadedYaml, setScalePdRouterUploadedYaml] = useState<string>('');
+  const [scalePdPrefillUploadedYaml, setScalePdPrefillUploadedYaml] = useState<string>('');
+
+  const pdRouterFileInputRef = useRef<HTMLInputElement>(null);
+  const pdPrefillFileInputRef = useRef<HTMLInputElement>(null);
+
+  const scalePdRouterFileInputRef = useRef<HTMLInputElement>(null);
+  const scalePdPrefillFileInputRef = useRef<HTMLInputElement>(null);
+
   const handleScalePd = (item: DeployServiceItem) => {
     setScalePdTarget(item);
     setScalePdRouterCount(1);
@@ -1464,12 +1480,14 @@ const AtAasDesign = () => {
     setScalePdDecodeCount(1);
     setScalePdDecodeNodes([]);
     setScalePdDecodeParams([]);
+    setScalePdRouterUploadedYaml('');
+    setScalePdPrefillUploadedYaml('');
+
     setScalePdOpen(true);
   };
   const handleCreateSchedule = (item: DeployServiceItem) => {
     const serviceText = `${item.name} ${item.typeStr} ${item.modelInfo.name}`.toLowerCase();
     const family = serviceText.includes('glm') ? 'GLM' : serviceText.includes('qwen') ? 'Qwen' : serviceText.includes('kimi') ? 'Kimi' : 'DeepSeek';
-    setDeployEntry('schedule');
     setScheduleTargetType('modelService');
     setScheduleTaskType('startStop');
     setScheduleTargetKey(String(item.id));
@@ -1524,6 +1542,11 @@ const AtAasDesign = () => {
         memory: '-',
         disk: '-',
         vram: template ? `${template.cardCount} 卡` : '-',
+        contextLength: '-',
+        attentionHeads: '-',
+        layers: '-',
+        engine: template?.engine || '-',
+        engineVersion: '-',
         restartStatus: true,
         restartNumber: 0,
         restartCount: 0,
@@ -1550,6 +1573,7 @@ const AtAasDesign = () => {
     setDeployListViewMode('card');
     setActiveTab('deploy');
     message.success('定时任务已创建');
+    setPdGatewayPort('');
     setDeployDrawerOpen(false);
   };
   const handleOpenCreate = () => {
@@ -1580,9 +1604,13 @@ const AtAasDesign = () => {
   const [deployCluster, setDeployCluster] = useState<string | undefined>(undefined);
   const [deployEngine, setDeployEngine] = useState<string | undefined>(undefined);
   const [deployModel, setDeployModel] = useState<string | undefined>(undefined);
+  const [pdRouterParamMode, setPdRouterParamMode] = useState<'template' | 'manual'>('template');
+  const [pdPrefillParamMode, setPdPrefillParamMode] = useState<'template' | 'manual'>('template');
+
   const [pdRouterCount, setPdRouterCount] = useState(1);
   const [pdRouterNodes, setPdRouterNodes] = useState<string[]>([]);
   const [pdRouterTemplateKey, setPdRouterTemplateKey] = useState<string>('');
+  const [pdRouterParams, setPdRouterParams] = useState<Array<{key: string; value: string}>>([]);
 
   const [pdPrefillCount, setPdPrefillCount] = useState(1);
   const [pdPrefillNodes, setPdPrefillNodes] = useState<string[]>([]);
@@ -1593,6 +1621,7 @@ const AtAasDesign = () => {
   ]);
 
   const [pdDecodeCount, setPdDecodeCount] = useState(1);
+  const [pdGatewayPort, setPdGatewayPort] = useState<string>('');
   const [pdDecodeNodes, setPdDecodeNodes] = useState<string[]>([]);
   const [pdDecodeParams, setPdDecodeParams] = useState<Array<{key: string; value: string}>>([
     { key: 'max_model_len', value: '8192' },
@@ -1602,6 +1631,9 @@ const AtAasDesign = () => {
   const [pdNodePickerOpen, setPdNodePickerOpen] = useState(false);
   const [pdNodePickerMode, setPdNodePickerMode] = useState<'router' | 'prefill' | 'decode'>('router');
   const [pdNodePickerSelected, setPdNodePickerSelected] = useState<string[]>([]);
+  const [pdRouterUploadedYaml, setPdRouterUploadedYaml] = useState<string>('');
+  const [pdPrefillUploadedYaml, setPdPrefillUploadedYaml] = useState<string>('');
+
   const applyStartupTemplate = (templateKey: string) => {
     const template = startupTemplates.find((item) => item.key === templateKey);
     if (!template) return;
@@ -1668,6 +1700,10 @@ const AtAasDesign = () => {
     setPdDecodeCount(1);
     setPdDecodeNodes([]);
     setPdDecodeParams([]);
+    setPdRouterUploadedYaml('');
+    setPdPrefillUploadedYaml('');
+
+    setPdGatewayPort('');
     setDeployDrawerOpen(false);
   };
 
@@ -1757,6 +1793,66 @@ const AtAasDesign = () => {
 
   const toggleDeployNode = (key: string) => {
     setSelectedDeployNodes((prev) => prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]);
+  };
+
+  const renderCardCountStepper = (maxCards: number) => {
+    const cardOptions = [1, 2, 4, 8].filter((value) => value <= maxCards);
+    const current = singleCardCount || cardOptions[0] || 0;
+    const currentIndex = cardOptions.indexOf(current);
+    const canDecrease = currentIndex > 0;
+    const canIncrease = currentIndex >= 0 && currentIndex < cardOptions.length - 1;
+
+    return (
+      <div className="ataas-card-count-stepper">
+        <Button size="small" disabled={!canDecrease} onClick={() => canDecrease && setSingleCardCount(cardOptions[currentIndex - 1])}>-</Button>
+        <div className="ataas-card-count-value">{current ? `${current} 卡` : '-'}</div>
+        <Button size="small" disabled={!canIncrease} onClick={() => canIncrease && setSingleCardCount(cardOptions[currentIndex + 1])}>+</Button>
+      </div>
+    );
+  };
+
+  const getDeployParamsShellText = () => deployParams
+    .filter((param) => param.key.trim())
+    .map((param) => `--${param.key.trim().replace(/^--/, '')}${param.value.trim() ? ` ${param.value.trim()}` : ''}`)
+    .join('\n');
+
+  const updateDeployParamsFromShell = (value: string) => {
+    const next = value.split('\n').map((line) => {
+      const text = line.trim();
+      if (!text) return null;
+      const normalized = text.startsWith('--') ? text.slice(2) : text;
+      const [key, ...rest] = normalized.split(/\s+/);
+      return key ? { key, value: rest.join(' ') } : null;
+    }).filter((item): item is { key: string; value: string } => Boolean(item));
+    setDeployParams(next);
+  };
+
+  const renderAdvancedParamsShell = () => {
+    const shellText = getDeployParamsShellText();
+    const lines = shellText ? shellText.split('\n') : ['--max-model-len 32768'];
+    return (
+      <div className="ataas-advanced-shell">
+        <Input.TextArea
+          className="ataas-advanced-shell-input"
+          rows={6}
+          value={shellText}
+          placeholder={'--max-model-len 32768\n--gpu-memory-utilization 0.9'}
+          onChange={(e) => updateDeployParamsFromShell(e.target.value)}
+        />
+        <div className="ataas-advanced-shell-preview">
+          {lines.map((line, index) => {
+            const normalized = line.trim().startsWith('--') ? line.trim() : `--${line.trim()}`;
+            const match = normalized.match(/^(--\S+)(?:\s+(.+))?$/);
+            return (
+              <div key={`${line}-${index}`}>
+                <span className="param-name">{match?.[1] || normalized}</span>
+                {match?.[2] && <span className="param-value"> {match[2]}</span>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
   };
 
   const filteredStartupTemplates = useMemo(() => {
@@ -2315,17 +2411,17 @@ const AtAasDesign = () => {
       return <span className="ataas-cluster-table-main">{count}</span>;
     } },
     { title: '节点 IP', dataIndex: 'ip', key: 'ip', width: 130 },
-    { title: 'CPU', dataIndex: 'cpu', key: 'cpu', width: 160, render: (_: number, r) => (
+    { title: 'CPU使用量', dataIndex: 'cpu', key: 'cpu', width: 160, render: (_: number, r) => (
       <TableUsageRing percent={getCapacityPercent(r.cpuUsed, r.cpu)} sub={`${r.cpuUsed}/${r.cpu}核`} />
     ) },
-    { title: 'GPU', dataIndex: 'gpu', key: 'gpu', width: 150, render: (_: number, r) => {
+    { title: 'GPU使用量', dataIndex: 'gpu', key: 'gpu', width: 150, render: (_: number, r) => {
       const usedCards = r.gpuCards.filter((card) => card.status === 'active').length;
       return <TableUsageRing percent={getCapacityPercent(usedCards, r.gpu)} sub={`${usedCards}/${r.gpu}片`} />;
     } },
     { title: 'GPU 显存', dataIndex: 'gpuMemory', key: 'gpuMemory', width: 180, render: (_: string, r) => (
       <TableUsageRing percent={getCapacityPercent(r.gpuMemoryUsed, r.gpuMemory)} sub={`${r.gpuMemoryUsed}/${r.gpuMemory}`} />
     ) },
-    { title: '内存', dataIndex: 'memory', key: 'memory', width: 180, render: (_: string, r) => (
+    { title: '内存使用量', dataIndex: 'memory', key: 'memory', width: 180, render: (_: string, r) => (
       <TableUsageRing percent={getCapacityPercent(r.memoryUsed, r.memory)} sub={`${r.memoryUsed}/${r.memory}`} />
     ) },
     {
@@ -2356,8 +2452,8 @@ const AtAasDesign = () => {
 
   const logColumns: ColumnsType<typeof logData[0]> = [
     { title: '状态', dataIndex: 'status', key: 'status', width: 72, render: (v: string) => {
-      const colorMap: Record<string, string> = { '成功': '#00A11F', '执行中': '#D96A00', '告警': '#E02D2D' };
-      const classMap: Record<string, string> = { '成功': 'ataas-log-table-status-success', '执行中': 'ataas-log-table-status-processing', '告警': 'ataas-log-table-status-warning' };
+      const colorMap: Record<string, string> = { '成功': '#00A11F', '失败': '#E02D2D' };
+      const classMap: Record<string, string> = { '成功': 'ataas-log-table-status-success', '失败': 'ataas-log-table-status-warning' };
       return <span className={`ataas-log-table-status ${classMap[v] || ''}`} style={{ ['--status-color' as string]: colorMap[v] || '#4E5969' }}>{v}</span>;
     } },
     { title: '行为', dataIndex: 'action', key: 'action', width: 100 },
@@ -2642,8 +2738,8 @@ const AtAasDesign = () => {
                       <div>
                         {logData.slice(0, 6).map((log, i, arr) => (
                           <div key={i} className="ataas-merged-item" style={{ borderBottom: i < arr.length - 1 ? '1px solid #f0f2f5' : 'none' }} onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = '#F7F8FA'; }} onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = ''; }}>
-                            <span style={{ flexShrink: 0, fontSize: 12, lineHeight: 1, color: log.status === '成功' ? '#00b42a' : log.status === '执行中' ? '#ff7d00' : '#f53f3f' }}>
-                              {log.status === '成功' ? <CheckCircleOutlined /> : log.status === '执行中' ? <LoadingOutlined /> : <ExclamationCircleOutlined />}
+                            <span style={{ flexShrink: 0, fontSize: 12, lineHeight: 1, color: log.status === '成功' ? '#00b42a' : '#f53f3f' }}>
+                              {log.status === '成功' ? <CheckCircleOutlined /> : <ExclamationCircleOutlined />}
                             </span>
                             <span className="ataas-merged-title">{log.user}</span>
                             <span style={{ fontSize: 11, color: '#4E5969', flexShrink: 0 }}>{log.action}</span>
@@ -2696,15 +2792,14 @@ const AtAasDesign = () => {
                     </div>
                     <div className="ataas-cluster-toolbar">
                       <Button className="ataas-deploy-create-button" icon={<PlusOutlined />} type="primary" onClick={() => setClusterCreateOpen(true)}>纳管新集群</Button>
-                      <Input.Search placeholder="搜索集群名称、区域、GPU..." className="ataas-cluster-search" value={clusterSearchText} onChange={(e) => setClusterSearchText(e.target.value)} allowClear />
+                      <Input.Search placeholder="搜索集群名称..." className="ataas-cluster-search" value={clusterSearchText} onChange={(e) => setClusterSearchText(e.target.value)} allowClear />
                     </div>
                     <div className="ataas-cluster-table-wrap">
                     <Table dataSource={filteredClusterList} rowKey="key" pagination={{ pageSize: 8, showSizeChanger: true, showTotal: (t) => `共 ${t} 个集群` }} columns={[
-                      { title: '集群名称', dataIndex: 'name', key: 'name', width: 140, render: (v, r) => <><strong className="ataas-cluster-table-main">{v}</strong><span className="ataas-table-sub">{r.region}</span></> },
+                      { title: '集群名称', dataIndex: 'name', key: 'name', width: 140, render: (v) => <strong className="ataas-cluster-table-main">{v}</strong> },
                       { title: '状态', dataIndex: 'status', key: 'status', width: 90, render: (v: string, r) => {
                         const abnormal = v !== 'healthy';
                         const goAlerts = () => {
-                          setAlertTabMode('realtime');
                           setAlertDateRange(null);
                           setAlertClusterFilter(getClusterAlertName(r));
                           setActiveTab('alerts');
@@ -2721,7 +2816,7 @@ const AtAasDesign = () => {
                         );
                       } },
                       { title: '节点数', dataIndex: 'nodes', key: 'nodes', width: 90, render: (v: number, r) => <Button type="link" className="ataas-table-link" onClick={() => { setSelectedClusterKey(r.key); setClusterPanel('nodes'); }}>{v} 台</Button> },
-                      { title: '状态', key: 'authStatus', width: 80, render: (_, r) => { const [a, b] = r.authInfo.split('/'); const allAuth = parseInt(a || '0') === parseInt(b || '1'); return <span className={'ataas-cluster-auth-status' + (allAuth ? ' authorized' : '')}>{allAuth ? '授权' : '未授权'}</span>; } },
+                      { title: '授权状态', key: 'authStatus', width: 80, render: (_, r) => { const [a, b] = r.authInfo.split('/'); const allAuth = parseInt(a || '0') === parseInt(b || '1'); return <span className={'ataas-cluster-auth-status' + (allAuth ? ' authorized' : '')}>{allAuth ? '授权' : '未授权'}</span>; } },
                                             { title: '模型数', dataIndex: 'models', key: 'models', width: 80, render: (v: number, r) => (
                         <Button
                           type="link"
@@ -2735,32 +2830,30 @@ const AtAasDesign = () => {
                           {v} 个
                         </Button>
                       ) },
-                      { title: 'GPU', dataIndex: 'gpuUsage', key: 'gpuUsage', width: 130, render: (v: number, r) => {
+                      { title: 'GPU使用量', dataIndex: 'gpuUsage', key: 'gpuUsage', width: 130, render: (v: number, r) => {
                         const totalCards = r.gpuTypes.reduce((sum, gpu) => sum + gpu.cards, 0);
                         const usedCards = Math.round(totalCards * v / 100);
                         return <TableUsageRing percent={v} sub={`${usedCards}/${totalCards}片`} />;
                       } },
-                      { title: 'CPU', dataIndex: 'cpu', key: 'cpu', width: 145, render: (v: string) => {
+                      { title: 'CPU使用量', dataIndex: 'cpu', key: 'cpu', width: 145, render: (v: string) => {
                         const usage = parseUsageText(v);
                         return <TableUsageRing percent={usage.percent} sub={usage.sub} />;
                       } },
-                      { title: '内存', dataIndex: 'memory', key: 'memory', width: 145, render: (v: string) => {
+                      { title: '内存使用量', dataIndex: 'memory', key: 'memory', width: 145, render: (v: string) => {
                         const usage = parseUsageText(v);
                         return <TableUsageRing percent={usage.percent} sub={usage.sub} />;
                       } },
                       {
                         title: '操作', key: 'action', width: 150, fixed: 'right', render: (_, r) => (
                           <span className="ataas-monitor-table-actions ataas-cluster-table-actions">
-                            <Button type="link" onClick={() => { setClusterEditNameTarget(r); setClusterEditNameValue(r.name); setClusterEditNameOpen(true); }}><i><EditOutlined /></i>编辑</Button>
+                            <Button type="link" danger onClick={() => setClusterDeleteConfirm(r)}><i><DeleteOutlined /></i>删除</Button>
                             <Dropdown
                               menu={{
                                 items: [
-                                  { key: 'delete', label: '删除', icon: <DeleteOutlined /> },
                                   { key: 'updateKey', label: '更新 Token', icon: <SettingOutlined /> },
                                   { key: 'auth', label: '授权', icon: <CheckCircleOutlined /> },
                                 ],
                                 onClick: ({ key }) => {
-                                  if (key === 'delete') setClusterDeleteConfirm(r);
                                   if (key === 'updateKey') {
                                     setClusterKeyEditTarget(r);
                                     setClusterKeyEditValue('');
@@ -2999,13 +3092,13 @@ const AtAasDesign = () => {
                 data={deployServices}
                 onDetail={handleDeployDetail}
                 onStop={handleDeployStop}
+                onMonitor={handleDeployMonitor}
                 onExperience={handleDeployExperience}
                 onLog={handleDeployLog}
                 onRestartToggle={handleRestartToggle}
                 onConcurrencyToggle={handleConcurrencyToggle}
                 onOpenCreate={handleOpenCreate}
                 onScalePd={handleScalePd}
-                onCreateSchedule={handleCreateSchedule}
                 onNodeFilter={handleDeployNodeFilter}
                 onScheduleDetail={handleScheduleDetail}
                 viewModeValue={deployListViewMode}
@@ -3377,6 +3470,11 @@ const AtAasDesign = () => {
           );
       case 'alerts': {
             const alertColumns: ColumnsType<AlertRecord> = [
+              { title: '告警等级', dataIndex: 'level', key: 'level', width: 80, render: (v: string) => {
+                const levelMap: Record<string, { color: string; label: string }> = { 'critical': { color: '#F53F3F', label: '紧急' }, 'warning': { color: '#FF7D00', label: '普通' }, 'info': { color: '#86909C', label: '轻微' } };
+                const info = levelMap[v] || { color: '#4E5969', label: v };
+                return <span style={{ color: info.color }}>{info.label}</span>;
+              } },
               { title: '告警对象', dataIndex: 'target', key: 'target', width: 140 },
               { title: '发生时间', dataIndex: 'time', key: 'time', width: 160 },
               { title: '对象类型', dataIndex: 'objectType', key: 'objectType', width: 90 },
@@ -3385,17 +3483,11 @@ const AtAasDesign = () => {
               { title: '处置建议', dataIndex: 'suggestion', key: 'suggestion', width: 200 },
               { title: '发生次数', dataIndex: 'count', key: 'count', width: 80, align: 'center' as const },
               { title: '状态', dataIndex: 'status', key: 'status', width: 80, render: (v: string) => {
-                const colorMap: Record<string, string> = { '未处理': '#E02D2D', '处理中': '#D96A00', '已恢复': '#00A11F' };
+                const colorMap: Record<string, string> = { '未处理': '#E02D2D', '已恢复': '#00A11F' };
                 if (v === '已恢复') {
                   return <span className="ataas-alert-table-status ataas-alert-table-status-restored" style={{ ['--status-color' as string]: colorMap[v] }}>{v}</span>;
                 }
-                if (v === '处理中') {
-                  return <span className="ataas-alert-table-status ataas-alert-table-status-processing" style={{ ['--status-color' as string]: colorMap[v] }}>{v}</span>;
-                }
-                if (v === '未处理') {
-                  return <span className="ataas-alert-table-status ataas-alert-table-status-pending" style={{ ['--status-color' as string]: colorMap[v] }}>{v}</span>;
-                }
-                return <span className="ataas-alert-table-status" style={{ ['--status-color' as string]: colorMap[v] || '#4E5969' }}>{v}</span>;
+                return <span className="ataas-alert-table-status ataas-alert-table-status-pending" style={{ ['--status-color' as string]: colorMap[v] || '#E02D2D' }}>{v}</span>;
               }},
               { title: '操作', key: 'action', width: 110, render: (_, r) => (
                 r.status !== '已恢复' ? (
@@ -3457,11 +3549,13 @@ const AtAasDesign = () => {
                         <CloseCircleOutlined />
                       </Button>
                     )}
-                    <div className="ataas-deploy-list-view-toggle ataas-alert-mode-toggle" role="group" aria-label="告警类型切换">
-                      <button className={alertTabMode === 'history' ? 'active' : ''} type="button" onClick={() => { setAlertClusterFilter(null); setAlertTabMode('history'); }}><FileSearchOutlined />历史告警</button>
-                      <span className="ataas-deploy-view-divider" aria-hidden="true" />
-                      <button className={alertTabMode === 'realtime' ? 'active' : ''} type="button" onClick={() => { setAlertClusterFilter(null); setAlertTabMode('realtime'); }}><WarningOutlined />实时告警</button>
-                    </div>
+                    <Select className="ataas-deploy-list-select" value={alertLevelFilter} onChange={setAlertLevelFilter} size="middle" style={{ width: 100, marginRight: 8 }} options={[
+                      { value: 'all', label: '全部分类' },
+                      { value: 'critical', label: '紧急' },
+                      { value: 'warning', label: '普通' },
+                      { value: 'info', label: '轻微' },
+                    ]} />
+                    <Input.Search className="ataas-deploy-list-search" placeholder="搜索告警..." value={alertSearchText} onChange={(e) => setAlertSearchText(e.target.value)} allowClear size="middle" style={{ width: 200 }} />
                   </div>
                   <div className="ataas-deploy-table-wrap ataas-alert-table-wrap">
                     <Table dataSource={filteredAlerts} rowKey="key" columns={alertColumns} pagination={{ pageSize: 10, showTotal: (t) => `共 ${t} 条`, showSizeChanger: true }} />
@@ -3651,7 +3745,6 @@ subjects:
         </div>
       </Modal>
 
-      <Modal title="编辑集群名称" open={clusterEditNameOpen} onCancel={() => setClusterEditNameOpen(false)} onOk={() => { if (clusterEditNameTarget) { setClusterList((prev) => prev.map((c) => c.key === clusterEditNameTarget!.key ? { ...c, name: clusterEditNameValue } : c)); } setClusterEditNameOpen(false); }}><Input value={clusterEditNameValue} onChange={(e) => setClusterEditNameValue(e.target.value)} /></Modal>
 
       <Modal
         title="编辑节点名称"
@@ -3922,19 +4015,22 @@ subjects:
 
       <Drawer title="上传镜像" open={imageUploadOpen} onClose={() => setImageUploadOpen(false)} width={480}><Form layout="vertical"><Form.Item label="镜像名称"><Input placeholder="请输入镜像名称" /></Form.Item><Form.Item label="镜像标签"><Input placeholder="registry.example.com/namespace/image:tag" /></Form.Item><Form.Item label="引擎类型"><Select options={[{ value: 'vLLM', label: 'vLLM' }, { value: 'SGLang', label: 'SGLang' }, { value: 'Triton', label: 'Triton' }, { value: 'MindIE', label: 'MindIE' }]} placeholder="请选择引擎" /></Form.Item><Form.Item label="GPU 类型"><Select options={[{ value: 'NVIDIA', label: 'N卡' }, { value: 'Ascend', label: '昇腾' }]} placeholder="请选择 GPU 类型" /></Form.Item><Form.Item label="镜像文件"><Upload.Dragger beforeUpload={() => false} multiple={false} accept=".tar,.tar.gz,.tgz"><p className="ant-upload-drag-icon"><InboxOutlined /></p><p className="ant-upload-text">点击或拖拽 Docker 镜像包到此区域</p><p className="ant-upload-hint">支持 .tar / .tar.gz 格式</p></Upload.Dragger></Form.Item><Form.Item label="描述"><Input.TextArea rows={4} placeholder="请输入镜像描述" /></Form.Item><Button type="primary" block>开始上传</Button></Form></Drawer>
 
-      <Modal title="选择节点" open={singleNodeModal} onCancel={() => { if (deployMode !== 'distributed') setSingleNodeModal(false); }} footer={deployMode === 'distributed' ? (() => {
+      <Modal className="ataas-node-select-modal" title="选择节点" open={singleNodeModal} onCancel={() => setSingleNodeModal(false)} footer={deployMode === 'distributed' ? (() => {
         const currentGpuType = selectedDeployNodes.length > 0 ? deployNodes.find((n) => n.key === selectedDeployNodes[0])?.gpuType : null;
-        return <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><span style={{ fontSize: 12, color: '#86909c' }}>已选 {selectedDeployNodes.length} 个节点{currentGpuType ? `（${currentGpuType}）` : ''}，仅可选择同类型显卡节点</span><div><Button onClick={() => setSingleNodeModal(false)} style={{ marginRight: 8 }}>取消</Button><Button type="primary" onClick={() => { setDeployMachineCount(selectedDeployNodes.length); setSingleNodeModal(false); }}>确认</Button></div></div>;
-      })() : null} width={700}>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-          <Select value={singleNodeGpuFilter} onChange={setSingleNodeGpuFilter} style={{ width: 160 }} options={[
+        return <div className="ataas-node-select-footer"><span>已选 {selectedDeployNodes.length} 个节点{currentGpuType ? `（${currentGpuType}）` : ''}，仅可选择同类型显卡节点</span><div><Button onClick={() => setSingleNodeModal(false)}>取消</Button><Button type="primary" onClick={() => { setDeployMachineCount(selectedDeployNodes.length); setSingleNodeModal(false); }}>确认</Button></div></div>;
+      })() : (
+        <div className="ataas-node-select-footer"><span>{selectedSingleNode ? `已选 ${deployNodes.find((n) => n.key === selectedSingleNode)?.name || ''}` : '请选择一个可用节点'}</span><div><Button onClick={() => setSingleNodeModal(false)}>取消</Button><Button type="primary" disabled={!selectedSingleNode} onClick={() => setSingleNodeModal(false)}>确认</Button></div></div>
+      )} width={760}>
+        <div className="ataas-node-picker-modal-head">
+          <Select value={singleNodeGpuFilter} onChange={setSingleNodeGpuFilter} className="ataas-node-select-filter" options={[
             { value: 'all', label: '全部显卡' },
             ...Array.from(new Set(deployNodes.map((n) => n.gpuType))).map((g) => ({ value: g, label: g })),
           ]} />
-          <Input.Search placeholder="搜索节点名或 IP..." style={{ flex: 1 }} value={singleNodeSearch} onChange={(e) => setSingleNodeSearch(e.target.value)} allowClear />
+          <Input.Search placeholder="搜索节点名或 IP" className="ataas-node-select-search" value={singleNodeSearch} onChange={(e) => setSingleNodeSearch(e.target.value)} allowClear />
         </div>
-        {deployMode === 'distributed' ? (
-          (() => {
+        <div className="ataas-node-select-table-wrap">
+          {deployMode === 'distributed' ? (
+            (() => {
             const currentGpuType = selectedDeployNodes.length > 0 ? deployNodes.find((n) => n.key === selectedDeployNodes[0])?.gpuType : null;
             return (
               <Table dataSource={deployNodes.filter((n) => {
@@ -3959,10 +4055,10 @@ subjects:
                   }),
                 }}
                 columns={[
-                  { title: '节点名称', dataIndex: 'name', key: 'name', render: (v, r) => <><strong>{v}</strong><span className="ataas-table-sub">{r.ip}</span></> },
-                  { title: '显卡类型', dataIndex: 'gpuType', key: 'gpuType', render: (v) => <Tag>{v}</Tag> },
-                  { title: '可用卡数', key: 'cards', render: (_, r) => <span>{r.availableCards} / {r.totalCards}</span> },
-                  { title: '状态', dataIndex: 'status', key: 'status', render: (v) => <Tag color={v === 'ready' ? 'green' : v === 'busy' ? 'orange' : 'red'}>{v === 'ready' ? '可用' : v === 'busy' ? '繁忙' : '异常'}</Tag> },
+                  { title: '节点名称', dataIndex: 'name', key: 'name', render: (v, r) => <><strong className="ataas-node-select-name">{v}</strong><span className="ataas-table-sub">{r.ip}</span></> },
+                  { title: '显卡类型', dataIndex: 'gpuType', key: 'gpuType', render: (v) => <span className="ataas-node-select-gpu">{v}</span> },
+                  { title: '可用卡数', key: 'cards', render: (_, r) => <span className="ataas-node-select-card-count">{r.availableCards} / {r.totalCards}</span> },
+                  { title: '状态', dataIndex: 'status', key: 'status', render: (v) => <span className={'ataas-node-select-status ' + v}>{v === 'ready' ? '可用' : v === 'busy' ? '繁忙' : '异常'}</span> },
                 ]} />
             );
           })()
@@ -3975,16 +4071,18 @@ subjects:
             }
             return true;
           })} rowKey="key" pagination={{ pageSize: 6, showSizeChanger: true, showTotal: (t) => `共 ${t} 个节点` }} onRow={(r) => ({
-            onClick: () => { if (r.status === 'ready') { setSelectedSingleNode(r.key); setSingleCardCount(0); setSingleNodeModal(false); } },
+            onClick: () => { if (r.status === 'ready') { setSelectedSingleNode(r.key); setSingleCardCount(0); } },
+            className: selectedSingleNode === r.key ? 'ataas-node-select-row-selected' : '',
             style: { cursor: r.status === 'ready' ? 'pointer' : 'not-allowed', opacity: r.status === 'ready' ? 1 : 0.5 },
           })} columns={[
-            { title: '节点名称', dataIndex: 'name', key: 'name', render: (v, r) => <><strong>{v}</strong><span className="ataas-table-sub">{r.ip}</span></> },
-            { title: '显卡类型', dataIndex: 'gpuType', key: 'gpuType', render: (v) => <Tag>{v}</Tag> },
-            { title: '可用卡数', key: 'cards', render: (_, r) => <span>{r.availableCards} / {r.totalCards}</span> },
-            { title: '状态', dataIndex: 'status', key: 'status', render: (v) => <Tag color={v === 'ready' ? 'green' : v === 'busy' ? 'orange' : 'red'}>{v === 'ready' ? '可用' : v === 'busy' ? '繁忙' : '异常'}</Tag> },
-            { title: '操作', key: 'action', render: (_, r) => <span style={{ color: r.status === 'ready' ? '#6951FF' : '#c9cdd4' }}>{selectedSingleNode === r.key ? '已选' : '选择'}</span> },
+            { title: '节点名称', dataIndex: 'name', key: 'name', render: (v, r) => <><strong className="ataas-node-select-name">{v}</strong><span className="ataas-table-sub">{r.ip}</span></> },
+            { title: '显卡类型', dataIndex: 'gpuType', key: 'gpuType', render: (v) => <span className="ataas-node-select-gpu">{v}</span> },
+            { title: '可用卡数', key: 'cards', render: (_, r) => <span className="ataas-node-select-card-count">{r.availableCards} / {r.totalCards}</span> },
+            { title: '状态', dataIndex: 'status', key: 'status', render: (v) => <span className={'ataas-node-select-status ' + v}>{v === 'ready' ? '可用' : v === 'busy' ? '繁忙' : '异常'}</span> },
+            { title: '操作', key: 'action', render: (_, r) => <span className={'ataas-node-select-action' + (selectedSingleNode === r.key ? ' selected' : '')}>{selectedSingleNode === r.key ? '已选' : '选择'}</span> },
           ]} />
         )}
+        </div>
       </Modal>
 
 <Drawer title={`节点详情 - ${clusterNodeModalTitle}`} open={clusterNodeModal} onClose={() => { setClusterNodeModal(false); setClusterNodeRecord(null); }} width={640}>
@@ -4038,37 +4136,8 @@ subjects:
       </Drawer>
       <Drawer className="ataas-deploy-drawer" title="模型部署" open={deployDrawerOpen} onClose={() => setDeployDrawerOpen(false)} width={780}>
             <div className="ataas-deploy-page">
-              <div className="ataas-entry-toggle">
-                <button className={deployEntry === 'smart' ? 'ataas-entry-active' : ''} onClick={() => setDeployEntry('smart')}>
-                  <ThunderboltOutlined style={{ fontSize: 22, color: '#6951FF', marginBottom: 8 }} />
-                  <strong>智能决策部署</strong>
-                  <span>AI 根据场景 &amp; SLO 自动选择最优部署策略</span>
-                </button>
-                <button className={deployEntry === 'normal' ? 'ataas-entry-active' : ''} onClick={() => setDeployEntry('normal')}>
-                  <DeploymentUnitOutlined style={{ fontSize: 22, color: '#722ed1', marginBottom: 8 }} />
-                  <strong>普通部署</strong>
-                  <span>手动选择引擎、模型、节点，自定义部署参数</span>
-                </button>
-                <button className={deployEntry === 'schedule' ? 'ataas-entry-active' : ''} onClick={() => setDeployEntry('schedule')}>
-                  <ReloadOutlined style={{ fontSize: 22, color: '#6738E8', marginBottom: 8 }} />
-                  <strong>定时模式</strong>
-                  <span>创建启停或 PD 扩缩任务，并支持异常告警</span>
-                </button>
-              </div>
-
-              {deployEntry === 'smart' ? (
-                <div className="ataas-empty-entry" style={{ minHeight: 400, marginTop: 24 }}>
-                  <ThunderboltOutlined style={{ fontSize: 48, color: '#c9d4e0', marginBottom: 16 }} />
-                  <h3>智能决策部署</h3>
-                  <p>AI 根据场景 &amp; SLO 自动选择最优部署策略</p>
-                </div>
-              ) : deployEntry === 'schedule' ? (
-                renderScheduleDeployPanel()
-              ) : (
-                <>
                       <Form className="ataas-deploy-drawer-form" layout="vertical" size="middle">
                         <Form.Item label="服务名称" required><Input placeholder="例如：my-inference-service" value={deployServiceName} onChange={(e) => setDeployServiceName(e.target.value)} /></Form.Item>
-                        <Form.Item label="描述"><Input.TextArea rows={3} placeholder="描述服务的用途和特点" value={deployDescription} onChange={(e) => setDeployDescription(e.target.value)} /></Form.Item>
                         <Form.Item label="模型" required>
                           <Select placeholder="选择模型" value={deployModel} onChange={setDeployModel} options={deployModels.map((m) => ({ value: m.key, label: `${m.name} (${m.size})` }))} />
                         </Form.Item>
@@ -4086,42 +4155,38 @@ subjects:
                           }} options={clusters.map((c) => ({ value: c.key, label: `${c.name} (${c.region})` }))} />
                         </Form.Item>
                         <Form.Item label="部署方式">
-                          <div style={{ display: 'flex', gap: 12 }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10 }}>
                             {[
-                              { value: 'single', label: '单机部署', desc: '单台机器部署', icon: <CodeSandboxOutlined /> },
-                              { value: 'pd-separation', label: 'PD 分离', desc: 'Prefill/Decode 分离部署', icon: <DeploymentUnitOutlined /> },
-                              { value: 'distributed', label: '分布式部署', desc: '多节点分布式部署', icon: <ApartmentOutlined /> },
-                            ].map((mode) => (
-                              <button key={mode.value} onClick={() => { setDeployMode(mode.value); setSelectedSingleNode(null); setSingleCardCount(0); }} style={{
-                                flex: 1, padding: '18px 12px 16px', border: `1px solid ${deployMode === mode.value ? '#6951FF' : '#F2F3F5'}`, borderRadius: 12,
-                                background: deployMode === mode.value ? '#f5f8ff' : '#fff', cursor: 'pointer', textAlign: 'center',
-                                boxShadow: deployMode === mode.value ? '0 2px 8px rgba(105,81,255,0.08)' : '0 1px 2px rgba(0,0,0,0.02)',
+                              { value: 'single', label: '单机部署', desc: '单台机器部署' },
+                              { value: 'pd-separation', label: 'PD 分离', desc: 'Prefill/Decode 分离部署' },
+                              { value: 'distributed', label: '分布式部署', desc: '多节点分布式部署' },
+                              { value: 'smart', label: '智能决策', desc: '当前版本暂不支持', disabled: true },
+                            ].map((mode) => {
+                              const content = (
+                                <button key={mode.value} type="button" disabled={mode.disabled} onClick={() => {
+                                  if (mode.disabled) return;
+                                  setDeployMode(mode.value);
+                                  setSelectedSingleNode(null);
+                                  setSingleCardCount(0);
+                                }} style={{
+                                width: '100%', minHeight: 64, padding: '10px 8px', border: `1px solid ${deployMode === mode.value ? '#1D2129' : '#E5E6EB'}`, borderRadius: 6,
+                                background: mode.disabled ? '#F7F8FA' : (deployMode === mode.value ? '#F7F8FA' : '#fff'), cursor: mode.disabled ? 'not-allowed' : 'pointer', textAlign: 'center',
+                                opacity: mode.disabled ? 0.55 : 1,
+                                boxShadow: 'none',
                                 transition: 'all 0.25s ease',
                               }}>
-                                <div style={{ fontSize: 22, color: deployMode === mode.value ? '#6951FF' : '#bcc2cc', marginBottom: 8 }}>{mode.icon}</div>
-                                <div style={{ fontSize: 14, fontWeight: 600, color: deployMode === mode.value ? '#6951FF' : '#1d2129' }}>{mode.label}</div>
+                                <div style={{ fontSize: 13, fontWeight: deployMode === mode.value ? 600 : 500, color: mode.disabled ? '#86909c' : '#1d2129' }}>{mode.label}</div>
                                 <div style={{ fontSize: 12, color: '#86909c', marginTop: 3, lineHeight: '1.4' }}>{mode.desc}</div>
                               </button>
-                            ))}
+                              );
+                              return mode.disabled ? <Tooltip key={mode.value} title="当前版本暂不支持"><span style={{ display: 'block' }}>{content}</span></Tooltip> : content;
+                            })}
                           </div>
                         </Form.Item>
                       </Form>
-                    {deployMode === 'single' && (
-                      <div style={{ marginTop: 20, background: '#f8f9fc', border: '1px solid #F2F3F5', borderRadius: 12, padding: '16px 20px' }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: '#1d2129', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <CodeSandboxOutlined style={{ fontSize: 16, color: '#6951FF' }} />
-                          <span>单机部署</span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                          <span style={{ fontSize: 13, color: '#4e5969' }}>机器数量</span>
-                          <span style={{ fontSize: 14, fontWeight: 600, color: '#6951FF' }}>1 台</span>
-                        </div>
-                      </div>
-                    )}
                     {deployMode === 'distributed' && (
                       <div style={{ marginTop: 20, background: '#f8f9fc', border: '1px solid #F2F3F5', borderRadius: 12, padding: '16px 20px' }}>
                         <div style={{ fontSize: 14, fontWeight: 600, color: '#1d2129', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <ApartmentOutlined style={{ fontSize: 16, color: '#6951FF' }} />
                           <span>分布式部署</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -4133,121 +4198,200 @@ subjects:
                     )}
                     {deployMode === 'pd-separation' && (
                       <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#fafbfc', border: '1px solid #e5e6eb', borderRadius: 10, padding: '12px 16px' }}>
+                          <span style={{ fontSize: 12, color: '#86909c' }}>网关端口号</span>
+                          <Input value={pdGatewayPort} onChange={(e) => setPdGatewayPort(e.target.value)} style={{ width: 120 }} size="small" placeholder="例如: 30001" />
+                          <span style={{ fontSize: 11, color: '#bcc2cc' }}>PD 分离部署网关暴露端口</span>
+                        </div>
                         {/* Router 配置 */}
-                        <div style={{ background: '#f8f9fc', border: '1px solid #F2F3F5', borderRadius: 12, padding: '16px 20px' }}>
-                          <div style={{ fontSize: 14, fontWeight: 600, color: '#1d2129', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <SwapRightOutlined style={{ fontSize: 16, color: '#722ed1' }} />
+                        <div className="ataas-pd-section">
+                          <div className="ataas-pd-section-header">
                             <span>Router</span>
                           </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                              <span style={{ fontSize: 13, color: '#4e5969' }}>实例个数</span>
-                              <InputNumber min={1} max={10} value={pdRouterCount} onChange={(v) => v && setPdRouterCount(v)} style={{ width: 64 }} size="small" />
-                            </div>
-                            <div style={{ width: 1, height: 24, background: '#F2F3F5' }} />
-                            <div>
-                              <div onClick={() => { setPdNodePickerMode('router'); setPdNodePickerSelected([...pdRouterNodes]); setPdNodePickerOpen(true); }} style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '8px 12px', border: '1.5px dashed #d0d5e0', borderRadius: 10, cursor: 'pointer', minHeight: 36, background: '#fafbff' }}>
-                                {pdRouterNodes.length > 0 ? pdRouterNodes.map((k) => {
-                                  const n = deployNodes.find((d) => d.key === k);
-                                  return n ? <Tag key={k} closable onClose={(e) => { e.stopPropagation(); setPdRouterNodes((prev) => prev.filter((x) => x !== k)); }} style={{ padding: '2px 10px', fontSize: 12, borderRadius: 6, border: 'none', background: '#eef2ff' }}>{n.name}</Tag> : null;
-                                }) : <span style={{ color: '#bcc2cc', fontSize: 13 }}>选择节点</span>}
+                          <div className="ataas-pd-section-body">
+                            <div className="ataas-pd-section-row">
+                              <div>
+                                <div className="ataas-pd-field-label">实例个数</div>
+                                <Input value={String(pdRouterCount)} onChange={(e) => { const n = parseInt(e.target.value); if (!isNaN(n) && n > 0) setPdRouterCount(n); }} style={{ width: 72 }} size="small" />
+                              </div>
+                              <div className="ataas-pd-divider" />
+                              <div>
+                                <div className="ataas-pd-field-label">节点选择</div>
+                                <div className="ataas-pd-node-selector" onClick={() => { setPdNodePickerMode('router'); setPdNodePickerSelected([...pdRouterNodes]); setPdNodePickerOpen(true); }}>
+                                  {pdRouterNodes.length > 0 ? pdRouterNodes.map((k) => {
+                                    const n = deployNodes.find((d) => d.key === k);
+                                    return n ? <Tag key={k} closable onClose={(e) => { e.stopPropagation(); setPdRouterNodes((prev) => prev.filter((x) => x !== k)); }} className="ataas-pd-node-tag ataas-pd-node-tag-router">{n.name}</Tag> : null;
+                                  }) : <span className="ataas-pd-node-placeholder">点击选择节点</span>}
+                                </div>
                               </div>
                             </div>
-                            <Select value={pdRouterTemplateKey || undefined} onChange={(v) => applyPdRouterTemplate(v as string)} placeholder="选择启动模板" options={startupTemplates.map((t) => ({ value: t.key, label: t.name + ' / ' + t.engine }))} style={{ minWidth: 200 }} allowClear />
+                            <div className="ataas-pd-mode-bar">
+                              <Segmented value={pdRouterParamMode} onChange={(v) => setPdRouterParamMode(v as 'template' | 'manual')} size="small" options={[{ value: 'template', label: 'YAML 模版' }, { value: 'manual', label: '手填参数' }]} />
+                              <div style={{ flex: 1 }}>
+                                {pdRouterParamMode === 'template' ? (
+                                  pdRouterNodes.length === 0 ? (
+                                    <span className="ataas-pd-template-placeholder">请先选择节点</span>
+                                  ) : (
+                                    <div className="ataas-pd-template-content">
+                                      <Select value={pdRouterTemplateKey || undefined} onChange={(v) => applyPdRouterTemplate(v as string)} placeholder="选择启动模板" options={startupTemplates.map((t) => ({ value: t.key, label: t.name + ' / ' + t.engine }))} style={{ minWidth: 180 }} allowClear />
+                                      <input type="file" accept=".yaml,.yml" ref={pdRouterFileInputRef} style={{ display: 'none' }} onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                          const reader = new FileReader();
+                                          reader.onload = (ev) => { setPdRouterUploadedYaml(ev.target?.result as string || ''); };
+                                          reader.readAsText(file);
+                                        }
+                                        e.target.value = '';
+                                      }} />
+                                      <Button icon={<UploadOutlined />} size="small" onClick={() => pdRouterFileInputRef.current?.click()}>上传模版</Button>
+                                      {pdRouterUploadedYaml && <Tag closable onClose={() => setPdRouterUploadedYaml('')} style={{ margin: 0 }}>已上传 YAML</Tag>}
+                                    </div>
+                                  )
+                                ) : (
+                                  <div className="ataas-pd-params-area">
+                                    {pdRouterParams.length === 0 ? (
+                                      <div className="ataas-pd-param-empty">暂无参数</div>
+                                    ) : (
+                                      pdRouterParams.map((param, pi) => (
+                                        <div key={pi} className="ataas-pd-param-row">
+                                          <Input placeholder="参数名" value={param.key} onChange={(e) => { const next = [...pdRouterParams]; next[pi] = { ...next[pi], key: e.target.value }; setPdRouterParams(next); }} style={{ flex: 1 }} size="small" />
+                                          <Input placeholder="参数值" value={param.value} onChange={(e) => { const next = [...pdRouterParams]; next[pi] = { ...next[pi], value: e.target.value }; setPdRouterParams(next); }} style={{ flex: 1 }} size="small" />
+                                          <Button icon={<DeleteOutlined />} danger size="small" onClick={() => setPdRouterParams(pdRouterParams.filter((_, j) => j !== pi))} />
+                                        </div>
+                                      ))
+                                    )}
+                                    <div className="ataas-pd-param-add">
+                                      <Button size="small" icon={<PlusOutlined />} onClick={() => setPdRouterParams([...pdRouterParams, { key: '', value: '' }])}>添加参数</Button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </div>
                         {/* Prefill 配置 */}
-                        <div style={{ background: '#f8f9fc', border: '1px solid #F2F3F5', borderRadius: 12, padding: '16px 20px' }}>
-                          <div style={{ fontSize: 14, fontWeight: 600, color: '#1d2129', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <ThunderboltOutlined style={{ fontSize: 16, color: '#6951FF' }} />
+                        <div className="ataas-pd-section">
+                          <div className="ataas-pd-section-header">
                             <span>Prefill</span>
                           </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                              <span style={{ fontSize: 13, color: '#4e5969' }}>实例个数</span>
-                              <InputNumber min={1} max={10} value={pdPrefillCount} onChange={(v) => v && setPdPrefillCount(v)} style={{ width: 64 }} size="small" />
-                            </div>
-                            <div style={{ width: 1, height: 24, background: '#F2F3F5' }} />
-                            <div>
-                              <div onClick={() => { setPdNodePickerMode('prefill'); setPdNodePickerSelected([...pdPrefillNodes]); setPdNodePickerOpen(true); }} style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '8px 12px', border: '1.5px dashed #d0d5e0', borderRadius: 10, cursor: 'pointer', minHeight: 36, background: '#fafbff' }}>
-                                {pdPrefillNodes.length > 0 ? pdPrefillNodes.map((k) => {
-                                  const n = deployNodes.find((d) => d.key === k);
-                                  return n ? <Tag key={k} closable onClose={(e) => { e.stopPropagation(); setPdPrefillNodes((prev) => prev.filter((x) => x !== k)); }} style={{ padding: '2px 10px', fontSize: 12, borderRadius: 6, border: 'none', background: '#eef2ff' }}>{n.name}</Tag> : null;
-                                }) : <span style={{ color: '#bcc2cc', fontSize: 13 }}>选择节点</span>}
+                          <div className="ataas-pd-section-body">
+                            <div className="ataas-pd-section-row">
+                              <div>
+                                <div className="ataas-pd-field-label">实例个数</div>
+                                <Input value={String(pdPrefillCount)} onChange={(e) => { const n = parseInt(e.target.value); if (!isNaN(n) && n > 0) setPdPrefillCount(n); }} style={{ width: 72 }} size="small" />
                               </div>
-                            </div>
-                            <Select value={pdPrefillTemplateKey || undefined} onChange={(v) => applyPdPrefillTemplate(v as string)} placeholder="选择启动模板" options={startupTemplates.map((t) => ({ value: t.key, label: t.name + ' / ' + t.engine }))} style={{ minWidth: 200 }} allowClear />
-                          </div>
-                          <div onClick={() => setExpandedSections((p) => ({ ...p, 'pd-prefill-adv': !p['pd-prefill-adv'] }))} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '6px 10px', background: '#f7f8fa', borderRadius: 6, marginTop: 12 }}>
-                            <span style={{ fontSize: 12, color: '#1d2129' }}>高级参数</span>
-                            <span style={{ color: '#86909c', fontSize: 12 }}>{expandedSections['pd-prefill-adv'] ? '收起' : '展开'} <DownOutlined style={{ transform: expandedSections['pd-prefill-adv'] ? 'rotate(180deg)' : 'none', transition: '0.2s', fontSize: 10 }} /></span>
-                          </div>
-                          {expandedSections['pd-prefill-adv'] && (
-                            <div style={{ marginTop: 10 }}>
-                              {pdPrefillParams.length === 0 ? (
-                                <div style={{ textAlign: 'center', padding: '8px 0', color: '#86909c', fontSize: 12 }}>暂无自定义参数</div>
-                              ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                  {pdPrefillParams.map((param, pi) => (
-                                    <div key={pi} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                      <Input placeholder="参数名" value={param.key} onChange={(e) => { const next = [...pdPrefillParams]; next[pi] = { ...next[pi], key: e.target.value }; setPdPrefillParams(next); }} style={{ flex: 1 }} size="small" />
-                                      <Input placeholder="参数值" value={param.value} onChange={(e) => { const next = [...pdPrefillParams]; next[pi] = { ...next[pi], value: e.target.value }; setPdPrefillParams(next); }} style={{ flex: 1 }} size="small" />
-                                      <Button icon={<DeleteOutlined />} danger size="small" onClick={() => setPdPrefillParams(pdPrefillParams.filter((_, j) => j !== pi))} />
-                                    </div>
-                                  ))}
+                              <div className="ataas-pd-divider" />
+                              <div>
+                                <div className="ataas-pd-field-label">节点选择</div>
+                                <div className="ataas-pd-node-selector" onClick={() => { setPdNodePickerMode('prefill'); setPdNodePickerSelected([...pdPrefillNodes]); setPdNodePickerOpen(true); }}>
+                                  {pdPrefillNodes.length > 0 ? pdPrefillNodes.map((k) => {
+                                    const n = deployNodes.find((d) => d.key === k);
+                                    return n ? <Tag key={k} closable onClose={(e) => { e.stopPropagation(); setPdPrefillNodes((prev) => prev.filter((x) => x !== k)); }} className="ataas-pd-node-tag ataas-pd-node-tag-prefill">{n.name}</Tag> : null;
+                                  }) : <span className="ataas-pd-node-placeholder">点击选择节点</span>}
                                 </div>
-                              )}
-                              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-                                <Button size="small" icon={<PlusOutlined />} onClick={() => setPdPrefillParams([...pdPrefillParams, { key: '', value: '' }])}>添加参数</Button>
                               </div>
                             </div>
-                          )}
+                            <div className="ataas-pd-mode-bar">
+                              <Segmented value={pdPrefillParamMode} onChange={(v) => setPdPrefillParamMode(v as 'template' | 'manual')} size="small" options={[{ value: 'template', label: 'YAML 模版' }, { value: 'manual', label: '手填参数' }]} />
+                              <div style={{ flex: 1 }}>
+                                {pdPrefillParamMode === 'template' ? (
+                                  pdPrefillNodes.length === 0 ? (
+                                    <span className="ataas-pd-template-placeholder">请先选择节点</span>
+                                  ) : (
+                                    <div className="ataas-pd-template-content">
+                                      <Select value={pdPrefillTemplateKey || undefined} onChange={(v) => applyPdPrefillTemplate(v as string)} placeholder="选择启动模板" options={startupTemplates.map((t) => ({ value: t.key, label: t.name + ' / ' + t.engine }))} style={{ minWidth: 180 }} allowClear />
+                                      <input type="file" accept=".yaml,.yml" ref={pdPrefillFileInputRef} style={{ display: 'none' }} onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                          const reader = new FileReader();
+                                          reader.onload = (ev) => { setPdPrefillUploadedYaml(ev.target?.result as string || ''); };
+                                          reader.readAsText(file);
+                                        }
+                                        e.target.value = '';
+                                      }} />
+                                      <Button icon={<UploadOutlined />} size="small" onClick={() => pdPrefillFileInputRef.current?.click()}>上传模版</Button>
+                                      {pdPrefillUploadedYaml && <Tag closable onClose={() => setPdPrefillUploadedYaml('')} style={{ margin: 0 }}>已上传 YAML</Tag>}
+                                    </div>
+                                  )
+                                ) : (
+                                  <div className="ataas-pd-params-area">
+                                    {pdPrefillParams.length === 0 ? (
+                                      <div className="ataas-pd-param-empty">暂无参数</div>
+                                    ) : (
+                                      pdPrefillParams.map((param, pi) => (
+                                        <div key={pi} className="ataas-pd-param-row">
+                                          <Input placeholder="参数名" value={param.key} onChange={(e) => { const next = [...pdPrefillParams]; next[pi] = { ...next[pi], key: e.target.value }; setPdPrefillParams(next); }} style={{ flex: 1 }} size="small" />
+                                          <Input placeholder="参数值" value={param.value} onChange={(e) => { const next = [...pdPrefillParams]; next[pi] = { ...next[pi], value: e.target.value }; setPdPrefillParams(next); }} style={{ flex: 1 }} size="small" />
+                                          <Button icon={<DeleteOutlined />} danger size="small" onClick={() => setPdPrefillParams(pdPrefillParams.filter((_, j) => j !== pi))} />
+                                        </div>
+                                      ))
+                                    )}
+                                    <div className="ataas-pd-param-add">
+                                      <Button size="small" icon={<PlusOutlined />} onClick={() => setPdPrefillParams([...pdPrefillParams, { key: '', value: '' }])}>添加参数</Button>
+                                    </div>
+                                    <div className="ataas-pd-advanced-toggle" onClick={() => setExpandedSections((p) => ({ ...p, 'pd-prefill-adv': !p['pd-prefill-adv'] }))}>
+                                      <span className="ataas-pd-advanced-toggle-label">高级参数</span>
+                                      <DownOutlined className={'ataas-pd-advanced-toggle-icon' + (expandedSections['pd-prefill-adv'] ? ' open' : '')} />
+                                    </div>
+                                    {expandedSections['pd-prefill-adv'] && (
+                                      <div className="ataas-pd-advanced-content">
+                                        {pdPrefillParams.length > 0 && <div className="ataas-pd-advanced-hint">以下为额外高级配置参数，可按需添加</div>}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
                         </div>
                         {/* Decode 配置 */}
-                        <div style={{ background: '#f8f9fc', border: '1px solid #F2F3F5', borderRadius: 12, padding: '16px 20px' }}>
-                          <div style={{ fontSize: 14, fontWeight: 600, color: '#1d2129', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <BarChartOutlined style={{ fontSize: 16, color: '#722ed1' }} />
+                        <div className="ataas-pd-section">
+                          <div className="ataas-pd-section-header">
                             <span>Decode</span>
                           </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                              <span style={{ fontSize: 13, color: '#4e5969' }}>实例个数</span>
-                              <InputNumber min={1} max={10} value={pdDecodeCount} onChange={(v) => v && setPdDecodeCount(v)} style={{ width: 64 }} size="small" />
-                            </div>
-                            <div style={{ width: 1, height: 24, background: '#F2F3F5' }} />
-                            <div>
-                              <div onClick={() => { setPdNodePickerMode('decode'); setPdNodePickerSelected([...pdDecodeNodes]); setPdNodePickerOpen(true); }} style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '8px 12px', border: '1.5px dashed #d0d5e0', borderRadius: 10, cursor: 'pointer', minHeight: 36, background: '#fafbff' }}>
-                                {pdDecodeNodes.length > 0 ? pdDecodeNodes.map((k) => {
-                                  const n = deployNodes.find((d) => d.key === k);
-                                  return n ? <Tag key={k} closable onClose={(e) => { e.stopPropagation(); setPdDecodeNodes((prev) => prev.filter((x) => x !== k)); }} style={{ padding: '2px 10px', fontSize: 12, borderRadius: 6, border: 'none', background: '#f3eaff' }}>{n.name}</Tag> : null;
-                                }) : <span style={{ color: '#bcc2cc', fontSize: 13 }}>选择节点</span>}
+                          <div className="ataas-pd-section-body">
+                            <div className="ataas-pd-section-row">
+                              <div>
+                                <div className="ataas-pd-field-label">实例个数</div>
+                                <Input value={String(pdDecodeCount)} onChange={(e) => { const n = parseInt(e.target.value); if (!isNaN(n) && n > 0) setPdDecodeCount(n); }} style={{ width: 72 }} size="small" />
+                              </div>
+                              <div className="ataas-pd-divider" />
+                              <div>
+                                <div className="ataas-pd-field-label">节点选择</div>
+                                <div className="ataas-pd-node-selector" onClick={() => { setPdNodePickerMode('decode'); setPdNodePickerSelected([...pdDecodeNodes]); setPdNodePickerOpen(true); }}>
+                                  {pdDecodeNodes.length > 0 ? pdDecodeNodes.map((k) => {
+                                    const n = deployNodes.find((d) => d.key === k);
+                                    return n ? <Tag key={k} closable onClose={(e) => { e.stopPropagation(); setPdDecodeNodes((prev) => prev.filter((x) => x !== k)); }} className="ataas-pd-node-tag ataas-pd-node-tag-decode">{n.name}</Tag> : null;
+                                  }) : <span className="ataas-pd-node-placeholder">点击选择节点</span>}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                          <div onClick={() => setExpandedSections((p) => ({ ...p, 'pd-decode-adv': !p['pd-decode-adv'] }))} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '6px 10px', background: '#f7f8fa', borderRadius: 6, marginTop: 12 }}>
-                            <span style={{ fontSize: 12, color: '#1d2129' }}>高级参数</span>
-                            <span style={{ color: '#86909c', fontSize: 12 }}>{expandedSections['pd-decode-adv'] ? '收起' : '展开'} <DownOutlined style={{ transform: expandedSections['pd-decode-adv'] ? 'rotate(180deg)' : 'none', transition: '0.2s', fontSize: 10 }} /></span>
-                          </div>
-                          {expandedSections['pd-decode-adv'] && (
-                            <div style={{ marginTop: 10 }}>
+                            <div className="ataas-pd-params-area" style={{ marginTop: 12 }}>
                               {pdDecodeParams.length === 0 ? (
-                                <div style={{ textAlign: 'center', padding: '8px 0', color: '#86909c', fontSize: 12 }}>暂无自定义参数</div>
+                                <div className="ataas-pd-param-empty">暂无参数</div>
                               ) : (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                  {pdDecodeParams.map((param, pi) => (
-                                    <div key={pi} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                      <Input placeholder="参数名" value={param.key} onChange={(e) => { const next = [...pdDecodeParams]; next[pi] = { ...next[pi], key: e.target.value }; setPdDecodeParams(next); }} style={{ flex: 1 }} size="small" />
-                                      <Input placeholder="参数值" value={param.value} onChange={(e) => { const next = [...pdDecodeParams]; next[pi] = { ...next[pi], value: e.target.value }; setPdDecodeParams(next); }} style={{ flex: 1 }} size="small" />
-                                      <Button icon={<DeleteOutlined />} danger size="small" onClick={() => setPdDecodeParams(pdDecodeParams.filter((_, j) => j !== pi))} />
-                                    </div>
-                                  ))}
-                                </div>
+                                pdDecodeParams.map((param, pi) => (
+                                  <div key={pi} className="ataas-pd-param-row">
+                                    <Input placeholder="参数名" value={param.key} onChange={(e) => { const next = [...pdDecodeParams]; next[pi] = { ...next[pi], key: e.target.value }; setPdDecodeParams(next); }} style={{ flex: 1 }} size="small" />
+                                    <Input placeholder="参数值" value={param.value} onChange={(e) => { const next = [...pdDecodeParams]; next[pi] = { ...next[pi], value: e.target.value }; setPdDecodeParams(next); }} style={{ flex: 1 }} size="small" />
+                                    <Button icon={<DeleteOutlined />} danger size="small" onClick={() => setPdDecodeParams(pdDecodeParams.filter((_, j) => j !== pi))} />
+                                  </div>
+                                ))
                               )}
-                              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                              <div className="ataas-pd-param-add">
                                 <Button size="small" icon={<PlusOutlined />} onClick={() => setPdDecodeParams([...pdDecodeParams, { key: '', value: '' }])}>添加参数</Button>
                               </div>
+                              <div className="ataas-pd-advanced-toggle" onClick={() => setExpandedSections((p) => ({ ...p, 'pd-decode-adv': !p['pd-decode-adv'] }))}>
+                                <span className="ataas-pd-advanced-toggle-label">高级参数</span>
+                                <DownOutlined className={'ataas-pd-advanced-toggle-icon' + (expandedSections['pd-decode-adv'] ? ' open' : '')} />
+                              </div>
+                              {expandedSections['pd-decode-adv'] && (
+                                <div className="ataas-pd-advanced-content">
+                                  {pdDecodeParams.length > 0 && <div className="ataas-pd-advanced-hint">以下为额外高级配置参数，可按需添加</div>}
+                                </div>
+                              )}
                             </div>
-                          )}
+                          </div>
                         </div>
                       </div>
                     )}
@@ -4256,18 +4400,15 @@ subjects:
                         {/* 部署配置 */}
                         {deployMode === 'single' && (
                           <div style={{ marginTop: 16, border: '1px solid #F2F3F5', borderRadius: 12, overflow: 'hidden', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-                            <div onClick={() => setExpandedSections((p) => ({ ...p, config: !p.config }))} style={{ padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', background: expandedSections.config ? '#f8f9fc' : '#fff', borderBottom: expandedSections.config ? '1px solid #F2F3F5' : 'none', transition: 'all 0.2s' }}>
+                            <div style={{ padding: '14px 18px', background: '#f8f9fc', borderBottom: '1px solid #F2F3F5' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                <SettingOutlined style={{ fontSize: 15, color: '#6951FF' }} />
                                 <span style={{ fontSize: 13, fontWeight: 600, color: '#1d2129' }}>部署配置</span>
                                 {selectedSingleNode ? (() => {
                                   const n = deployNodes.find((d) => d.key === selectedSingleNode);
                                   return n ? <span style={{ fontSize: 12, color: '#86909c', marginLeft: 4 }}>{n.name} · {singleCardCount || '-'}卡</span> : null;
                                 })() : <span style={{ fontSize: 12, color: '#bcc2cc', marginLeft: 4 }}>未配置</span>}
                               </div>
-                              <span style={{ color: '#86909c', fontSize: 12 }}>{expandedSections.config ? '收起' : '展开'} <DownOutlined style={{ transform: expandedSections.config ? 'rotate(180deg)' : 'none', transition: '0.25s', fontSize: 10 }} /></span>
                             </div>
-                            {expandedSections.config && (
                               <div style={{ padding: 16 }}>
                                 <div style={{ fontSize: 13, fontWeight: 600, color: '#1d2129', marginBottom: 12 }}>节点配置</div>
                                 <Form.Item label="部署节点" required style={{ marginBottom: 12 }}>
@@ -4279,49 +4420,15 @@ subjects:
                                   </div>
                                 </Form.Item>
                                 <Form.Item label="使用卡数" required style={{ marginBottom: 16 }}>
-                                  <div style={{ display: 'flex', gap: 8 }}>
-                                    {[1, 2, 4, 8].map((n) => {
-                                      const node = selectedSingleNode ? deployNodes.find((d) => d.key === selectedSingleNode) : null;
-                                      const disabled = node ? n > node.availableCards : true;
-                                      return (
-                                        <div key={n} onClick={() => { if (!disabled) setSingleCardCount(n); }} style={{
-                                          width: 56, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                          border: `1.5px solid ${singleCardCount === n ? '#6951FF' : disabled ? '#f0f0f0' : '#e0e3ea'}`,
-                                          borderRadius: 10, background: singleCardCount === n ? '#f0f5ff' : disabled ? '#fafafa' : '#fff',
-                                          color: singleCardCount === n ? '#6951FF' : disabled ? '#d9d9d9' : '#1d2129',
-                                          fontSize: 14, fontWeight: singleCardCount === n ? 700 : 500, cursor: disabled ? 'not-allowed' : 'pointer',
-                                          transition: 'all 0.2s', userSelect: 'none',
-                                        }}>{n}卡</div>
-                                      );
-                                    })}
-                                  </div>
+                                  {renderCardCountStepper(selectedSingleNode ? (deployNodes.find((d) => d.key === selectedSingleNode)?.availableCards ?? 0) : 0)}
                                 </Form.Item>
-                                {renderLaunchConfigBlock()}
                                 <div style={{ height: 1, background: '#F2F3F5', margin: '0 -16px 16px' }} />
-                                <div onClick={() => setExpandedSections((p) => ({ ...p, advanced: !p.advanced }))} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', marginBottom: 10 }}>
-                                  <div style={{ fontSize: 13, fontWeight: 600, color: '#1d2129' }}>高级参数</div>
-                                  <span style={{ color: '#86909c', fontSize: 12 }}>{expandedSections.advanced ? '收起' : '展开'} <DownOutlined style={{ transform: expandedSections.advanced ? 'rotate(180deg)' : 'none', transition: '0.2s', fontSize: 10 }} /></span>
+                                <div className="ataas-advanced-shell-toggle" onClick={() => setExpandedSections((p) => ({ ...p, advanced: !p.advanced }))}>
+                                  <DownOutlined className={expandedSections.advanced ? 'open' : ''} />
+                                  <span>高级参数</span>
                                 </div>
-                                {expandedSections.advanced && (<>
-                                  {deployParams.length === 0 ? (
-                                    <div style={{ textAlign: 'center', padding: '12px 0', color: '#86909c', fontSize: 13 }}>暂无自定义参数</div>
-                                  ) : (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                      {deployParams.map((param, i) => (
-                                        <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                                          <Input placeholder="参数名" value={param.key} onChange={(e) => { const next = [...deployParams]; next[i] = { ...next[i], key: e.target.value }; setDeployParams(next); }} style={{ flex: 1 }} />
-                                          <Input placeholder="参数值" value={param.value} onChange={(e) => { const next = [...deployParams]; next[i] = { ...next[i], value: e.target.value }; setDeployParams(next); }} style={{ flex: 1 }} />
-                                          <Button icon={<DeleteOutlined />} danger size="small" onClick={() => setDeployParams(deployParams.filter((_, j) => j !== i))} />
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
-                                    <Button size="small" icon={<PlusOutlined />} onClick={() => setDeployParams([...deployParams, { key: '', value: '' }])}>添加参数</Button>
-                                  </div>
-                                </>)}
+                                {expandedSections.advanced && renderAdvancedParamsShell()}
                               </div>
-                            )}
                           </div>
                         )}
 
@@ -4329,7 +4436,6 @@ subjects:
                           <div style={{ marginTop: 16, border: '1px solid #F2F3F5', borderRadius: 12, overflow: 'hidden', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
                             <div onClick={() => setExpandedSections((p) => ({ ...p, config: !p.config }))} style={{ padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', background: expandedSections.config ? '#f8f9fc' : '#fff', borderBottom: expandedSections.config ? '1px solid #F2F3F5' : 'none', transition: 'all 0.2s' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                <SettingOutlined style={{ fontSize: 15, color: '#6951FF' }} />
                                 <span style={{ fontSize: 13, fontWeight: 600, color: '#1d2129' }}>部署配置</span>
                                 {selectedDeployNodes.length > 0 ? <span style={{ fontSize: 12, color: '#86909c', marginLeft: 4 }}>{selectedDeployNodes.length} 台 · {singleCardCount}卡</span> : <span style={{ fontSize: 12, color: '#bcc2cc', marginLeft: 4 }}>未配置</span>}
                               </div>
@@ -4349,47 +4455,15 @@ subjects:
                                   </div>
                                 </Form.Item>
                                 <Form.Item label="使用卡数" required style={{ marginBottom: 16 }}>
-                                  <div style={{ display: 'flex', gap: 6 }}>
-                                    {[1, 2, 4, 8].map((n) => {
-                                      const minAvailable = selectedDeployNodes.length > 0 ? Math.min(...selectedDeployNodes.map((k) => deployNodes.find((d) => d.key === k)?.availableCards ?? 0)) : 0;
-                                      const disabled = n > minAvailable;
-                                      return (
-                                        <div key={n} onClick={() => { if (!disabled) setSingleCardCount(n); }} style={{
-                                          width: 52, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                          border: `1px solid ${singleCardCount === n ? '#6951FF' : disabled ? '#f0f0f0' : '#d9d9d9'}`,
-                                          borderRadius: 8, background: singleCardCount === n ? '#f0f5ff' : disabled ? '#fafafa' : '#fff',
-                                          color: singleCardCount === n ? '#6951FF' : disabled ? '#d9d9d9' : '#1d2129',
-                                          fontSize: 13, fontWeight: singleCardCount === n ? 600 : 400, cursor: disabled ? 'not-allowed' : 'pointer',
-                                          transition: 'all 0.2s', userSelect: 'none',
-                                        }}>{n}卡</div>
-                                      );
-                                    })}
-                                  </div>
+                                  {renderCardCountStepper(selectedDeployNodes.length > 0 ? Math.min(...selectedDeployNodes.map((k) => deployNodes.find((d) => d.key === k)?.availableCards ?? 0)) : 0)}
                                 </Form.Item>
                                 {renderLaunchConfigBlock()}
                                 <div style={{ height: 1, background: '#F2F3F5', margin: '0 -16px 16px' }} />
-                                <div onClick={() => setExpandedSections((p) => ({ ...p, advanced: !p.advanced }))} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', marginBottom: 10 }}>
-                                  <div style={{ fontSize: 13, fontWeight: 600, color: '#1d2129' }}>高级参数</div>
-                                  <span style={{ color: '#86909c', fontSize: 12 }}>{expandedSections.advanced ? '收起' : '展开'} <DownOutlined style={{ transform: expandedSections.advanced ? 'rotate(180deg)' : 'none', transition: '0.2s', fontSize: 10 }} /></span>
+                                <div className="ataas-advanced-shell-toggle" onClick={() => setExpandedSections((p) => ({ ...p, advanced: !p.advanced }))}>
+                                  <DownOutlined className={expandedSections.advanced ? 'open' : ''} />
+                                  <span>高级参数</span>
                                 </div>
-                                {expandedSections.advanced && (<>
-                                  {deployParams.length === 0 ? (
-                                    <div style={{ textAlign: 'center', padding: '12px 0', color: '#86909c', fontSize: 13 }}>暂无自定义参数</div>
-                                  ) : (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                      {deployParams.map((param, i) => (
-                                        <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                                          <Input placeholder="参数名" value={param.key} onChange={(e) => { const next = [...deployParams]; next[i] = { ...next[i], key: e.target.value }; setDeployParams(next); }} style={{ flex: 1 }} />
-                                          <Input placeholder="参数值" value={param.value} onChange={(e) => { const next = [...deployParams]; next[i] = { ...next[i], value: e.target.value }; setDeployParams(next); }} style={{ flex: 1 }} />
-                                          <Button icon={<DeleteOutlined />} danger size="small" onClick={() => setDeployParams(deployParams.filter((_, j) => j !== i))} />
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
-                                    <Button size="small" icon={<PlusOutlined />} onClick={() => setDeployParams([...deployParams, { key: '', value: '' }])}>添加参数</Button>
-                                  </div>
-                                </>)}
+                                {expandedSections.advanced && renderAdvancedParamsShell()}
                               </div>
                             )}
                           </div>
@@ -4442,8 +4516,6 @@ subjects:
                       <Button onClick={resetDeployForm}>取消</Button>
                       <Button type="primary" disabled={!(deployCluster && deployEngine && deployModel && deployServiceName)} onClick={() => { alert('部署提交成功！'); setDeployDrawerOpen(false); }}>部署</Button>
                     </div>
-                </>
-              )}
             </div>
       </Drawer>
 
@@ -4455,118 +4527,195 @@ subjects:
       }>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* Router */}
-          <div style={{ background: '#f8f9fc', border: '1px solid #F2F3F5', borderRadius: 12, padding: '16px 20px' }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#1d2129', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <SwapRightOutlined style={{ fontSize: 16, color: '#722ed1' }} />
+          <div className="ataas-pd-section">
+            <div className="ataas-pd-section-header">
+              <SwapRightOutlined className="ataas-pd-section-header-icon" style={{ color: '#722ed1' }} />
               <span>Router 扩容</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontSize: 13, color: '#4e5969' }}>实例个数</span>
-                <InputNumber min={1} max={10} value={scalePdRouterCount} onChange={(v) => v && setScalePdRouterCount(v)} style={{ width: 64 }} size="small" />
+            <div className="ataas-pd-section-body">
+              <div className="ataas-pd-section-row">
+                <div>
+                  <div className="ataas-pd-field-label">实例个数</div>
+                  <Input value={String(scalePdRouterCount)} onChange={(e) => { const n = parseInt(e.target.value); if (!isNaN(n) && n > 0) setScalePdRouterCount(n); }} style={{ width: 72 }} size="small" />
+                </div>
+                <div className="ataas-pd-divider" />
+                <div>
+                  <div className="ataas-pd-field-label">节点选择</div>
+                  <div className="ataas-pd-node-selector" onClick={() => { setScaleNodePickerMode('router'); setScaleNodePickerSelected([...scalePdRouterNodes]); setScaleNodePickerOpen(true); }}>
+                    {scalePdRouterNodes.length > 0 ? scalePdRouterNodes.map((k) => {
+                      const n = deployNodes.find((d) => d.key === k);
+                      return n ? <Tag key={k} closable onClose={(e) => { e.stopPropagation(); setScalePdRouterNodes((prev) => prev.filter((x) => x !== k)); }} className="ataas-pd-node-tag ataas-pd-node-tag-router">{n.name}</Tag> : null;
+                    }) : <span className="ataas-pd-node-placeholder">点击选择节点</span>}
+                  </div>
+                </div>
               </div>
-              <div style={{ width: 1, height: 24, background: '#F2F3F5' }} />
-              <div>
-                <div onClick={() => { setScaleNodePickerMode('router'); setScaleNodePickerSelected([...scalePdRouterNodes]); setScaleNodePickerOpen(true); }} style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '8px 12px', border: '1.5px dashed #d0d5e0', borderRadius: 10, cursor: 'pointer', minHeight: 36, background: '#fafbff' }}>
-                  {scalePdRouterNodes.length > 0 ? scalePdRouterNodes.map((k) => {
-                    const n = deployNodes.find((d) => d.key === k);
-                    return n ? <Tag key={k} closable onClose={(e) => { e.stopPropagation(); setScalePdRouterNodes((prev) => prev.filter((x) => x !== k)); }} style={{ padding: '2px 10px', fontSize: 12, borderRadius: 6, border: 'none', background: '#eef2ff' }}>{n.name}</Tag> : null;
-                  }) : <span style={{ color: '#bcc2cc', fontSize: 13 }}>选择节点</span>}
+              <div className="ataas-pd-mode-bar">
+                <Segmented value={scalePdRouterParamMode} onChange={(v) => setScalePdRouterParamMode(v as 'template' | 'manual')} size="small" options={[{ value: 'template', label: 'YAML 模版' }, { value: 'manual', label: '手填参数' }]} />
+                <div style={{ flex: 1 }}>
+                  {scalePdRouterParamMode === 'template' ? (
+                    scalePdRouterNodes.length === 0 ? (
+                      <span className="ataas-pd-template-placeholder">请先选择节点</span>
+                    ) : (
+                      <div className="ataas-pd-template-content">
+                        <input type="file" accept=".yaml,.yml" ref={scalePdRouterFileInputRef} style={{ display: 'none' }} onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (ev) => { setScalePdRouterUploadedYaml(ev.target?.result as string || ''); };
+                            reader.readAsText(file);
+                          }
+                          e.target.value = '';
+                        }} />
+                        <Button icon={<UploadOutlined />} size="small" onClick={() => scalePdRouterFileInputRef.current?.click()}>上传模版</Button>
+                        {scalePdRouterUploadedYaml && <Tag closable onClose={() => setScalePdRouterUploadedYaml('')} style={{ margin: 0 }}>已上传 YAML</Tag>}
+                      </div>
+                    )
+                  ) : scalePdRouterParamMode === 'manual' && (
+                    <div className="ataas-pd-params-area">
+                      {scalePdRouterParams.length === 0 ? (
+                        <div className="ataas-pd-param-empty">暂无参数</div>
+                      ) : (
+                        scalePdRouterParams.map((param, pi) => (
+                          <div key={pi} className="ataas-pd-param-row">
+                            <Input placeholder="参数名" value={param.key} onChange={(e) => { const next = [...scalePdRouterParams]; next[pi] = { ...next[pi], key: e.target.value }; setScalePdRouterParams(next); }} style={{ flex: 1 }} size="small" />
+                            <Input placeholder="参数值" value={param.value} onChange={(e) => { const next = [...scalePdRouterParams]; next[pi] = { ...next[pi], value: e.target.value }; setScalePdRouterParams(next); }} style={{ flex: 1 }} size="small" />
+                            <Button icon={<DeleteOutlined />} danger size="small" onClick={() => setScalePdRouterParams(scalePdRouterParams.filter((_, j) => j !== pi))} />
+                          </div>
+                        ))
+                      )}
+                      <div className="ataas-pd-param-add">
+                        <Button size="small" icon={<PlusOutlined />} onClick={() => setScalePdRouterParams([...scalePdRouterParams, { key: '', value: '' }])}>添加参数</Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           </div>
           {/* Prefill */}
-          <div style={{ background: '#f8f9fc', border: '1px solid #F2F3F5', borderRadius: 12, padding: '16px 20px' }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#1d2129', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <ThunderboltOutlined style={{ fontSize: 16, color: '#6951FF' }} />
+          <div className="ataas-pd-section">
+            <div className="ataas-pd-section-header">
+              <ThunderboltOutlined className="ataas-pd-section-header-icon" style={{ color: '#6951FF' }} />
               <span>Prefill 扩容</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontSize: 13, color: '#4e5969' }}>实例个数</span>
-                <InputNumber min={1} max={10} value={scalePdPrefillCount} onChange={(v) => v && setScalePdPrefillCount(v)} style={{ width: 64 }} size="small" />
-              </div>
-              <div style={{ width: 1, height: 24, background: '#F2F3F5' }} />
-              <div>
-                <div onClick={() => { setScaleNodePickerMode('prefill'); setScaleNodePickerSelected([...scalePdPrefillNodes]); setScaleNodePickerOpen(true); }} style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '8px 12px', border: '1.5px dashed #d0d5e0', borderRadius: 10, cursor: 'pointer', minHeight: 36, background: '#fafbff' }}>
-                  {scalePdPrefillNodes.length > 0 ? scalePdPrefillNodes.map((k) => {
-                    const n = deployNodes.find((d) => d.key === k);
-                    return n ? <Tag key={k} closable onClose={(e) => { e.stopPropagation(); setScalePdPrefillNodes((prev) => prev.filter((x) => x !== k)); }} style={{ padding: '2px 10px', fontSize: 12, borderRadius: 6, border: 'none', background: '#eef2ff' }}>{n.name}</Tag> : null;
-                  }) : <span style={{ color: '#bcc2cc', fontSize: 13 }}>选择节点</span>}
+            <div className="ataas-pd-section-body">
+              <div className="ataas-pd-section-row">
+                <div>
+                  <div className="ataas-pd-field-label">实例个数</div>
+                  <Input value={String(scalePdPrefillCount)} onChange={(e) => { const n = parseInt(e.target.value); if (!isNaN(n) && n > 0) setScalePdPrefillCount(n); }} style={{ width: 72 }} size="small" />
                 </div>
-              </div>
-            </div>
-            <div onClick={() => setExpandedSections((p) => ({ ...p, 'scale-prefill-adv': !p['scale-prefill-adv'] }))} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '6px 10px', background: '#f7f8fa', borderRadius: 6, marginTop: 12 }}>
-              <span style={{ fontSize: 12, color: '#1d2129' }}>高级参数</span>
-              <span style={{ color: '#86909c', fontSize: 12 }}>{expandedSections['scale-prefill-adv'] ? '收起' : '展开'} <DownOutlined style={{ transform: expandedSections['scale-prefill-adv'] ? 'rotate(180deg)' : 'none', transition: '0.2s', fontSize: 10 }} /></span>
-            </div>
-            {expandedSections['scale-prefill-adv'] && (
-              <div style={{ marginTop: 10 }}>
-                {scalePdPrefillParams.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '8px 0', color: '#86909c', fontSize: 12 }}>暂无自定义参数</div>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {scalePdPrefillParams.map((param, pi) => (
-                      <div key={pi} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <Input placeholder="参数名" value={param.key} onChange={(e) => { const next = [...scalePdPrefillParams]; next[pi] = { ...next[pi], key: e.target.value }; setScalePdPrefillParams(next); }} style={{ flex: 1 }} size="small" />
-                        <Input placeholder="参数值" value={param.value} onChange={(e) => { const next = [...scalePdPrefillParams]; next[pi] = { ...next[pi], value: e.target.value }; setScalePdPrefillParams(next); }} style={{ flex: 1 }} size="small" />
-                        <Button icon={<DeleteOutlined />} danger size="small" onClick={() => setScalePdPrefillParams(scalePdPrefillParams.filter((_, j) => j !== pi))} />
-                      </div>
-                    ))}
+                <div className="ataas-pd-divider" />
+                <div>
+                  <div className="ataas-pd-field-label">节点选择</div>
+                  <div className="ataas-pd-node-selector" onClick={() => { setScaleNodePickerMode('prefill'); setScaleNodePickerSelected([...scalePdPrefillNodes]); setScaleNodePickerOpen(true); }}>
+                    {scalePdPrefillNodes.length > 0 ? scalePdPrefillNodes.map((k) => {
+                      const n = deployNodes.find((d) => d.key === k);
+                      return n ? <Tag key={k} closable onClose={(e) => { e.stopPropagation(); setScalePdPrefillNodes((prev) => prev.filter((x) => x !== k)); }} className="ataas-pd-node-tag ataas-pd-node-tag-prefill">{n.name}</Tag> : null;
+                    }) : <span className="ataas-pd-node-placeholder">点击选择节点</span>}
                   </div>
-                )}
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-                  <Button size="small" icon={<PlusOutlined />} onClick={() => setScalePdPrefillParams([...scalePdPrefillParams, { key: '', value: '' }])}>添加参数</Button>
                 </div>
               </div>
-            )}
+              <div className="ataas-pd-mode-bar">
+                <Segmented value={scalePdPrefillParamMode} onChange={(v) => setScalePdPrefillParamMode(v as 'template' | 'manual')} size="small" options={[{ value: 'template', label: 'YAML 模版' }, { value: 'manual', label: '手填参数' }]} />
+                <div style={{ flex: 1 }}>
+                  {scalePdPrefillParamMode === 'template' ? (
+                    scalePdPrefillNodes.length === 0 ? (
+                      <span className="ataas-pd-template-placeholder">请先选择节点</span>
+                    ) : (
+                      <div className="ataas-pd-template-content">
+                        <input type="file" accept=".yaml,.yml" ref={scalePdPrefillFileInputRef} style={{ display: 'none' }} onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (ev) => { setScalePdPrefillUploadedYaml(ev.target?.result as string || ''); };
+                            reader.readAsText(file);
+                          }
+                          e.target.value = '';
+                        }} />
+                        <Button icon={<UploadOutlined />} size="small" onClick={() => scalePdPrefillFileInputRef.current?.click()}>上传模版</Button>
+                        {scalePdPrefillUploadedYaml && <Tag closable onClose={() => setScalePdPrefillUploadedYaml('')} style={{ margin: 0 }}>已上传 YAML</Tag>}
+                      </div>
+                    )
+                  ) : scalePdPrefillParamMode === 'manual' && (
+                    <div className="ataas-pd-params-area">
+                      {scalePdPrefillParams.length === 0 ? (
+                        <div className="ataas-pd-param-empty">暂无参数</div>
+                      ) : (
+                        scalePdPrefillParams.map((param, pi) => (
+                          <div key={pi} className="ataas-pd-param-row">
+                            <Input placeholder="参数名" value={param.key} onChange={(e) => { const next = [...scalePdPrefillParams]; next[pi] = { ...next[pi], key: e.target.value }; setScalePdPrefillParams(next); }} style={{ flex: 1 }} size="small" />
+                            <Input placeholder="参数值" value={param.value} onChange={(e) => { const next = [...scalePdPrefillParams]; next[pi] = { ...next[pi], value: e.target.value }; setScalePdPrefillParams(next); }} style={{ flex: 1 }} size="small" />
+                            <Button icon={<DeleteOutlined />} danger size="small" onClick={() => setScalePdPrefillParams(scalePdPrefillParams.filter((_, j) => j !== pi))} />
+                          </div>
+                        ))
+                      )}
+                      <div className="ataas-pd-param-add">
+                        <Button size="small" icon={<PlusOutlined />} onClick={() => setScalePdPrefillParams([...scalePdPrefillParams, { key: '', value: '' }])}>添加参数</Button>
+                      </div>
+                      <div className="ataas-pd-advanced-toggle" onClick={() => setExpandedSections((p) => ({ ...p, 'scale-prefill-adv': !p['scale-prefill-adv'] }))}>
+                        <span className="ataas-pd-advanced-toggle-label">高级参数</span>
+                        <DownOutlined className={'ataas-pd-advanced-toggle-icon' + (expandedSections['scale-prefill-adv'] ? ' open' : '')} />
+                      </div>
+                      {expandedSections['scale-prefill-adv'] && (
+                        <div className="ataas-pd-advanced-content">
+                          {scalePdPrefillParams.length > 0 && <div className="ataas-pd-advanced-hint">以下为额外高级配置参数，可按需添加</div>}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
           {/* Decode */}
-          <div style={{ background: '#f8f9fc', border: '1px solid #F2F3F5', borderRadius: 12, padding: '16px 20px' }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#1d2129', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <BarChartOutlined style={{ fontSize: 16, color: '#722ed1' }} />
+          <div className="ataas-pd-section">
+            <div className="ataas-pd-section-header">
+              <BarChartOutlined className="ataas-pd-section-header-icon" style={{ color: '#722ed1' }} />
               <span>Decode 扩容</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontSize: 13, color: '#4e5969' }}>实例个数</span>
-                <InputNumber min={1} max={10} value={scalePdDecodeCount} onChange={(v) => v && setScalePdDecodeCount(v)} style={{ width: 64 }} size="small" />
-              </div>
-              <div style={{ width: 1, height: 24, background: '#F2F3F5' }} />
-              <div>
-                <div onClick={() => { setScaleNodePickerMode('decode'); setScaleNodePickerSelected([...scalePdDecodeNodes]); setScaleNodePickerOpen(true); }} style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '8px 12px', border: '1.5px dashed #d0d5e0', borderRadius: 10, cursor: 'pointer', minHeight: 36, background: '#fafbff' }}>
-                  {scalePdDecodeNodes.length > 0 ? scalePdDecodeNodes.map((k) => {
-                    const n = deployNodes.find((d) => d.key === k);
-                    return n ? <Tag key={k} closable onClose={(e) => { e.stopPropagation(); setScalePdDecodeNodes((prev) => prev.filter((x) => x !== k)); }} style={{ padding: '2px 10px', fontSize: 12, borderRadius: 6, border: 'none', background: '#f3eaff' }}>{n.name}</Tag> : null;
-                  }) : <span style={{ color: '#bcc2cc', fontSize: 13 }}>选择节点</span>}
+            <div className="ataas-pd-section-body">
+              <div className="ataas-pd-section-row">
+                <div>
+                  <div className="ataas-pd-field-label">实例个数</div>
+                  <Input value={String(scalePdDecodeCount)} onChange={(e) => { const n = parseInt(e.target.value); if (!isNaN(n) && n > 0) setScalePdDecodeCount(n); }} style={{ width: 72 }} size="small" />
+                </div>
+                <div className="ataas-pd-divider" />
+                <div>
+                  <div className="ataas-pd-field-label">节点选择</div>
+                  <div className="ataas-pd-node-selector" onClick={() => { setScaleNodePickerMode('decode'); setScaleNodePickerSelected([...scalePdDecodeNodes]); setScaleNodePickerOpen(true); }}>
+                    {scalePdDecodeNodes.length > 0 ? scalePdDecodeNodes.map((k) => {
+                      const n = deployNodes.find((d) => d.key === k);
+                      return n ? <Tag key={k} closable onClose={(e) => { e.stopPropagation(); setScalePdDecodeNodes((prev) => prev.filter((x) => x !== k)); }} className="ataas-pd-node-tag ataas-pd-node-tag-decode">{n.name}</Tag> : null;
+                    }) : <span className="ataas-pd-node-placeholder">点击选择节点</span>}
+                  </div>
                 </div>
               </div>
-            </div>
-            <div onClick={() => setExpandedSections((p) => ({ ...p, 'scale-decode-adv': !p['scale-decode-adv'] }))} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '6px 10px', background: '#f7f8fa', borderRadius: 6, marginTop: 12 }}>
-              <span style={{ fontSize: 12, color: '#1d2129' }}>高级参数</span>
-              <span style={{ color: '#86909c', fontSize: 12 }}>{expandedSections['scale-decode-adv'] ? '收起' : '展开'} <DownOutlined style={{ transform: expandedSections['scale-decode-adv'] ? 'rotate(180deg)' : 'none', transition: '0.2s', fontSize: 10 }} /></span>
-            </div>
-            {expandedSections['scale-decode-adv'] && (
-              <div style={{ marginTop: 10 }}>
+              <div className="ataas-pd-params-area" style={{ marginTop: 12 }}>
                 {scalePdDecodeParams.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '8px 0', color: '#86909c', fontSize: 12 }}>暂无自定义参数</div>
+                  <div className="ataas-pd-param-empty">暂无参数</div>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {scalePdDecodeParams.map((param, pi) => (
-                      <div key={pi} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <Input placeholder="参数名" value={param.key} onChange={(e) => { const next = [...scalePdDecodeParams]; next[pi] = { ...next[pi], key: e.target.value }; setScalePdDecodeParams(next); }} style={{ flex: 1 }} size="small" />
-                        <Input placeholder="参数值" value={param.value} onChange={(e) => { const next = [...scalePdDecodeParams]; next[pi] = { ...next[pi], value: e.target.value }; setScalePdDecodeParams(next); }} style={{ flex: 1 }} size="small" />
-                        <Button icon={<DeleteOutlined />} danger size="small" onClick={() => setScalePdDecodeParams(scalePdDecodeParams.filter((_, j) => j !== pi))} />
-                      </div>
-                    ))}
-                  </div>
+                  scalePdDecodeParams.map((param, pi) => (
+                    <div key={pi} className="ataas-pd-param-row">
+                      <Input placeholder="参数名" value={param.key} onChange={(e) => { const next = [...scalePdDecodeParams]; next[pi] = { ...next[pi], key: e.target.value }; setScalePdDecodeParams(next); }} style={{ flex: 1 }} size="small" />
+                      <Input placeholder="参数值" value={param.value} onChange={(e) => { const next = [...scalePdDecodeParams]; next[pi] = { ...next[pi], value: e.target.value }; setScalePdDecodeParams(next); }} style={{ flex: 1 }} size="small" />
+                      <Button icon={<DeleteOutlined />} danger size="small" onClick={() => setScalePdDecodeParams(scalePdDecodeParams.filter((_, j) => j !== pi))} />
+                    </div>
+                  ))
                 )}
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                <div className="ataas-pd-param-add">
                   <Button size="small" icon={<PlusOutlined />} onClick={() => setScalePdDecodeParams([...scalePdDecodeParams, { key: '', value: '' }])}>添加参数</Button>
                 </div>
+                <div className="ataas-pd-advanced-toggle" onClick={() => setExpandedSections((p) => ({ ...p, 'scale-decode-adv': !p['scale-decode-adv'] }))}>
+                  <span className="ataas-pd-advanced-toggle-label">高级参数</span>
+                  <DownOutlined className={'ataas-pd-advanced-toggle-icon' + (expandedSections['scale-decode-adv'] ? ' open' : '')} />
+                </div>
+                {expandedSections['scale-decode-adv'] && (
+                  <div className="ataas-pd-advanced-content">
+                    {scalePdDecodeParams.length > 0 && <div className="ataas-pd-advanced-hint">以下为额外高级配置参数，可按需添加</div>}
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
         </div>
       </Modal>
@@ -4611,6 +4760,101 @@ subjects:
           ]}
         />
       </Modal>
+      {deployDetailItem && (() => {
+        const InfoItem = ({ label, value }: { label: string; value: string }) => (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <span style={{ color: '#86909c', fontSize: 12, minWidth: 80, flexShrink: 0 }}>{label}</span>
+            <span style={{ color: '#1d2129', fontSize: 12, fontWeight: 500 }}>{value}</span>
+          </div>
+        );
+        const worksList = deployDetailItem.modelInfo.works?.split(',').map((w: string) => w.trim()).filter(Boolean) || [];
+        const instanceCount = deployDetailItem.modelInfo.number || 1;
+        const isPdMode = deployDetailItem.deployMode === 'PD 分离';
+        const nodeList = worksList.length > 0 ? worksList : Array.from({ length: instanceCount }, (_, i) => `节点 ${i + 1}`);
+        const dataSource = nodeList.map((node: string, i: number) => ({ key: i, instance: `实例 ${i + 1}`, node }));
+        const mainColumns = [
+          { title: '实例', dataIndex: 'instance', key: 'instance', width: 80 },
+          { title: '节点', dataIndex: 'node', key: 'node', width: 120 },
+          { title: '状态', dataIndex: 'main', key: 'main', render: (_: any) => <span style={{ color: '#00b42a', fontSize: 12 }}><CheckCircleFilled style={{ marginRight: 4 }} />运行中</span> },
+        ];
+        const pdMainColumns = mainColumns.filter((c: any) => c.dataIndex !== 'node');
+        return (
+          <Drawer
+            title={
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <img src={getDeployModelLogo(deployDetailItem)} alt="" style={{ width: 24, height: 24, borderRadius: 6 }} />
+                <span>{deployDetailItem.name}</span>
+                <div style={{ flex: 1 }} />
+                <Button type="text" danger icon={<PoweroffOutlined />} onClick={(e) => { e.stopPropagation(); handleDeployStop(deployDetailItem); }}>停止服务</Button>
+              </div>
+            }
+            open={!!deployDetailItem}
+            onClose={() => setDeployDetailItem(null)}
+            width={640}
+          >
+            <div style={{ padding: '4px 0' }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#1d2129', marginBottom: 12, paddingBottom: 8, borderBottom: '1px solid #f2f3f5' }}>基础信息</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
+                <InfoItem label="服务名称" value={deployDetailItem.name} />
+                {deployDetailItem.description && <InfoItem label="服务描述" value={deployDetailItem.description} />}
+                <InfoItem label="部署方式" value={deployDetailItem.deployMode || '-'} />
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#1d2129', marginBottom: 12, paddingBottom: 8, borderBottom: '1px solid #f2f3f5' }}>模型信息</div>
+              <div style={{ marginBottom: 16 }}>
+                <InfoItem label="模型名称" value={deployDetailItem.modelInfo.name} />
+              </div>
+              <div style={{ marginBottom: 20 }}>
+                <InfoItem label="推理引擎" value={`${deployDetailItem.modelInfo.engine || '-'} / ${deployDetailItem.modelInfo.engineVersion || '-'}`} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px 24px' }}>
+                <InfoItem label="模型ID" value={'#' + deployDetailItem.id} />
+                <InfoItem label="模型参数" value={deployDetailItem.modelInfo.size} />
+                <InfoItem label="上下文长度" value={deployDetailItem.modelInfo.contextLength || '-'} />
+                <InfoItem label="注意力头数" value={deployDetailItem.modelInfo.attentionHeads || '-'} />
+                <InfoItem label="模型精度" value={deployDetailItem.modelInfo.point} />
+                <InfoItem label="占用显存" value={deployDetailItem.modelInfo.vram} />
+                <InfoItem label="层数" value={deployDetailItem.modelInfo.layers || '-'} />
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#1d2129', marginBottom: 12, marginTop: 20, paddingBottom: 8, borderBottom: '1px solid #f2f3f5' }}>实例信息</div>
+              {isPdMode ? (
+                <Table
+                  dataSource={dataSource}
+                  columns={pdMainColumns}
+                  pagination={false}
+                  size="small"
+                  style={{ marginTop: 8 }}
+                  expandable={{
+                    expandedRowRender: (record: any) => {
+                      const node = record.node || '-';
+                      const subColumns = [
+                        { title: 'Pod 名称', dataIndex: 'podName', key: 'podName', render: (v: string) => <span style={{ fontSize: 12, color: '#4e5969' }}>{v}</span> },
+                        { title: '组件', dataIndex: 'comp', key: 'comp', width: 80 },
+                        { title: '所选机器', dataIndex: 'machine', key: 'machine', render: (v: string) => <span style={{ fontSize: 12 }}>{v}</span> },
+                        { title: '显卡数量', dataIndex: 'gpu', key: 'gpu', width: 80 },
+                        { title: '状态', dataIndex: 'status', key: 'status', width: 100, render: (_: string) => <span style={{ color: '#00b42a', fontSize: 12 }}><CheckCircleFilled style={{ marginRight: 4 }} />运行中</span> },
+                        { title: '操作', key: 'action', width: 80, render: (_: string, row: any) => (
+                          <Tooltip title="查看日志">
+                            <Button type="link" size="small" icon={<FileSearchOutlined />} style={{ padding: 0 }} onClick={() => handleDeployLog(deployDetailItem, row.logId)} />
+                          </Tooltip>
+                        )},
+                      ];
+                      const podSuffix = node.toLowerCase().replace(/[^a-z0-9]/g, '-');
+                      const subData = [
+                        { key: 'router', podName: `router-${podSuffix}-0`, comp: <span style={{ color: '#6951FF', fontWeight: 500 }}>Router</span>, machine: node, gpu: '-', status: 'running', logId: 1 },
+                        { key: 'prefill', podName: `prefill-${podSuffix}-0`, comp: <span style={{ color: '#6951FF', fontWeight: 500 }}>Prefill</span>, machine: node, gpu: '8 卡', status: 'running', logId: 2 },
+                        { key: 'decode', podName: `decode-${podSuffix}-0`, comp: <span style={{ color: '#722ed1', fontWeight: 500 }}>Decode</span>, machine: node, gpu: '8 卡', status: 'running', logId: 3 },
+                      ];
+                      return <Table dataSource={subData} columns={subColumns} pagination={false} size="small" style={{ margin: 0 }} />;
+                    },
+                  }}
+                />
+              ) : (
+                <Table dataSource={dataSource} columns={mainColumns} pagination={false} size="small" style={{ marginTop: 8 }} />
+              )}
+            </div>
+          </Drawer>
+        );
+      })()}
     </div>
   );
 };
