@@ -9999,13 +9999,16 @@ const AtAasDesign = () => {
               return group && index >= 0 ? getRouterWeight(group.routers, index) : 100;
             };
             const activeWeightModalGroup = clusterWeightGroups.find((group) => group.cluster === modelOpsWeightModalCluster);
-            const modelOpsPrefillNodes = activeModelServices.flatMap((service) => {
+            const modelOpsNodeColors = ['#22C7D9', '#8B7CF6', '#2ECC8F', '#FF8A34', '#FF6B6B', '#F7B500', '#5AA9FF', '#D95CFF'];
+            const modelOpsPrefillNodes = activeModelServices.flatMap((service, serviceIndex) => {
               const count = Math.max(1, (service.deployMode === 'PD 分离' ? service.modelInfo.number * 2 : service.modelInfo.number) || 1);
-              return Array.from({ length: count }, (_, index) => `${service.name}-prefill-${index}`);
+              const color = modelOpsNodeColors[serviceIndex % modelOpsNodeColors.length];
+              return Array.from({ length: count }, (_, index) => ({ name: `${service.name} prefill-${index}`, color }));
             });
-            const modelOpsDecodeNodes = activeModelServices.flatMap((service) => {
+            const modelOpsDecodeNodes = activeModelServices.flatMap((service, serviceIndex) => {
               const count = Math.max(1, service.modelInfo.number || 1);
-              return Array.from({ length: count }, (_, index) => `${service.name}-decode-${index}`);
+              const color = modelOpsNodeColors[(serviceIndex + 2) % modelOpsNodeColors.length];
+              return Array.from({ length: count }, (_, index) => ({ name: `${service.name} decode-${index}`, color }));
             });
             const modelOpsPrefillLegends = [
               { name: 'P99', color: '#4F46FF', value: 420 + activeModelServices.length * 18 },
@@ -10015,12 +10018,17 @@ const AtAasDesign = () => {
             const modelOpsDecodeLegends = [
               { name: 'AVG', color: '#4F46FF', value: 38 + activeModelServices.length * 2.4 },
             ];
-            const renderModelOpsNodePopover = (nodes: string[], label: string) => (
+            const renderModelOpsNodePopover = (nodes: Array<{ name: string; color: string }>, label: string) => (
               <Popover
                 placement="bottomRight"
                 content={(
                   <div className="ataas-model-ops-node-popover">
-                    {nodes.map((node) => <span key={node}>{node}</span>)}
+                    {nodes.map((node) => (
+                      <span key={node.name}>
+                        <i style={{ background: node.color }} />
+                        {node.name}
+                      </span>
+                    ))}
                   </div>
                 )}
               >

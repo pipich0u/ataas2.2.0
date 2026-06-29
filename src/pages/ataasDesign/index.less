@@ -5164,20 +5164,30 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 
 .ataas-model-ops-node-popover {
   display: grid;
-  max-width: 360px;
-  max-height: 240px;
-  gap: 6px;
+  min-width: 360px;
+  max-width: 720px;
+  max-height: 320px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: 18px;
+  row-gap: 8px;
   overflow-y: auto;
 
   span {
-    padding: 4px 8px;
-    border: 1px solid #E5E6EB;
-    border-radius: 6px;
-    background: #F7F8FA;
+    display: inline-flex;
+    min-width: 0;
+    align-items: center;
     color: #1D2129;
     font-size: 12px;
     line-height: 18px;
     white-space: nowrap;
+
+    i {
+      width: 8px;
+      height: 8px;
+      flex: 0 0 auto;
+      margin-right: 7px;
+      border-radius: 999px;
+    }
   }
 }
 
