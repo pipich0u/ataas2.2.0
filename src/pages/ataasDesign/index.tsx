@@ -10156,8 +10156,7 @@ const AtAasDesign = () => {
 	                            return (
 	                              <tr
 	                                key={group.cluster}
-	                                className={'ataas-model-ops-weight-card' + (modelOpsClusterFilter === group.cluster ? ' active' : '')}
-	                                onClick={() => setModelOpsClusterFilter(group.cluster)}
+	                                className="ataas-model-ops-weight-card"
 	                              >
 	                                <td className="ataas-model-ops-weight-cluster">
 	                                  <strong>{group.cluster}</strong>
@@ -10202,18 +10201,6 @@ const AtAasDesign = () => {
 		                    </div>
                     )}
                     {modelOpsActiveTab === 'detail' && (
-                      <>
-                        <div className="ataas-model-ops-detail-toolbar">
-                          <Button
-                            className="ataas-deploy-create-button"
-                            type="primary"
-                            icon={<PlusOutlined />}
-                            disabled={activeModelServices.length === 0}
-                            onClick={() => activeModelServices[0] && handleDeployAddInstance(activeModelServices[0])}
-                          >
-                            添加实例
-                          </Button>
-                        </div>
                         <DeployList
                           mode="modelOps"
                           data={activeModelServices}
@@ -10234,7 +10221,6 @@ const AtAasDesign = () => {
 		                          onClusterFilterChange={setModelOpsClusterFilter}
 		                          getModelOpsRowWeight={getServiceWeight}
 		                        />
-                      </>
                     )}
 		                    <Modal
                         className="ataas-model-ops-weight-modal-shell"

@@ -5354,12 +5354,6 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   overflow: hidden;
 }
 
-.ataas-model-ops-detail-toolbar {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 10px;
-}
-
 .ataas-model-ops-weight-head {
   margin-bottom: 12px;
 }
@@ -5397,14 +5391,6 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
     background: #F7F8FA;
     color: #4E5969;
     font-weight: 600;
-  }
-
-  tr.ataas-model-ops-weight-card {
-    cursor: pointer;
-
-    &.active td:first-child {
-      box-shadow: inset 3px 0 0 #7C3AED;
-    }
   }
 
   .fixed-action {
@@ -19321,6 +19307,16 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 }
 
 .ataas-model-ops-detail-table-wrap {
+  .ant-table-measure-row,
+  .ant-table-measure-row td {
+    height: 0 !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    visibility: hidden !important;
+    line-height: 0 !important;
+  }
+
   .ant-table-thead > tr > th {
     height: 42px !important;
     padding: 9px 12px !important;
