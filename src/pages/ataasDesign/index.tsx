@@ -10390,6 +10390,7 @@ const AtAasDesign = () => {
                           onExperience={handleDeployExperience}
                           onLog={handleDeployLog}
                           onDeleteInstance={handleDeployDeleteInstance}
+                          onAddInstance={handleDeployAddInstance}
                           onOpenCreate={handleOpenCreate}
                           onScalePd={handleScalePd}
                           onNodeFilter={handleDeployNodeFilter}
