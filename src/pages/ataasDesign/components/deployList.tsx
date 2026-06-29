@@ -470,6 +470,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
     ];
     return (
       <div className="ataas-deploy-inline-detail">
+        {mode !== 'modelOps' && (
         <div className="ataas-deploy-inline-section">
           <div className="ataas-deploy-inline-section-head">服务信息</div>
           <div className="ataas-deploy-inline-summary">
@@ -479,6 +480,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
             <div><span>引擎版本</span><strong>{item.modelInfo.engineVersion || '-'}</strong></div>
           </div>
         </div>
+        )}
         {mode !== 'modelOps' && (
         <div className="ataas-deploy-inline-section">
           <div className="ataas-deploy-inline-section-head ataas-deploy-inline-section-head-action">
@@ -569,20 +571,8 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
                   {opsRoleRows.map((row) => (
                     <tr key={row.key}>
                       <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
-                          <span style={{
-                            width: 22,
-                            height: 22,
-                            borderRadius: 8,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            flex: '0 0 auto',
-                            color: row.role === 'R' ? '#2F6BFF' : row.role === 'P' ? '#8B3DFF' : '#18A957',
-                            background: row.role === 'R' ? '#EEF4FF' : row.role === 'P' ? '#F5EDFF' : '#EAF9F0',
-                            fontWeight: 700,
-                            fontSize: 12,
-                          }}>{row.role}</span>
+                        <div className="ataas-model-ops-role-name">
+                          <span className={'ataas-model-ops-role-badge role-' + row.role.toLowerCase()}>{row.role}</span>
                           <Tooltip title={`${row.instanceName} / ${row.podName}`}>
                             <span className="ataas-deploy-inline-pod-name">{row.podName}</span>
                           </Tooltip>
@@ -591,21 +581,21 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
                       <td><span style={{ color: '#18A957', fontWeight: 600 }}>{row.ready}</span></td>
                       <td><span className="ataas-deploy-inline-status-running">{row.statusText}</span></td>
                       <td>{row.restarts}</td>
-                      <td><span style={{ display: 'inline-flex', minWidth: 28, justifyContent: 'center', padding: '4px 8px', border: '1px solid #E5E6EB', borderRadius: 8 }}>{row.load}</span></td>
+                      <td><span className="ataas-model-ops-load-pill">{row.load}</span></td>
                       <td>{row.performance}</td>
                       <td><Tooltip title={row.image}><span className="ataas-deploy-inline-pod-name">{row.image}</span></Tooltip></td>
                       <td>{row.ip}</td>
                       <td>{row.nodeName}</td>
                       <td>
-                        <div style={{ display: 'grid', gap: 4, minWidth: 150 }}>
+                        <div className="ataas-model-ops-gpu-metrics">
                           {[
                             { label: 'util', value: row.util, color: row.util > 80 ? '#E02D2D' : '#1D2129' },
                             { label: 'vram', value: row.vram, color: row.vram > 90 ? '#E02D2D' : '#18A957' },
                           ].map((metric) => (
-                            <div key={metric.label} style={{ display: 'grid', gridTemplateColumns: '34px 1fr 42px', gap: 8, alignItems: 'center' }}>
+                            <div key={metric.label} className="ataas-model-ops-gpu-row">
                               <span>{metric.label}</span>
-                              <i style={{ height: 8, borderRadius: 999, background: '#F2F3F5', overflow: 'hidden' }}>
-                                <b style={{ display: 'block', width: `${metric.value}%`, height: '100%', borderRadius: 999, background: metric.label === 'vram' ? '#E02D2D' : '#1D2129' }} />
+                              <i>
+                                <b style={{ width: `${metric.value}%`, background: metric.label === 'vram' ? '#E02D2D' : '#1D2129' }} />
                               </i>
                               <span style={{ color: metric.color }}>{metric.value}%</span>
                             </div>
@@ -614,24 +604,24 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
                       </td>
                       <td>{row.age}</td>
                       <td>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        <div className="ataas-model-ops-source-list">
                           {row.trafficSources.map((source: string) => (
-                            <span key={source} style={{ display: 'inline-flex', alignItems: 'center', maxWidth: 210, padding: '3px 9px', borderRadius: 8, color: '#2F6BFF', background: '#F2F6FF', border: '1px solid #D8E5FF' }}>
-                              <em style={{ width: 6, height: 6, borderRadius: 999, background: '#2F6BFF', marginRight: 6, flex: '0 0 auto' }} />
-                              <Tooltip title={source}><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{source}</span></Tooltip>
+                            <span key={source} className="ataas-model-ops-source-tag">
+                              <em />
+                              <Tooltip title={source}><span>{source}</span></Tooltip>
                             </span>
                           ))}
                         </div>
                       </td>
                       <td>
-                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                        <div className="ataas-model-ops-row-actions">
                           <Button size="small" icon={<FileSearchOutlined />} onClick={() => onLog(item, row.logId)}>日志</Button>
                           {row.role === 'R' ? (
-                            <Button size="small" style={{ color: '#D98500', borderColor: '#FFE1A6', background: '#FFF8E8' }}>摘流</Button>
+                            <Button className="warning" size="small">摘流</Button>
                           ) : (
                             <>
-                              <Button size="small" style={{ color: '#D98500', borderColor: '#FFE1A6', background: '#FFF8E8' }}>下线</Button>
-                              <Button size="small" style={{ color: '#2F6BFF', borderColor: '#D8E5FF', background: '#F2F6FF' }}>关联</Button>
+                              <Button className="warning" size="small">下线</Button>
+                              <Button className="link" size="small">关联</Button>
                             </>
                           )}
                         </div>
@@ -743,21 +733,29 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
     <div className="ataas-deploy-list">
       {/* 搜索栏 */}
       <div className="ataas-deploy-list-toolbar">
-        <Select className="ataas-deploy-list-select" value={statusFilter} onChange={setStatusFilter} options={SERVICE_STATUS_OPTIONS} placeholder="服务状态" size="middle" />
-        <Select className="ataas-deploy-list-select" value={categoryFilter} onChange={setCategoryFilter} options={CATEGORY_OPTIONS} placeholder="模型类型" size="middle" />
+        {mode !== 'modelOps' && (
+          <>
+            <Select className="ataas-deploy-list-select" value={statusFilter} onChange={setStatusFilter} options={SERVICE_STATUS_OPTIONS} placeholder="服务状态" size="middle" />
+            <Select className="ataas-deploy-list-select" value={categoryFilter} onChange={setCategoryFilter} options={CATEGORY_OPTIONS} placeholder="模型类型" size="middle" />
+          </>
+        )}
         <Select className="ataas-deploy-list-select" value={clusterFilter} onChange={(value) => { setClusterFilter(value); onClusterFilterChange?.(value); setPage(1); }} options={CLUSTER_OPTIONS} placeholder="集群名称" size="middle" />
         <Input.Search className="ataas-deploy-list-search" placeholder="搜索服务名称..." value={searchText} onChange={(e) => setSearchText(e.target.value)} allowClear size="middle" />
         <div style={{ flex: 1 }} />
-        <div className="ataas-deploy-list-view-toggle" role="group" aria-label="视图切换">
-          <button className={viewMode === 'card' ? 'active' : ''} type="button" onClick={() => { setViewMode('card'); onViewModeChange?.('card'); setPage(1); }}>
-            <AppstoreOutlined />卡片
-          </button>
-          <span className="ataas-deploy-view-divider" aria-hidden="true" />
-          <button className={viewMode === 'table' ? 'active' : ''} type="button" onClick={() => { setViewMode('table'); onViewModeChange?.('table'); setPage(1); }}>
-            <BarsOutlined />列表
-          </button>
-        </div>
-        <Button className="ataas-deploy-create-button" type="primary" icon={<PlusOutlined />} onClick={onOpenCreate}>创建模型服务</Button>
+        {mode !== 'modelOps' && (
+          <>
+            <div className="ataas-deploy-list-view-toggle" role="group" aria-label="视图切换">
+              <button className={viewMode === 'card' ? 'active' : ''} type="button" onClick={() => { setViewMode('card'); onViewModeChange?.('card'); setPage(1); }}>
+                <AppstoreOutlined />卡片
+              </button>
+              <span className="ataas-deploy-view-divider" aria-hidden="true" />
+              <button className={viewMode === 'table' ? 'active' : ''} type="button" onClick={() => { setViewMode('table'); onViewModeChange?.('table'); setPage(1); }}>
+                <BarsOutlined />列表
+              </button>
+            </div>
+            <Button className="ataas-deploy-create-button" type="primary" icon={<PlusOutlined />} onClick={onOpenCreate}>创建模型服务</Button>
+          </>
+        )}
       </div>
 
       {viewMode === 'card' ? (

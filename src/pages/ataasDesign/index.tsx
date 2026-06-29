@@ -9973,15 +9973,15 @@ const AtAasDesign = () => {
             const getRouterWeight = (routers: typeof routerRows, index: number) => modelOpsWeights[routers[index].key] ?? getDefaultWeight(routers, index);
             return (
               <div className="ataas-section-stack">
-                <div style={{ display: 'grid', gridTemplateColumns: '240px minmax(0, 1fr)', gap: 16, alignItems: 'start' }}>
-                  <aside className="ataas-panel" style={{ padding: 0, overflow: 'hidden' }}>
-                    <div className="ataas-panel-head" style={{ padding: '16px 16px 10px', margin: 0 }}>
+                <div className="ataas-model-ops-layout">
+                  <aside className="ataas-panel ataas-model-ops-sidebar">
+                    <div className="ataas-panel-head ataas-model-ops-sidebar-head">
                       <div>
                         <h2>模型服务</h2>
                         <span>{modelServiceGroups.length} 个模型</span>
                       </div>
                     </div>
-                    <div style={{ borderTop: '1px solid #F2F3F5' }}>
+                    <div className="ataas-model-ops-service-list">
                       {modelServiceGroups.map((group) => {
                         const active = group.name === activeModelName;
                         return (
@@ -9989,32 +9989,21 @@ const AtAasDesign = () => {
                             key={group.name}
                             type="button"
                             onClick={() => { setModelOpsSelectedModel(group.name); setModelOpsClusterFilter(''); }}
-                            style={{
-                              width: '100%',
-                              border: 0,
-                              borderLeft: active ? '3px solid #3370FF' : '3px solid transparent',
-                              background: active ? '#F2F6FF' : '#fff',
-                              padding: '14px 16px 14px 13px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              cursor: 'pointer',
-                              textAlign: 'left',
-                            }}
+                            className={'ataas-model-ops-service-item' + (active ? ' active' : '')}
                           >
-                            <span style={{ minWidth: 0 }}>
-                              <strong style={{ display: 'block', color: '#1D2129', fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{group.name}</strong>
-                              <em style={{ display: 'block', marginTop: 4, color: '#86909C', fontStyle: 'normal', fontSize: 12 }}>{group.services.length} 服务 · {group.instances} 实例</em>
+                            <span>
+                              <strong>{group.name}</strong>
+                              <em>{group.services.length} 服务 · {group.instances} 实例</em>
                             </span>
-                            <span style={{ color: active ? '#3370FF' : '#4E5969', fontSize: 12 }}>{group.instances}</span>
+                            <b>{group.instances}</b>
                           </button>
                         );
                       })}
                     </div>
                   </aside>
-                  <main style={{ minWidth: 0 }}>
-                    <div className="ataas-panel" style={{ marginBottom: 16 }}>
-                      <div className="ataas-panel-head" style={{ marginBottom: 12 }}>
+                  <main className="ataas-model-ops-main">
+                    <div className="ataas-panel ataas-model-ops-weight-panel">
+                      <div className="ataas-panel-head ataas-model-ops-weight-head">
                         <div>
                           <h2>权重配置</h2>
                           <span>同一 K8S 集群内多个 Router 权重总和需为 100</span>
@@ -10022,27 +10011,27 @@ const AtAasDesign = () => {
                         <Button onClick={() => message.success('权重配置已保存')}>保存权重</Button>
                       </div>
                       {clusterWeightGroups.length === 0 ? (
-                        <div style={{ padding: '28px 0', textAlign: 'center', color: '#98A2B3' }}>暂无 Router 实例</div>
+                        <div className="ataas-model-ops-empty">暂无 Router 实例</div>
                       ) : (
-                        <div style={{ display: 'grid', gap: 12 }}>
+                        <div className="ataas-model-ops-weight-groups">
                           {clusterWeightGroups.map((group) => {
                             const total = group.routers.reduce((sum, _, index) => sum + getRouterWeight(group.routers, index), 0);
                             return (
-                              <div key={group.cluster} style={{ border: '1px solid #E5E6EB', borderRadius: 8, padding: 12, background: '#fff' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                                  <strong style={{ color: '#1D2129' }}>{group.cluster}</strong>
-                                  <span style={{ color: total === 100 ? '#18A957' : '#E02D2D', fontSize: 12 }}>合计 {total}/100</span>
+                              <div key={group.cluster} className="ataas-model-ops-weight-card">
+                                <div className="ataas-model-ops-weight-card-head">
+                                  <strong>{group.cluster}</strong>
+                                  <span className={total === 100 ? 'ok' : 'error'}>合计 {total}/100</span>
                                 </div>
-                                <div style={{ display: 'grid', gap: 8 }}>
+                                <div className="ataas-model-ops-router-list">
                                   {group.routers.map((router, index) => {
                                     const value = getRouterWeight(group.routers, index);
                                     return (
-                                      <div key={router.key} style={{ display: 'grid', gridTemplateColumns: 'minmax(160px, 1fr) minmax(180px, 2fr) 84px', gap: 10, alignItems: 'center' }}>
+                                      <div key={router.key} className="ataas-model-ops-router-row">
                                         <Tooltip title={`${router.serviceName} / ${router.instanceName}`}>
-                                          <span style={{ color: '#1D2129', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{router.routerName}</span>
+                                          <span>{router.routerName}</span>
                                         </Tooltip>
-                                        <div style={{ height: 8, borderRadius: 999, background: '#F2F3F5', overflow: 'hidden' }}>
-                                          <i style={{ display: 'block', width: `${value}%`, height: '100%', background: '#3370FF' }} />
+                                        <div className="ataas-model-ops-weight-track">
+                                          <i style={{ width: `${value}%` }} />
                                         </div>
                                         <InputNumber
                                           min={0}
