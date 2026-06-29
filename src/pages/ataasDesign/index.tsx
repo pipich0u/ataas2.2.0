@@ -6784,11 +6784,11 @@ const AtAasDesign = () => {
       const lane = seq % 8;
       const rid = `${podName.replace(/[^a-z0-9]/gi, '').slice(0, 8)}${String(seq).padStart(4, '0')}`;
       const line = templates[seq % templates.length]
-        .replaceAll('{lane}', String(lane))
+        .replace(/\{lane\}/g, String(lane))
         .replace('{rid}', rid)
         .replace('{room}', String(4783591193743515556 + seq * 97))
         .replace('{input}', String(71750 + seq * 141))
-        .replaceAll('{boot}', (44 + (seq % 70)).toFixed(0))
+        .replace(/\{boot\}/g, (44 + (seq % 70)).toFixed(0))
         .replace('{queue}', (2.8 + (seq % 9) * 0.31).toFixed(2))
         .replace('{forward}', (508 + (seq % 13) * 5.17).toFixed(2))
         .replace('{speed}', (2.7 + (seq % 11) * 0.13).toFixed(2))
