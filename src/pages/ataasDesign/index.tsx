@@ -10186,8 +10186,11 @@ const AtAasDesign = () => {
                                     return (
                                       <td key={index}>
                                         {router ? (
-                                          <Tooltip title={router.serviceName}>
-                                            <span className="ataas-model-ops-weight-cell">{getRouterWeight(group.routers, index)}%</span>
+                                          <Tooltip title={router.routerName}>
+                                            <span className="ataas-model-ops-weight-cell">
+                                              <b>{router.routerName}</b>
+                                              <em>{getRouterWeight(group.routers, index)}%</em>
+                                            </span>
                                           </Tooltip>
                                         ) : <span className="ataas-model-ops-weight-empty">-</span>}
                                       </td>

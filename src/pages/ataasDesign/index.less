@@ -1625,6 +1625,43 @@ body,
   }
 }
 
+.ataas-model-ops-detail-table-wrap {
+  .ant-table-thead > tr > th {
+    height: 42px;
+    padding: 9px 12px !important;
+    background: #F7F8FA !important;
+    color: #4E5969 !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+  }
+
+  .ant-table-tbody > tr > td {
+    height: 48px;
+    padding: 9px 12px !important;
+    background: #fff !important;
+    color: #1D2129 !important;
+    font-size: 13px !important;
+  }
+
+  .ant-table-tbody > tr:hover > td {
+    background: #fff !important;
+  }
+
+  .ant-table-cell-fix-right,
+  .ant-table-cell-fix-right-first,
+  .ataas-deploy-fixed-action-cell {
+    background: #fff !important;
+    z-index: 3;
+  }
+
+  .ant-table-thead > tr > th.ant-table-cell-fix-right,
+  .ant-table-thead > tr > th.ant-table-cell-fix-right-first,
+  .ant-table-thead > tr > th.ataas-deploy-fixed-action-cell {
+    background: #F7F8FA !important;
+    z-index: 4;
+  }
+}
+
 .ataas-node-name-cell {
   display: flex;
   align-items: center;
@@ -5099,7 +5136,7 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 
   &.active {
     border-left-color: #7C3AED;
-    background: #F5F0FF;
+    background: #F7F8FA;
   }
 
   > span:not(.ataas-model-ops-service-logo) {
@@ -5358,11 +5395,6 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 
   tr.ataas-model-ops-weight-card {
     cursor: pointer;
-    transition: background 0.16s ease;
-
-    &:hover {
-      background: #F8FAFF;
-    }
 
     &.active td:first-child {
       box-shadow: inset 3px 0 0 #7C3AED;
@@ -5373,9 +5405,15 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
     position: sticky;
     right: 0;
     width: 112px;
-    background: inherit;
+    background: #fff;
     box-shadow: -1px 0 0 #F2F3F5;
     text-align: right;
+    z-index: 2;
+  }
+
+  th.fixed-action {
+    background: #F7F8FA;
+    z-index: 3;
   }
 }
 
@@ -5415,21 +5453,22 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   display: grid;
   min-width: 0;
   gap: 2px;
+  color: #1D2129;
 
   b {
     overflow: hidden;
     color: #1D2129;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 500;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   em {
-    color: #7C3AED;
+    color: #1D2129;
     font-size: 13px;
     font-style: normal;
-    font-weight: 600;
+    font-weight: 400;
   }
 }
 
@@ -6213,57 +6252,43 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 .ataas-model-ops-role-count {
   display: inline-flex;
   align-items: center;
-  font-weight: 600;
+  color: #1D2129;
+  font-size: 13px;
+  font-weight: 400;
   line-height: 20px;
 
   &::before {
-    width: 7px;
-    height: 7px;
-    margin-right: 6px;
-    border-radius: 999px;
-    content: "";
+    display: none;
   }
 
   &.router {
-    color: #18A957;
-
-    &::before {
-      background: #7C3AED;
-    }
+    color: #1D2129;
   }
 
   &.prefill {
-    color: #18A957;
-
-    &::before {
-      background: #8B3DFF;
-    }
+    color: #1D2129;
   }
 
   &.decode {
-    color: #18A957;
-
-    &::before {
-      background: #18A957;
-    }
+    color: #1D2129;
   }
 }
 
 .ataas-model-ops-weight-pill {
   display: inline-flex;
   align-items: center;
-  padding: 3px 9px;
-  border-radius: 8px;
-  background: #F5F0FF;
-  color: #7C3AED;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #1D2129;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .ataas-model-ops-perf-value {
-  color: #14A6C8;
+  color: #1D2129;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .ataas-model-ops-table-actions {
@@ -19259,5 +19284,84 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   .ant-upload-wrapper .ant-upload-drag-icon .anticon,
   .ant-upload-wrapper .ant-upload-list-item:hover .ant-upload-list-item-name {
     color: #6738E8 !important;
+  }
+}
+
+.ataas-model-ops-weight-table {
+  th,
+  td {
+    height: 48px !important;
+    padding: 9px 12px !important;
+    background: #fff;
+    color: #1D2129 !important;
+    font-size: 13px !important;
+    line-height: 20px !important;
+  }
+
+  th {
+    height: 42px !important;
+    background: #F7F8FA !important;
+    color: #4E5969 !important;
+    font-weight: 500 !important;
+  }
+
+  td.fixed-action {
+    background: #fff !important;
+  }
+
+  th.fixed-action {
+    background: #F7F8FA !important;
+  }
+}
+
+.ataas-model-ops-detail-table-wrap {
+  .ant-table-thead > tr > th {
+    height: 42px !important;
+    padding: 9px 12px !important;
+    background: #F7F8FA !important;
+    color: #4E5969 !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    line-height: 20px !important;
+  }
+
+  .ant-table-tbody > tr > td {
+    height: 48px !important;
+    padding: 9px 12px !important;
+    background: #fff !important;
+    color: #1D2129 !important;
+    font-size: 13px !important;
+    line-height: 20px !important;
+  }
+
+  .ant-table-tbody > tr:hover > td {
+    background: #fff !important;
+  }
+
+  .ant-table-cell-fix-right,
+  .ant-table-cell-fix-right-first,
+  .ataas-deploy-fixed-action-cell {
+    background: #fff !important;
+    z-index: 3;
+  }
+
+  .ant-table-thead > tr > th.ant-table-cell-fix-right,
+  .ant-table-thead > tr > th.ant-table-cell-fix-right-first,
+  .ant-table-thead > tr > th.ataas-deploy-fixed-action-cell {
+    background: #F7F8FA !important;
+    z-index: 4;
+  }
+
+  .ataas-model-ops-role-count,
+  .ataas-model-ops-perf-value,
+  .ataas-model-ops-weight-pill {
+    color: #1D2129 !important;
+    font-size: 13px !important;
+    font-weight: 400 !important;
+    line-height: 20px !important;
+  }
+
+  .ataas-model-ops-role-count::before {
+    display: none !important;
   }
 }

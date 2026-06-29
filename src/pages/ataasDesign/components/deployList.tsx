@@ -952,7 +952,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
           )}
         </div>
       ) : (
-          <div className="ataas-deploy-table-wrap">
+          <div className={`ataas-deploy-table-wrap${mode === 'modelOps' ? ' ataas-model-ops-detail-table-wrap' : ''}`}>
             <Table dataSource={paginated} rowKey="id" pagination={{ pageSize: 10, showTotal: (t) => `共 ${t} 条`, showSizeChanger: true }} scroll={{ x: mode === 'modelOps' ? 1320 : 1180 }}
             expandable={{
               expandedRowKeys: expandedServiceIds,
