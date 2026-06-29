@@ -11171,7 +11171,7 @@ const AtAasDesign = () => {
           { title: 'Status', dataIndex: 'status', key: 'status', width: 90, render: (v) => <Tag color={v === 'Running' ? 'green' : v === 'Pending' ? 'blue' : v === 'Failed' ? 'red' : 'default'}>{v}</Tag> },
           { title: 'Restarts', dataIndex: 'restart', key: 'restart', width: 75, render: (v) => <span style={{ color: v > 5 ? '#E02D2D' : v > 2 ? '#FA8C16' : '#4E5969' }}>{v}</span> },
           { title: '负载', dataIndex: 'load', key: 'load', width: 60, render: (v) => v > 0 ? <span style={{ fontSize: 13, fontWeight: 500, color: v > 80 ? '#E02D2D' : v > 60 ? '#FA8C16' : '#3CC27B' }}>{v}</span> : <span style={{ color: '#C9CDD4' }}>-</span> },
-          { title: '性能', dataIndex: 'performance', key: 'performance', width: 190, render: (v, record) => {
+          { title: '性能（60s）', dataIndex: 'performance', key: 'performance', width: 190, render: (v, record) => {
             if (record.role === 'decode' && record.tpotHistory) {
               const hist = record.tpotHistory;
               const min = Math.min(...hist), max = Math.max(...hist), range = max - min || 1;
