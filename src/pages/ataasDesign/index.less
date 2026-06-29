@@ -6415,6 +6415,216 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   border-color: #C4B5FD;
 }
 
+.ataas-model-ops-weight-modal-shell {
+  .ant-modal-content {
+    overflow: hidden;
+    border-radius: 8px;
+    box-shadow: 0 18px 48px rgba(29, 33, 41, 0.18);
+  }
+
+  .ant-modal-close {
+    top: 18px;
+    right: 18px;
+    color: #6B7280;
+  }
+
+  .ant-modal-header {
+    padding: 22px 24px 0;
+  }
+
+  .ant-modal-body {
+    padding: 14px 24px 4px;
+  }
+
+  .ant-modal-footer {
+    align-items: center;
+    gap: 10px;
+    padding: 14px 24px 20px;
+
+    .ant-btn {
+      min-width: 86px;
+      height: 34px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .ant-btn-primary {
+      min-width: 96px;
+      border-color: #6D3BEF;
+      background: #6D3BEF;
+      color: #fff;
+      font-weight: 600;
+
+      &:hover,
+      &:focus {
+        border-color: #5B2ED6;
+        background: #5B2ED6;
+        color: #fff;
+      }
+    }
+  }
+}
+
+.ataas-model-ops-weight-modal-title {
+  gap: 10px;
+
+  .anticon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid #E5E6EB;
+    border-radius: 50%;
+    color: #4E5969;
+    font-size: 15px;
+  }
+
+  strong,
+  em {
+    font-size: 18px;
+    line-height: 26px;
+  }
+
+  em {
+    color: #6D3BEF;
+  }
+}
+
+.ataas-model-ops-weight-modal {
+  overflow: hidden;
+}
+
+.ataas-model-ops-weight-modal-subtitle {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid #F2F3F5;
+  border-radius: 6px;
+  background: #FAFBFC;
+  color: #4E5969;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.ataas-model-ops-weight-modal-toolbar {
+  margin: 0 0 10px;
+  padding: 9px 12px;
+  border: 1px solid #F2F3F5;
+  border-radius: 6px;
+  background: #fff;
+  color: #86909C;
+  font-size: 13px;
+
+  strong {
+    margin-left: 8px;
+    color: #1D2129;
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .ant-btn {
+    height: 30px;
+    padding: 0 12px;
+    border-radius: 6px;
+    color: #4E5969;
+    font-size: 13px;
+  }
+}
+
+.ataas-model-ops-weight-modal-list {
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 2px;
+  border-top: 1px solid #F2F3F5;
+
+  &::-webkit-scrollbar {
+    width: 5px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: #DADDE3;
+  }
+}
+
+.ataas-model-ops-weight-modal-row {
+  grid-template-columns: minmax(160px, 220px) minmax(180px, 1fr) 58px 76px 8px;
+  min-height: 50px;
+  gap: 12px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #F2F3F5;
+
+  &:hover {
+    background: #FAFAFC;
+  }
+
+  strong {
+    display: block;
+    overflow: hidden;
+    color: #1D2129;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 20px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ant-slider {
+    margin: 0;
+  }
+
+  .ant-slider-rail,
+  .ant-slider-track {
+    height: 6px;
+    border-radius: 999px;
+  }
+
+  .ant-slider-rail {
+    background: #F0F1F4;
+  }
+
+  .ant-slider-track {
+    background: #6D3BEF;
+  }
+
+  .ant-slider-handle {
+    width: 14px;
+    height: 14px;
+  }
+
+  .ant-slider-handle::after {
+    width: 14px;
+    height: 14px;
+    box-shadow: 0 0 0 2px #6D3BEF;
+  }
+
+  .ant-input-number {
+    width: 76px;
+    height: 32px;
+    border-radius: 6px;
+  }
+
+  .ant-input-number-input {
+    height: 30px;
+    color: #1D2129;
+    font-size: 13px;
+    text-align: center;
+  }
+
+  i {
+    width: 7px;
+    height: 7px;
+    background: #18A957;
+  }
+}
+
+.ataas-model-ops-weight-modal-percent {
+  color: #4E5969;
+  font-size: 13px;
+  text-align: right;
+}
+
 .ataas-scale-role-list {
   display: grid;
   gap: 12px;

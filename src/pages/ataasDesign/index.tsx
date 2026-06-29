@@ -10376,7 +10376,7 @@ const AtAasDesign = () => {
 	                      onCancel={() => setModelOpsWeightModalCluster('')}
 	                      footer={[
 	                        <Button key="cancel" onClick={() => setModelOpsWeightModalCluster('')}>取消</Button>,
-	                        <Button key="save" type="primary" onClick={() => { message.success('权重配置预览已生成'); setModelOpsWeightModalCluster(''); }}>预览（0）</Button>,
+	                        <Button key="save" type="primary" onClick={() => { message.success('权重配置已保存'); setModelOpsWeightModalCluster(''); }}>确定</Button>,
 	                      ]}
 	                    >
 	                      {activeWeightModalGroup && (
@@ -10389,18 +10389,20 @@ const AtAasDesign = () => {
                                 <Button onClick={() => averageClusterWeights(activeWeightModalGroup.routers)}>均分</Button>
                               </div>
 	                          </div>
-	                          {activeWeightModalGroup.routers.map((router, index) => {
-	                            const value = getRouterWeight(activeWeightModalGroup.routers, index);
-	                            return (
-	                              <div key={router.key} className="ataas-model-ops-weight-modal-row">
-	                                <strong>{router.routerName}</strong>
-                                  <Slider min={0} max={100} value={value} tooltip={{ formatter: null }} onChange={(nextValue) => updateRouterWeight(router.key, Number(nextValue))} />
-                                  <span className="ataas-model-ops-weight-modal-percent">{value.toFixed(1)}%</span>
-                                  <InputNumber min={0} max={100} value={value} size="middle" onChange={(nextValue) => { if (nextValue !== null) updateRouterWeight(router.key, Number(nextValue)); }} />
-                                  <i />
-	                              </div>
-	                            );
-	                          })}
+                            <div className="ataas-model-ops-weight-modal-list">
+                              {activeWeightModalGroup.routers.map((router, index) => {
+                                const value = getRouterWeight(activeWeightModalGroup.routers, index);
+                                return (
+                                  <div key={router.key} className="ataas-model-ops-weight-modal-row">
+                                    <Tooltip title={router.routerName}><strong>{router.routerName}</strong></Tooltip>
+                                    <Slider min={0} max={100} value={value} tooltip={{ formatter: null }} onChange={(nextValue) => updateRouterWeight(router.key, Number(nextValue))} />
+                                    <span className="ataas-model-ops-weight-modal-percent">{value.toFixed(1)}%</span>
+                                    <InputNumber min={0} max={100} value={value} size="middle" onChange={(nextValue) => { if (nextValue !== null) updateRouterWeight(router.key, Number(nextValue)); }} />
+                                    <i />
+                                  </div>
+                                );
+                              })}
+                            </div>
 	                        </div>
 	                      )}
 	                    </Modal>
