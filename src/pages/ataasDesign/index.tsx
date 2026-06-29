@@ -392,6 +392,7 @@ type PodRecord = {
   key: string;
   name: string;
   cluster: string;
+  role: string;
   namespace: string;
   ready: string;
   status: string;
@@ -528,22 +529,22 @@ const nodes: NodeRecord[] = [
 ];
 
 const pods: PodRecord[] = [
-  { key: 'p1', name: 'deepseek-prod-r1-p1', cluster: 'shanghai-online', namespace: 'production', ready: '1/1', status: 'Running', restart: 0, load: 78, performance: 92, image: 'vllm/vllm-openai:latest', podIP: '10.0.1.12', node: 'nj-h20-001', nodeGPU: 'H20 141G × 8', gpuUtil: 72, gpuVram: 61, age: '12d', trafficSource: 'rbg-deepseek-prod' },
-  { key: 'p2', name: 'deepseek-prod-r1-p2', cluster: 'shanghai-online', namespace: 'production', ready: '1/1', status: 'Running', restart: 1, load: 72, performance: 88, image: 'vllm/vllm-openai:latest', podIP: '10.0.1.13', node: 'nj-h20-001', nodeGPU: 'H20 141G × 8', gpuUtil: 68, gpuVram: 58, age: '10d', trafficSource: 'rbg-deepseek-prod' },
-  { key: 'p3', name: 'qwen3-coding-p1', cluster: 'shanghai-online', namespace: 'production', ready: '1/1', status: 'Running', restart: 0, load: 65, performance: 85, image: 'sglang/sglang:latest', podIP: '10.0.2.15', node: 'nj-h20-002', nodeGPU: 'H20 141G × 8', gpuUtil: 76, gpuVram: 69, age: '8d', trafficSource: 'qwen3-coding-slo' },
-  { key: 'p4', name: 'qwen3-coding-p2', cluster: 'shanghai-online', namespace: 'production', ready: '1/1', status: 'Running', restart: 2, load: 61, performance: 82, image: 'sglang/sglang:latest', podIP: '10.0.2.16', node: 'nj-h20-002', nodeGPU: 'H20 141G × 8', gpuUtil: 71, gpuVram: 64, age: '8d', trafficSource: 'qwen3-coding-slo' },
-  { key: 'p5', name: 'glm51-1-prefill-p1', cluster: 'shanghai-online', namespace: 'production', ready: '1/1', status: 'Running', restart: 0, load: 89, performance: 95, image: 'sglang/sglang:latest', podIP: '10.0.1.8', node: 'nj-h20-001', nodeGPU: 'H20 141G × 8', gpuUtil: 85, gpuVram: 73, age: '15d', trafficSource: 'glm51-1-slo' },
-  { key: 'p6', name: 'glm51-1-prefill-p2', cluster: 'shanghai-online', namespace: 'production', ready: '1/1', status: 'Running', restart: 1, load: 84, performance: 91, image: 'sglang/sglang:latest', podIP: '10.0.1.9', node: 'nj-h20-001', nodeGPU: 'H20 141G × 8', gpuUtil: 82, gpuVram: 70, age: '14d', trafficSource: 'glm51-1-slo' },
-  { key: 'p7', name: 'glm-air-batch-p1', cluster: 'guangzhou-test', namespace: 'batch', ready: '1/1', status: 'Running', restart: 3, load: 45, performance: 63, image: 'vllm/vllm-openai:latest', podIP: '10.0.3.22', node: 'gz-l20-001', nodeGPU: 'L20 48G × 4', gpuUtil: 54, gpuVram: 66, age: '6d', trafficSource: 'glm-air-batch' },
-  { key: 'p8', name: 'glm-air-batch-p2', cluster: 'guangzhou-test', namespace: 'batch', ready: '0/1', status: 'Pending', restart: 5, load: 0, performance: 0, image: 'vllm/vllm-openai:latest', podIP: '10.0.3.23', node: 'gz-l20-001', nodeGPU: 'L20 48G × 4', gpuUtil: 0, gpuVram: 0, age: '6d', trafficSource: 'glm-air-batch' },
-  { key: 'p9', name: 'kimi-router-canary-p1', cluster: 'wuhan-kunpeng', namespace: 'canary', ready: '1/1', status: 'Running', restart: 0, load: 52, performance: 74, image: 'mindie/mindie:latest', podIP: '10.0.4.5', node: 'nj-910b-001', nodeGPU: 'Ascend 910B × 8', gpuUtil: 61, gpuVram: 52, age: '5d', trafficSource: 'kimi-router-canary' },
-  { key: 'p10', name: 'kimi-router-canary-p2', cluster: 'wuhan-kunpeng', namespace: 'canary', ready: '1/1', status: 'Running', restart: 1, load: 48, performance: 71, image: 'mindie/mindie:latest', podIP: '10.0.4.6', node: 'nj-910b-001', nodeGPU: 'Ascend 910B × 8', gpuUtil: 57, gpuVram: 48, age: '4d', trafficSource: 'kimi-router-canary' },
-  { key: 'p11', name: 'deepseek-prod-r1-p3', cluster: 'shanghai-online', namespace: 'production', ready: '1/1', status: 'Running', restart: 0, load: 75, performance: 90, image: 'vllm/vllm-openai:latest', podIP: '10.0.2.18', node: 'nj-h20-002', nodeGPU: 'H20 141G × 8', gpuUtil: 74, gpuVram: 66, age: '9d', trafficSource: 'rbg-deepseek-prod' },
-  { key: 'p12', name: 'deepseek-dev-p1', cluster: 'beijing-prod', namespace: 'development', ready: '1/1', status: 'Running', restart: 0, load: 28, performance: 55, image: 'vllm/vllm-openai:latest', podIP: '10.0.5.2', node: 'qujing4', nodeGPU: 'A100 80G × 4', gpuUtil: 36, gpuVram: 42, age: '2d', trafficSource: 'deepseek-dev' },
-  { key: 'p13', name: 'deepseek-dev-p2', cluster: 'beijing-prod', namespace: 'development', ready: '1/1', status: 'Running', restart: 2, load: 24, performance: 48, image: 'vllm/vllm-openai:latest', podIP: '10.0.5.3', node: 'qujing7', nodeGPU: 'A100 80G × 4', gpuUtil: 31, gpuVram: 38, age: '1d', trafficSource: 'deepseek-dev' },
-  { key: 'p14', name: 'qwen2-demo-p1', cluster: 'beijing-prod', namespace: 'demo', ready: '1/1', status: 'Running', restart: 0, load: 18, performance: 42, image: 'sglang/sglang:latest', podIP: '10.0.5.4', node: 'qujing4', nodeGPU: 'A100 80G × 4', gpuUtil: 24, gpuVram: 32, age: '3d', trafficSource: 'qwen2-demo' },
-  { key: 'p15', name: 'qwen2-demo-p2', cluster: 'beijing-prod', namespace: 'demo', ready: '0/1', status: 'Failed', restart: 8, load: 0, performance: 0, image: 'sglang/sglang:latest', podIP: '10.0.5.5', node: 'qujing4', nodeGPU: 'A100 80G × 4', gpuUtil: 0, gpuVram: 0, age: '3d', trafficSource: 'qwen2-demo' },
-  { key: 'p16', name: 'mistral-prod-p1', cluster: 'shanghai-online', namespace: 'production', ready: '1/1', status: 'Running', restart: 0, load: 82, performance: 93, image: 'sglang/sglang:latest', podIP: '10.0.1.20', node: 'nj-h20-001', nodeGPU: 'H20 141G × 8', gpuUtil: 79, gpuVram: 67, age: '20d', trafficSource: 'mistral-vllm-slo' },
+  { key: 'p1', name: 'deepseek-prod-r1-p1', cluster: 'shanghai-online', role: 'decode', namespace: 'production', ready: '1/1', status: 'Running', restart: 0, load: 78, performance: 92, image: 'vllm/vllm-openai:latest', podIP: '10.0.1.12', node: 'nj-h20-001', nodeGPU: 'H20 141G × 8', gpuUtil: 72, gpuVram: 61, age: '12d', trafficSource: 'rbg-deepseek-prod' },
+  { key: 'p2', name: 'deepseek-prod-r1-p2', cluster: 'shanghai-online', role: 'decode', namespace: 'production', ready: '1/1', status: 'Running', restart: 1, load: 72, performance: 88, image: 'vllm/vllm-openai:latest', podIP: '10.0.1.13', node: 'nj-h20-001', nodeGPU: 'H20 141G × 8', gpuUtil: 68, gpuVram: 58, age: '10d', trafficSource: 'rbg-deepseek-prod' },
+  { key: 'p3', name: 'qwen3-coding-p1', cluster: 'shanghai-online', role: 'decode', namespace: 'production', ready: '1/1', status: 'Running', restart: 0, load: 65, performance: 85, image: 'sglang/sglang:latest', podIP: '10.0.2.15', node: 'nj-h20-002', nodeGPU: 'H20 141G × 8', gpuUtil: 76, gpuVram: 69, age: '8d', trafficSource: 'qwen3-coding-slo' },
+  { key: 'p4', name: 'qwen3-coding-p2', cluster: 'shanghai-online', role: 'decode', namespace: 'production', ready: '1/1', status: 'Running', restart: 2, load: 61, performance: 82, image: 'sglang/sglang:latest', podIP: '10.0.2.16', node: 'nj-h20-002', nodeGPU: 'H20 141G × 8', gpuUtil: 71, gpuVram: 64, age: '8d', trafficSource: 'qwen3-coding-slo' },
+  { key: 'p5', name: 'glm51-1-prefill-p1', cluster: 'shanghai-online', role: 'prefill', namespace: 'production', ready: '1/1', status: 'Running', restart: 0, load: 89, performance: 95, image: 'sglang/sglang:latest', podIP: '10.0.1.8', node: 'nj-h20-001', nodeGPU: 'H20 141G × 8', gpuUtil: 85, gpuVram: 73, age: '15d', trafficSource: 'glm51-1-slo' },
+  { key: 'p6', name: 'glm51-1-prefill-p2', cluster: 'shanghai-online', role: 'prefill', namespace: 'production', ready: '1/1', status: 'Running', restart: 1, load: 84, performance: 91, image: 'sglang/sglang:latest', podIP: '10.0.1.9', node: 'nj-h20-001', nodeGPU: 'H20 141G × 8', gpuUtil: 82, gpuVram: 70, age: '14d', trafficSource: 'glm51-1-slo' },
+  { key: 'p7', name: 'glm-air-batch-p1', cluster: 'guangzhou-test', role: 'other', namespace: 'batch', ready: '1/1', status: 'Running', restart: 3, load: 45, performance: 63, image: 'vllm/vllm-openai:latest', podIP: '10.0.3.22', node: 'gz-l20-001', nodeGPU: 'L20 48G × 4', gpuUtil: 54, gpuVram: 66, age: '6d', trafficSource: 'glm-air-batch' },
+  { key: 'p8', name: 'glm-air-batch-p2', cluster: 'guangzhou-test', role: 'other', namespace: 'batch', ready: '0/1', status: 'Pending', restart: 5, load: 0, performance: 0, image: 'vllm/vllm-openai:latest', podIP: '10.0.3.23', node: 'gz-l20-001', nodeGPU: 'L20 48G × 4', gpuUtil: 0, gpuVram: 0, age: '6d', trafficSource: 'glm-air-batch' },
+  { key: 'p9', name: 'kimi-router-canary-p1', cluster: 'wuhan-kunpeng', role: 'router', namespace: 'canary', ready: '1/1', status: 'Running', restart: 0, load: 52, performance: 74, image: 'mindie/mindie:latest', podIP: '10.0.4.5', node: 'nj-910b-001', nodeGPU: 'Ascend 910B × 8', gpuUtil: 61, gpuVram: 52, age: '5d', trafficSource: 'kimi-router-canary' },
+  { key: 'p10', name: 'kimi-router-canary-p2', cluster: 'wuhan-kunpeng', role: 'router', namespace: 'canary', ready: '1/1', status: 'Running', restart: 1, load: 48, performance: 71, image: 'mindie/mindie:latest', podIP: '10.0.4.6', node: 'nj-910b-001', nodeGPU: 'Ascend 910B × 8', gpuUtil: 57, gpuVram: 48, age: '4d', trafficSource: 'kimi-router-canary' },
+  { key: 'p11', name: 'deepseek-prod-r1-p3', cluster: 'shanghai-online', role: 'decode', namespace: 'production', ready: '1/1', status: 'Running', restart: 0, load: 75, performance: 90, image: 'vllm/vllm-openai:latest', podIP: '10.0.2.18', node: 'nj-h20-002', nodeGPU: 'H20 141G × 8', gpuUtil: 74, gpuVram: 66, age: '9d', trafficSource: 'rbg-deepseek-prod' },
+  { key: 'p12', name: 'deepseek-dev-p1', cluster: 'beijing-prod', role: 'decode', namespace: 'development', ready: '1/1', status: 'Running', restart: 0, load: 28, performance: 55, image: 'vllm/vllm-openai:latest', podIP: '10.0.5.2', node: 'qujing4', nodeGPU: 'A100 80G × 4', gpuUtil: 36, gpuVram: 42, age: '2d', trafficSource: 'deepseek-dev' },
+  { key: 'p13', name: 'deepseek-dev-p2', cluster: 'beijing-prod', role: 'decode', namespace: 'development', ready: '1/1', status: 'Running', restart: 2, load: 24, performance: 48, image: 'vllm/vllm-openai:latest', podIP: '10.0.5.3', node: 'qujing7', nodeGPU: 'A100 80G × 4', gpuUtil: 31, gpuVram: 38, age: '1d', trafficSource: 'deepseek-dev' },
+  { key: 'p14', name: 'qwen2-demo-p1', cluster: 'beijing-prod', role: 'other', namespace: 'demo', ready: '1/1', status: 'Running', restart: 0, load: 18, performance: 42, image: 'sglang/sglang:latest', podIP: '10.0.5.4', node: 'qujing4', nodeGPU: 'A100 80G × 4', gpuUtil: 24, gpuVram: 32, age: '3d', trafficSource: 'qwen2-demo' },
+  { key: 'p15', name: 'qwen2-demo-p2', cluster: 'beijing-prod', role: 'other', namespace: 'demo', ready: '0/1', status: 'Failed', restart: 8, load: 0, performance: 0, image: 'sglang/sglang:latest', podIP: '10.0.5.5', node: 'qujing4', nodeGPU: 'A100 80G × 4', gpuUtil: 0, gpuVram: 0, age: '3d', trafficSource: 'qwen2-demo' },
+  { key: 'p16', name: 'mistral-prod-p1', cluster: 'shanghai-online', role: 'prefill', namespace: 'production', ready: '1/1', status: 'Running', restart: 0, load: 82, performance: 93, image: 'sglang/sglang:latest', podIP: '10.0.1.20', node: 'nj-h20-001', nodeGPU: 'H20 141G × 8', gpuUtil: 79, gpuVram: 67, age: '20d', trafficSource: 'mistral-vllm-slo' },
 ];
 
 const overviewModelCards = [
@@ -6386,6 +6387,9 @@ const AtAasDesign = () => {
   const [podLogOpen, setPodLogOpen] = useState(false);
   const [podTerminalHistory, setPodTerminalHistory] = useState<string[]>([]);
   const [podConsoleTarget, setPodConsoleTarget] = useState<PodRecord | null>(null);
+  const [podDeleteStep1, setPodDeleteStep1] = useState<PodRecord | null>(null);
+  const [podDeleteStep2, setPodDeleteStep2] = useState<PodRecord | null>(null);
+  const [podDeleteConfirmText, setPodDeleteConfirmText] = useState('');
   const podTerminalRef = useRef<HTMLDivElement>(null);
   const podTerminalInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -11107,6 +11111,10 @@ const AtAasDesign = () => {
         const podColumns: ColumnsType<PodRecord> = [
           { title: 'Name', dataIndex: 'name', key: 'name', width: 220, fixed: 'left', render: (v) => <strong style={{ fontSize: 13 }}>{v}</strong> },
           { title: '集群', dataIndex: 'cluster', key: 'cluster', width: 130 },
+          { title: '角色', dataIndex: 'role', key: 'role', width: 80, render: (v) => {
+            const colors: Record<string, string> = { prefill: '#2B65D9', router: '#9F5BD9', decode: '#3CC27B', other: '#86909C' };
+            return <Tag color={colors[v] || '#86909C'} style={{ fontSize: 11, borderRadius: 4 }}>{v}</Tag>;
+          } },
           { title: 'Ready', dataIndex: 'ready', key: 'ready', width: 70 },
           { title: 'Status', dataIndex: 'status', key: 'status', width: 90, render: (v) => <Tag color={v === 'Running' ? 'green' : v === 'Pending' ? 'blue' : v === 'Failed' ? 'red' : 'default'}>{v}</Tag> },
           { title: 'Restarts', dataIndex: 'restart', key: 'restart', width: 75, render: (v) => <span style={{ color: v > 5 ? '#E02D2D' : v > 2 ? '#FA8C16' : '#4E5969' }}>{v}</span> },
@@ -11153,11 +11161,12 @@ const AtAasDesign = () => {
           ) },
           { title: 'Age', dataIndex: 'age', key: 'age', width: 80, render: (v) => <span style={{ color: '#86909C' }}>{v}</span> },
           { title: '接流来源', dataIndex: 'trafficSource', key: 'trafficSource', width: 160, render: (v) => <span style={{ fontSize: 12, color: '#1D2129' }}>{v}</span> },
-          { title: '操作', key: 'action', width: 110, fixed: 'right', render: (_, record) => (
+          { title: '操作', key: 'action', width: 135, fixed: 'right', render: (_, record) => (
             <Space size={0}>
               <Tooltip title="控制台"><Button type="text" size="small" icon={<CodeOutlined />} onClick={() => { setPodConsoleTarget(record); setPodTerminalHistory(['[system] Connecting to ' + record.name + ' (' + record.podIP + ')...', '[system] Authenticating with cluster ' + record.cluster + '...', '[system] Opening shell on container main...', '', '$ Welcome to ' + record.name, '$ Type help for available commands']); }} /></Tooltip>
               <Tooltip title="查看 YAML"><Button type="text" size="small" icon={<FileSearchOutlined />} onClick={() => { setPodActionTarget(record); setPodYamlOpen(true); }} /></Tooltip>
               <Tooltip title="日志"><Button type="text" size="small" icon={<InboxOutlined />} onClick={() => { setPodActionTarget(record); setPodLogOpen(true); }} /></Tooltip>
+              <Tooltip title="删除"><Button type="text" size="small" icon={<DeleteOutlined />} onClick={() => { setPodDeleteStep1(record); }} /></Tooltip>
             </Space>
           ) },
         ];
@@ -11269,8 +11278,8 @@ const AtAasDesign = () => {
                 </div>
                 <div className="ataas-engine-filter">
                   <div className="ataas-api-key-toolbar ataas-deploy-list-toolbar">
-                    <Select className="ataas-deploy-list-select" value={podClusterFilter} onChange={setPodClusterFilter} size="middle" style={{ width: 140, marginRight: 8 }} options={[{ value: 'all', label: '全部集群' }, ...Array.from(new Set(podList.map((p) => p.cluster))).map((c) => ({ value: c, label: c }))]} />
-                    <Select className="ataas-deploy-list-select" value={podNamespaceFilter} onChange={setPodNamespaceFilter} size="middle" style={{ width: 140, marginRight: 8 }} options={[{ value: 'all', label: '全部命名空间' }, ...Array.from(new Set(podList.map((p) => p.namespace))).map((c) => ({ value: c, label: c }))]} />
+                    <Select className="ataas-deploy-list-select" value={podClusterFilter} onChange={(v) => { setPodClusterFilter(v); setPodNamespaceFilter('all'); }} size="middle" style={{ width: 140, marginRight: 8 }} options={[{ value: 'all', label: '全部集群' }, ...Array.from(new Set(podList.map((p) => p.cluster))).map((c) => ({ value: c, label: c }))]} />
+                    <Select className="ataas-deploy-list-select" value={podNamespaceFilter} onChange={setPodNamespaceFilter} size="middle" style={{ width: 140, marginRight: 8 }} disabled={podClusterFilter === 'all'} options={[{ value: 'all', label: '全部命名空间' }, ...Array.from(new Set(podList.filter((p) => podClusterFilter === 'all' || p.cluster === podClusterFilter).map((p) => p.namespace))).map((c) => ({ value: c, label: c }))]} />
                     <Input.Search className="ataas-deploy-list-search ataas-api-key-search" placeholder="搜索 Pod 名称 / IP / 节点..." value={podSearch} onChange={(e) => setPodSearch(e.target.value)} allowClear size="middle" />
                   </div>
                 </div>
@@ -11284,6 +11293,57 @@ const AtAasDesign = () => {
             </Modal>
             <Modal title={`日志 - ${podActionTarget?.name || ''}`} open={podLogOpen} onCancel={() => setPodLogOpen(false)} footer={null} width={900} styles={{ body: { maxHeight: '70vh', overflow: 'auto', padding: 0 } }}>
               <pre style={{ margin: 0, padding: '16px', background: '#1E1E1E', borderRadius: 0, fontSize: 12, fontFamily: 'Menlo, Monaco, Consolas, monospace', lineHeight: 1.6, color: '#D4D4D4', whiteSpace: 'pre', overflow: 'auto' }}>{podLogs}</pre>
+            </Modal>
+            {/* Delete Step 1: First confirmation */}
+            <Modal title="确认删除 Pod" open={!!podDeleteStep1} onCancel={() => { setPodDeleteStep1(null); setPodDeleteConfirmText(''); }} footer={null} width={480}>
+              {podDeleteStep1 && (
+                <div>
+                  <div style={{ padding: '8px 0 16px', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: 20, color: '#FA8C16' }}>⚠️</span>
+                    <div>
+                      <div style={{ fontWeight: 600, marginBottom: 8, color: '#1D2129' }}>即将删除以下 Pod：</div>
+                      <div style={{ background: '#F7F8FA', borderRadius: 6, padding: '10px 14px', fontSize: 13, lineHeight: 1.8, color: '#4E5969', fontFamily: 'Menlo, monospace' }}>
+                        <div>名称：{podDeleteStep1.name}</div>
+                        <div>集群：{podDeleteStep1.cluster}</div>
+                        <div>IP：{podDeleteStep1.podIP}</div>
+                        <div>状态：{podDeleteStep1.status}</div>
+                      </div>
+                      <div style={{ marginTop: 12, color: '#86909C', fontSize: 12 }}>此操作将删除该 Pod 实例，请确认是否继续。</div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 12, borderTop: '1px solid #E8E8E8' }}>
+                    <Button onClick={() => { setPodDeleteStep1(null); setPodDeleteConfirmText(''); }}>取消</Button>
+                    <Button type="primary" danger onClick={() => { setPodDeleteStep2(podDeleteStep1); setPodDeleteStep1(null); }}>确认删除</Button>
+                  </div>
+                </div>
+              )}
+            </Modal>
+            {/* Delete Step 2: Final confirmation with text input */}
+            <Modal title="再次确认删除" open={!!podDeleteStep2} onCancel={() => { setPodDeleteStep2(null); setPodDeleteConfirmText(''); }} footer={null} width={480}>
+              {podDeleteStep2 && (
+                <div>
+                  <div style={{ padding: '8px 0 16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, color: '#E02D2D' }}>
+                      <span style={{ fontSize: 18 }}>⛔</span>
+                      <span style={{ fontWeight: 600 }}>此操作不可恢复！</span>
+                    </div>
+                    <div style={{ marginBottom: 12, color: '#4E5969', fontSize: 13 }}>
+                      请输入 Pod 名称 <strong style={{ color: '#1D2129', fontFamily: 'Menlo, monospace' }}>{podDeleteStep2.name}</strong> 以确认删除：
+                    </div>
+                    <Input placeholder="输入 Pod 名称确认删除" value={podDeleteConfirmText} onChange={(e) => setPodDeleteConfirmText(e.target.value)} />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 12, borderTop: '1px solid #E8E8E8' }}>
+                    <Button onClick={() => { setPodDeleteStep2(null); setPodDeleteConfirmText(''); }}>取消</Button>
+                    <Button type="primary" danger disabled={podDeleteConfirmText !== podDeleteStep2.name} onClick={() => {
+                      if (podDeleteConfirmText === podDeleteStep2.name) {
+                        message.success(`Pod ${podDeleteStep2.name} 已删除`);
+                        setPodDeleteStep2(null);
+                        setPodDeleteConfirmText('');
+                      }
+                    }}>确认删除</Button>
+                  </div>
+                </div>
+              )}
             </Modal>
           </div>
         );
