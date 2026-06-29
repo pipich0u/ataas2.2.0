@@ -1,7 +1,7 @@
 import { Button, ConfigProvider, Dropdown, Image, Input, InputNumber, message, Modal, Popconfirm, Select, Table, Tag, Tooltip } from 'antd';
 import type { ThemeConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { AppstoreOutlined, BarChartOutlined, BarsOutlined, CodeOutlined, FileSearchOutlined, InfoCircleOutlined, PlayCircleOutlined, PlusOutlined, PoweroffOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
+import { AppstoreOutlined, BarChartOutlined, BarsOutlined, CodeOutlined, FileSearchOutlined, InfoCircleOutlined, LinkOutlined, PlayCircleOutlined, PlusOutlined, PoweroffOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import deepseekLogo from '../deepseek-logo.svg';
@@ -238,6 +238,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
   const [modelInfoPopup, setModelInfoPopup] = useState<{ item: DeployServiceItem; left: number; top: number } | null>(null);
   const [expandedServiceIds, setExpandedServiceIds] = useState<number[]>([]);
   const [inlineGatewayConfigs, setInlineGatewayConfigs] = useState<Record<number, InlineGatewayConfig>>({});
+  const [routerLinkModal, setRouterLinkModal] = useState<{ item: DeployServiceItem; row: any; selected: string[] } | null>(null);
   const runtimeBaseRef = useRef(Date.now());
   const modelInfoHoveringRef = useRef(false);
 
@@ -519,6 +520,9 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
         age,
         trafficSources,
       };
+    }).sort((a: any, b: any) => {
+      const roleOrder: Record<string, number> = { R: 0, P: 1, D: 2, I: 3 };
+      return (roleOrder[a.role] ?? 9) - (roleOrder[b.role] ?? 9);
     });
     const baseColumns = [
       { title: '实例', dataIndex: 'instance', key: 'instance', width: 90 },
@@ -681,7 +685,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
                           ) : (
                             <>
                               <Button className="warning" size="small">下线</Button>
-                              <Button className="link" size="small">关联</Button>
+                              <Button className="link" size="small" onClick={() => openRouterLinkModal(item, row)}>关联</Button>
                             </>
                           )}
                         </div>
@@ -802,6 +806,35 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
     ttft: 11800 + item.id * 817,
     tpot: (18 + (item.id % 7) * 1.6).toFixed(1),
   });
+
+  const getModelOpsRouterCandidates = (item: DeployServiceItem) => {
+    const cluster = getDeployClusterName(item);
+    const modelName = item.modelInfo.name;
+    return data
+      .filter((service) => service.modelInfo.name === modelName && getDeployClusterName(service) === cluster)
+      .map((service) => ({
+        key: `${service.id}-router-0`,
+        podName: `${service.name}-router-0`,
+        groupName: service.name,
+        cluster: getDeployClusterName(service),
+      }));
+  };
+
+  const openRouterLinkModal = (item: DeployServiceItem, row: any) => {
+    const ownRouterKey = `${item.id}-router-0`;
+    setRouterLinkModal({
+      item,
+      row,
+      selected: getModelOpsRouterCandidates(item).some((router) => router.key === ownRouterKey) ? [ownRouterKey] : [],
+    });
+  };
+
+  const toggleRouterLink = (routerKey: string) => {
+    setRouterLinkModal((prev) => {
+      if (!prev) return prev;
+      return { ...prev, selected: prev.selected.includes(routerKey) ? [] : [routerKey] };
+    });
+  };
 
   const deployTableColumns: ColumnsType<DeployServiceItem> = [
     { title: '服务名称', dataIndex: 'name', key: 'name', width: 180, render: (v, r) => <><span className="ataas-deploy-table-main">{v}</span><div className="ataas-deploy-table-sub">{r.typeStr}</div></> },
@@ -978,6 +1011,67 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
           </div>
       )}
     </div>
+    <Modal
+      className="ataas-model-ops-router-link-modal"
+      title={routerLinkModal ? (
+        <div className="ataas-model-ops-router-link-title">
+          <LinkOutlined />
+          <strong>编辑 Router 关联</strong>
+          <em>{routerLinkModal.row.podName}</em>
+        </div>
+      ) : '编辑 Router 关联'}
+      open={!!routerLinkModal}
+      width={640}
+      onCancel={() => setRouterLinkModal(null)}
+      footer={[
+        <Button key="cancel" onClick={() => setRouterLinkModal(null)}>取消</Button>,
+        <Button
+          key="submit"
+          type="primary"
+          disabled={!routerLinkModal?.selected.length}
+          onClick={() => {
+            message.success('Router 关联变更已提交为 task');
+            setRouterLinkModal(null);
+          }}
+        >
+          提交为 task ({routerLinkModal?.selected.length || 0})
+        </Button>,
+      ]}
+    >
+      {routerLinkModal && (() => {
+        const candidates = getModelOpsRouterCandidates(routerLinkModal.item);
+        return (
+          <div className="ataas-model-ops-router-link">
+            <div className="ataas-model-ops-router-link-sub">
+              {routerLinkModal.row.role === 'P' ? 'prefill' : 'decode'} · {routerLinkModal.row.ip} · 同集群同模型 Router POD
+            </div>
+            <div className="ataas-model-ops-router-link-tip">
+              {routerLinkModal.row.role} 一般只关联一个 router；勾选第二个会被禁止。
+            </div>
+            <div className="ataas-model-ops-router-link-list">
+              {candidates.map((candidate) => {
+                const checked = routerLinkModal.selected.includes(candidate.key);
+                const disabled = !checked && routerLinkModal.selected.length >= 1;
+                return (
+                  <label key={candidate.key} className={'ataas-model-ops-router-link-option' + (disabled ? ' disabled' : '')}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={disabled}
+                      onChange={() => toggleRouterLink(candidate.key)}
+                    />
+                    <span>{candidate.podName}</span>
+                    <em>{candidate.groupName}</em>
+                    <i />
+                  </label>
+                );
+              })}
+              {candidates.length === 0 && <div className="ataas-model-ops-router-link-empty">暂无可关联 Router POD</div>}
+            </div>
+          </div>
+        );
+      })()}
+    </Modal>
     {modelInfoPopup && typeof document !== 'undefined' && createPortal(
       <div className="ataas-deploy-model-info-card" style={{ left: modelInfoPopup.left, top: modelInfoPopup.top }}>
         <h3>模型信息</h3>
