@@ -10269,29 +10269,31 @@ const AtAasDesign = () => {
                       )}
                     </div>
                     {modelOpsActiveTab === 'weight' && (
-	                    <div className="ataas-panel ataas-model-ops-weight-panel">
-	                      {clusterWeightGroups.length === 0 ? (
-	                        <div className="ataas-model-ops-empty">暂无 Router 实例</div>
-	                      ) : (
-                          <>
-                            <div className="ataas-model-ops-weight-filterbar">
-                              <Select
-                                className="ataas-model-ops-weight-cluster-select"
-                                value={modelOpsClusterFilter}
-                                onChange={setModelOpsClusterFilter}
-                                options={[
-                                  { value: '', label: '全部集群' },
-                                  ...clusterWeightGroups.map((group) => ({ value: group.cluster, label: group.cluster })),
-                                ]}
-                              />
-                              <Input.Search
-                                className="ataas-model-ops-weight-sve-search"
-                                placeholder="搜索 ServiceEntry..."
-                                allowClear
-                                value={modelOpsServiceEntrySearch}
-                                onChange={(event) => setModelOpsServiceEntrySearch(event.target.value)}
-                              />
-                            </div>
+                      <>
+                        {clusterWeightGroups.length > 0 && (
+                          <div className="ataas-model-ops-weight-filterbar">
+                            <Select
+                              className="ataas-model-ops-weight-cluster-select"
+                              value={modelOpsClusterFilter}
+                              onChange={setModelOpsClusterFilter}
+                              options={[
+                                { value: '', label: '全部集群' },
+                                ...clusterWeightGroups.map((group) => ({ value: group.cluster, label: group.cluster })),
+                              ]}
+                            />
+                            <Input.Search
+                              className="ataas-model-ops-weight-sve-search"
+                              placeholder="搜索 ServiceEntry..."
+                              allowClear
+                              value={modelOpsServiceEntrySearch}
+                              onChange={(event) => setModelOpsServiceEntrySearch(event.target.value)}
+                            />
+                          </div>
+                        )}
+	                      <div className="ataas-panel ataas-model-ops-weight-panel">
+	                        {clusterWeightGroups.length === 0 ? (
+	                          <div className="ataas-model-ops-empty">暂无 Router 实例</div>
+	                        ) : (
 	                        <div className="ataas-model-ops-weight-table-wrap">
                             <table className="ataas-model-ops-weight-table">
                               <colgroup>
@@ -10374,9 +10376,9 @@ const AtAasDesign = () => {
                             </table>
                             {filteredClusterWeightGroups.length === 0 && <div className="ataas-model-ops-empty">暂无匹配的 ServiceEntry</div>}
 	                        </div>
-                          </>
 		                      )}
 		                    </div>
+                      </>
                     )}
                     {modelOpsActiveTab === 'detail' && (
                         <DeployList
