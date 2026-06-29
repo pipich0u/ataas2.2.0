@@ -6645,6 +6645,7 @@ const AtAasDesign = () => {
   const [modelOpsSelectedModel, setModelOpsSelectedModel] = useState('');
   const [modelOpsWeights, setModelOpsWeights] = useState<Record<string, number>>({});
   const [modelOpsWeightModalCluster, setModelOpsWeightModalCluster] = useState('');
+  const [modelOpsActiveTab, setModelOpsActiveTab] = useState<'weight' | 'detail'>('weight');
   const [deployMode, setDeployMode] = useState<string>('single');
   const [startupTemplateForm] = Form.useForm();
   const [addInstPdTemplateForm] = Form.useForm();
@@ -10025,6 +10026,23 @@ const AtAasDesign = () => {
                     </div>
                   </aside>
                   <main className="ataas-model-ops-main">
+                    <div className="ataas-model-ops-tabs">
+                      <button
+                        type="button"
+                        className={modelOpsActiveTab === 'weight' ? 'active' : ''}
+                        onClick={() => setModelOpsActiveTab('weight')}
+                      >
+                        组权重
+                      </button>
+                      <button
+                        type="button"
+                        className={modelOpsActiveTab === 'detail' ? 'active' : ''}
+                        onClick={() => setModelOpsActiveTab('detail')}
+                      >
+                        组详情
+                      </button>
+                    </div>
+                    {modelOpsActiveTab === 'weight' && (
 	                    <div className="ataas-panel ataas-model-ops-weight-panel">
 	                      <div className="ataas-panel-head ataas-model-ops-weight-head">
 	                        <div>
@@ -10043,7 +10061,7 @@ const AtAasDesign = () => {
 	                                key={group.cluster}
 	                                type="button"
 	                                className={'ataas-model-ops-weight-card' + (modelOpsClusterFilter === group.cluster ? ' active' : '')}
-	                                onClick={() => setModelOpsClusterFilter(group.cluster)}
+	                                onClick={() => { setModelOpsClusterFilter(group.cluster); setModelOpsActiveTab('detail'); }}
 	                              >
 	                                <span className="ataas-model-ops-weight-cluster">
 	                                  <strong>{group.cluster}</strong>
@@ -10065,6 +10083,8 @@ const AtAasDesign = () => {
 	                        </div>
 	                      )}
 	                    </div>
+                    )}
+                    {modelOpsActiveTab === 'detail' && (
                     <DeployList
                       mode="modelOps"
                       data={activeModelServices}
@@ -10085,6 +10105,7 @@ const AtAasDesign = () => {
 	                      onClusterFilterChange={setModelOpsClusterFilter}
 	                      getModelOpsRowWeight={getServiceWeight}
 	                    />
+                    )}
 	                    <Modal
 	                      title={`${modelOpsWeightModalCluster || '集群'} 权重调整`}
 	                      open={!!activeWeightModalGroup}
