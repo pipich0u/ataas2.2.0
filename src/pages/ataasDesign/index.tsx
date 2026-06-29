@@ -74,7 +74,7 @@ type ClusterRecord = {
   authInfo: string;
 };
 
-const SidebarIcon = ({ name }: { name: 'dashboard' | 'cluster' | 'modelRepo' | 'deploy' | 'image' | 'imageModel' | 'visionModel' | 'embedding' | 'rerank' | 'monitor' | 'benchmark' | 'engine' | 'template' | 'alert' | 'logs' | 'playground' | 'apiKey' | 'user' | 'engineMgr' | 'pod' | 'service' | 'devPod' | 'config' | 'se' }) => {
+const SidebarIcon = ({ name }: { name: 'dashboard' | 'cluster' | 'modelRepo' | 'deploy' | 'image' | 'imageModel' | 'visionModel' | 'embedding' | 'rerank' | 'monitor' | 'benchmark' | 'engine' | 'template' | 'alert' | 'logs' | 'playground' | 'apiKey' | 'user' | 'engineMgr' | 'pod' | 'service' | 'config' | 'se' }) => {
   const white = '#fff';
   return (
     <svg className="ataas-sidebar-icon" viewBox="0 0 20 20" aria-hidden="true">
@@ -230,13 +230,6 @@ const SidebarIcon = ({ name }: { name: 'dashboard' | 'cluster' | 'modelRepo' | '
           <circle cx="10" cy="10" r="7" fill="none" stroke="currentColor" strokeWidth="1.5" />
           <rect x="8" y="4" width="4" height="5" rx="1" fill="currentColor" />
           <rect x="8" y="11" width="4" height="5" rx="1" fill="currentColor" />
-        </>
-      )}
-      {name === 'devPod' && (
-        <>
-          <rect x="3" y="3" width="14" height="14" rx="2" fill="currentColor" opacity="0.5" />
-          <rect x="5" y="5" width="10" height="10" rx="1.5" fill="currentColor" />
-          <path d="M6 11l2.5 2.5L14 8" stroke={white} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
         </>
       )}
       {name === 'config' && (
@@ -395,6 +388,26 @@ type NodeRecord = {
   gpuCards: GpuCardInfo[];
 };
 
+type PodRecord = {
+  key: string;
+  name: string;
+  cluster: string;
+  namespace: string;
+  ready: string;
+  status: string;
+  restart: number;
+  load: number;
+  performance: number;
+  image: string;
+  podIP: string;
+  node: string;
+  nodeGPU: string;
+  gpuUtil: number;
+  gpuVram: number;
+  age: string;
+  trafficSource: string;
+};
+
 type ModelMonitorRecord = {
   key: string;
   name: string;
@@ -512,6 +525,25 @@ const nodes: NodeRecord[] = [
   { key: 'n8', clusterKey: 'c2', name: 'nj-h20-002', label: 'GPU=H20', tags: ['deployment=prod'], clusterName: 'online', status: 'normal', authStatus: 'authorized', modelCount: 2, runningInstances: 4, ip: '192.168.120.2', cpu: 256, cpuUsed: 148, memory: '2.01 TB', memoryUsed: '1.21 TB', gpu: 8, gpuMemory: '383.9 GB', gpuMemoryUsed: '287.9 GB', disk: '8.5 TB', diskUsed: '5.53 TB', gpuCards: Array.from({ length: 8 }, (_, i) => ({ index: i, model: 'H20', spec: '48 GB', memoryTotal: '47.99 GB', memoryUsed: i < 6 ? '47.9 GB' : '23.9 GB', memoryFree: i < 6 ? '0.09 GB' : '24.09 GB', utilization: i < 6 ? 97 : 52, power: i < 6 ? 285 : 165, temperature: i < 6 ? 80 : 64, status: 'active', replicas: i < 6 ? ['qwen3-coding-p1', 'qwen3-coding-p2'] : [] })) },
   { key: 'n9', clusterKey: 'c2', name: 'nj-910b-001', label: 'GPU=Ascend_910B', clusterName: 'online', status: 'warning', authStatus: 'authorized', modelCount: 0, runningInstances: 0, ip: '192.168.120.10', cpu: 128, cpuUsed: 96, memory: '1.01 TB', memoryUsed: '757.5 GB', gpu: 8, gpuMemory: '191.95 GB', gpuMemoryUsed: '153.6 GB', disk: '4.2 TB', diskUsed: '2.94 TB', gpuCards: Array.from({ length: 8 }, (_, i) => ({ index: i, model: 'Ascend 910B', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '19.2 GB', memoryFree: '4.79 GB', utilization: i > 4 ? 82 : 76, power: 220, temperature: 72, status: 'active', replicas: [] })) },
   { key: 'n10', clusterKey: 'c3', name: 'gz-l20-001', label: 'GPU=L20', clusterName: 'test', status: 'normal', authStatus: 'unauthorized', modelCount: 0, runningInstances: 0, ip: '192.168.130.5', cpu: 192, cpuUsed: 84, memory: '1007.51 GB', memoryUsed: '453.4 GB', gpu: 4, gpuMemory: '191.95 GB', gpuMemoryUsed: '115.2 GB', disk: '3.86 TB', diskUsed: '1.35 TB', gpuCards: Array.from({ length: 4 }, (_, i) => ({ index: i, model: 'L20', spec: '48 GB', memoryTotal: '47.99 GB', memoryUsed: '23.9 GB', memoryFree: '24.09 GB', utilization: 52 + i * 8, power: 180, temperature: 66, status: 'active', replicas: [] })) },
+];
+
+const pods: PodRecord[] = [
+  { key: 'p1', name: 'deepseek-prod-r1-p1', cluster: 'shanghai-online', namespace: 'production', ready: '1/1', status: 'Running', restart: 0, load: 78, performance: 92, image: 'vllm/vllm-openai:latest', podIP: '10.0.1.12', node: 'nj-h20-001', nodeGPU: 'H20 141G × 8', gpuUtil: 72, gpuVram: 61, age: '12d', trafficSource: 'rbg-deepseek-prod' },
+  { key: 'p2', name: 'deepseek-prod-r1-p2', cluster: 'shanghai-online', namespace: 'production', ready: '1/1', status: 'Running', restart: 1, load: 72, performance: 88, image: 'vllm/vllm-openai:latest', podIP: '10.0.1.13', node: 'nj-h20-001', nodeGPU: 'H20 141G × 8', gpuUtil: 68, gpuVram: 58, age: '10d', trafficSource: 'rbg-deepseek-prod' },
+  { key: 'p3', name: 'qwen3-coding-p1', cluster: 'shanghai-online', namespace: 'production', ready: '1/1', status: 'Running', restart: 0, load: 65, performance: 85, image: 'sglang/sglang:latest', podIP: '10.0.2.15', node: 'nj-h20-002', nodeGPU: 'H20 141G × 8', gpuUtil: 76, gpuVram: 69, age: '8d', trafficSource: 'qwen3-coding-slo' },
+  { key: 'p4', name: 'qwen3-coding-p2', cluster: 'shanghai-online', namespace: 'production', ready: '1/1', status: 'Running', restart: 2, load: 61, performance: 82, image: 'sglang/sglang:latest', podIP: '10.0.2.16', node: 'nj-h20-002', nodeGPU: 'H20 141G × 8', gpuUtil: 71, gpuVram: 64, age: '8d', trafficSource: 'qwen3-coding-slo' },
+  { key: 'p5', name: 'glm51-1-prefill-p1', cluster: 'shanghai-online', namespace: 'production', ready: '1/1', status: 'Running', restart: 0, load: 89, performance: 95, image: 'sglang/sglang:latest', podIP: '10.0.1.8', node: 'nj-h20-001', nodeGPU: 'H20 141G × 8', gpuUtil: 85, gpuVram: 73, age: '15d', trafficSource: 'glm51-1-slo' },
+  { key: 'p6', name: 'glm51-1-prefill-p2', cluster: 'shanghai-online', namespace: 'production', ready: '1/1', status: 'Running', restart: 1, load: 84, performance: 91, image: 'sglang/sglang:latest', podIP: '10.0.1.9', node: 'nj-h20-001', nodeGPU: 'H20 141G × 8', gpuUtil: 82, gpuVram: 70, age: '14d', trafficSource: 'glm51-1-slo' },
+  { key: 'p7', name: 'glm-air-batch-p1', cluster: 'guangzhou-test', namespace: 'batch', ready: '1/1', status: 'Running', restart: 3, load: 45, performance: 63, image: 'vllm/vllm-openai:latest', podIP: '10.0.3.22', node: 'gz-l20-001', nodeGPU: 'L20 48G × 4', gpuUtil: 54, gpuVram: 66, age: '6d', trafficSource: 'glm-air-batch' },
+  { key: 'p8', name: 'glm-air-batch-p2', cluster: 'guangzhou-test', namespace: 'batch', ready: '0/1', status: 'Pending', restart: 5, load: 0, performance: 0, image: 'vllm/vllm-openai:latest', podIP: '10.0.3.23', node: 'gz-l20-001', nodeGPU: 'L20 48G × 4', gpuUtil: 0, gpuVram: 0, age: '6d', trafficSource: 'glm-air-batch' },
+  { key: 'p9', name: 'kimi-router-canary-p1', cluster: 'wuhan-kunpeng', namespace: 'canary', ready: '1/1', status: 'Running', restart: 0, load: 52, performance: 74, image: 'mindie/mindie:latest', podIP: '10.0.4.5', node: 'nj-910b-001', nodeGPU: 'Ascend 910B × 8', gpuUtil: 61, gpuVram: 52, age: '5d', trafficSource: 'kimi-router-canary' },
+  { key: 'p10', name: 'kimi-router-canary-p2', cluster: 'wuhan-kunpeng', namespace: 'canary', ready: '1/1', status: 'Running', restart: 1, load: 48, performance: 71, image: 'mindie/mindie:latest', podIP: '10.0.4.6', node: 'nj-910b-001', nodeGPU: 'Ascend 910B × 8', gpuUtil: 57, gpuVram: 48, age: '4d', trafficSource: 'kimi-router-canary' },
+  { key: 'p11', name: 'deepseek-prod-r1-p3', cluster: 'shanghai-online', namespace: 'production', ready: '1/1', status: 'Running', restart: 0, load: 75, performance: 90, image: 'vllm/vllm-openai:latest', podIP: '10.0.2.18', node: 'nj-h20-002', nodeGPU: 'H20 141G × 8', gpuUtil: 74, gpuVram: 66, age: '9d', trafficSource: 'rbg-deepseek-prod' },
+  { key: 'p12', name: 'deepseek-dev-p1', cluster: 'beijing-prod', namespace: 'development', ready: '1/1', status: 'Running', restart: 0, load: 28, performance: 55, image: 'vllm/vllm-openai:latest', podIP: '10.0.5.2', node: 'qujing4', nodeGPU: 'A100 80G × 4', gpuUtil: 36, gpuVram: 42, age: '2d', trafficSource: 'deepseek-dev' },
+  { key: 'p13', name: 'deepseek-dev-p2', cluster: 'beijing-prod', namespace: 'development', ready: '1/1', status: 'Running', restart: 2, load: 24, performance: 48, image: 'vllm/vllm-openai:latest', podIP: '10.0.5.3', node: 'qujing7', nodeGPU: 'A100 80G × 4', gpuUtil: 31, gpuVram: 38, age: '1d', trafficSource: 'deepseek-dev' },
+  { key: 'p14', name: 'qwen2-demo-p1', cluster: 'beijing-prod', namespace: 'demo', ready: '1/1', status: 'Running', restart: 0, load: 18, performance: 42, image: 'sglang/sglang:latest', podIP: '10.0.5.4', node: 'qujing4', nodeGPU: 'A100 80G × 4', gpuUtil: 24, gpuVram: 32, age: '3d', trafficSource: 'qwen2-demo' },
+  { key: 'p15', name: 'qwen2-demo-p2', cluster: 'beijing-prod', namespace: 'demo', ready: '0/1', status: 'Failed', restart: 8, load: 0, performance: 0, image: 'sglang/sglang:latest', podIP: '10.0.5.5', node: 'qujing4', nodeGPU: 'A100 80G × 4', gpuUtil: 0, gpuVram: 0, age: '3d', trafficSource: 'qwen2-demo' },
+  { key: 'p16', name: 'mistral-prod-p1', cluster: 'shanghai-online', namespace: 'production', ready: '1/1', status: 'Running', restart: 0, load: 82, performance: 93, image: 'sglang/sglang:latest', podIP: '10.0.1.20', node: 'nj-h20-001', nodeGPU: 'H20 141G × 8', gpuUtil: 79, gpuVram: 67, age: '20d', trafficSource: 'mistral-vllm-slo' },
 ];
 
 const overviewModelCards = [
@@ -6345,6 +6377,55 @@ const AtAasDesign = () => {
   const [clusterNodeLabelEditTarget, setClusterNodeLabelEditTarget] = useState<NodeRecord | null>(null);
   const [clusterNodeEditLabel, setClusterNodeEditLabel] = useState('');
   const [nodeGpuAuthTarget, setNodeGpuAuthTarget] = useState<NodeRecord | null>(null);
+  const [podList] = useState<PodRecord[]>(pods);
+  const [podClusterFilter, setPodClusterFilter] = useState('all');
+  const [podNamespaceFilter, setPodNamespaceFilter] = useState('all');
+  const [podSearch, setPodSearch] = useState('');
+  const [podActionTarget, setPodActionTarget] = useState<PodRecord | null>(null);
+  const [podYamlOpen, setPodYamlOpen] = useState(false);
+  const [podLogOpen, setPodLogOpen] = useState(false);
+  const [podTerminalHistory, setPodTerminalHistory] = useState<string[]>([]);
+  const [podConsoleTarget, setPodConsoleTarget] = useState<PodRecord | null>(null);
+  const podTerminalRef = useRef<HTMLDivElement>(null);
+  const podTerminalInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (podTerminalRef.current) podTerminalRef.current.scrollTop = podTerminalRef.current.scrollHeight;
+    if (podConsoleTarget && podTerminalInputRef.current) podTerminalInputRef.current.focus();
+  }, [podTerminalHistory, podConsoleTarget]);
+  const getPodYaml = (p: PodRecord) => [
+    'apiVersion: v1', 'kind: Pod', 'metadata:', '  name: ' + p.name, '  namespace: ' + p.namespace,
+    '  labels:', '    app: ' + p.trafficSource, '    cluster: ' + p.cluster,
+    '  annotations:', '    kubectl.kubernetes.io/default-container: ' + p.name,
+    'spec:', '  nodeName: ' + p.node, '  containers:',
+    '    - name: main', '      image: ' + p.image, '      imagePullPolicy: IfNotPresent',
+    '      ports:', '        - containerPort: 8000', '          protocol: TCP',
+    '      resources:', '        limits:',
+    '          cpu: "32"', '          memory: "256Gi"',
+    '          nvidia.com/gpu: "' + (p.nodeGPU.match(/x\s*(\d+)/)?.[1] || '8') + '"',
+    '      env:', '        - name: POD_IP', '          value: ' + p.podIP,
+    '        - name: NODE_NAME', '          valueFrom:', '            fieldRef:', '              fieldPath: spec.nodeName',
+    '  restartPolicy: Always',
+    'status:', '  phase: ' + p.status, '  podIP: ' + p.podIP, '  hostIP: ' + p.node,
+    '  conditions:', '    - type: Ready', '      status: "' + (p.ready === '1/1' ? 'True' : 'False') + '"',
+    '      lastTransitionTime: "' + new Date().toISOString() + '"',
+    '  containerStatuses:', '    - name: main',
+    '      ready: ' + (p.ready.startsWith('1/') ? 'true' : 'false'),
+    '      restartCount: ' + p.restart, '      image: ' + p.image,
+    '      started: ' + (p.ready.startsWith('1/') ? 'true' : 'false'),
+  ].join('\n');
+  const getPodLogs = (p: PodRecord) => Array.from({ length: 40 }, (_, i) => {
+    const ts = new Date(Date.now() - (40 - i) * 30000).toISOString().replace('T', ' ').replace('Z', '');
+    const msgs = [
+      'INFO: HTTP request received - GET /v1/chat/completions',
+      'INFO: Scheduling request on GPU ' + (p.gpuUtil > 0 ? (i % 8) : 0),
+      'DEBUG: KV cache hit ratio: ' + (50 + (i % 30)) + '%',
+      'INFO: Batch size: ' + (4 + (i % 12)) + ', pending: ' + (i % 3),
+      'INFO: Generated ' + (128 + i * 37) + ' tokens, avg ' + (18 + (i % 12)) + ' ms/token',
+      'INFO: Request completed in ' + (200 + i * 45) + 'ms, status 200',
+      'DEBUG: GPU memory: ' + (40 + (i % 40)) + '% used, ' + (p.gpuVram > 0 ? p.gpuVram - (i % 15) : 0) + '% cached',
+    ][i % 7];
+    return '[' + ts + '] ' + msgs;
+  }).join('\n');
   const [nodeGpuAuthKeys, setNodeGpuAuthKeys] = useState<Key[]>([]);
   const [nodeGpuAuthMap, setNodeGpuAuthMap] = useState<Record<string, string[]>>(() => Object.fromEntries(
     nodes
@@ -8965,18 +9046,17 @@ const AtAasDesign = () => {
   const nodeColumns: ColumnsType<NodeRecord> = [
     { title: '节点名称', dataIndex: 'name', key: 'name', width: 120, render: (v, r) => (
       <span className="ataas-node-name-cell">
+        <span className={'ataas-node-status-dot' + (r.status === 'normal' ? ' normal' : '')} />
         <strong title={v}>{v}</strong>
-        <span title={r.remark || '暂无备注'}>{r.remark || '暂无备注'}</span>
       </span>
     ) },
-    { title: 'Labels', key: 'label', width: 320, render: (_: unknown, r: NodeRecord) => (
+    { title: '集群名称', dataIndex: 'clusterName', key: 'clusterName', width: 120 },
+    { title: 'Labels', key: 'label', width: 200, render: (_: unknown, r: NodeRecord) => (
       <div className="ataas-node-label-cell">
         <span className="ataas-node-label-tag">{r.label}</span>
-        {r.tags?.map((tag) => <span key={tag} className="ataas-node-label-tag extra">{tag}</span>)}
+        {r.tags?.filter((tag) => /^(deployment|GPU|worker|controlplane)=/.test(tag)).map((tag) => <span key={tag} className="ataas-node-label-tag extra">{tag}</span>)}
       </div>
     ) },
-    { title: '集群名称', dataIndex: 'clusterName', key: 'clusterName', width: 120 },
-    { title: '节点状态', dataIndex: 'status', key: 'status', width: 95, render: (v: string) => <span className="ataas-cluster-table-status" style={{ ['--status-color' as string]: v === 'normal' ? '#00A11F' : '#E02D2D' }}>{v === 'normal' ? '正常' : '异常'}</span> },
     { title: '授权状态', dataIndex: 'authStatus', key: 'authStatus', width: 95, render: (v: string) => <span className={'ataas-cluster-auth-status' + (v === 'authorized' ? ' authorized' : '')}>{v === 'authorized' ? '已授权' : '未授权'}</span> },
     { title: '模型数量', key: 'modelCount', width: 110, render: (_, r) => {
       const count = getNodeDeployServices(r).length;
@@ -9204,7 +9284,6 @@ const AtAasDesign = () => {
     { key: 'nodes', icon: <SidebarIcon name="engineMgr" />, label: '节点管理' },
     { key: 'modelRepo', icon: <SidebarIcon name="modelRepo" />, label: '模型仓库' },
     { key: 'deploy', icon: <SidebarIcon name="deploy" />, label: '模型部署' },
-    { key: 'modelOps', icon: <SidebarIcon name="deploy" />, label: '模型运维' },
     { key: 'startupTemplates', icon: <SidebarIcon name="template" />, label: '性能仓库' },
     { key: 'images', icon: <SidebarIcon name="image" />, label: '镜像仓库' },
     { key: 'monitoring', icon: <SidebarIcon name="monitor" />, label: '模型监控' },
@@ -9221,21 +9300,99 @@ const AtAasDesign = () => {
     { key: 'engines', icon: <SidebarIcon name="engine" />, label: '镜像管理' },
     { key: 'pods', icon: <SidebarIcon name="pod" />, label: '容器管理' },
     { key: 'services', icon: <SidebarIcon name="service" />, label: 'Service管理' },
-    { key: 'devPods', icon: <SidebarIcon name="devPod" />, label: '开发容器' },
     { key: 'configCenter', icon: <SidebarIcon name="config" />, label: '配置中心' },
     { key: 'se', icon: <SidebarIcon name="se" />, label: 'ServiceEntry' },
   ];
   const getSidebarItems = (keys: string[]) => keys.map((key) => SIDEBAR_ITEMS.find((item) => item.key === key)).filter(Boolean) as typeof SIDEBAR_ITEMS;
   const SIDEBAR_GROUPS = [
     { title: '概览', items: getSidebarItems(['overview']) },
-    { title: '资源管理', items: getSidebarItems(['clusters', 'nodes', 'engines', 'pods', 'services', 'devPods', 'se']) },
-    { title: '模型管理', items: getSidebarItems(['modelRepo', 'deploy', 'modelOps', 'monitoring']) },
+    { title: '资源管理', items: getSidebarItems(['clusters', 'nodes', 'engines', 'pods', 'services', 'se']) },
+    { title: '模型管理', items: getSidebarItems(['modelRepo', 'deploy', 'monitoring']) },
     { title: '模型测试', items: getSidebarItems(['playgroundChat', 'playgroundVision', 'playgroundVisual', 'playgroundEmbedding', 'playgroundRerank', 'benchmark']) },
     { title: '身份权限', items: getSidebarItems(['apiKeys', 'users']) },
     { title: '系统监控', items: getSidebarItems(['alerts', 'logs']) },
   ];
 
   const renderTabContent = () => {
+    if (podConsoleTarget) {
+      return (
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: '#1E1E1E', display: 'flex', flexDirection: 'column', zIndex: 1000, fontFamily: 'Menlo, Monaco, Consolas, monospace' }}>
+          {/* macOS Terminal Title Bar */}
+          <div style={{ display: 'flex', alignItems: 'center', height: 38, background: '#2D2D2D', borderBottom: '1px solid #444', padding: '0 16px', flexShrink: 0, userSelect: 'none' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8, marginRight: 12 }}>
+                <div title="关闭" style={{ width: 12, height: 12, borderRadius: '50%', background: '#FF5F57', cursor: 'pointer' }} onClick={() => setPodConsoleTarget(null)} />
+                <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#FEBC2E' }} />
+                <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#28C840' }} />
+              </div>
+              <Button type="text" size="small" icon={<ArrowLeftOutlined />} style={{ color: '#CCC', fontSize: 13 }} onClick={() => setPodConsoleTarget(null)}>返回 Pod 列表</Button>
+            </div>
+            <div style={{ flex: 1, textAlign: 'center', color: '#CCC', fontSize: 12 }}>{podConsoleTarget.name} — {podConsoleTarget.namespace} — {podConsoleTarget.node}</div>
+            <div style={{ width: 160 }} />
+          </div>
+          {/* Terminal Output */}
+          <div ref={podTerminalRef} style={{ flex: 1, overflow: 'auto', padding: '16px 20px', fontSize: 13, lineHeight: 1.6, color: '#D4D4D4' }}>
+            {podTerminalHistory.map((line, i) => {
+              if (line.startsWith('[system] ')) return <div key={i} style={{ color: '#888', fontStyle: 'italic' }}>{line.slice(9)}</div>;
+              if (line.startsWith('[error] ')) return <div key={i} style={{ color: '#F1707B' }}>{line.slice(8)}</div>;
+              if (line.startsWith('$ ')) {
+                const cmd = line.slice(2);
+                return <div key={i} style={{ display: 'flex' }}><span style={{ color: '#3CC27B', marginRight: 8, userSelect: 'none' }}>❯</span><span style={{ color: '#E6E6E6' }}>{cmd}</span></div>;
+              }
+              return <div key={i} style={{ color: '#B4B4B4', paddingLeft: 22 }}>{line}</div>;
+            })}
+          </div>
+          {/* Input Bar */}
+          <div style={{ display: 'flex', alignItems: 'center', padding: '8px 20px', borderTop: '1px solid #444', background: '#252526', flexShrink: 0 }}>
+            <span style={{ color: '#3CC27B', marginRight: 10, fontSize: 14, userSelect: 'none' }}>❯</span>
+            <input
+              ref={podTerminalInputRef}
+              style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#E6E6E6', fontFamily: 'Menlo, Monaco, Consolas, monospace', fontSize: 13 }}
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  const input = e.target as HTMLInputElement;
+                  const cmd = input.value.trim();
+                  input.value = '';
+                  if (!cmd) return;
+                  setPodTerminalHistory((h) => [...h, '$ ' + cmd]);
+                  if (cmd === 'exit' || cmd === 'logout') {
+                    setTimeout(() => setPodConsoleTarget(null), 300);
+                  } else if (cmd === 'clear') {
+                    setPodTerminalHistory([]);
+                  } else if (cmd.startsWith('kubectl ')) {
+                    setPodTerminalHistory((h) => [...h, 'Error from server (Forbidden): kubectl is not available in this container shell.']);
+                  } else if (cmd.startsWith('top') || cmd === 'htop') {
+                    setPodTerminalHistory((h) => [...h, 'top - ' + new Date().toLocaleTimeString(), 'Tasks: 1 total, 0 running, 1 sleeping', '%Cpu(s): ' + (30 + Math.round(Math.random() * 40)) + '.0 us, 12.0 sy, 0.0 ni, 58.0 id', 'MiB Mem : ' + (120000 + Math.round(Math.random() * 20000)) + ' total,  ' + (40000 + Math.round(Math.random() * 10000)) + ' free', 'MiB Swap: 0 total, 0 free']);
+                  } else if (cmd.startsWith('ls')) {
+                    setPodTerminalHistory((h) => [...h, 'app.py', 'requirements.txt', 'Dockerfile', 'config.yaml', 'models/', 'logs/', 'data/']);
+                  } else if (cmd.startsWith('cd ')) {
+                    setPodTerminalHistory((h) => [...h, '']);
+                  } else if (cmd === 'pwd') {
+                    setPodTerminalHistory((h) => [...h, '/app']);
+                  } else if (cmd === 'whoami') {
+                    setPodTerminalHistory((h) => [...h, 'root']);
+                  } else if (cmd.startsWith('cat ') || cmd.startsWith('head ') || cmd.startsWith('tail ')) {
+                    setPodTerminalHistory((h) => [...h, '# File content would be displayed here']);
+                  } else if (cmd === 'df -h') {
+                    setPodTerminalHistory((h) => [...h, 'Filesystem      Size  Used Avail Use% Mounted on', '/dev/sda1       500G  234G  266G  47% /', 'tmpfs            64G   12G   52G  19% /dev/shm']);
+                  } else if (cmd === 'free -h') {
+                    setPodTerminalHistory((h) => [...h, '              total        used        free', 'Mem:          125Gi       72Gi       53Gi', 'Swap:            0B         0B         0B']);
+                  } else if (cmd.startsWith('env') || cmd.startsWith('printenv')) {
+                    setPodTerminalHistory((h) => [...h, 'POD_IP=' + (podConsoleTarget?.podIP || ''), 'NODE_NAME=' + (podConsoleTarget?.node || ''), 'PATH=/usr/local/bin:/usr/bin:/bin', 'HOME=/root']);
+                  } else if (cmd === 'help') {
+                    setPodTerminalHistory((h) => [...h, 'Available commands: ls, cd, pwd, cat, top, df -h, free -h, env, whoami, clear, exit']);
+                  } else {
+                    setPodTerminalHistory((h) => [...h, 'bash: ' + cmd.split(' ')[0] + ': command not found']);
+                  }
+                }
+              }}
+            />
+          </div>
+        </div>
+      );
+    }
     switch (activeTab) {
       case 'overview': return (
 			<div className="ataas-section-stack">
@@ -9594,6 +9751,50 @@ const AtAasDesign = () => {
                                 </div>
                               ))}
                             </div>
+                          </div>
+                          <div className="ataas-node-pod-list">
+                            <h4>已调度 Pod</h4>
+                            {(() => {
+                              const pods = getNodeDeployServices(r).flatMap((svc) =>
+                                Array.from({ length: svc.modelInfo.number || 1 }, (_, i) => {
+                                  const roleTag = r.tags?.find((t) => t.startsWith('deployment='));
+                                  const roleVal = roleTag ? roleTag.split('=')[1] : '';
+                                  const role = roleVal.includes('prefill') ? 'prefill' : roleVal === 'prod' ? 'decode' : 'other';
+                                  const ready = svc.status === 'running' ? '1/1' : '0/1';
+                                  return {
+                                    key: `${svc.id}-${i}`,
+                                    name: `${svc.name}-${i}`,
+                                    status: svc.status,
+                                    ready,
+                                    restartCount: svc.modelInfo.restartCount,
+                                    role,
+                                  };
+                                })
+                              );
+                              if (pods.length === 0) return <span className="ataas-table-sub">暂无调度 Pod</span>;
+                              return (
+                                <div className="ataas-node-pod-table">
+                                  <div className="ataas-node-pod-table-head">
+                                    <span>Pod 名称</span>
+                                    <span>角色</span>
+                                    <span>状态</span>
+                                    <span>Ready</span>
+                                    <span>重启次数</span>
+                                  </div>
+                                  {pods.map((pod) => (
+                                    <div key={pod.key} className="ataas-node-pod-table-row">
+                                      <span className="ataas-node-pod-name">
+                                        <strong>{pod.name}</strong>
+                                      </span>
+                                      <span><Tag color={pod.role === 'prefill' ? 'blue' : pod.role === 'decode' ? 'green' : 'default'}>{pod.role}</Tag></span>
+                                      <span><Tag color={pod.status === 'running' ? 'green' : pod.status === 'loading' ? 'blue' : 'red'}>{pod.status === 'running' ? 'Running' : pod.status === 'loading' ? 'Pending' : 'Error'}</Tag></span>
+                                      <span className={pod.ready === '1/1' ? 'ataas-table-sub' : ''}>{pod.ready}</span>
+                                      <span>{pod.restartCount}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              );
+                            })()}
                           </div>
                         </div>
                       ),
@@ -10849,14 +11050,104 @@ const AtAasDesign = () => {
               </div>
             );
           }
-      case 'pods':
+      case 'pods': {
+        const filteredPods = podList.filter((p) => (podClusterFilter === 'all' || p.cluster === podClusterFilter) && (podNamespaceFilter === 'all' || p.namespace === podNamespaceFilter) && (!podSearch || p.name.includes(podSearch) || p.podIP.includes(podSearch) || p.node.includes(podSearch) || p.image.includes(podSearch) || p.namespace.includes(podSearch)));
+        const podColumns: ColumnsType<PodRecord> = [
+          { title: 'Name', dataIndex: 'name', key: 'name', width: 220, fixed: 'left', render: (v) => <strong style={{ fontSize: 13 }}>{v}</strong> },
+          { title: '集群', dataIndex: 'cluster', key: 'cluster', width: 130 },
+          { title: 'Ready', dataIndex: 'ready', key: 'ready', width: 70 },
+          { title: 'Status', dataIndex: 'status', key: 'status', width: 90, render: (v) => <Tag color={v === 'Running' ? 'green' : v === 'Pending' ? 'blue' : v === 'Failed' ? 'red' : 'default'}>{v}</Tag> },
+          { title: 'Restarts', dataIndex: 'restart', key: 'restart', width: 75, render: (v) => <span style={{ color: v > 5 ? '#E02D2D' : v > 2 ? '#FA8C16' : '#4E5969' }}>{v}</span> },
+          { title: '负载', dataIndex: 'load', key: 'load', width: 80, render: (v) => v > 0 ? (
+            <Tooltip title={`负载 ${v}%`}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ flex: 1, height: 6, background: '#F2F3F5', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ width: `${v}%`, height: '100%', background: v > 80 ? '#E02D2D' : v > 60 ? '#FA8C16' : '#3CC27B', borderRadius: 3 }} />
+                </div>
+                <span style={{ fontSize: 12, color: '#4E5969' }}>{v}%</span>
+              </div>
+            </Tooltip>
+          ) : <span style={{ color: '#C9CDD4' }}>-</span> },
+          { title: '性能', dataIndex: 'performance', key: 'performance', width: 80, render: (v) => v > 0 ? (
+            <Tooltip title={`性能 ${v}%`}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ flex: 1, height: 6, background: '#F2F3F5', borderRadius: 3, overflow: 'hidden' }}>
+                  <div style={{ width: `${v}%`, height: '100%', background: v > 80 ? '#3CC27B' : v > 50 ? '#FA8C16' : '#E02D2D', borderRadius: 3 }} />
+                </div>
+                <span style={{ fontSize: 12, color: '#4E5969' }}>{v}%</span>
+              </div>
+            </Tooltip>
+          ) : <span style={{ color: '#C9CDD4' }}>-</span> },
+          { title: '镜像', dataIndex: 'image', key: 'image', width: 200, render: (v) => <span style={{ fontSize: 12, color: '#86909C', fontFamily: 'monospace' }}>{v}</span> },
+          { title: 'IP', dataIndex: 'podIP', key: 'podIP', width: 120, render: (v) => <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{v}</span> },
+          { title: 'Node', dataIndex: 'node', key: 'node', width: 120 },
+          { title: 'Node GPU', dataIndex: 'nodeGPU', key: 'nodeGPU', width: 170, render: (_, r) => (
+            <div style={{ lineHeight: 1.4 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 3 }}>
+                <span style={{ fontSize: 11, color: '#86909C', whiteSpace: 'nowrap' }}>Util</span>
+                <div style={{ flex: 1, height: 4, background: '#F2F3F5', borderRadius: 2, overflow: 'hidden' }}>
+                  <div style={{ width: `${r.gpuUtil}%`, height: '100%', background: r.gpuUtil > 80 ? '#E02D2D' : r.gpuUtil > 60 ? '#FA8C16' : '#3CC27B', borderRadius: 2 }} />
+                </div>
+                <span style={{ fontSize: 11, color: '#4E5969', minWidth: 28, textAlign: 'right' }}>{r.gpuUtil}%</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ fontSize: 11, color: '#86909C', whiteSpace: 'nowrap' }}>VRAM</span>
+                <div style={{ flex: 1, height: 4, background: '#F2F3F5', borderRadius: 2, overflow: 'hidden' }}>
+                  <div style={{ width: `${r.gpuVram}%`, height: '100%', background: r.gpuVram > 80 ? '#E02D2D' : r.gpuVram > 60 ? '#FA8C16' : '#3CC27B', borderRadius: 2 }} />
+                </div>
+                <span style={{ fontSize: 11, color: '#4E5969', minWidth: 28, textAlign: 'right' }}>{r.gpuVram}%</span>
+              </div>
+            </div>
+          ) },
+          { title: 'Age', dataIndex: 'age', key: 'age', width: 80, render: (v) => <span style={{ color: '#86909C' }}>{v}</span> },
+          { title: '接流来源', dataIndex: 'trafficSource', key: 'trafficSource', width: 160, render: (v) => <span style={{ fontSize: 12, color: '#1D2129' }}>{v}</span> },
+          { title: '操作', key: 'action', width: 110, fixed: 'right', render: (_, record) => (
+            <Space size={0}>
+              <Tooltip title="控制台"><Button type="text" size="small" icon={<CodeOutlined />} onClick={() => { setPodConsoleTarget(record); setPodTerminalHistory(['[system] Connecting to ' + record.name + ' (' + record.podIP + ')...', '[system] Authenticating with cluster ' + record.cluster + '...', '[system] Opening shell on container main...', '', '$ Welcome to ' + record.name, '$ Type help for available commands']); }} /></Tooltip>
+              <Tooltip title="查看 YAML"><Button type="text" size="small" icon={<FileSearchOutlined />} onClick={() => { setPodActionTarget(record); setPodYamlOpen(true); }} /></Tooltip>
+              <Tooltip title="日志"><Button type="text" size="small" icon={<InboxOutlined />} onClick={() => { setPodActionTarget(record); setPodLogOpen(true); }} /></Tooltip>
+            </Space>
+          ) },
+        ];
+        const podYaml = podActionTarget ? getPodYaml(podActionTarget) : '';
+        const podLogs = podActionTarget ? getPodLogs(podActionTarget) : '';
+        return (
+          <div className="ataas-section-stack">
+            <ConfigProvider theme={{ token: { colorPrimary: '#6738E8', colorPrimaryHover: '#5D30D8', colorPrimaryActive: '#5127C7', controlOutline: 'rgba(103, 56, 232, 0.12)' }, components: { Table: { headerBg: '#f7f8fa' } } }}>
+              <div className="ataas-panel ataas-api-key-page ataas-engine-page ataas-deploy-list">
+                <div className="ataas-panel-head ataas-api-key-head">
+                  <div>
+                    <h2>容器管理</h2>
+                    <span>查看集群中所有运行中的 Pod 实例</span>
+                  </div>
+                </div>
+                <div className="ataas-engine-filter">
+                  <div className="ataas-api-key-toolbar ataas-deploy-list-toolbar">
+                    <Select className="ataas-deploy-list-select" value={podClusterFilter} onChange={setPodClusterFilter} size="middle" style={{ width: 140, marginRight: 8 }} options={[{ value: 'all', label: '全部集群' }, ...Array.from(new Set(podList.map((p) => p.cluster))).map((c) => ({ value: c, label: c }))]} />
+                    <Select className="ataas-deploy-list-select" value={podNamespaceFilter} onChange={setPodNamespaceFilter} size="middle" style={{ width: 140, marginRight: 8 }} options={[{ value: 'all', label: '全部命名空间' }, ...Array.from(new Set(podList.map((p) => p.namespace))).map((c) => ({ value: c, label: c }))]} />
+                    <Input.Search className="ataas-deploy-list-search ataas-api-key-search" placeholder="搜索 Pod 名称 / IP / 节点..." value={podSearch} onChange={(e) => setPodSearch(e.target.value)} allowClear size="middle" />
+                  </div>
+                </div>
+                <div className="ataas-deploy-table-wrap ataas-api-key-table-wrap ataas-engine-table-wrap">
+                  <Table dataSource={filteredPods} rowKey="key" columns={podColumns} scroll={{ x: 1950 }} pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (t) => `共 ${t} 个 Pod` }} />
+                </div>
+              </div>
+            </ConfigProvider>
+            <Modal title={`YAML - ${podActionTarget?.name || ''}`} open={podYamlOpen} onCancel={() => setPodYamlOpen(false)} footer={null} width={820} styles={{ body: { maxHeight: '70vh', overflow: 'auto' } }}>
+              <pre style={{ margin: 0, padding: '16px', background: '#F7F8FA', borderRadius: 6, fontSize: 12, fontFamily: 'Menlo, Monaco, Consolas, monospace', lineHeight: 1.6, whiteSpace: 'pre', overflow: 'auto' }}>{podYaml}</pre>
+            </Modal>
+            <Modal title={`日志 - ${podActionTarget?.name || ''}`} open={podLogOpen} onCancel={() => setPodLogOpen(false)} footer={null} width={900} styles={{ body: { maxHeight: '70vh', overflow: 'auto', padding: 0 } }}>
+              <pre style={{ margin: 0, padding: '16px', background: '#1E1E1E', borderRadius: 0, fontSize: 12, fontFamily: 'Menlo, Monaco, Consolas, monospace', lineHeight: 1.6, color: '#D4D4D4', whiteSpace: 'pre', overflow: 'auto' }}>{podLogs}</pre>
+            </Modal>
+          </div>
+        );
+      }
       case 'services':
-      case 'devPods':
       case 'se': return (
         <div className="ataas-section-stack">
           <div className="ataas-panel">
             <div className="ataas-panel-head">
-              <h2>{activeTab === 'pods' ? '容器管理' : activeTab === 'services' ? 'Service管理' : activeTab === 'devPods' ? '开发容器' : 'ServiceEntry'}</h2>
+              <h2>{activeTab === 'services' ? 'Service管理' : 'ServiceEntry'}</h2>
             </div>
             <div style={{ padding: '60px 0', textAlign: 'center', color: '#98A2B3', fontSize: 14 }}>
               功能开发中

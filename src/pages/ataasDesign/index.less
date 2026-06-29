@@ -1627,56 +1627,48 @@ body,
 
 .ataas-node-name-cell {
   display: flex;
+  align-items: center;
   min-width: 0;
-  flex-direction: column;
-  gap: 2px;
 
-  strong,
-  span {
+  .ataas-node-status-dot {
+    flex-shrink: 0;
+    width: 8px;
+    height: 8px;
+    margin-left: -14px;
+    margin-right: 6px;
+    border-radius: 50%;
+    background: #E02D2D;
+
+    &.normal {
+      background: #00A11F;
+    }
+  }
+
+  strong {
     display: block;
     min-width: 0;
     overflow: hidden;
     font-family: PingFangSC, "PingFang SC", "Helvetica Neue", Helvetica, Arial, sans-serif;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-
-  strong {
     color: #1D2129;
     font-size: 13px;
     font-weight: 500;
     line-height: 18px;
   }
-
-  span {
-    color: #86909C;
-    font-size: 12px;
-    font-weight: 400;
-    line-height: 16px;
-  }
 }
 
 .ataas-node-label-cell {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  align-items: center;
+  flex-direction: column;
+  gap: 3px;
   white-space: normal !important;
   word-break: break-word;
 }
 .ataas-node-label-tag {
-  display: inline-block;
-  padding: 1px 6px;
   font-size: 11px;
   line-height: 18px;
-  border-radius: 4px;
-  background: #f0f1ff;
-  color: #5965FF;
-  white-space: nowrap;
-}
-.ataas-node-label-tag.extra {
-  background: #f0faf0;
-  color: #00A11F;
+  color: #1D2129;
 }
 
 .ataas-cluster-master-cell {
@@ -1985,6 +1977,53 @@ body,
 
 .ataas-node-gpu-panel {
   min-width: 0;
+}
+
+.ataas-node-pod-list {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+  padding: 14px;
+  border: 1px solid #F2F3F5;
+  border-radius: 6px;
+  background: #fff;
+
+  h4 {
+    margin: 0 0 10px;
+    color: #1D2129;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 20px;
+  }
+}
+
+.ataas-node-pod-table {
+  width: 100%;
+  font-size: 13px;
+}
+
+.ataas-node-pod-table-head,
+.ataas-node-pod-table-row {
+  display: grid;
+  grid-template-columns: 1.5fr 80px 80px 60px 70px;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+}
+
+.ataas-node-pod-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+
+  strong {
+    min-width: 0;
+    overflow: hidden;
+    color: #1D2129;
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 
 .ataas-node-gpu-panel-title {
@@ -15967,10 +16006,14 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   }
 }
 
+.ataas-engine-page .ataas-api-key-table-wrap {
+  min-height: auto;
+}
+
 .ataas-engine-table-wrap {
-  min-height: 540px;
   border-radius: 8px;
   overflow: auto;
+  padding-bottom: 1px;
 
   .ant-table-thead > tr > th {
     white-space: nowrap;
