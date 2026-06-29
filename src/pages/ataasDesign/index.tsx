@@ -6625,8 +6625,6 @@ const AtAasDesign = () => {
   }, [modelRepoSearch, modelRepoCategory, modelRepoFamily, modelRepoSource]);
   const [deployListViewMode, setDeployListViewMode] = useState<ViewMode>('card');
   const [deployListClusterFilter, setDeployListClusterFilter] = useState('');
-  const [modelOpsListViewMode, setModelOpsListViewMode] = useState<ViewMode>('table');
-  const [modelOpsClusterFilter, setModelOpsClusterFilter] = useState('');
   const [deployMode, setDeployMode] = useState<string>('single');
   const [startupTemplateForm] = Form.useForm();
   const [addInstPdTemplateForm] = Form.useForm();
@@ -9315,39 +9313,57 @@ const AtAasDesign = () => {
 
   const renderTabContent = () => {
     if (podConsoleTarget) {
+      const t = podConsoleTarget;
       return (
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: '#1E1E1E', display: 'flex', flexDirection: 'column', zIndex: 1000, fontFamily: 'Menlo, Monaco, Consolas, monospace' }}>
-          {/* macOS Terminal Title Bar */}
-          <div style={{ display: 'flex', alignItems: 'center', height: 38, background: '#2D2D2D', borderBottom: '1px solid #444', padding: '0 16px', flexShrink: 0, userSelect: 'none' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ display: 'flex', gap: 8, marginRight: 12 }}>
-                <div title="关闭" style={{ width: 12, height: 12, borderRadius: '50%', background: '#FF5F57', cursor: 'pointer' }} onClick={() => setPodConsoleTarget(null)} />
-                <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#FEBC2E' }} />
-                <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#28C840' }} />
-              </div>
-              <Button type="text" size="small" icon={<ArrowLeftOutlined />} style={{ color: '#CCC', fontSize: 13 }} onClick={() => setPodConsoleTarget(null)}>返回 Pod 列表</Button>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: '#0C0C0C', display: 'flex', flexDirection: 'column', zIndex: 1000, fontFamily: 'Menlo, Monaco, Consolas, monospace', fontSize: 13 }}>
+          {/* iTerm2-style Title Bar */}
+          <div style={{ display: 'flex', alignItems: 'center', height: 44, background: 'linear-gradient(180deg, #3C3C3C 0%, #2D2D2D 100%)', borderBottom: '1px solid #1A1A1A', padding: '0 12px', flexShrink: 0, userSelect: 'none' }}>
+            <div style={{ display: 'flex', gap: 8, marginRight: 14 }}>
+              <div title="关闭" style={{ width: 13, height: 13, borderRadius: '50%', background: '#FF5F57', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }} onClick={() => setPodConsoleTarget(null)}>✕</div>
+              <div style={{ width: 13, height: 13, borderRadius: '50%', background: '#FEBC2E', cursor: 'pointer' }} />
+              <div style={{ width: 13, height: 13, borderRadius: '50%', background: '#28C840', cursor: 'pointer' }} />
             </div>
-            <div style={{ flex: 1, textAlign: 'center', color: '#CCC', fontSize: 12 }}>{podConsoleTarget.name} — {podConsoleTarget.namespace} — {podConsoleTarget.node}</div>
-            <div style={{ width: 160 }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#B0B0B0', fontSize: 12 }}>
+              <span style={{ fontWeight: 600, color: '#D0D0D0' }}>🔌</span>
+              <span style={{ color: '#7DC67D' }}>●</span>
+              <span>{t.name}@{t.cluster}</span>
+            </div>
+            <div style={{ flex: 1, textAlign: 'center', color: '#999', fontSize: 12, fontWeight: 500 }}>{t.name} — {t.namespace} — {t.node}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Button type="text" size="small" icon={<ArrowLeftOutlined />} style={{ color: '#B0B0B0', fontSize: 12, height: 28 }} onClick={() => setPodConsoleTarget(null)}>断开</Button>
+            </div>
+          </div>
+          {/* Connection Info Bar */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20, padding: '6px 16px', background: '#1A1A1A', borderBottom: '1px solid #2A2A2A', flexShrink: 0, fontSize: 11, color: '#888' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 7, height: 7, borderRadius: '50%', background: '#3CC27B' }} /> Connected</span>
+            <span>Session: {t.cluster}/{t.namespace}/{t.name}</span>
+            <span>IP: {t.podIP}</span>
+            <span>Node: {t.node}</span>
+            <span style={{ flex: 1 }} />
+            <span style={{ color: '#666', fontSize: 11 }}>双击 Tab 或输入 exit 断开</span>
           </div>
           {/* Terminal Output */}
-          <div ref={podTerminalRef} style={{ flex: 1, overflow: 'auto', padding: '16px 20px', fontSize: 13, lineHeight: 1.6, color: '#D4D4D4' }}>
+          <div ref={podTerminalRef} style={{ flex: 1, overflow: 'auto', padding: '14px 18px', lineHeight: 1.55, color: '#D0D0D0' }}>
             {podTerminalHistory.map((line, i) => {
-              if (line.startsWith('[system] ')) return <div key={i} style={{ color: '#888', fontStyle: 'italic' }}>{line.slice(9)}</div>;
+              if (line.startsWith('[system] ')) return <div key={i} style={{ color: '#777', fontStyle: 'italic' }}>{line.slice(9)}</div>;
               if (line.startsWith('[error] ')) return <div key={i} style={{ color: '#F1707B' }}>{line.slice(8)}</div>;
               if (line.startsWith('$ ')) {
                 const cmd = line.slice(2);
-                return <div key={i} style={{ display: 'flex' }}><span style={{ color: '#3CC27B', marginRight: 8, userSelect: 'none' }}>❯</span><span style={{ color: '#E6E6E6' }}>{cmd}</span></div>;
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'baseline' }}>
+                    <span style={{ color: '#3CC27B', marginRight: 0, userSelect: 'none' }}>root@{t.name}:~$ </span><span style={{ color: '#F0F0F0' }}>{cmd}</span>
+                  </div>
+                );
               }
-              return <div key={i} style={{ color: '#B4B4B4', paddingLeft: 22 }}>{line}</div>;
+              return <div key={i} style={{ color: '#C0C0C0', paddingLeft: 14 }}>{line}</div>;
             })}
           </div>
           {/* Input Bar */}
-          <div style={{ display: 'flex', alignItems: 'center', padding: '8px 20px', borderTop: '1px solid #444', background: '#252526', flexShrink: 0 }}>
-            <span style={{ color: '#3CC27B', marginRight: 10, fontSize: 14, userSelect: 'none' }}>❯</span>
+          <div style={{ display: 'flex', alignItems: 'center', padding: '7px 18px', borderTop: '1px solid #2A2A2A', background: '#111', flexShrink: 0 }}>
+            <span style={{ color: '#3CC27B', marginRight: 0, userSelect: 'none', whiteSpace: 'pre' }}>root@{t.name}:~$ </span>
             <input
               ref={podTerminalInputRef}
-              style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#E6E6E6', fontFamily: 'Menlo, Monaco, Consolas, monospace', fontSize: 13 }}
+              style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#F0F0F0', fontFamily: 'Menlo, Monaco, Consolas, monospace', fontSize: 13, caretColor: '#D0D0D0' }}
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
@@ -9366,8 +9382,9 @@ const AtAasDesign = () => {
                   } else if (cmd.startsWith('top') || cmd === 'htop') {
                     setPodTerminalHistory((h) => [...h, 'top - ' + new Date().toLocaleTimeString(), 'Tasks: 1 total, 0 running, 1 sleeping', '%Cpu(s): ' + (30 + Math.round(Math.random() * 40)) + '.0 us, 12.0 sy, 0.0 ni, 58.0 id', 'MiB Mem : ' + (120000 + Math.round(Math.random() * 20000)) + ' total,  ' + (40000 + Math.round(Math.random() * 10000)) + ' free', 'MiB Swap: 0 total, 0 free']);
                   } else if (cmd.startsWith('ls')) {
-                    setPodTerminalHistory((h) => [...h, 'app.py', 'requirements.txt', 'Dockerfile', 'config.yaml', 'models/', 'logs/', 'data/']);
+                    setPodTerminalHistory((h) => [...h, 'app.py  requirements.txt  Dockerfile  config.yaml  models/  logs/  data/']);
                   } else if (cmd.startsWith('cd ')) {
+                    const dir = cmd.slice(3) || '/';
                     setPodTerminalHistory((h) => [...h, '']);
                   } else if (cmd === 'pwd') {
                     setPodTerminalHistory((h) => [...h, '/app']);
@@ -9380,9 +9397,11 @@ const AtAasDesign = () => {
                   } else if (cmd === 'free -h') {
                     setPodTerminalHistory((h) => [...h, '              total        used        free', 'Mem:          125Gi       72Gi       53Gi', 'Swap:            0B         0B         0B']);
                   } else if (cmd.startsWith('env') || cmd.startsWith('printenv')) {
-                    setPodTerminalHistory((h) => [...h, 'POD_IP=' + (podConsoleTarget?.podIP || ''), 'NODE_NAME=' + (podConsoleTarget?.node || ''), 'PATH=/usr/local/bin:/usr/bin:/bin', 'HOME=/root']);
+                    setPodTerminalHistory((h) => [...h, 'POD_IP=' + (t?.podIP || ''), 'NODE_NAME=' + (t?.node || ''), 'PATH=/usr/local/bin:/usr/bin:/bin', 'HOME=/root']);
                   } else if (cmd === 'help') {
                     setPodTerminalHistory((h) => [...h, 'Available commands: ls, cd, pwd, cat, top, df -h, free -h, env, whoami, clear, exit']);
+                  } else if (cmd === '') {
+                    setPodTerminalHistory((h) => [...h, '']);
                   } else {
                     setPodTerminalHistory((h) => [...h, 'bash: ' + cmd.split(' ')[0] + ': command not found']);
                   }
@@ -10002,28 +10021,6 @@ const AtAasDesign = () => {
                 onViewModeChange={setDeployListViewMode}
                 clusterFilterValue={deployListClusterFilter}
                 onClusterFilterChange={setDeployListClusterFilter}
-              />
-            </div>
-          );
-      case 'modelOps': return (
-            <div className="ataas-section-stack">
-              <DeployList
-                data={deployServices}
-                onDetail={handleDeployDetail}
-                onStop={handleDeployStop}
-                onMonitor={handleDeployMonitor}
-                onExperience={handleDeployExperience}
-                onLog={handleDeployLog}
-                onDeleteInstance={handleDeployDeleteInstance}
-                onAddInstance={handleDeployAddInstance}
-                onOpenCreate={handleOpenCreate}
-                onScalePd={handleScalePd}
-                onNodeFilter={handleDeployNodeFilter}
-                onScheduleDetail={handleScheduleDetail}
-                viewModeValue={modelOpsListViewMode}
-                onViewModeChange={setModelOpsListViewMode}
-                clusterFilterValue={modelOpsClusterFilter}
-                onClusterFilterChange={setModelOpsClusterFilter}
               />
             </div>
           );
