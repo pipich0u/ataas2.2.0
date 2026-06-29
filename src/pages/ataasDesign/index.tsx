@@ -6544,6 +6544,8 @@ const AtAasDesign = () => {
   }, [modelRepoSearch, modelRepoCategory, modelRepoFamily, modelRepoSource]);
   const [deployListViewMode, setDeployListViewMode] = useState<ViewMode>('card');
   const [deployListClusterFilter, setDeployListClusterFilter] = useState('');
+  const [modelOpsListViewMode, setModelOpsListViewMode] = useState<ViewMode>('table');
+  const [modelOpsClusterFilter, setModelOpsClusterFilter] = useState('');
   const [deployMode, setDeployMode] = useState<string>('single');
   const [startupTemplateForm] = Form.useForm();
   const [addInstPdTemplateForm] = Form.useForm();
@@ -9804,17 +9806,24 @@ const AtAasDesign = () => {
           );
       case 'modelOps': return (
             <div className="ataas-section-stack">
-              <div className="ataas-panel">
-                <div className="ataas-panel-head">
-                  <div>
-                    <h2>模型运维</h2>
-                    <span>集中处理模型服务巡检、实例维护、异常恢复和运行状态跟踪。</span>
-                  </div>
-                </div>
-                <div style={{ padding: '60px 0', textAlign: 'center', color: '#98A2B3', fontSize: 14 }}>
-                  功能开发中
-                </div>
-              </div>
+              <DeployList
+                data={deployServices}
+                onDetail={handleDeployDetail}
+                onStop={handleDeployStop}
+                onMonitor={handleDeployMonitor}
+                onExperience={handleDeployExperience}
+                onLog={handleDeployLog}
+                onDeleteInstance={handleDeployDeleteInstance}
+                onAddInstance={handleDeployAddInstance}
+                onOpenCreate={handleOpenCreate}
+                onScalePd={handleScalePd}
+                onNodeFilter={handleDeployNodeFilter}
+                onScheduleDetail={handleScheduleDetail}
+                viewModeValue={modelOpsListViewMode}
+                onViewModeChange={setModelOpsListViewMode}
+                clusterFilterValue={modelOpsClusterFilter}
+                onClusterFilterChange={setModelOpsClusterFilter}
+              />
             </div>
           );
       case 'startupTemplates': return (
