@@ -10160,7 +10160,7 @@ const AtAasDesign = () => {
             const renderModelOpsPerfSummary = (label: string, values: number[], current: string) => (
               <div className="ataas-model-ops-perf-summary-item">
                 <span className="ataas-model-ops-perf-summary-label">{label}</span>
-                <TinySparkline values={values} />
+                <TinySparkline values={values} color="#6738E8" />
                 <strong>{current}</strong>
               </div>
             );
