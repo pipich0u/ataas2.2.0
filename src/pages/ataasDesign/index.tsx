@@ -9951,17 +9951,15 @@ const AtAasDesign = () => {
               : modelServiceGroups[0]?.name || '';
             const activeModelGroup = modelServiceGroups.find((group) => group.name === activeModelName);
             const activeModelServices = activeModelGroup?.services || [];
-            const routerRows = activeModelServices.flatMap((service) => {
+            const routerRows = activeModelServices.map((service) => {
               const cluster = getDeployClusterName(service);
-              const works = service.modelInfo.works?.split(',').map((item) => item.trim()).filter(Boolean) || [];
-              const count = Math.max(1, service.modelInfo.number || works.length || 1);
-              return Array.from({ length: count }, (_, index) => ({
-                key: `${cluster}-${service.id}-${index}`,
+              return {
+                key: `${cluster}-${service.id}`,
                 cluster,
                 serviceName: service.name,
-                routerName: `${service.name}-router-${index + 1}`,
-                instanceName: `实例 ${index + 1}`,
-              }));
+                routerName: `${service.name}-router-0`,
+                instanceName: service.name,
+              };
             });
             const clusterWeightGroups = routerRows.reduce<Array<{ cluster: string; routers: typeof routerRows }>>((groups, router) => {
               const current = groups.find((group) => group.cluster === router.cluster);
@@ -9975,6 +9973,12 @@ const AtAasDesign = () => {
               return index === routers.length - 1 ? 100 - base * (routers.length - 1) : base;
             };
             const getRouterWeight = (routers: typeof routerRows, index: number) => modelOpsWeights[routers[index].key] ?? getDefaultWeight(routers, index);
+            const getServiceWeight = (service: DeployServiceItem) => {
+              const cluster = getDeployClusterName(service);
+              const group = clusterWeightGroups.find((item) => item.cluster === cluster);
+              const index = group?.routers.findIndex((router) => router.serviceName === service.name) ?? -1;
+              return group && index >= 0 ? getRouterWeight(group.routers, index) : 100;
+            };
             return (
               <div className="ataas-section-stack">
                 <div className="ataas-model-ops-layout">
@@ -9988,6 +9992,7 @@ const AtAasDesign = () => {
                     <div className="ataas-model-ops-service-list">
                       {modelServiceGroups.map((group) => {
                         const active = group.name === activeModelName;
+                        const logo = getDeployModelLogo(group.services[0]);
                         return (
                           <button
                             key={group.name}
@@ -9995,11 +10000,12 @@ const AtAasDesign = () => {
                             onClick={() => { setModelOpsSelectedModel(group.name); setModelOpsClusterFilter(''); }}
                             className={'ataas-model-ops-service-item' + (active ? ' active' : '')}
                           >
+                            <span className="ataas-model-ops-service-logo">
+                              <img src={logo} alt="" />
+                            </span>
                             <span>
                               <strong>{group.name}</strong>
-                              <em>{group.services.length} 服务 · {group.instances} 实例</em>
                             </span>
-                            <b>{group.instances}</b>
                           </button>
                         );
                       })}
@@ -10077,6 +10083,7 @@ const AtAasDesign = () => {
                       onViewModeChange={setModelOpsListViewMode}
                       clusterFilterValue={modelOpsClusterFilter}
                       onClusterFilterChange={setModelOpsClusterFilter}
+                      getModelOpsRowWeight={getServiceWeight}
                     />
                   </main>
                 </div>

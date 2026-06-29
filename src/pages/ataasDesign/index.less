@@ -5054,7 +5054,7 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 
 .ataas-model-ops-layout {
   display: grid;
-  grid-template-columns: 248px minmax(0, 1fr);
+  grid-template-columns: 184px minmax(0, 1fr);
   gap: 16px;
   align-items: start;
 }
@@ -5076,11 +5076,10 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 .ataas-model-ops-service-item {
   display: flex;
   width: 100%;
-  min-height: 62px;
+  min-height: 52px;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 13px 16px 13px 13px;
+  gap: 9px;
+  padding: 10px 12px;
   border: 0;
   border-left: 3px solid transparent;
   background: #fff;
@@ -5097,7 +5096,7 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
     background: #F2F6FF;
   }
 
-  > span {
+  > span:not(.ataas-model-ops-service-logo) {
     min-width: 0;
   }
 
@@ -5111,32 +5110,24 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+}
 
-  em {
-    display: block;
-    margin-top: 4px;
-    color: #86909C;
-    font-size: 12px;
-    font-style: normal;
-    line-height: 18px;
-  }
+.ataas-model-ops-service-logo {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid #E8ECF4;
+  border-radius: 8px;
+  background: #fff;
 
-  b {
-    display: inline-flex;
-    min-width: 28px;
-    height: 24px;
-    align-items: center;
-    justify-content: center;
-    border-radius: 999px;
-    background: #F2F3F5;
-    color: #4E5969;
-    font-size: 12px;
-    font-weight: 600;
-  }
-
-  &.active b {
-    background: #E8F0FF;
-    color: #3370FF;
+  img {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
   }
 }
 
@@ -5233,6 +5224,75 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
     height: 100%;
     border-radius: inherit;
     background: #3370FF;
+  }
+}
+
+.ataas-model-ops-role-count {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 600;
+  line-height: 20px;
+
+  &::before {
+    width: 7px;
+    height: 7px;
+    margin-right: 6px;
+    border-radius: 999px;
+    content: "";
+  }
+
+  &.router {
+    color: #18A957;
+
+    &::before {
+      background: #2F6BFF;
+    }
+  }
+
+  &.prefill {
+    color: #18A957;
+
+    &::before {
+      background: #8B3DFF;
+    }
+  }
+
+  &.decode {
+    color: #18A957;
+
+    &::before {
+      background: #18A957;
+    }
+  }
+}
+
+.ataas-model-ops-weight-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 8px;
+  background: #EEF4FF;
+  color: #2F6BFF;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ataas-model-ops-table-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+
+  .ant-btn {
+    height: 30px;
+    padding: 0 10px;
+    border-radius: 8px;
+    box-shadow: none;
+  }
+
+  .ant-btn.danger {
+    border-color: #FFD8D8;
+    background: #FFF1F0;
+    color: #E02D2D;
   }
 }
 

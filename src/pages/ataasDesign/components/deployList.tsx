@@ -1,6 +1,7 @@
 import { Button, ConfigProvider, Dropdown, Image, Input, InputNumber, message, Modal, Popconfirm, Select, Table, Tag, Tooltip } from 'antd';
 import type { ThemeConfig } from 'antd';
-import { AppstoreOutlined, BarChartOutlined, BarsOutlined, CodeOutlined, FileSearchOutlined, InfoCircleOutlined, PlayCircleOutlined, PlusOutlined, PoweroffOutlined } from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
+import { AppstoreOutlined, BarChartOutlined, BarsOutlined, CodeOutlined, FileSearchOutlined, InfoCircleOutlined, PlayCircleOutlined, PlusOutlined, PoweroffOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import deepseekLogo from '../deepseek-logo.svg';
@@ -167,10 +168,11 @@ interface DeployListProps {
   onViewModeChange?: (mode: ViewMode) => void;
   clusterFilterValue?: string;
   onClusterFilterChange?: (value: string) => void;
+  getModelOpsRowWeight?: (item: DeployServiceItem) => number;
   mode?: 'deploy' | 'modelOps';
 }
 
-export default function DeployList({ data, onDetail, onStop, onMonitor, onExperience, onLog, onDeleteInstance, onAddInstance, onOpenCreate, onScalePd, onNodeFilter, onScheduleDetail, viewModeValue, onViewModeChange, clusterFilterValue, onClusterFilterChange, mode = 'deploy' }: DeployListProps) {
+export default function DeployList({ data, onDetail, onStop, onMonitor, onExperience, onLog, onDeleteInstance, onAddInstance, onOpenCreate, onScalePd, onNodeFilter, onScheduleDetail, viewModeValue, onViewModeChange, clusterFilterValue, onClusterFilterChange, getModelOpsRowWeight, mode = 'deploy' }: DeployListProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('card');
   const [statusFilter, setStatusFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -217,10 +219,12 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
     });
   }, [data, statusFilter, categoryFilter, clusterFilter, searchText]);
 
+  const effectiveViewMode = mode === 'modelOps' ? 'table' : viewMode;
+
   const paginated = useMemo(() => {
-    if (viewMode === 'table') return filtered;
+    if (effectiveViewMode === 'table') return filtered;
     return filtered.slice(0, page * pageSize);
-  }, [filtered, viewMode, page, pageSize]);
+  }, [filtered, effectiveViewMode, page, pageSize]);
 
   const hasMore = filtered.length > page * pageSize;
 
@@ -528,10 +532,12 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
         </div>
         )}
         <div className="ataas-deploy-inline-section">
-          <div className="ataas-deploy-inline-section-head ataas-deploy-inline-section-head-action">
-            <span>实例信息</span>
-            {onAddInstance && <Button className="ataas-traffic-enable-button" size="small" onClick={() => onAddInstance(item)}>添加实例</Button>}
-          </div>
+          {mode !== 'modelOps' && (
+            <div className="ataas-deploy-inline-section-head ataas-deploy-inline-section-head-action">
+              <span>实例信息</span>
+              {onAddInstance && <Button className="ataas-traffic-enable-button" size="small" onClick={() => onAddInstance(item)}>添加实例</Button>}
+            </div>
+          )}
           {mode === 'modelOps' ? (
             <div className="ataas-deploy-inline-table">
               <table className="ataas-deploy-inline-native-table">
@@ -728,6 +734,53 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
     );
   };
 
+  const getModelOpsRoleSummary = (item: DeployServiceItem) => {
+    const detailCount = Math.max(1, getDetailInstances(item).length || item.modelInfo.number || 1);
+    const prefillCount = item.deployMode === 'PD 分离' ? Math.max(1, detailCount * 2) : detailCount;
+    return {
+      router: '1/1',
+      prefill: `${prefillCount}/${prefillCount}`,
+      decode: '1/1',
+    };
+  };
+
+  const deployTableColumns: ColumnsType<DeployServiceItem> = [
+    { title: '服务名称', dataIndex: 'name', key: 'name', width: 180, render: (v, r) => <><span className="ataas-deploy-table-main">{v}</span><div className="ataas-deploy-table-sub">{r.typeStr}</div></> },
+    { title: '类别', key: 'category', width: 90, render: (_, r) => <CategoryTag category={r.category} table /> },
+    { title: '状态', key: 'status', width: 120, render: (_, r) => <TableStatus item={r} /> },
+    { title: '部署方式', key: 'deployMode', width: 100, render: (_, r) => <span>{r.deployMode || '-'}</span> },
+    { title: '运行时长', dataIndex: 'timeStr', key: 'time', width: 100 },
+    { title: '实例数', key: 'instances', width: 70, render: (_, r) => r.modelInfo.number },
+    { title: '部署节点', key: 'works', width: 100, render: (_, r) => <button type="button" className="ataas-deploy-node-count-link" onClick={() => onNodeFilter?.(r)}>{r.modelInfo.works?.split(',').filter(Boolean).length || 0}</button> },
+    { title: '集群', key: 'cluster', width: 140, render: (_, r) => <span className="ataas-deploy-table-cluster">{getDeployClusterName(r)}</span> },
+    { title: '模型参数', key: 'size', width: 100, render: (_, r) => r.modelInfo.size },
+    { title: '显存占用', key: 'vram', width: 100, render: (_, r) => r.modelInfo.vram },
+    { title: '操作', key: 'action', width: 180, fixed: 'right' as const, className: 'ataas-deploy-fixed-action-cell', render: (_, r) => (
+      <div className="ataas-deploy-table-actions ataas-deploy-table-service-actions">
+        <IconActionButton title="停止" icon={<PoweroffOutlined />} onClick={() => onStop(r)} />
+        <IconActionButton title="监控" icon={<BarChartOutlined />} disabled={r.status !== 'running'} onClick={() => onMonitor(r)} />
+        <IconActionButton title="去体验" icon={<PlayCircleOutlined />} disabled={r.status !== 'running'} onClick={() => onExperience(r)} />
+      </div>
+    ) },
+  ];
+
+  const modelOpsTableColumns: ColumnsType<DeployServiceItem> = [
+    { title: 'PD组名', dataIndex: 'name', key: 'name', width: 210, render: (v, r) => <><span className="ataas-deploy-table-main">{v}</span><div className="ataas-deploy-table-sub">{r.serviceGroupName || r.modelInfo.engine}</div></> },
+    { title: '集群', key: 'cluster', width: 150, render: (_, r) => <span className="ataas-deploy-table-cluster">{getDeployClusterName(r)}</span> },
+    { title: '状态', key: 'status', width: 110, render: (_, r) => <TableStatus item={r} /> },
+    { title: 'Router', key: 'router', width: 100, render: (_, r) => <span className="ataas-model-ops-role-count router">{getModelOpsRoleSummary(r).router}</span> },
+    { title: 'Prefill', key: 'prefill', width: 100, render: (_, r) => <span className="ataas-model-ops-role-count prefill">{getModelOpsRoleSummary(r).prefill}</span> },
+    { title: 'Decode', key: 'decode', width: 100, render: (_, r) => <span className="ataas-model-ops-role-count decode">{getModelOpsRoleSummary(r).decode}</span> },
+    { title: '当前权重', key: 'weight', width: 110, render: (_, r) => <span className="ataas-model-ops-weight-pill">{getModelOpsRowWeight?.(r) ?? 100}%</span> },
+    { title: '操作', key: 'action', width: 260, fixed: 'right' as const, className: 'ataas-deploy-fixed-action-cell', render: (_, r) => (
+      <div className="ataas-model-ops-table-actions">
+        <Button size="small" icon={<ReloadOutlined />}>重建</Button>
+        <Button className="danger" size="small" icon={<PoweroffOutlined />} onClick={() => onStop(r)}>整组下线</Button>
+        <Button size="small" icon={<SettingOutlined />} onClick={() => onScalePd?.(r)}>扩缩容</Button>
+      </div>
+    ) },
+  ];
+
   return (
     <ConfigProvider theme={DEPLOY_THEME}>
     <div className="ataas-deploy-list">
@@ -758,7 +811,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
         )}
       </div>
 
-      {viewMode === 'card' ? (
+      {effectiveViewMode === 'card' ? (
         <div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 14 }}>
             {paginated.map((item) => {
@@ -833,7 +886,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
         </div>
       ) : (
           <div className="ataas-deploy-table-wrap">
-            <Table dataSource={paginated} rowKey="id" pagination={{ pageSize: 10, showTotal: (t) => `共 ${t} 条`, showSizeChanger: true }} scroll={{ x: 1180 }}
+            <Table dataSource={paginated} rowKey="id" pagination={{ pageSize: 10, showTotal: (t) => `共 ${t} 条`, showSizeChanger: true }} scroll={{ x: mode === 'modelOps' ? 1140 : 1180 }}
             expandable={{
               expandedRowKeys: expandedServiceIds,
               onExpand: (expanded, record) => {
@@ -842,27 +895,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
               expandedRowRender: (record) => renderDeployInlineDetail(record),
               rowExpandable: () => true,
             }}
-            columns={[
-              { title: '服务名称', dataIndex: 'name', key: 'name', width: 180, render: (v, r) => <><span className="ataas-deploy-table-main">{v}</span><div className="ataas-deploy-table-sub">{r.typeStr}</div></> },
-              { title: '类别', key: 'category', width: 90, render: (_, r) => <CategoryTag category={r.category} table /> },
-              { title: '状态', key: 'status', width: 120, render: (_, r) => <TableStatus item={r} /> },
-              { title: '部署方式', key: 'deployMode', width: 100, render: (_, r) => <span>{r.deployMode || '-'}</span> },
-              { title: '运行时长', dataIndex: 'timeStr', key: 'time', width: 100 },
-              { title: '实例数', key: 'instances', width: 70, render: (_, r) => r.modelInfo.number },
-              { title: '部署节点', key: 'works', width: 100, render: (_, r) => <button type="button" className="ataas-deploy-node-count-link" onClick={() => onNodeFilter?.(r)}>{r.modelInfo.works?.split(',').filter(Boolean).length || 0}</button> },
-              { title: '集群', key: 'cluster', width: 140, render: (_, r) => <span className="ataas-deploy-table-cluster">{getDeployClusterName(r)}</span> },
-              { title: '模型参数', key: 'size', width: 100, render: (_, r) => r.modelInfo.size },
-              { title: '显存占用', key: 'vram', width: 100, render: (_, r) => r.modelInfo.vram },
-              { title: '操作', key: 'action', width: 180, fixed: 'right', className: 'ataas-deploy-fixed-action-cell', render: (_, r) => {
-                return (
-                  <div className="ataas-deploy-table-actions ataas-deploy-table-service-actions">
-                    <IconActionButton title="停止" icon={<PoweroffOutlined />} onClick={() => onStop(r)} />
-                    <IconActionButton title="监控" icon={<BarChartOutlined />} disabled={r.status !== 'running'} onClick={() => onMonitor(r)} />
-                    <IconActionButton title="去体验" icon={<PlayCircleOutlined />} disabled={r.status !== 'running'} onClick={() => onExperience(r)} />
-                  </div>
-                );
-              }},
-            ]}
+            columns={mode === 'modelOps' ? modelOpsTableColumns : deployTableColumns}
           />
           </div>
       )}
