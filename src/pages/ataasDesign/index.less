@@ -5413,7 +5413,7 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 
 .ataas-model-ops-weight-table {
   width: 100%;
-  min-width: 760px;
+  min-width: 980px;
   border-collapse: collapse;
   table-layout: fixed;
 
@@ -5526,6 +5526,108 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
     font-style: normal;
     font-weight: 400;
     line-height: 18px;
+  }
+}
+
+.ataas-model-ops-weight-groups-cell {
+  padding-right: 8px !important;
+  padding-left: 8px !important;
+}
+
+.ataas-model-ops-weight-strip {
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 5px 0;
+  cursor: grab;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(134, 144, 156, 0.20) transparent;
+  touch-action: pan-x;
+
+  &:active {
+    cursor: grabbing;
+  }
+
+  &::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgba(134, 144, 156, 0.20);
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: rgba(134, 144, 156, 0.32);
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+.ataas-model-ops-weight-segment {
+  display: inline-flex;
+  height: 30px;
+  min-width: 118px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 10px;
+  border: 1px solid rgba(103, 56, 232, 0.16);
+  border-radius: 4px;
+  background: #F4F0FF;
+  color: #1D2129;
+  line-height: 18px;
+
+  b {
+    overflow: hidden;
+    min-width: 0;
+    color: #1D2129;
+    font-size: 13px;
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  em {
+    flex-shrink: 0;
+    color: #6738E8;
+    font-size: 13px;
+    font-style: normal;
+    font-weight: 600;
+  }
+}
+
+.ataas-model-ops-weight-segment:nth-child(4n + 2) {
+  border-color: rgba(34, 197, 94, 0.16);
+  background: #EFFAF4;
+
+  em {
+    color: #18A957;
+  }
+}
+
+.ataas-model-ops-weight-segment:nth-child(4n + 3) {
+  border-color: rgba(20, 148, 170, 0.16);
+  background: #EEF9FB;
+
+  em {
+    color: #1494AA;
+  }
+}
+
+.ataas-model-ops-weight-segment:nth-child(4n) {
+  border-color: rgba(245, 158, 11, 0.18);
+  background: #FFF8E8;
+
+  em {
+    color: #D48806;
   }
 }
 

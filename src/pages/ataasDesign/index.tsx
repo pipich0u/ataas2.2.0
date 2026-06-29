@@ -10068,7 +10068,6 @@ const AtAasDesign = () => {
               return index === routers.length - 1 ? 100 - base * (routers.length - 1) : base;
             };
             const getRouterWeight = (routers: typeof routerRows, index: number) => modelOpsWeights[routers[index].key] ?? getDefaultWeight(routers, index);
-            const maxRouterCount = Math.max(1, ...clusterWeightGroups.map((group) => group.routers.length));
             const updateRouterWeight = (routerKey: string, value: number) => {
               setModelOpsWeights((prev) => ({ ...prev, [routerKey]: Math.max(0, Math.min(100, Math.round(value))) }));
             };
@@ -10231,12 +10230,19 @@ const AtAasDesign = () => {
 	                      ) : (
 	                        <div className="ataas-model-ops-weight-table-wrap">
                             <table className="ataas-model-ops-weight-table">
+                              <colgroup>
+                                <col style={{ width: 150 }} />
+                                <col style={{ width: 240 }} />
+                                <col style={{ width: 90 }} />
+                                <col />
+                                <col style={{ width: 150 }} />
+                              </colgroup>
                               <thead>
                                 <tr>
                                   <th>集群</th>
                                   <th>SVE</th>
                                   <th>组数量</th>
-                                  {Array.from({ length: maxRouterCount }, (_, index) => <th key={index}>组{index + 1}</th>)}
+                                  <th>PD组权重</th>
                                   <th className="fixed-action">操作</th>
                                 </tr>
                               </thead>
@@ -10256,21 +10262,31 @@ const AtAasDesign = () => {
                                     </Tooltip>
                                   </td>
                                   <td>{group.routers.length}</td>
-                                  {Array.from({ length: maxRouterCount }, (_, index) => {
-                                    const router = group.routers[index];
-                                    return (
-                                      <td key={index}>
-                                        {router ? (
-                                          <Tooltip title={router.routerName}>
-                                            <span className="ataas-model-ops-weight-cell">
+                                  <td className="ataas-model-ops-weight-groups-cell">
+                                    <div
+                                      className="ataas-model-ops-weight-strip"
+                                      onWheel={(event) => {
+                                        if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
+                                          event.currentTarget.scrollLeft += event.deltaY;
+                                        }
+                                      }}
+                                    >
+                                      {group.routers.map((router, index) => {
+                                        const weight = getRouterWeight(group.routers, index);
+                                        return (
+                                          <Tooltip key={router.key} title={`${router.routerName} · ${weight}%`}>
+                                            <span
+                                              className="ataas-model-ops-weight-segment"
+                                              style={{ width: Math.max(118, weight * 4) }}
+                                            >
                                               <b>{router.routerName}</b>
-                                              <em>{getRouterWeight(group.routers, index)}%</em>
+                                              <em>{weight}%</em>
                                             </span>
                                           </Tooltip>
-                                        ) : <span className="ataas-model-ops-weight-empty">-</span>}
-                                      </td>
-                                    );
-                                  })}
+                                        );
+                                      })}
+                                    </div>
+                                  </td>
                                   <td className="fixed-action">
                                     <Tooltip title="调整权重">
                                       <button
