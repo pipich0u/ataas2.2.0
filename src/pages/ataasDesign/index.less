@@ -5152,78 +5152,113 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 
 .ataas-model-ops-weight-groups {
   display: grid;
-  gap: 12px;
-}
-
-.ataas-model-ops-weight-card {
-  padding: 12px;
-  border: 1px solid #E5E6EB;
-  border-radius: 8px;
-  background: #fff;
-}
-
-.ataas-model-ops-weight-card-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
-
-  strong {
-    color: #1D2129;
-    font-size: 13px;
-    font-weight: 600;
-  }
-
-  span {
-    font-size: 12px;
-    line-height: 18px;
-
-    &.ok {
-      color: #18A957;
-    }
-
-    &.error {
-      color: #E02D2D;
-    }
-  }
-}
-
-.ataas-model-ops-router-list {
-  display: grid;
   gap: 8px;
 }
 
-.ataas-model-ops-router-row {
+.ataas-model-ops-weight-card {
   display: grid;
-  grid-template-columns: minmax(160px, 1fr) minmax(180px, 2fr) 84px;
-  gap: 10px;
+  width: 100%;
+  grid-template-columns: minmax(180px, 1fr) 112px 96px;
+  gap: 12px;
   align-items: center;
+  padding: 10px 12px;
+  border: 1px solid #E5E6EB;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
 
-  > span,
-  .ant-tooltip-open {
-    min-width: 0;
+  &:hover {
+    border-color: #B8CCFF;
+    background: #F8FAFF;
   }
 
-  > span {
-    overflow: hidden;
-    color: #1D2129;
-    font-size: 13px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  &.active {
+    border-color: #3370FF;
+    background: #F2F6FF;
+    box-shadow: 0 0 0 2px rgba(51, 112, 255, 0.08);
   }
 }
 
-.ataas-model-ops-weight-track {
-  height: 8px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: #F2F3F5;
+.ataas-model-ops-weight-cluster {
+  min-width: 0;
 
-  i {
+  strong {
     display: block;
-    height: 100%;
-    border-radius: inherit;
-    background: #3370FF;
+    overflow: hidden;
+    color: #1D2129;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 20px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  em {
+    display: block;
+    margin-top: 2px;
+    color: #86909C;
+    font-size: 12px;
+    font-style: normal;
+    line-height: 18px;
+  }
+}
+
+.ataas-model-ops-weight-total {
+  color: #4E5969;
+  font-size: 13px;
+  font-weight: 600;
+
+  &.ok {
+    color: #18A957;
+  }
+
+  &.error {
+    color: #E02D2D;
+  }
+}
+
+.ataas-model-ops-weight-modal {
+  overflow: hidden;
+  border: 1px solid #E5E6EB;
+  border-radius: 8px;
+}
+
+.ataas-model-ops-weight-modal-head,
+.ataas-model-ops-weight-modal-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 132px;
+  gap: 16px;
+  align-items: center;
+}
+
+.ataas-model-ops-weight-modal-head {
+  padding: 10px 14px;
+  background: #F7F8FA;
+  color: #4E5969;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ataas-model-ops-weight-modal-row {
+  min-height: 58px;
+  padding: 10px 14px;
+  border-top: 1px solid #F2F3F5;
+
+  strong {
+    display: block;
+    color: #1D2129;
+    font-size: 14px;
+    line-height: 20px;
+  }
+
+  span {
+    display: block;
+    margin-top: 2px;
+    color: #86909C;
+    font-size: 12px;
+    line-height: 18px;
   }
 }
 
@@ -5273,6 +5308,12 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   border-radius: 8px;
   background: #EEF4FF;
   color: #2F6BFF;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ataas-model-ops-perf-value {
+  color: #14A6C8;
   font-size: 13px;
   font-weight: 600;
 }

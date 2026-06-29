@@ -744,6 +744,11 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
     };
   };
 
+  const getModelOpsPerfSummary = (item: DeployServiceItem) => ({
+    ttft: 11800 + item.id * 817,
+    tpot: (18 + (item.id % 7) * 1.6).toFixed(1),
+  });
+
   const deployTableColumns: ColumnsType<DeployServiceItem> = [
     { title: '服务名称', dataIndex: 'name', key: 'name', width: 180, render: (v, r) => <><span className="ataas-deploy-table-main">{v}</span><div className="ataas-deploy-table-sub">{r.typeStr}</div></> },
     { title: '类别', key: 'category', width: 90, render: (_, r) => <CategoryTag category={r.category} table /> },
@@ -771,6 +776,8 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
     { title: 'Router', key: 'router', width: 100, render: (_, r) => <span className="ataas-model-ops-role-count router">{getModelOpsRoleSummary(r).router}</span> },
     { title: 'Prefill', key: 'prefill', width: 100, render: (_, r) => <span className="ataas-model-ops-role-count prefill">{getModelOpsRoleSummary(r).prefill}</span> },
     { title: 'Decode', key: 'decode', width: 100, render: (_, r) => <span className="ataas-model-ops-role-count decode">{getModelOpsRoleSummary(r).decode}</span> },
+    { title: 'TTFT', key: 'ttft', width: 92, render: (_, r) => <span className="ataas-model-ops-perf-value">{getModelOpsPerfSummary(r).ttft}</span> },
+    { title: 'TPOT', key: 'tpot', width: 92, render: (_, r) => <span className="ataas-model-ops-perf-value">{getModelOpsPerfSummary(r).tpot}</span> },
     { title: '当前权重', key: 'weight', width: 110, render: (_, r) => <span className="ataas-model-ops-weight-pill">{getModelOpsRowWeight?.(r) ?? 100}%</span> },
     { title: '操作', key: 'action', width: 260, fixed: 'right' as const, className: 'ataas-deploy-fixed-action-cell', render: (_, r) => (
       <div className="ataas-model-ops-table-actions">
@@ -886,7 +893,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
         </div>
       ) : (
           <div className="ataas-deploy-table-wrap">
-            <Table dataSource={paginated} rowKey="id" pagination={{ pageSize: 10, showTotal: (t) => `共 ${t} 条`, showSizeChanger: true }} scroll={{ x: mode === 'modelOps' ? 1140 : 1180 }}
+            <Table dataSource={paginated} rowKey="id" pagination={{ pageSize: 10, showTotal: (t) => `共 ${t} 条`, showSizeChanger: true }} scroll={{ x: mode === 'modelOps' ? 1320 : 1180 }}
             expandable={{
               expandedRowKeys: expandedServiceIds,
               onExpand: (expanded, record) => {
