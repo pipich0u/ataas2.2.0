@@ -5113,8 +5113,8 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 
 .ataas-model-ops-layout {
   display: grid;
-  grid-template-columns: 184px minmax(0, 1fr);
-  gap: 16px;
+  grid-template-columns: 156px minmax(0, 1fr);
+  gap: 14px;
   align-items: stretch;
 }
 
@@ -5125,7 +5125,7 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   background: transparent;
   box-shadow: none;
   overflow: hidden;
-  padding: 0 12px 0 0;
+  padding: 0 10px 0 0;
   min-height: calc(100vh - 150px);
 }
 
@@ -5146,18 +5146,16 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   gap: 9px;
   padding: 8px 8px;
   border: 0;
-  border-left: 3px solid transparent;
   background: #fff;
   cursor: pointer;
   text-align: left;
-  transition: background 0.16s ease, border-color 0.16s ease;
+  transition: background 0.16s ease;
 
   &:hover {
     background: #F7F8FA;
   }
 
   &.active {
-    border-left-color: #7C3AED;
     background: #F7F8FA;
   }
 
@@ -20414,6 +20412,23 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 
 .ataas-model-ops-perf-summary-item strong {
   color: #6738E8 !important;
+}
+
+.ataas-model-ops-layout {
+  grid-template-columns: 156px minmax(0, 1fr) !important;
+  gap: 14px !important;
+}
+
+.ataas-model-ops-sidebar {
+  padding-right: 10px !important;
+}
+
+.ataas-model-ops-service-item {
+  border-left: 0 !important;
+}
+
+.ataas-model-ops-service-item.active {
+  background: #F7F8FA !important;
 }
 
 .ataas-model-ops-tiny-sparkline {
