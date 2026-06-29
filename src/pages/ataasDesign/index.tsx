@@ -2,7 +2,9 @@ import {
   ApartmentOutlined,
   ArrowLeftOutlined,
   ArrowRightOutlined,
+  AppstoreOutlined,
   BarChartOutlined,
+  BarsOutlined,
   CheckCircleFilled,
   CheckCircleOutlined,
   CloseCircleOutlined,
@@ -10241,21 +10243,35 @@ const AtAasDesign = () => {
                         </div>
                       )}
                     </div>
-                    <div className="ataas-model-ops-tabs">
-                      <button
-                        type="button"
-                        className={modelOpsActiveTab === 'detail' ? 'active' : ''}
-                        onClick={() => setModelOpsActiveTab('detail')}
-                      >
-                        组详情
-                      </button>
-                      <button
-                        type="button"
-                        className={modelOpsActiveTab === 'weight' ? 'active' : ''}
-                        onClick={() => setModelOpsActiveTab('weight')}
-                      >
-                        组权重
-                      </button>
+                    <div className="ataas-model-ops-toolbar">
+                      <div className="ataas-deploy-list-view-toggle ataas-model-ops-tab-toggle" role="group" aria-label="模型运维视图切换">
+                        <button
+                          type="button"
+                          className={modelOpsActiveTab === 'detail' ? 'active' : ''}
+                          onClick={() => setModelOpsActiveTab('detail')}
+                        >
+                          <AppstoreOutlined />组详情
+                        </button>
+                        <span className="ataas-deploy-view-divider" aria-hidden="true" />
+                        <button
+                          type="button"
+                          className={modelOpsActiveTab === 'weight' ? 'active' : ''}
+                          onClick={() => setModelOpsActiveTab('weight')}
+                        >
+                          <BarsOutlined />组权重
+                        </button>
+                      </div>
+                      {modelOpsActiveTab === 'detail' && (
+                        <Button
+                          className="ataas-deploy-create-button"
+                          type="primary"
+                          icon={<PlusOutlined />}
+                          disabled={activeModelServices.length === 0}
+                          onClick={() => activeModelServices[0] && handleDeployAddInstance(activeModelServices[0])}
+                        >
+                          添加实例
+                        </Button>
+                      )}
                     </div>
                     {modelOpsActiveTab === 'weight' && (
 	                    <div className="ataas-panel ataas-model-ops-weight-panel">
@@ -10269,7 +10285,7 @@ const AtAasDesign = () => {
                                 <col style={{ width: 180 }} />
                                 <col style={{ width: 90 }} />
                                 <col />
-                                <col style={{ width: 150 }} />
+                                <col style={{ width: 96 }} />
                               </colgroup>
                               <thead>
                                 <tr>
@@ -10356,7 +10372,6 @@ const AtAasDesign = () => {
                           onExperience={handleDeployExperience}
                           onLog={handleDeployLog}
                           onDeleteInstance={handleDeployDeleteInstance}
-                          onAddInstance={handleDeployAddInstance}
                           onOpenCreate={handleOpenCreate}
                           onScalePd={handleScalePd}
                           onNodeFilter={handleDeployNodeFilter}

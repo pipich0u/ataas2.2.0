@@ -612,7 +612,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
                   <col style={{ width: 180 }} />
                   <col style={{ width: 80 }} />
                   <col style={{ width: 320 }} />
-                  <col style={{ width: 232 }} />
+                  <col style={{ width: 132 }} />
                 </colgroup>
                 <thead>
                   <tr>
@@ -890,7 +890,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
     { title: 'Routher RPS', key: 'routherRps', width: 120, render: (_, r) => <span className="ataas-model-ops-perf-value">{getModelOpsPerfSummary(r).routherRps}</span> },
     { title: 'Hit%', key: 'hitRate', width: 90, render: (_, r) => <span className="ataas-model-ops-perf-value">{getModelOpsPerfSummary(r).hitRate}</span> },
     { title: '当前权重', key: 'weight', width: 110, render: (_, r) => <span className="ataas-model-ops-weight-pill">{getModelOpsRowWeight?.(r) ?? 100}%</span> },
-    { title: '操作', key: 'action', width: 150, fixed: 'right' as const, className: 'ataas-deploy-fixed-action-cell', render: (_, r) => (
+    { title: '操作', key: 'action', width: 120, fixed: 'right' as const, className: 'ataas-deploy-fixed-action-cell', render: (_, r) => (
       <div className="ataas-model-ops-table-actions">
         <Tooltip title="重建">
           <button type="button" className="ataas-model-ops-icon-action"><ReloadOutlined /></button>
