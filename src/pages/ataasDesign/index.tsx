@@ -10270,19 +10270,6 @@ const AtAasDesign = () => {
                         </div>
                       )}
                     </div>
-                    <div className="ataas-model-ops-toolbar">
-                      {modelOpsActiveTab === 'detail' && (
-                        <Button
-                          className="ataas-deploy-create-button"
-                          type="primary"
-                          icon={<PlusOutlined />}
-                          disabled={activeModelServices.length === 0}
-                          onClick={() => activeModelServices[0] && handleDeployAddInstance(activeModelServices[0])}
-                        >
-                          添加实例
-                        </Button>
-                      )}
-                    </div>
                     {modelOpsActiveTab === 'weight' && (
 	                    <div className="ataas-panel ataas-model-ops-weight-panel">
 	                      {clusterWeightGroups.length === 0 ? (
