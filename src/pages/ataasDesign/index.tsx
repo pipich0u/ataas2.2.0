@@ -11256,21 +11256,29 @@ const AtAasDesign = () => {
               const p50 = isDecode ? record.tpotP50! : record.ttftP50!;
               const p99 = isDecode ? record.tpotP99! : record.ttftP99!;
               const min = Math.min(...hist), max = Math.max(...hist), range = max - min || 1;
-              const w = 120, h = 32;
-              const gradId = 'sparkGrad_' + record.key;
-              const pts = hist.map((val, i) => `${(i / (hist.length - 1)) * w},${h - ((val - min) / range) * (h - 4) - 2}`).join(' ');
+              const gradId = 'sg' + record.key;
+              const ml = 38, mr = 12, mt = 8, mb = 22;
+              const cw = 230, ch = 130;
+              const pw = cw - ml - mr, ph = ch - mt - mb;
+              const pts = hist.map((val, i) => `${ml + (i / (hist.length - 1)) * pw},${mt + ph - ((val - min) / range) * ph}`).join(' ');
               return (
                 <Tooltip
                   title={
-                    <div style={{ padding: 4 }}>
-                      <div style={{ fontSize: 11, color: '#aaa', marginBottom: 4 }}>{label} - 过去 60s</div>
-                      <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-                        <defs><linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#3CC27B" stopOpacity="0.2" /><stop offset="100%" stopColor="#3CC27B" stopOpacity="0" /></linearGradient></defs>
-                        <polygon points={`0,${h} ${pts} ${w},${h}`} fill={`url(#${gradId})`} />
-                        <polyline points={pts} fill="none" stroke="#3CC27B" strokeWidth="1.5" />
+                    <div style={{ background: '#fff', borderRadius: 8, padding: 0, fontSize: 12, color: '#1D2129' }}>
+                      <div style={{ padding: '10px 14px 4px', fontWeight: 600, fontSize: 13 }}>{label} · 60s p50 {p50} · p99 {p99} ms</div>
+                      <svg width={cw} height={ch} viewBox={`0 0 ${cw} ${ch}`}>
+                        <defs><linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#2B65D9" stopOpacity="0.12" /><stop offset="100%" stopColor="#2B65D9" stopOpacity="0.01" /></linearGradient></defs>
+                        <polygon points={`${ml},${mt + ph} ${pts} ${ml + pw},${mt + ph}`} fill={`url(#${gradId})`} />
+                        <polyline points={pts} fill="none" stroke="#2B65D9" strokeWidth="1.5" />
+                        <text x={ml} y={mt + ph + 16} fill="#86909C" fontSize={10}>{'-60s'}</text>
+                        <text x={ml + pw / 2} y={mt + ph + 16} fill="#86909C" fontSize={10} textAnchor="middle">{hist.length + ' samples'}</text>
+                        <text x={ml + pw} y={mt + ph + 16} fill="#86909C" fontSize={10} textAnchor="end">{'now'}</text>
+                        <text x={ml - 4} y={mt + 10} fill="#86909C" fontSize={10} textAnchor="end">{max + 'ms'}</text>
+                        <text x={ml - 4} y={mt + ph - 4} fill="#86909C" fontSize={10} textAnchor="end">{min + 'ms'}</text>
                       </svg>
                     </div>
                   }
+                  overlayStyle={{ padding: 0 }}
                 >
                   <span style={{ fontSize: 12, color: '#4E5969', cursor: 'pointer', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{label.toLowerCase()} p50 {p50}ms / p99 {p99}ms</span>
                 </Tooltip>
