@@ -5204,16 +5204,28 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   margin-bottom: 10px;
 }
 
-.ataas-model-ops-perf-summary {
+.ataas-model-ops-perf-topbar {
   display: flex;
-  width: 100%;
-  min-height: 50px;
+  min-height: 48px;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 8px 10px;
-  border: 0;
+  padding: 6px 0 8px;
   border-bottom: 1px solid #EEF0F4;
+  background: #fff;
+}
+
+.ataas-model-ops-perf-summary {
+  display: flex;
+  width: auto;
+  min-width: 0;
+  min-height: 38px;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 0;
+  border: 0;
   background: #fff;
   cursor: pointer;
   text-align: left;
@@ -5222,22 +5234,22 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 .ataas-model-ops-perf-summary-metrics {
   display: flex;
   flex-wrap: wrap;
-  gap: 28px;
+  gap: 16px;
   align-items: center;
 }
 
 .ataas-model-ops-perf-summary-item {
   display: inline-grid;
-  grid-template-columns: auto 150px auto auto auto;
-  gap: 10px;
+  grid-template-columns: auto 96px auto auto auto;
+  gap: 8px;
   align-items: center;
   color: #1D2129;
-  font-size: 14px;
-  line-height: 22px;
+  font-size: 13px;
+  line-height: 20px;
 
   strong {
     color: #0C98BE;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 600;
   }
 
@@ -5253,14 +5265,14 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 }
 
 .ataas-model-ops-tiny-sparkline {
-  width: 150px;
-  height: 30px;
+  width: 96px;
+  height: 24px;
 }
 
 .ataas-model-ops-perf-toggle {
   display: inline-flex;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
@@ -5374,6 +5386,26 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   margin-bottom: 16px;
   padding: 0;
   overflow: hidden;
+}
+
+.ataas-model-ops-weight-filterbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #EEF0F4;
+  background: #fff;
+}
+
+.ataas-model-ops-weight-cluster-select.ant-select {
+  width: 180px;
+  flex: 0 0 auto;
+}
+
+.ataas-model-ops-weight-sve-search.ant-input-search {
+  width: 280px;
+  flex: 0 0 auto;
 }
 
 .ataas-model-ops-weight-head {
@@ -20287,6 +20319,10 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   margin: 0 0 10px;
 }
 
+.ataas-model-ops-toolbar:empty {
+  display: none;
+}
+
 .ataas-model-ops-tab-toggle {
   flex: 0 0 auto;
 }
@@ -20341,4 +20377,58 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   border-color: #E5E6EB !important;
   background: transparent !important;
   color: #4E5969 !important;
+}
+
+.ataas-model-ops-perf-topbar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  padding: 6px 0 8px !important;
+  border-bottom: 1px solid #EEF0F4 !important;
+}
+
+.ataas-model-ops-perf-topbar .ataas-model-ops-perf-summary {
+  width: auto !important;
+  min-height: 38px !important;
+  flex: 1 1 auto !important;
+  border-bottom: 0 !important;
+}
+
+.ataas-model-ops-perf-topbar .ataas-model-ops-tab-toggle {
+  margin-left: auto !important;
+}
+
+.ataas-model-ops-perf-summary-item {
+  grid-template-columns: auto 96px auto auto auto !important;
+  gap: 8px !important;
+  font-size: 13px !important;
+  line-height: 20px !important;
+}
+
+.ataas-model-ops-tiny-sparkline {
+  width: 96px !important;
+  height: 24px !important;
+}
+
+.ataas-model-ops-toolbar:empty {
+  display: none !important;
+}
+
+.ataas-model-ops-weight-filterbar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  padding: 10px 12px !important;
+  border-bottom: 1px solid #EEF0F4 !important;
+  background: #fff !important;
+}
+
+.ataas-model-ops-weight-cluster-select.ant-select {
+  width: 180px !important;
+}
+
+.ataas-model-ops-weight-sve-search.ant-input-search {
+  width: 280px !important;
 }

@@ -6655,6 +6655,7 @@ const AtAasDesign = () => {
   const [deployListClusterFilter, setDeployListClusterFilter] = useState('');
   const [modelOpsListViewMode, setModelOpsListViewMode] = useState<ViewMode>('table');
   const [modelOpsClusterFilter, setModelOpsClusterFilter] = useState('');
+  const [modelOpsServiceEntrySearch, setModelOpsServiceEntrySearch] = useState('');
   const [modelOpsSelectedModel, setModelOpsSelectedModel] = useState('');
   const [modelOpsWeights, setModelOpsWeights] = useState<Record<string, number>>({});
   const [modelOpsWeightModalCluster, setModelOpsWeightModalCluster] = useState('');
@@ -10082,6 +10083,13 @@ const AtAasDesign = () => {
               const normalize = (value: string) => value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'default';
               return `sve.${normalize(activeModelName)}.${normalize(cluster)}.local`;
             };
+            const filteredClusterWeightGroups = clusterWeightGroups.filter((group) => {
+              const serviceEntryName = getModelOpsServiceEntryName(group.cluster).toLowerCase();
+              const keyword = modelOpsServiceEntrySearch.trim().toLowerCase();
+              const clusterMatched = !modelOpsClusterFilter || group.cluster === modelOpsClusterFilter;
+              const serviceEntryMatched = !keyword || serviceEntryName.includes(keyword);
+              return clusterMatched && serviceEntryMatched;
+            });
             const getDefaultWeight = (routers: typeof routerRows, index: number) => {
               if (routers.length <= 1) return 100;
               const base = Math.floor(100 / routers.length);
@@ -10193,7 +10201,7 @@ const AtAasDesign = () => {
                           <button
                             key={group.name}
                             type="button"
-                            onClick={() => { setModelOpsSelectedModel(group.name); setModelOpsClusterFilter(''); }}
+                            onClick={() => { setModelOpsSelectedModel(group.name); setModelOpsClusterFilter(''); setModelOpsServiceEntrySearch(''); }}
                             className={'ataas-model-ops-service-item' + (active ? ' active' : '')}
                           >
                             <span className="ataas-model-ops-service-logo">
@@ -10209,15 +10217,34 @@ const AtAasDesign = () => {
                   </aside>
                   <main className="ataas-model-ops-main">
                     <div className={'ataas-model-ops-perf-panel' + (modelOpsPerfExpanded ? ' expanded' : '')}>
-                      <button type="button" className="ataas-model-ops-perf-summary" onClick={() => setModelOpsPerfExpanded((value) => !value)}>
-                        <div className="ataas-model-ops-perf-summary-metrics">
-                          {renderModelOpsPerfSummary('TTFT', modelOpsTtftSpark, String(3600 + activeModelServices.length * 175), String(24800 + activeModelServices.length * 810))}
-                          {renderModelOpsPerfSummary('TPOT', modelOpsTpotSpark, (18.5 + activeModelServices.length * 0.6).toFixed(1), (29.5 + activeModelServices.length * 0.8).toFixed(1))}
+                      <div className="ataas-model-ops-perf-topbar">
+                        <button type="button" className="ataas-model-ops-perf-summary" onClick={() => setModelOpsPerfExpanded((value) => !value)}>
+                          <div className="ataas-model-ops-perf-summary-metrics">
+                            {renderModelOpsPerfSummary('TTFT', modelOpsTtftSpark, String(3600 + activeModelServices.length * 175), String(24800 + activeModelServices.length * 810))}
+                            {renderModelOpsPerfSummary('TPOT', modelOpsTpotSpark, (18.5 + activeModelServices.length * 0.6).toFixed(1), (29.5 + activeModelServices.length * 0.8).toFixed(1))}
+                          </div>
+                          <span className="ataas-model-ops-perf-toggle">
+                            <DownOutlined />
+                          </span>
+                        </button>
+                        <div className="ataas-deploy-list-view-toggle ataas-model-ops-tab-toggle" role="group" aria-label="模型运维视图切换">
+                          <button
+                            type="button"
+                            className={modelOpsActiveTab === 'detail' ? 'active' : ''}
+                            onClick={() => setModelOpsActiveTab('detail')}
+                          >
+                            <AppstoreOutlined />组详情
+                          </button>
+                          <span className="ataas-deploy-view-divider" aria-hidden="true" />
+                          <button
+                            type="button"
+                            className={modelOpsActiveTab === 'weight' ? 'active' : ''}
+                            onClick={() => setModelOpsActiveTab('weight')}
+                          >
+                            <BarsOutlined />组权重
+                          </button>
                         </div>
-                        <span className="ataas-model-ops-perf-toggle">
-                          <DownOutlined />
-                        </span>
-                      </button>
+                      </div>
                       {modelOpsPerfExpanded && (
                         <div className="ataas-model-ops-perf-grid">
                           <div className="ataas-monitor-chart-card ataas-model-ops-perf-card">
@@ -10244,23 +10271,6 @@ const AtAasDesign = () => {
                       )}
                     </div>
                     <div className="ataas-model-ops-toolbar">
-                      <div className="ataas-deploy-list-view-toggle ataas-model-ops-tab-toggle" role="group" aria-label="模型运维视图切换">
-                        <button
-                          type="button"
-                          className={modelOpsActiveTab === 'detail' ? 'active' : ''}
-                          onClick={() => setModelOpsActiveTab('detail')}
-                        >
-                          <AppstoreOutlined />组详情
-                        </button>
-                        <span className="ataas-deploy-view-divider" aria-hidden="true" />
-                        <button
-                          type="button"
-                          className={modelOpsActiveTab === 'weight' ? 'active' : ''}
-                          onClick={() => setModelOpsActiveTab('weight')}
-                        >
-                          <BarsOutlined />组权重
-                        </button>
-                      </div>
                       {modelOpsActiveTab === 'detail' && (
                         <Button
                           className="ataas-deploy-create-button"
@@ -10278,6 +10288,25 @@ const AtAasDesign = () => {
 	                      {clusterWeightGroups.length === 0 ? (
 	                        <div className="ataas-model-ops-empty">暂无 Router 实例</div>
 	                      ) : (
+                          <>
+                            <div className="ataas-model-ops-weight-filterbar">
+                              <Select
+                                className="ataas-model-ops-weight-cluster-select"
+                                value={modelOpsClusterFilter}
+                                onChange={setModelOpsClusterFilter}
+                                options={[
+                                  { value: '', label: '全部集群' },
+                                  ...clusterWeightGroups.map((group) => ({ value: group.cluster, label: group.cluster })),
+                                ]}
+                              />
+                              <Input.Search
+                                className="ataas-model-ops-weight-sve-search"
+                                placeholder="搜索 ServiceEntry..."
+                                allowClear
+                                value={modelOpsServiceEntrySearch}
+                                onChange={(event) => setModelOpsServiceEntrySearch(event.target.value)}
+                              />
+                            </div>
 	                        <div className="ataas-model-ops-weight-table-wrap">
                             <table className="ataas-model-ops-weight-table">
                               <colgroup>
@@ -10297,7 +10326,7 @@ const AtAasDesign = () => {
                                 </tr>
                               </thead>
                               <tbody>
-	                          {clusterWeightGroups.map((group) => {
+	                          {filteredClusterWeightGroups.map((group) => {
 	                            return (
 	                              <tr
 	                                key={group.cluster}
@@ -10358,7 +10387,9 @@ const AtAasDesign = () => {
 	                          })}
                               </tbody>
                             </table>
+                            {filteredClusterWeightGroups.length === 0 && <div className="ataas-model-ops-empty">暂无匹配的 ServiceEntry</div>}
 	                        </div>
+                          </>
 		                      )}
 		                    </div>
                     )}
