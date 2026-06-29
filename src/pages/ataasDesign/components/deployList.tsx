@@ -874,7 +874,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
     { title: 'TTFT', key: 'ttft', width: 92, render: (_, r) => <span className="ataas-model-ops-perf-value">{getModelOpsPerfSummary(r).ttft}</span> },
     { title: 'TPOT', key: 'tpot', width: 92, render: (_, r) => <span className="ataas-model-ops-perf-value">{getModelOpsPerfSummary(r).tpot}</span> },
     { title: '当前权重', key: 'weight', width: 110, render: (_, r) => <span className="ataas-model-ops-weight-pill">{getModelOpsRowWeight?.(r) ?? 100}%</span> },
-    { title: '操作', key: 'action', width: 132, fixed: 'right' as const, className: 'ataas-deploy-fixed-action-cell', render: (_, r) => (
+    { title: '操作', key: 'action', width: 150, fixed: 'right' as const, className: 'ataas-deploy-fixed-action-cell', render: (_, r) => (
       <div className="ataas-model-ops-table-actions">
         <Tooltip title="重建">
           <button type="button" className="ataas-model-ops-icon-action"><ReloadOutlined /></button>

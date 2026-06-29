@@ -5396,9 +5396,9 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   .fixed-action {
     position: sticky;
     right: 0;
-    width: 112px;
+    width: 150px;
     background: #fff;
-    box-shadow: -1px 0 0 #F2F3F5;
+    box-shadow: none;
     text-align: right;
     z-index: 2;
   }
@@ -5406,6 +5406,14 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   th.fixed-action {
     background: #F7F8FA;
     z-index: 3;
+  }
+
+  tbody tr:hover > td {
+    background: #f7f8fa;
+  }
+
+  tbody tr:hover > td.fixed-action {
+    background: #f7f8fa;
   }
 }
 
@@ -19525,10 +19533,19 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 
   td.fixed-action {
     background: #fff !important;
+    box-shadow: none !important;
   }
 
   th.fixed-action {
     background: #F7F8FA !important;
+  }
+
+  tbody tr:hover > td {
+    background: #f7f8fa !important;
+  }
+
+  tbody tr:hover > td.fixed-action {
+    background: #f7f8fa !important;
   }
 }
 
@@ -19569,7 +19586,7 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   }
 
   .ant-table-tbody > tr:hover > td {
-    background: #fff !important;
+    background: #f7f8fa !important;
   }
 
   .ant-table-cell-fix-right,
@@ -19577,6 +19594,13 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   .ataas-deploy-fixed-action-cell {
     background: #fff !important;
     z-index: 3;
+    box-shadow: none !important;
+  }
+
+  .ant-table-tbody > tr:hover > .ant-table-cell-fix-right,
+  .ant-table-tbody > tr:hover > .ant-table-cell-fix-right-first,
+  .ant-table-tbody > tr:hover > .ataas-deploy-fixed-action-cell {
+    background: #f7f8fa !important;
   }
 
   .ant-table-thead > tr > th.ant-table-cell-fix-right,
