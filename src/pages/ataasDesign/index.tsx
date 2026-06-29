@@ -37,7 +37,7 @@ import PlaygroundChatPage from './components/playgroundChatPage';
 import type { ColumnsType } from 'antd/es/table';
 import * as echarts from 'echarts';
 import dayjs from 'dayjs';
-import { useEffect, useMemo, useRef, useState, type Dispatch, type Key, type ReactNode, type SetStateAction } from 'react';
+import { useEffect, useMemo, useRef, useState, type Dispatch, type Key, type MouseEvent as ReactMouseEvent, type ReactNode, type SetStateAction } from 'react';
 import ataasLogo from './ataas-logo.png';
 import deepseekLogo from './deepseek-logo.svg';
 import glmLogo from './glm-logo.svg';
@@ -6400,6 +6400,7 @@ const AtAasDesign = () => {
   const [podClusterFilter, setPodClusterFilter] = useState('all');
   const [podNamespaceFilter, setPodNamespaceFilter] = useState('all');
   const [podSearch, setPodSearch] = useState('');
+  const [modelOpsSegmentWidths, setModelOpsSegmentWidths] = useState<Record<string, number>>({});
   const [podActionTarget, setPodActionTarget] = useState<PodRecord | null>(null);
   const [podYamlOpen, setPodYamlOpen] = useState(false);
   const [podLogOpen, setPodLogOpen] = useState(false);
@@ -10068,6 +10069,39 @@ const AtAasDesign = () => {
               return index === routers.length - 1 ? 100 - base * (routers.length - 1) : base;
             };
             const getRouterWeight = (routers: typeof routerRows, index: number) => modelOpsWeights[routers[index].key] ?? getDefaultWeight(routers, index);
+            const getSegmentWidth = (routerKey: string) => modelOpsSegmentWidths[routerKey] ?? 148;
+            const startStripDrag = (event: ReactMouseEvent<HTMLDivElement>) => {
+              const strip = event.currentTarget;
+              const startX = event.clientX;
+              const startScrollLeft = strip.scrollLeft;
+              strip.classList.add('dragging');
+              const onMove = (moveEvent: MouseEvent) => {
+                strip.scrollLeft = startScrollLeft - (moveEvent.clientX - startX);
+              };
+              const onUp = () => {
+                strip.classList.remove('dragging');
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+              };
+              document.addEventListener('mousemove', onMove);
+              document.addEventListener('mouseup', onUp);
+            };
+            const startSegmentResize = (event: ReactMouseEvent<HTMLButtonElement>, routerKey: string) => {
+              event.preventDefault();
+              event.stopPropagation();
+              const startX = event.clientX;
+              const startWidth = getSegmentWidth(routerKey);
+              const onMove = (moveEvent: MouseEvent) => {
+                const nextWidth = Math.max(112, Math.min(260, startWidth + moveEvent.clientX - startX));
+                setModelOpsSegmentWidths((prev) => ({ ...prev, [routerKey]: nextWidth }));
+              };
+              const onUp = () => {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+              };
+              document.addEventListener('mousemove', onMove);
+              document.addEventListener('mouseup', onUp);
+            };
             const updateRouterWeight = (routerKey: string, value: number) => {
               setModelOpsWeights((prev) => ({ ...prev, [routerKey]: Math.max(0, Math.min(100, Math.round(value))) }));
             };
@@ -10265,6 +10299,7 @@ const AtAasDesign = () => {
                                   <td className="ataas-model-ops-weight-groups-cell">
                                     <div
                                       className="ataas-model-ops-weight-strip"
+                                      onMouseDown={startStripDrag}
                                       onWheel={(event) => {
                                         if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
                                           event.currentTarget.scrollLeft += event.deltaY;
@@ -10277,10 +10312,18 @@ const AtAasDesign = () => {
                                           <Tooltip key={router.key} title={`${router.routerName} · ${weight}%`}>
                                             <span
                                               className="ataas-model-ops-weight-segment"
-                                              style={{ width: Math.max(118, weight * 4) }}
+                                              style={{ width: getSegmentWidth(router.key) }}
                                             >
-                                              <b>{router.routerName}</b>
-                                              <em>{weight}%</em>
+                                              <span className="ataas-model-ops-weight-segment-main">
+                                                <b>{router.routerName}</b>
+                                                <em>{weight}%</em>
+                                              </span>
+                                              <button
+                                                type="button"
+                                                className="ataas-model-ops-weight-segment-resizer"
+                                                aria-label="调整块宽度"
+                                                onMouseDown={(event) => startSegmentResize(event, router.key)}
+                                              />
                                             </span>
                                           </Tooltip>
                                         );

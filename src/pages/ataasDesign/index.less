@@ -5539,7 +5539,7 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   width: 100%;
   max-width: 100%;
   align-items: center;
-  gap: 4px;
+  gap: 0;
   overflow-x: auto;
   overflow-y: hidden;
   padding: 5px 0;
@@ -5550,6 +5550,11 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 
   &:active {
     cursor: grabbing;
+  }
+
+  &.dragging {
+    cursor: grabbing;
+    user-select: none;
   }
 
   &::-webkit-scrollbar {
@@ -5573,22 +5578,30 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 .ataas-model-ops-weight-segment {
   display: inline-flex;
   height: 30px;
-  min-width: 118px;
+  min-width: 112px;
   flex: 0 0 auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 0 10px;
-  border: 1px solid rgba(103, 56, 232, 0.16);
-  border-radius: 4px;
-  background: #F4F0FF;
-  color: #1D2129;
+  padding: 0;
+  border: 1px solid rgba(103, 56, 232, 0.24);
+  border-right-width: 0;
+  background: #7C3AED;
+  color: #fff;
   line-height: 18px;
+  position: relative;
+
+  &:first-child {
+    border-radius: 4px 0 0 4px;
+  }
+
+  &:last-child {
+    border-right-width: 1px;
+    border-radius: 0 4px 4px 0;
+  }
 
   b {
     overflow: hidden;
     min-width: 0;
-    color: #1D2129;
+    color: #fff;
     font-size: 13px;
     font-weight: 500;
     text-overflow: ellipsis;
@@ -5597,37 +5610,35 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 
   em {
     flex-shrink: 0;
-    color: #6738E8;
+    color: rgba(255, 255, 255, 0.92);
     font-size: 13px;
     font-style: normal;
     font-weight: 600;
   }
 }
 
-.ataas-model-ops-weight-segment:nth-child(4n + 2) {
-  border-color: rgba(34, 197, 94, 0.16);
-  background: #EFFAF4;
-
-  em {
-    color: #18A957;
-  }
+.ataas-model-ops-weight-segment-main {
+  display: inline-flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 12px;
 }
 
-.ataas-model-ops-weight-segment:nth-child(4n + 3) {
-  border-color: rgba(20, 148, 170, 0.16);
-  background: #EEF9FB;
+.ataas-model-ops-weight-segment-resizer {
+  width: 7px;
+  height: 100%;
+  flex: 0 0 7px;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.20);
+  background: transparent;
+  cursor: col-resize;
 
-  em {
-    color: #1494AA;
-  }
-}
-
-.ataas-model-ops-weight-segment:nth-child(4n) {
-  border-color: rgba(245, 158, 11, 0.18);
-  background: #FFF8E8;
-
-  em {
-    color: #D48806;
+  &:hover {
+    background: rgba(255, 255, 255, 0.16);
   }
 }
 
