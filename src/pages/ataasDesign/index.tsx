@@ -6651,6 +6651,7 @@ const AtAasDesign = () => {
   const [modelOpsSelectedModel, setModelOpsSelectedModel] = useState('');
   const [modelOpsWeights, setModelOpsWeights] = useState<Record<string, number>>({});
   const [modelOpsWeightModalCluster, setModelOpsWeightModalCluster] = useState('');
+  const [modelOpsActiveTab, setModelOpsActiveTab] = useState<'weight' | 'detail'>('weight');
   const [deployMode, setDeployMode] = useState<string>('single');
   const [startupTemplateForm] = Form.useForm();
   const [addInstPdTemplateForm] = Form.useForm();
@@ -9998,6 +9999,34 @@ const AtAasDesign = () => {
               return group && index >= 0 ? getRouterWeight(group.routers, index) : 100;
             };
             const activeWeightModalGroup = clusterWeightGroups.find((group) => group.cluster === modelOpsWeightModalCluster);
+            const modelOpsPrefillNodes = activeModelServices.flatMap((service) => {
+              const count = Math.max(1, (service.deployMode === 'PD 分离' ? service.modelInfo.number * 2 : service.modelInfo.number) || 1);
+              return Array.from({ length: count }, (_, index) => `${service.name}-prefill-${index}`);
+            });
+            const modelOpsDecodeNodes = activeModelServices.flatMap((service) => {
+              const count = Math.max(1, service.modelInfo.number || 1);
+              return Array.from({ length: count }, (_, index) => `${service.name}-decode-${index}`);
+            });
+            const modelOpsPrefillLegends = [
+              { name: 'P99', color: '#4F46FF', value: 420 + activeModelServices.length * 18 },
+              { name: 'P90', color: '#8DDC7F', value: 330 + activeModelServices.length * 14 },
+              { name: 'P50', color: '#6FA9B3', value: 230 + activeModelServices.length * 10 },
+            ];
+            const modelOpsDecodeLegends = [
+              { name: 'AVG', color: '#4F46FF', value: 38 + activeModelServices.length * 2.4 },
+            ];
+            const renderModelOpsNodePopover = (nodes: string[], label: string) => (
+              <Popover
+                placement="bottomRight"
+                content={(
+                  <div className="ataas-model-ops-node-popover">
+                    {nodes.map((node) => <span key={node}>{node}</span>)}
+                  </div>
+                )}
+              >
+                <Button className="ataas-model-ops-node-button" size="small">{label} {nodes.length}</Button>
+              </Popover>
+            );
             return (
               <div className="ataas-section-stack">
                 <div className="ataas-model-ops-layout">
@@ -10031,13 +10060,46 @@ const AtAasDesign = () => {
                     </div>
                   </aside>
                   <main className="ataas-model-ops-main">
+                    <div className="ataas-model-ops-perf-grid">
+                      <div className="ataas-monitor-chart-card ataas-model-ops-perf-card">
+                        <div className="ataas-monitor-chart-head">
+                          <div>
+                            <strong>TTFT：Prefill 节点汇总</strong>
+                            <span className="ataas-monitor-chart-hint">毫秒</span>
+                          </div>
+                          {renderModelOpsNodePopover(modelOpsPrefillNodes, 'Prefill 节点')}
+                        </div>
+                        <MonitorLineChart legends={modelOpsPrefillLegends} timePrecision="minute" height={190} seed={`${activeModelName}-prefill`} />
+                      </div>
+                      <div className="ataas-monitor-chart-card ataas-model-ops-perf-card">
+                        <div className="ataas-monitor-chart-head">
+                          <div>
+                            <strong>TPOT：Decode 节点汇总</strong>
+                            <span className="ataas-monitor-chart-hint">毫秒</span>
+                          </div>
+                          {renderModelOpsNodePopover(modelOpsDecodeNodes, 'Decode 节点')}
+                        </div>
+                        <MonitorLineChart legends={modelOpsDecodeLegends} timePrecision="minute" height={190} seed={`${activeModelName}-decode`} />
+                      </div>
+                    </div>
+                    <div className="ataas-model-ops-tabs">
+                      <button
+                        type="button"
+                        className={modelOpsActiveTab === 'weight' ? 'active' : ''}
+                        onClick={() => setModelOpsActiveTab('weight')}
+                      >
+                        组权重
+                      </button>
+                      <button
+                        type="button"
+                        className={modelOpsActiveTab === 'detail' ? 'active' : ''}
+                        onClick={() => setModelOpsActiveTab('detail')}
+                      >
+                        组详情
+                      </button>
+                    </div>
+                    {modelOpsActiveTab === 'weight' && (
 	                    <div className="ataas-panel ataas-model-ops-weight-panel">
-	                      <div className="ataas-panel-head ataas-model-ops-weight-head">
-	                        <div>
-	                          <h2>权重配置</h2>
-	                          <span>点击集群查看该集群 PD 组，权重在弹窗内调整</span>
-	                        </div>
-	                      </div>
 	                      {clusterWeightGroups.length === 0 ? (
 	                        <div className="ataas-model-ops-empty">暂无 Router 实例</div>
 	                      ) : (
@@ -10069,8 +10131,10 @@ const AtAasDesign = () => {
 	                            );
 	                          })}
 	                        </div>
-	                      )}
-	                    </div>
+		                      )}
+		                    </div>
+                    )}
+                    {modelOpsActiveTab === 'detail' && (
                     <DeployList
                       mode="modelOps"
                       data={activeModelServices}
@@ -10088,10 +10152,11 @@ const AtAasDesign = () => {
                       viewModeValue={modelOpsListViewMode}
                       onViewModeChange={setModelOpsListViewMode}
                       clusterFilterValue={modelOpsClusterFilter}
-	                      onClusterFilterChange={setModelOpsClusterFilter}
-	                      getModelOpsRowWeight={getServiceWeight}
-	                    />
-	                    <Modal
+		                      onClusterFilterChange={setModelOpsClusterFilter}
+		                      getModelOpsRowWeight={getServiceWeight}
+		                    />
+                    )}
+		                    <Modal
 	                      title={`${modelOpsWeightModalCluster || '集群'} 权重调整`}
 	                      open={!!activeWeightModalGroup}
 	                      width={720}
