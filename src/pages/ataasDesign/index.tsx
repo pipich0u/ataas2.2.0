@@ -547,6 +547,13 @@ const pods: PodRecord[] = [
   { key: 'p16', name: 'mistral-prod-p1', cluster: 'shanghai-online', role: 'prefill', namespace: 'production', ready: '1/1', status: 'Running', restart: 0, load: 82, performance: 93, image: 'sglang/sglang:latest', podIP: '10.0.1.20', node: 'nj-h20-001', nodeGPU: 'H20 141G × 8', gpuUtil: 79, gpuVram: 67, age: '20d', trafficSource: 'mistral-vllm-slo' },
 ];
 
+const podYamlTemplates = [
+  { name: 'nginx.yaml', desc: 'Nginx Web Server', content: 'apiVersion: v1\nkind: Pod\nmetadata:\n  name: nginx-web\n  labels:\n    app: nginx\nspec:\n  containers:\n    - name: nginx\n      image: nginx:latest\n      ports:\n        - containerPort: 80\n      resources:\n        requests:\n          cpu: "500m"\n          memory: "512Mi"\n        limits:\n          cpu: "1"\n          memory: "1Gi"' },
+  { name: 'redis.yaml', desc: 'Redis Cache', content: 'apiVersion: v1\nkind: Pod\nmetadata:\n  name: redis-cache\n  labels:\n    app: redis\nspec:\n  containers:\n    - name: redis\n      image: redis:7-alpine\n      ports:\n        - containerPort: 6379\n      resources:\n        requests:\n          cpu: "500m"\n          memory: "512Mi"\n        limits:\n          cpu: "2"\n          memory: "2Gi"' },
+  { name: 'vllm-infer.yaml', desc: 'vLLM Inference', content: 'apiVersion: v1\nkind: Pod\nmetadata:\n  name: vllm-infer\n  labels:\n    app: vllm\nspec:\n  containers:\n    - name: vllm\n      image: vllm/vllm-openai:latest\n      ports:\n        - containerPort: 8000\n      env:\n        - name: MODEL\n          value: "Qwen2.5-7B-Instruct"\n        - name: GPU_MEMORY_UTILIZATION\n          value: "0.9"\n      resources:\n        requests:\n          cpu: "8"\n          memory: "32Gi"\n          nvidia.com/gpu: 1\n        limits:\n          cpu: "16"\n          memory: "64Gi"\n          nvidia.com/gpu: 1' },
+  { name: 'sglang-infer.yaml', desc: 'SGLang Inference', content: 'apiVersion: v1\nkind: Pod\nmetadata:\n  name: sglang-infer\n  labels:\n    app: sglang\nspec:\n  containers:\n    - name: sglang\n      image: lmsysorg/sglang:latest\n      ports:\n        - containerPort: 30000\n      env:\n        - name: MODEL\n          value: "Meta-Llama-3.1-8B-Instruct"\n        - name: MAX_MODEL_LEN\n          value: "16384"\n      resources:\n        requests:\n          cpu: "8"\n          memory: "32Gi"\n          nvidia.com/gpu: 2\n        limits:\n          cpu: "16"\n          memory: "64Gi"\n          nvidia.com/gpu: 2' },
+];
+
 const overviewModelCards = [
   { name: 'DeepSeek-R1-Distill-Qwen-1.5B-1', top: 'TOP 1', token: '4.0 万', calls: 43, success: '100.00%', rpm: '18.6K', tpm: '812K', ttft: [0.54, 0.56, 0.59, 0.55, 0.57, 0.58, 0.56, 0.55, 0.54, 0.57, 0.56, 0.55, 0.58, 0.56], tpot: [84, 86, 89, 87, 90, 88, 86, 87, 85, 89, 87, 88, 90, 87] },
   { name: 'DeepSeek-R1-Distill-Qwen-7B-1', top: 'TOP 2', token: '3272', calls: 20, success: '100.00%', rpm: '9.7K', tpm: '392K', ttft: [0.78, 0.82, 0.85, 0.81, 0.79, 0.82, 0.80, 0.83, 0.81, 0.79, 0.82, 0.84, 0.80, 0.81], tpot: [58, 61, 63, 60, 64, 62, 59, 61, 63, 60, 62, 64, 61, 60] },
@@ -6390,6 +6397,10 @@ const AtAasDesign = () => {
   const [podDeleteStep1, setPodDeleteStep1] = useState<PodRecord | null>(null);
   const [podDeleteStep2, setPodDeleteStep2] = useState<PodRecord | null>(null);
   const [podDeleteConfirmText, setPodDeleteConfirmText] = useState('');
+  const [podCreateOpen, setPodCreateOpen] = useState(false);
+  const [podCreateCluster, setPodCreateCluster] = useState<string | null>(null);
+  const [podCreateNode, setPodCreateNode] = useState<string | null>(null);
+  const [podCreateYaml, setPodCreateYaml] = useState<string | null>(null);
   const podTerminalRef = useRef<HTMLDivElement>(null);
   const podTerminalInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -11319,6 +11330,8 @@ const AtAasDesign = () => {
                     <Select className="ataas-deploy-list-select" value={podClusterFilter} onChange={(v) => { setPodClusterFilter(v); setPodNamespaceFilter('all'); }} size="middle" style={{ width: 140, marginRight: 8 }} options={[{ value: 'all', label: '全部集群' }, ...Array.from(new Set(podList.map((p) => p.cluster))).map((c) => ({ value: c, label: c }))]} />
                     <Select className="ataas-deploy-list-select" value={podNamespaceFilter} onChange={setPodNamespaceFilter} size="middle" style={{ width: 140, marginRight: 8 }} disabled={podClusterFilter === 'all'} options={[{ value: 'all', label: '全部命名空间' }, ...Array.from(new Set(podList.filter((p) => podClusterFilter === 'all' || p.cluster === podClusterFilter).map((p) => p.namespace))).map((c) => ({ value: c, label: c }))]} />
                     <Input.Search className="ataas-deploy-list-search ataas-api-key-search" placeholder="搜索 Pod 名称 / IP / 节点..." value={podSearch} onChange={(e) => setPodSearch(e.target.value)} allowClear size="middle" />
+                    <div className="ataas-api-key-toolbar-spacer" />
+                    <Button className="ataas-deploy-create-button" type="primary" icon={<PlusOutlined />} onClick={() => setPodCreateOpen(true)}>创建容器</Button>
                   </div>
                 </div>
                 <div className="ataas-deploy-table-wrap ataas-api-key-table-wrap ataas-engine-table-wrap">
@@ -11383,6 +11396,97 @@ const AtAasDesign = () => {
                 </div>
               )}
             </Modal>
+            <Drawer
+              title="创建容器"
+              open={podCreateOpen}
+              onClose={() => { setPodCreateOpen(false); setPodCreateCluster(null); setPodCreateNode(null); setPodCreateYaml(null); }}
+              width={600}
+              styles={{ body: { padding: '20px 24px' } }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <div>
+                  <div style={{ fontWeight: 600, marginBottom: 8, color: '#1D2129', fontSize: 14 }}>① 选择集群</div>
+                  <Select
+                    style={{ width: '100%' }}
+                    placeholder="请选择集群"
+                    value={podCreateCluster}
+                    onChange={(v) => { setPodCreateCluster(v); setPodCreateNode(null); }}
+                    options={clusters.map((c) => ({ value: c.name, label: c.name + ' (' + c.region + ')' }))}
+                  />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 600, marginBottom: 8, color: '#1D2129', fontSize: 14 }}>② 选择节点</div>
+                  <Select
+                    style={{ width: '100%' }}
+                    placeholder={podCreateCluster ? '请选择节点' : '请先选择集群'}
+                    value={podCreateNode}
+                    onChange={setPodCreateNode}
+                    disabled={!podCreateCluster}
+                    options={nodes
+                      .filter((n) => !podCreateCluster || clusters.find((c) => c.name === podCreateCluster)?.key === n.clusterKey)
+                      .map((n) => ({ value: n.name, label: `${n.name}  (${n.ip})  GPU:${n.gpu}  ${n.status === 'normal' ? '✅' : '⚠️'}` }))}
+                  />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 600, marginBottom: 8, color: '#1D2129', fontSize: 14 }}>③ 选择 YAML 模板</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {podYamlTemplates.map((tpl) => (
+                      <div
+                        key={tpl.name}
+                        onClick={() => setPodCreateYaml(tpl.name)}
+                        style={{
+                          padding: '10px 14px', borderRadius: 6, cursor: 'pointer', border: '1px solid',
+                          borderColor: podCreateYaml === tpl.name ? '#6738E8' : '#E8E8E8',
+                          background: podCreateYaml === tpl.name ? '#F5F0FF' : '#FAFAFA',
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontFamily: 'Menlo, monospace', fontWeight: 600, fontSize: 13, color: podCreateYaml === tpl.name ? '#6738E8' : '#1D2129' }}>{tpl.name}</span>
+                          <span style={{ fontSize: 12, color: '#86909C' }}>{tpl.desc}</span>
+                        </div>
+                      </div>
+                    ))}
+                    <div
+                      onClick={() => setPodCreateYaml('custom')}
+                      style={{
+                        padding: '10px 14px', borderRadius: 6, cursor: 'pointer', border: '1px dashed',
+                        borderColor: podCreateYaml === 'custom' ? '#6738E8' : '#D9D9D9',
+                        background: podCreateYaml === 'custom' ? '#F5F0FF' : 'transparent',
+                        textAlign: 'center', color: '#86909C', fontSize: 13, transition: 'all 0.15s',
+                      }}
+                    >
+                      + 自定义 YAML（暂未开放）
+                    </div>
+                  </div>
+                </div>
+                {podCreateYaml && podCreateYaml !== 'custom' && (
+                  <div>
+                    <div style={{ fontWeight: 600, marginBottom: 8, color: '#1D2129', fontSize: 14 }}>YAML 预览</div>
+                    <pre style={{ margin: 0, padding: '12px 14px', background: '#F7F8FA', borderRadius: 6, fontSize: 12, fontFamily: 'Menlo, Monaco, Consolas, monospace', lineHeight: 1.5, maxHeight: 300, overflow: 'auto', whiteSpace: 'pre' }}>
+                      {podYamlTemplates.find((t) => t.name === podCreateYaml)?.content}
+                    </pre>
+                  </div>
+                )}
+                <div style={{ paddingTop: 8, borderTop: '1px solid #F0F0F0' }}>
+                  <Button
+                    type="primary"
+                    size="large"
+                    block
+                    disabled={!podCreateCluster || !podCreateNode || !podCreateYaml}
+                    onClick={() => {
+                      message.success(`容器创建请求已提交：集群=${podCreateCluster} 节点=${podCreateNode} 模板=${podCreateYaml}`);
+                      setPodCreateOpen(false);
+                      setPodCreateCluster(null);
+                      setPodCreateNode(null);
+                      setPodCreateYaml(null);
+                    }}
+                  >
+                    创建容器
+                  </Button>
+                </div>
+              </div>
+            </Drawer>
           </div>
         );
       }
