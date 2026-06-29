@@ -6625,6 +6625,8 @@ const AtAasDesign = () => {
   }, [modelRepoSearch, modelRepoCategory, modelRepoFamily, modelRepoSource]);
   const [deployListViewMode, setDeployListViewMode] = useState<ViewMode>('card');
   const [deployListClusterFilter, setDeployListClusterFilter] = useState('');
+  const [modelOpsListViewMode, setModelOpsListViewMode] = useState<ViewMode>('table');
+  const [modelOpsClusterFilter, setModelOpsClusterFilter] = useState('');
   const [deployMode, setDeployMode] = useState<string>('single');
   const [startupTemplateForm] = Form.useForm();
   const [addInstPdTemplateForm] = Form.useForm();
@@ -9282,6 +9284,7 @@ const AtAasDesign = () => {
     { key: 'nodes', icon: <SidebarIcon name="engineMgr" />, label: '节点管理' },
     { key: 'modelRepo', icon: <SidebarIcon name="modelRepo" />, label: '模型仓库' },
     { key: 'deploy', icon: <SidebarIcon name="deploy" />, label: '模型部署' },
+    { key: 'modelOps', icon: <SidebarIcon name="deploy" />, label: '模型运维' },
     { key: 'startupTemplates', icon: <SidebarIcon name="template" />, label: '性能仓库' },
     { key: 'images', icon: <SidebarIcon name="image" />, label: '镜像仓库' },
     { key: 'monitoring', icon: <SidebarIcon name="monitor" />, label: '模型监控' },
@@ -9305,7 +9308,7 @@ const AtAasDesign = () => {
   const SIDEBAR_GROUPS = [
     { title: '概览', items: getSidebarItems(['overview']) },
     { title: '资源管理', items: getSidebarItems(['clusters', 'nodes', 'engines', 'pods', 'services', 'se']) },
-    { title: '模型管理', items: getSidebarItems(['modelRepo', 'deploy', 'monitoring']) },
+    { title: '模型管理', items: getSidebarItems(['modelRepo', 'deploy', 'modelOps', 'monitoring']) },
     { title: '模型测试', items: getSidebarItems(['playgroundChat', 'playgroundVision', 'playgroundVisual', 'playgroundEmbedding', 'playgroundRerank', 'benchmark']) },
     { title: '身份权限', items: getSidebarItems(['apiKeys', 'users']) },
     { title: '系统监控', items: getSidebarItems(['alerts', 'logs']) },
@@ -9921,6 +9924,29 @@ const AtAasDesign = () => {
                 onViewModeChange={setDeployListViewMode}
                 clusterFilterValue={deployListClusterFilter}
                 onClusterFilterChange={setDeployListClusterFilter}
+              />
+            </div>
+          );
+      case 'modelOps': return (
+            <div className="ataas-section-stack">
+              <DeployList
+                mode="modelOps"
+                data={deployServices}
+                onDetail={handleDeployDetail}
+                onStop={handleDeployStop}
+                onMonitor={handleDeployMonitor}
+                onExperience={handleDeployExperience}
+                onLog={handleDeployLog}
+                onDeleteInstance={handleDeployDeleteInstance}
+                onAddInstance={handleDeployAddInstance}
+                onOpenCreate={handleOpenCreate}
+                onScalePd={handleScalePd}
+                onNodeFilter={handleDeployNodeFilter}
+                onScheduleDetail={handleScheduleDetail}
+                viewModeValue={modelOpsListViewMode}
+                onViewModeChange={setModelOpsListViewMode}
+                clusterFilterValue={modelOpsClusterFilter}
+                onClusterFilterChange={setModelOpsClusterFilter}
               />
             </div>
           );

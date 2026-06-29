@@ -167,9 +167,10 @@ interface DeployListProps {
   onViewModeChange?: (mode: ViewMode) => void;
   clusterFilterValue?: string;
   onClusterFilterChange?: (value: string) => void;
+  mode?: 'deploy' | 'modelOps';
 }
 
-export default function DeployList({ data, onDetail, onStop, onMonitor, onExperience, onLog, onDeleteInstance, onAddInstance, onOpenCreate, onScalePd, onNodeFilter, onScheduleDetail, viewModeValue, onViewModeChange, clusterFilterValue, onClusterFilterChange }: DeployListProps) {
+export default function DeployList({ data, onDetail, onStop, onMonitor, onExperience, onLog, onDeleteInstance, onAddInstance, onOpenCreate, onScalePd, onNodeFilter, onScheduleDetail, viewModeValue, onViewModeChange, clusterFilterValue, onClusterFilterChange, mode = 'deploy' }: DeployListProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('card');
   const [statusFilter, setStatusFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -430,6 +431,27 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
       gpu: getInstanceGpuCountText(item),
       logId: item.modelInfo.logs[index]?.id || item.modelInfo.logs[0]?.id || index + 1,
     }));
+    const opsRoleRows = (pdMode ? pdRows : inlineRows).map((row: any, index: number) => {
+      const compText = String(row.comp || 'Router').toLowerCase();
+      const role = compText.includes('prefill') ? 'P' : compText.includes('decode') ? 'D' : compText.includes('router') ? 'R' : 'I';
+      const image = compText.includes('router') ? 'sgl-model-gateway:default-fc-pa...' : 'sglang-main-fe5b30fe4';
+      const ipLast = 24 + ((item.id * 7 + index * 3) % 18);
+      const nodeIndex = 24 + ((item.id * 5 + index * 3) % 18);
+      const instanceName = row.instanceRecord?.instance || row.instance || `实例 ${index + 1}`;
+      return {
+        ...row,
+        role,
+        instanceName,
+        ready: '1/1',
+        statusText: 'Running',
+        restarts: 0,
+        load: 0,
+        performance: compText.includes('router') ? 'ERR 0' : '-',
+        image,
+        ip: `10.25.110.${ipLast}`,
+        nodeName: `pod11-b300gpu${nodeIndex}`,
+      };
+    });
     const baseColumns = [
       { title: '实例', dataIndex: 'instance', key: 'instance', width: 90 },
       { title: '集群', dataIndex: 'cluster', key: 'cluster', width: 140 },
@@ -447,6 +469,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
             <div><span>引擎版本</span><strong>{item.modelInfo.engineVersion || '-'}</strong></div>
           </div>
         </div>
+        {mode !== 'modelOps' && (
         <div className="ataas-deploy-inline-section">
           <div className="ataas-deploy-inline-section-head ataas-deploy-inline-section-head-action">
             <span>网关配置</span>
@@ -491,12 +514,76 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
             </div>
           </div>
         </div>
+        )}
         <div className="ataas-deploy-inline-section">
           <div className="ataas-deploy-inline-section-head ataas-deploy-inline-section-head-action">
             <span>实例信息</span>
             {onAddInstance && <Button className="ataas-traffic-enable-button" size="small" onClick={() => onAddInstance(item)}>添加实例</Button>}
           </div>
-          {pdMode ? (
+          {mode === 'modelOps' ? (
+            <div className="ataas-deploy-inline-table">
+              <table className="ataas-deploy-inline-native-table">
+                <colgroup>
+                  <col style={{ width: 260 }} />
+                  <col style={{ width: 82 }} />
+                  <col style={{ width: 112 }} />
+                  <col style={{ width: 96 }} />
+                  <col style={{ width: 78 }} />
+                  <col style={{ width: 120 }} />
+                  <col style={{ width: 260 }} />
+                  <col style={{ width: 132 }} />
+                  <col style={{ width: 148 }} />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>NAME</th>
+                    <th>READY</th>
+                    <th>STATUS</th>
+                    <th>RESTARTS</th>
+                    <th>负载</th>
+                    <th>性能</th>
+                    <th>镜像</th>
+                    <th>IP</th>
+                    <th>NODE</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {opsRoleRows.map((row) => (
+                    <tr key={row.key}>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                          <span style={{
+                            width: 22,
+                            height: 22,
+                            borderRadius: 8,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flex: '0 0 auto',
+                            color: row.role === 'R' ? '#2F6BFF' : row.role === 'P' ? '#8B3DFF' : '#18A957',
+                            background: row.role === 'R' ? '#EEF4FF' : row.role === 'P' ? '#F5EDFF' : '#EAF9F0',
+                            fontWeight: 700,
+                            fontSize: 12,
+                          }}>{row.role}</span>
+                          <Tooltip title={`${row.instanceName} / ${row.podName}`}>
+                            <span className="ataas-deploy-inline-pod-name">{row.podName}</span>
+                          </Tooltip>
+                        </div>
+                      </td>
+                      <td><span style={{ color: '#18A957', fontWeight: 600 }}>{row.ready}</span></td>
+                      <td><span className="ataas-deploy-inline-status-running">{row.statusText}</span></td>
+                      <td>{row.restarts}</td>
+                      <td><span style={{ display: 'inline-flex', minWidth: 28, justifyContent: 'center', padding: '4px 8px', border: '1px solid #E5E6EB', borderRadius: 8 }}>{row.load}</span></td>
+                      <td>{row.performance}</td>
+                      <td><Tooltip title={row.image}><span className="ataas-deploy-inline-pod-name">{row.image}</span></Tooltip></td>
+                      <td>{row.ip}</td>
+                      <td>{row.nodeName}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : pdMode ? (
             <div className="ataas-deploy-inline-table">
               <table className="ataas-deploy-inline-native-table">
                 <colgroup>
