@@ -6648,7 +6648,6 @@ const AtAasDesign = () => {
   const [modelOpsSelectedModel, setModelOpsSelectedModel] = useState('');
   const [modelOpsWeights, setModelOpsWeights] = useState<Record<string, number>>({});
   const [modelOpsWeightModalCluster, setModelOpsWeightModalCluster] = useState('');
-  const [modelOpsActiveTab, setModelOpsActiveTab] = useState<'weight' | 'detail'>('weight');
   const [deployMode, setDeployMode] = useState<string>('single');
   const [startupTemplateForm] = Form.useForm();
   const [addInstPdTemplateForm] = Form.useForm();
@@ -9996,23 +9995,6 @@ const AtAasDesign = () => {
               return group && index >= 0 ? getRouterWeight(group.routers, index) : 100;
             };
             const activeWeightModalGroup = clusterWeightGroups.find((group) => group.cluster === modelOpsWeightModalCluster);
-            const modelOpsLineColors = ['#3370FF', '#8B3DFF', '#18A957', '#14A6C8', '#F7B500', '#E02D2D', '#6B7785', '#00B8A9'];
-            const modelOpsPrefillLegends = activeModelServices.flatMap((service, serviceIndex) => {
-              const count = Math.max(1, (service.deployMode === 'PD 分离' ? service.modelInfo.number * 2 : service.modelInfo.number) || 1);
-              return Array.from({ length: count }, (_, index) => ({
-                name: `${service.name}-prefill-${index}`,
-                color: modelOpsLineColors[(serviceIndex + index) % modelOpsLineColors.length],
-                value: 230 + service.id * 18 + index * 12,
-              }));
-            }).slice(0, 8);
-            const modelOpsDecodeLegends = activeModelServices.flatMap((service, serviceIndex) => {
-              const count = Math.max(1, service.modelInfo.number || 1);
-              return Array.from({ length: count }, (_, index) => ({
-                name: `${service.name}-decode-${index}`,
-                color: modelOpsLineColors[(serviceIndex * 2 + index + 2) % modelOpsLineColors.length],
-                value: 22 + service.id * 1.8 + index * 1.2,
-              }));
-            }).slice(0, 8);
             return (
               <div className="ataas-section-stack">
                 <div className="ataas-model-ops-layout">
@@ -10046,44 +10028,13 @@ const AtAasDesign = () => {
                     </div>
                   </aside>
                   <main className="ataas-model-ops-main">
-                    <div className="ataas-model-ops-perf-grid">
-                      <div className="ataas-monitor-chart-card ataas-model-ops-perf-card">
-                        <div className="ataas-monitor-chart-head">
-                          <div>
-                            <strong>TTFT：Prefill 节点汇总</strong>
-                            <span className="ataas-monitor-chart-hint">毫秒</span>
-                          </div>
-                        </div>
-                        <MonitorLineChart legends={modelOpsPrefillLegends} timePrecision="minute" height={190} seed={`${activeModelName}-prefill`} />
-                      </div>
-                      <div className="ataas-monitor-chart-card ataas-model-ops-perf-card">
-                        <div className="ataas-monitor-chart-head">
-                          <div>
-                            <strong>TPOT：Decode 节点汇总</strong>
-                            <span className="ataas-monitor-chart-hint">毫秒</span>
-                          </div>
-                        </div>
-                        <MonitorLineChart legends={modelOpsDecodeLegends} timePrecision="minute" height={190} seed={`${activeModelName}-decode`} />
-                      </div>
-                    </div>
-                    <div className="ataas-model-ops-tabs">
-                      <button
-                        type="button"
-                        className={modelOpsActiveTab === 'weight' ? 'active' : ''}
-                        onClick={() => setModelOpsActiveTab('weight')}
-                      >
-                        组权重
-                      </button>
-                      <button
-                        type="button"
-                        className={modelOpsActiveTab === 'detail' ? 'active' : ''}
-                        onClick={() => setModelOpsActiveTab('detail')}
-                      >
-                        组详情
-                      </button>
-                    </div>
-                    {modelOpsActiveTab === 'weight' && (
 	                    <div className="ataas-panel ataas-model-ops-weight-panel">
+	                      <div className="ataas-panel-head ataas-model-ops-weight-head">
+	                        <div>
+	                          <h2>权重配置</h2>
+	                          <span>点击集群查看该集群 PD 组，权重在弹窗内调整</span>
+	                        </div>
+	                      </div>
 	                      {clusterWeightGroups.length === 0 ? (
 	                        <div className="ataas-model-ops-empty">暂无 Router 实例</div>
 	                      ) : (
@@ -10095,7 +10046,7 @@ const AtAasDesign = () => {
 	                                key={group.cluster}
 	                                type="button"
 	                                className={'ataas-model-ops-weight-card' + (modelOpsClusterFilter === group.cluster ? ' active' : '')}
-	                                onClick={() => { setModelOpsClusterFilter(group.cluster); setModelOpsActiveTab('detail'); }}
+	                                onClick={() => setModelOpsClusterFilter(group.cluster)}
 	                              >
 	                                <span className="ataas-model-ops-weight-cluster">
 	                                  <strong>{group.cluster}</strong>
@@ -10117,8 +10068,6 @@ const AtAasDesign = () => {
 	                        </div>
 	                      )}
 	                    </div>
-                    )}
-                    {modelOpsActiveTab === 'detail' && (
                     <DeployList
                       mode="modelOps"
                       data={activeModelServices}
@@ -10139,7 +10088,6 @@ const AtAasDesign = () => {
 	                      onClusterFilterChange={setModelOpsClusterFilter}
 	                      getModelOpsRowWeight={getServiceWeight}
 	                    />
-                    )}
 	                    <Modal
 	                      title={`${modelOpsWeightModalCluster || '集群'} 权重调整`}
 	                      open={!!activeWeightModalGroup}
@@ -11215,49 +11163,39 @@ const AtAasDesign = () => {
         const podColumns: ColumnsType<PodRecord> = [
           { title: 'Name', dataIndex: 'name', key: 'name', width: 220, fixed: 'left', render: (v) => <strong style={{ fontSize: 13 }}>{v}</strong> },
           { title: '集群', dataIndex: 'cluster', key: 'cluster', width: 130 },
-          { title: '角色', dataIndex: 'role', key: 'role', width: 180, render: (v, record) => {
+          { title: '角色', dataIndex: 'role', key: 'role', width: 80, render: (v) => {
             const colors: Record<string, string> = { prefill: '#2B65D9', router: '#9F5BD9', decode: '#3CC27B', other: '#86909C' };
-            if (v === 'decode' && record.tpotHistory) {
-              const hist = record.tpotHistory;
-              const min = Math.min(...hist), max = Math.max(...hist), range = max - min || 1;
-              const w = 120, h = 32;
-              const pts = hist.map((val, i) => `${(i / (hist.length - 1)) * w},${h - ((val - min) / range) * (h - 4) - 2}`).join(' ');
-              return (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Tag color={colors[v] || '#86909C'} style={{ fontSize: 11, borderRadius: 4, margin: 0 }}>{v}</Tag>
-                  <Tooltip
-                    title={
-                      <div style={{ padding: 4 }}>
-                        <div style={{ fontSize: 11, color: '#aaa', marginBottom: 4 }}>TPOT - 过去 60s</div>
-                        <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-                          <defs><linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#3CC27B" stopOpacity="0.2" /><stop offset="100%" stopColor="#3CC27B" stopOpacity="0" /></linearGradient></defs>
-                          <polygon points={`0,${h} ${pts} ${w},${h}`} fill="url(#sparkGrad)" />
-                          <polyline points={pts} fill="none" stroke="#3CC27B" strokeWidth="1.5" />
-                        </svg>
-                      </div>
-                    }
-                  >
-                    <span style={{ fontSize: 11, color: '#4E5969', cursor: 'pointer', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>tpot p50 {record.tpotP50}ms / p99 {record.tpotP99}ms</span>
-                  </Tooltip>
-                </div>
-              );
-            }
             return <Tag color={colors[v] || '#86909C'} style={{ fontSize: 11, borderRadius: 4 }}>{v}</Tag>;
           } },
           { title: 'Ready', dataIndex: 'ready', key: 'ready', width: 70 },
           { title: 'Status', dataIndex: 'status', key: 'status', width: 90, render: (v) => <Tag color={v === 'Running' ? 'green' : v === 'Pending' ? 'blue' : v === 'Failed' ? 'red' : 'default'}>{v}</Tag> },
           { title: 'Restarts', dataIndex: 'restart', key: 'restart', width: 75, render: (v) => <span style={{ color: v > 5 ? '#E02D2D' : v > 2 ? '#FA8C16' : '#4E5969' }}>{v}</span> },
           { title: '负载', dataIndex: 'load', key: 'load', width: 60, render: (v) => v > 0 ? <span style={{ fontSize: 13, fontWeight: 500, color: v > 80 ? '#E02D2D' : v > 60 ? '#FA8C16' : '#3CC27B' }}>{v}</span> : <span style={{ color: '#C9CDD4' }}>-</span> },
-          { title: '性能', dataIndex: 'performance', key: 'performance', width: 80, render: (v) => v > 0 ? (
-            <Tooltip title={`性能 ${v}%`}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <div style={{ flex: 1, height: 6, background: '#F2F3F5', borderRadius: 3, overflow: 'hidden' }}>
-                  <div style={{ width: `${v}%`, height: '100%', background: v > 80 ? '#3CC27B' : v > 50 ? '#FA8C16' : '#E02D2D', borderRadius: 3 }} />
-                </div>
-                <span style={{ fontSize: 12, color: '#4E5969' }}>{v}%</span>
-              </div>
-            </Tooltip>
-          ) : <span style={{ color: '#C9CDD4' }}>-</span> },
+          { title: '性能', dataIndex: 'performance', key: 'performance', width: 190, render: (v, record) => {
+            if (record.role === 'decode' && record.tpotHistory) {
+              const hist = record.tpotHistory;
+              const min = Math.min(...hist), max = Math.max(...hist), range = max - min || 1;
+              const w = 120, h = 32;
+              const pts = hist.map((val, i) => `${(i / (hist.length - 1)) * w},${h - ((val - min) / range) * (h - 4) - 2}`).join(' ');
+              return (
+                <Tooltip
+                  title={
+                    <div style={{ padding: 4 }}>
+                      <div style={{ fontSize: 11, color: '#aaa', marginBottom: 4 }}>TPOT - 过去 60s</div>
+                      <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
+                        <defs><linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#3CC27B" stopOpacity="0.2" /><stop offset="100%" stopColor="#3CC27B" stopOpacity="0" /></linearGradient></defs>
+                        <polygon points={`0,${h} ${pts} ${w},${h}`} fill="url(#sparkGrad)" />
+                        <polyline points={pts} fill="none" stroke="#3CC27B" strokeWidth="1.5" />
+                      </svg>
+                    </div>
+                  }
+                >
+                  <span style={{ fontSize: 12, color: '#4E5969', cursor: 'pointer', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>tpot p50 {record.tpotP50}ms / p99 {record.tpotP99}ms</span>
+                </Tooltip>
+              );
+            }
+            return v > 0 ? <span style={{ fontSize: 13, fontWeight: 500, color: v > 80 ? '#3CC27B' : v > 50 ? '#FA8C16' : '#E02D2D' }}>{v}</span> : <span style={{ color: '#C9CDD4' }}>-</span>;
+          } },
           { title: '镜像', dataIndex: 'image', key: 'image', width: 200, render: (v) => <span style={{ fontSize: 12, color: '#86909C', fontFamily: 'monospace' }}>{v}</span> },
           { title: 'IP', dataIndex: 'podIP', key: 'podIP', width: 120, render: (v) => <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{v}</span> },
           { title: 'Node', dataIndex: 'node', key: 'node', width: 120 },
