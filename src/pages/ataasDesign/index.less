@@ -5060,26 +5060,31 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 }
 
 .ataas-model-ops-sidebar {
+  border: 0;
+  border-right: 1px solid #EEF0F4;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   overflow: hidden;
-  padding: 0;
+  padding: 0 12px 0 0;
 }
 
 .ataas-model-ops-sidebar-head {
   margin: 0;
-  padding: 16px 16px 10px;
+  padding: 4px 4px 10px;
 }
 
 .ataas-model-ops-service-list {
-  border-top: 1px solid #F2F3F5;
+  border-top: 0;
 }
 
 .ataas-model-ops-service-item {
   display: flex;
   width: 100%;
-  min-height: 52px;
+  min-height: 44px;
   align-items: center;
   gap: 9px;
-  padding: 10px 12px;
+  padding: 8px 8px;
   border: 0;
   border-left: 3px solid transparent;
   background: #fff;
@@ -5133,6 +5138,78 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 
 .ataas-model-ops-main {
   min-width: 0;
+}
+
+.ataas-model-ops-perf-panel {
+  margin-bottom: 10px;
+}
+
+.ataas-model-ops-perf-summary {
+  display: flex;
+  width: 100%;
+  min-height: 50px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 0;
+  border-bottom: 1px solid #EEF0F4;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+}
+
+.ataas-model-ops-perf-summary-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px;
+  align-items: center;
+}
+
+.ataas-model-ops-perf-summary-item {
+  display: inline-grid;
+  grid-template-columns: auto 150px auto auto auto;
+  gap: 10px;
+  align-items: center;
+  color: #1D2129;
+  font-size: 14px;
+  line-height: 22px;
+
+  strong {
+    color: #0C98BE;
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  em {
+    color: #1D2129;
+    font-style: normal;
+  }
+}
+
+.ataas-model-ops-perf-summary-label {
+  color: #1D2129;
+  font-weight: 500;
+}
+
+.ataas-model-ops-tiny-sparkline {
+  width: 150px;
+  height: 30px;
+}
+
+.ataas-model-ops-perf-toggle {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: #86909C;
+  transition: transform 0.16s ease;
+}
+
+.ataas-model-ops-perf-panel.expanded .ataas-model-ops-perf-toggle {
+  transform: rotate(180deg);
 }
 
 .ataas-model-ops-perf-grid {
@@ -5194,20 +5271,20 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 .ataas-model-ops-tabs {
   display: flex;
   align-items: flex-end;
-  height: 54px;
-  margin-bottom: 14px;
+  height: 38px;
+  margin-bottom: 10px;
   border-bottom: 1px solid #E5E6EB;
 
   button {
-    height: 54px;
-    min-width: 104px;
-    padding: 0 22px;
+    height: 38px;
+    min-width: 76px;
+    padding: 0 14px;
     border: 1px solid #E5E6EB;
     border-bottom-color: #E5E6EB;
     border-radius: 8px 8px 0 0;
     background: #F7F8FA;
     color: #4E5969;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     cursor: pointer;
     transform: translateY(1px);
@@ -5232,7 +5309,11 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 }
 
 .ataas-model-ops-weight-panel {
+  border: 1px solid #E5E6EB;
+  border-radius: 6px;
   margin-bottom: 16px;
+  padding: 0;
+  overflow: hidden;
 }
 
 .ataas-model-ops-weight-head {
@@ -5248,7 +5329,20 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 
 .ataas-model-ops-weight-groups {
   display: grid;
-  gap: 8px;
+  gap: 0;
+}
+
+.ataas-model-ops-weight-table-head {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 112px 96px;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid #E5E6EB;
+  background: #F7F8FA;
+  color: #4E5969;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .ataas-model-ops-weight-card {
@@ -5257,23 +5351,23 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   grid-template-columns: minmax(180px, 1fr) 112px 96px;
   gap: 12px;
   align-items: center;
-  padding: 10px 12px;
-  border: 1px solid #E5E6EB;
-  border-radius: 8px;
+  padding: 11px 12px;
+  border: 0;
+  border-bottom: 1px solid #F2F3F5;
+  border-radius: 0;
   background: #fff;
   cursor: pointer;
   text-align: left;
   transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
 
   &:hover {
-    border-color: #B8CCFF;
     background: #F8FAFF;
   }
 
   &.active {
-    border-color: #3370FF;
+    border-left: 3px solid #3370FF;
     background: #F2F6FF;
-    box-shadow: 0 0 0 2px rgba(51, 112, 255, 0.08);
+    box-shadow: none;
   }
 }
 

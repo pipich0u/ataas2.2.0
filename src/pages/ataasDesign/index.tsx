@@ -5071,6 +5071,11 @@ const createLineOption = (name: string, color: string, values = miniTrend): echa
   tooltip: { trigger: 'axis' },
 });
 
+const TinySparkline = ({ values, color = '#14A6C8' }: { values: number[]; color?: string }) => {
+  const ref = useChart(createLineOption('trend', color, values));
+  return <div className="ataas-model-ops-tiny-sparkline" ref={ref} />;
+};
+
 const MetricCard = ({ title, value, desc, tone, icon }: { title: string; value: string; desc: string; tone: string; icon: React.ReactNode }) => (
   <div className="ataas-metric-card">
     <div className={`ataas-metric-icon ataas-metric-icon-${tone}`}>{icon}</div>
@@ -6651,6 +6656,8 @@ const AtAasDesign = () => {
   const [modelOpsSelectedModel, setModelOpsSelectedModel] = useState('');
   const [modelOpsWeights, setModelOpsWeights] = useState<Record<string, number>>({});
   const [modelOpsWeightModalCluster, setModelOpsWeightModalCluster] = useState('');
+  const [modelOpsActiveTab, setModelOpsActiveTab] = useState<'weight' | 'detail'>('weight');
+  const [modelOpsPerfExpanded, setModelOpsPerfExpanded] = useState(false);
   const [deployMode, setDeployMode] = useState<string>('single');
   const [startupTemplateForm] = Form.useForm();
   const [addInstPdTemplateForm] = Form.useForm();
@@ -9998,6 +10005,53 @@ const AtAasDesign = () => {
               return group && index >= 0 ? getRouterWeight(group.routers, index) : 100;
             };
             const activeWeightModalGroup = clusterWeightGroups.find((group) => group.cluster === modelOpsWeightModalCluster);
+            const modelOpsNodeColors = ['#22C7D9', '#8B7CF6', '#2ECC8F', '#FF8A34', '#FF6B6B', '#F7B500', '#5AA9FF', '#D95CFF'];
+            const modelOpsPrefillNodes = activeModelServices.flatMap((service, serviceIndex) => {
+              const count = Math.max(1, (service.deployMode === 'PD 分离' ? service.modelInfo.number * 2 : service.modelInfo.number) || 1);
+              const color = modelOpsNodeColors[serviceIndex % modelOpsNodeColors.length];
+              return Array.from({ length: count }, (_, index) => ({ name: `${service.name} prefill-${index}`, color }));
+            });
+            const modelOpsDecodeNodes = activeModelServices.flatMap((service, serviceIndex) => {
+              const count = Math.max(1, service.modelInfo.number || 1);
+              const color = modelOpsNodeColors[(serviceIndex + 2) % modelOpsNodeColors.length];
+              return Array.from({ length: count }, (_, index) => ({ name: `${service.name} decode-${index}`, color }));
+            });
+            const modelOpsPrefillLegends = [
+              { name: 'P99', color: '#4F46FF', value: 420 + activeModelServices.length * 18 },
+              { name: 'P90', color: '#8DDC7F', value: 330 + activeModelServices.length * 14 },
+              { name: 'P50', color: '#6FA9B3', value: 230 + activeModelServices.length * 10 },
+            ];
+            const modelOpsDecodeLegends = [
+              { name: 'AVG', color: '#4F46FF', value: 38 + activeModelServices.length * 2.4 },
+            ];
+            const modelOpsTtftSpark = miniTrend.map((value, index) => value + activeModelServices.length * 3 + (index % 3) * 2);
+            const modelOpsTpotSpark = miniTrend.map((value, index) => value / 4 + activeModelServices.length * 0.8 + (index % 2) * 0.4);
+            const renderModelOpsPerfSummary = (label: string, values: number[], current: string, p99: string) => (
+              <div className="ataas-model-ops-perf-summary-item">
+                <span className="ataas-model-ops-perf-summary-label">{label}</span>
+                <TinySparkline values={values} />
+                <strong>{current}</strong>
+                <em>p99</em>
+                <span>{p99}</span>
+              </div>
+            );
+            const renderModelOpsNodePopover = (nodes: Array<{ name: string; color: string }>, label: string) => (
+              <Popover
+                placement="bottomRight"
+                content={(
+                  <div className="ataas-model-ops-node-popover">
+                    {nodes.map((node) => (
+                      <span key={node.name}>
+                        <i style={{ background: node.color }} />
+                        {node.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              >
+                <Button className="ataas-model-ops-node-button" size="small">{label} {nodes.length}</Button>
+              </Popover>
+            );
             return (
               <div className="ataas-section-stack">
                 <div className="ataas-model-ops-layout">
@@ -10031,17 +10085,68 @@ const AtAasDesign = () => {
                     </div>
                   </aside>
                   <main className="ataas-model-ops-main">
+                    <div className={'ataas-model-ops-perf-panel' + (modelOpsPerfExpanded ? ' expanded' : '')}>
+                      <button type="button" className="ataas-model-ops-perf-summary" onClick={() => setModelOpsPerfExpanded((value) => !value)}>
+                        <div className="ataas-model-ops-perf-summary-metrics">
+                          {renderModelOpsPerfSummary('TTFT', modelOpsTtftSpark, String(3600 + activeModelServices.length * 175), String(24800 + activeModelServices.length * 810))}
+                          {renderModelOpsPerfSummary('TPOT', modelOpsTpotSpark, (18.5 + activeModelServices.length * 0.6).toFixed(1), (29.5 + activeModelServices.length * 0.8).toFixed(1))}
+                        </div>
+                        <span className="ataas-model-ops-perf-toggle">
+                          <DownOutlined />
+                        </span>
+                      </button>
+                      {modelOpsPerfExpanded && (
+                        <div className="ataas-model-ops-perf-grid">
+                          <div className="ataas-monitor-chart-card ataas-model-ops-perf-card">
+                            <div className="ataas-monitor-chart-head">
+                              <div>
+                                <strong>TTFT：Prefill 节点汇总</strong>
+                                <span className="ataas-monitor-chart-hint">毫秒</span>
+                              </div>
+                              {renderModelOpsNodePopover(modelOpsPrefillNodes, 'Prefill 节点')}
+                            </div>
+                            <MonitorLineChart legends={modelOpsPrefillLegends} timePrecision="minute" height={190} seed={`${activeModelName}-prefill`} />
+                          </div>
+                          <div className="ataas-monitor-chart-card ataas-model-ops-perf-card">
+                            <div className="ataas-monitor-chart-head">
+                              <div>
+                                <strong>TPOT：Decode 节点汇总</strong>
+                                <span className="ataas-monitor-chart-hint">毫秒</span>
+                              </div>
+                              {renderModelOpsNodePopover(modelOpsDecodeNodes, 'Decode 节点')}
+                            </div>
+                            <MonitorLineChart legends={modelOpsDecodeLegends} timePrecision="minute" height={190} seed={`${activeModelName}-decode`} />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="ataas-model-ops-tabs">
+                      <button
+                        type="button"
+                        className={modelOpsActiveTab === 'weight' ? 'active' : ''}
+                        onClick={() => setModelOpsActiveTab('weight')}
+                      >
+                        组权重
+                      </button>
+                      <button
+                        type="button"
+                        className={modelOpsActiveTab === 'detail' ? 'active' : ''}
+                        onClick={() => setModelOpsActiveTab('detail')}
+                      >
+                        组详情
+                      </button>
+                    </div>
+                    {modelOpsActiveTab === 'weight' && (
 	                    <div className="ataas-panel ataas-model-ops-weight-panel">
-	                      <div className="ataas-panel-head ataas-model-ops-weight-head">
-	                        <div>
-	                          <h2>权重配置</h2>
-	                          <span>点击集群查看该集群 PD 组，权重在弹窗内调整</span>
-	                        </div>
-	                      </div>
 	                      {clusterWeightGroups.length === 0 ? (
 	                        <div className="ataas-model-ops-empty">暂无 Router 实例</div>
 	                      ) : (
 	                        <div className="ataas-model-ops-weight-groups">
+                            <div className="ataas-model-ops-weight-table-head">
+                              <span>集群</span>
+                              <span>权重合计</span>
+                              <span>操作</span>
+                            </div>
 	                          {clusterWeightGroups.map((group) => {
 	                            const total = group.routers.reduce((sum, _, index) => sum + getRouterWeight(group.routers, index), 0);
 	                            return (
@@ -10069,8 +10174,10 @@ const AtAasDesign = () => {
 	                            );
 	                          })}
 	                        </div>
-	                      )}
-	                    </div>
+		                      )}
+		                    </div>
+                    )}
+                    {modelOpsActiveTab === 'detail' && (
                     <DeployList
                       mode="modelOps"
                       data={activeModelServices}
@@ -10088,10 +10195,11 @@ const AtAasDesign = () => {
                       viewModeValue={modelOpsListViewMode}
                       onViewModeChange={setModelOpsListViewMode}
                       clusterFilterValue={modelOpsClusterFilter}
-	                      onClusterFilterChange={setModelOpsClusterFilter}
-	                      getModelOpsRowWeight={getServiceWeight}
-	                    />
-	                    <Modal
+		                      onClusterFilterChange={setModelOpsClusterFilter}
+		                      getModelOpsRowWeight={getServiceWeight}
+		                    />
+                    )}
+		                    <Modal
 	                      title={`${modelOpsWeightModalCluster || '集群'} 权重调整`}
 	                      open={!!activeWeightModalGroup}
 	                      width={720}
