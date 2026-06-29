@@ -9996,6 +9996,23 @@ const AtAasDesign = () => {
               return group && index >= 0 ? getRouterWeight(group.routers, index) : 100;
             };
             const activeWeightModalGroup = clusterWeightGroups.find((group) => group.cluster === modelOpsWeightModalCluster);
+            const modelOpsLineColors = ['#3370FF', '#8B3DFF', '#18A957', '#14A6C8', '#F7B500', '#E02D2D', '#6B7785', '#00B8A9'];
+            const modelOpsPrefillLegends = activeModelServices.flatMap((service, serviceIndex) => {
+              const count = Math.max(1, (service.deployMode === 'PD 分离' ? service.modelInfo.number * 2 : service.modelInfo.number) || 1);
+              return Array.from({ length: count }, (_, index) => ({
+                name: `${service.name}-prefill-${index}`,
+                color: modelOpsLineColors[(serviceIndex + index) % modelOpsLineColors.length],
+                value: 230 + service.id * 18 + index * 12,
+              }));
+            }).slice(0, 8);
+            const modelOpsDecodeLegends = activeModelServices.flatMap((service, serviceIndex) => {
+              const count = Math.max(1, service.modelInfo.number || 1);
+              return Array.from({ length: count }, (_, index) => ({
+                name: `${service.name}-decode-${index}`,
+                color: modelOpsLineColors[(serviceIndex * 2 + index + 2) % modelOpsLineColors.length],
+                value: 22 + service.id * 1.8 + index * 1.2,
+              }));
+            }).slice(0, 8);
             return (
               <div className="ataas-section-stack">
                 <div className="ataas-model-ops-layout">
@@ -10029,6 +10046,26 @@ const AtAasDesign = () => {
                     </div>
                   </aside>
                   <main className="ataas-model-ops-main">
+                    <div className="ataas-model-ops-perf-grid">
+                      <div className="ataas-monitor-chart-card ataas-model-ops-perf-card">
+                        <div className="ataas-monitor-chart-head">
+                          <div>
+                            <strong>TTFT：Prefill 节点汇总</strong>
+                            <span className="ataas-monitor-chart-hint">毫秒</span>
+                          </div>
+                        </div>
+                        <MonitorLineChart legends={modelOpsPrefillLegends} timePrecision="minute" height={190} seed={`${activeModelName}-prefill`} />
+                      </div>
+                      <div className="ataas-monitor-chart-card ataas-model-ops-perf-card">
+                        <div className="ataas-monitor-chart-head">
+                          <div>
+                            <strong>TPOT：Decode 节点汇总</strong>
+                            <span className="ataas-monitor-chart-hint">毫秒</span>
+                          </div>
+                        </div>
+                        <MonitorLineChart legends={modelOpsDecodeLegends} timePrecision="minute" height={190} seed={`${activeModelName}-decode`} />
+                      </div>
+                    </div>
                     <div className="ataas-model-ops-tabs">
                       <button
                         type="button"
@@ -10047,12 +10084,6 @@ const AtAasDesign = () => {
                     </div>
                     {modelOpsActiveTab === 'weight' && (
 	                    <div className="ataas-panel ataas-model-ops-weight-panel">
-	                      <div className="ataas-panel-head ataas-model-ops-weight-head">
-	                        <div>
-	                          <h2>权重配置</h2>
-	                          <span>点击集群查看该集群 PD 组，权重在弹窗内调整</span>
-	                        </div>
-	                      </div>
 	                      {clusterWeightGroups.length === 0 ? (
 	                        <div className="ataas-model-ops-empty">暂无 Router 实例</div>
 	                      ) : (
