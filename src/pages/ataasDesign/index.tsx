@@ -9312,106 +9312,6 @@ const AtAasDesign = () => {
   ];
 
   const renderTabContent = () => {
-    if (podConsoleTarget) {
-      const t = podConsoleTarget;
-      return (
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: '#0C0C0C', display: 'flex', flexDirection: 'column', zIndex: 1000, fontFamily: 'Menlo, Monaco, Consolas, monospace', fontSize: 13 }}>
-          {/* iTerm2-style Title Bar */}
-          <div style={{ display: 'flex', alignItems: 'center', height: 44, background: 'linear-gradient(180deg, #3C3C3C 0%, #2D2D2D 100%)', borderBottom: '1px solid #1A1A1A', padding: '0 12px', flexShrink: 0, userSelect: 'none' }}>
-            <div style={{ display: 'flex', gap: 8, marginRight: 14 }}>
-              <div title="关闭" style={{ width: 13, height: 13, borderRadius: '50%', background: '#FF5F57', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }} onClick={() => setPodConsoleTarget(null)}>✕</div>
-              <div style={{ width: 13, height: 13, borderRadius: '50%', background: '#FEBC2E', cursor: 'pointer' }} />
-              <div style={{ width: 13, height: 13, borderRadius: '50%', background: '#28C840', cursor: 'pointer' }} />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#B0B0B0', fontSize: 12 }}>
-              <span style={{ fontWeight: 600, color: '#D0D0D0' }}>🔌</span>
-              <span style={{ color: '#7DC67D' }}>●</span>
-              <span>{t.name}@{t.cluster}</span>
-            </div>
-            <div style={{ flex: 1, textAlign: 'center', color: '#999', fontSize: 12, fontWeight: 500 }}>{t.name} — {t.namespace} — {t.node}</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <Button type="text" size="small" icon={<ArrowLeftOutlined />} style={{ color: '#B0B0B0', fontSize: 12, height: 28 }} onClick={() => setPodConsoleTarget(null)}>断开</Button>
-            </div>
-          </div>
-          {/* Connection Info Bar */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 20, padding: '6px 16px', background: '#1A1A1A', borderBottom: '1px solid #2A2A2A', flexShrink: 0, fontSize: 11, color: '#888' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 7, height: 7, borderRadius: '50%', background: '#3CC27B' }} /> Connected</span>
-            <span>Session: {t.cluster}/{t.namespace}/{t.name}</span>
-            <span>IP: {t.podIP}</span>
-            <span>Node: {t.node}</span>
-            <span style={{ flex: 1 }} />
-            <span style={{ color: '#666', fontSize: 11 }}>双击 Tab 或输入 exit 断开</span>
-          </div>
-          {/* Terminal Output */}
-          <div ref={podTerminalRef} style={{ flex: 1, overflow: 'auto', padding: '14px 18px', lineHeight: 1.55, color: '#D0D0D0' }}>
-            {podTerminalHistory.map((line, i) => {
-              if (line.startsWith('[system] ')) return <div key={i} style={{ color: '#777', fontStyle: 'italic' }}>{line.slice(9)}</div>;
-              if (line.startsWith('[error] ')) return <div key={i} style={{ color: '#F1707B' }}>{line.slice(8)}</div>;
-              if (line.startsWith('$ ')) {
-                const cmd = line.slice(2);
-                return (
-                  <div key={i} style={{ display: 'flex', alignItems: 'baseline' }}>
-                    <span style={{ color: '#3CC27B', marginRight: 0, userSelect: 'none' }}>root@{t.name}:~$ </span><span style={{ color: '#F0F0F0' }}>{cmd}</span>
-                  </div>
-                );
-              }
-              return <div key={i} style={{ color: '#C0C0C0', paddingLeft: 14 }}>{line}</div>;
-            })}
-          </div>
-          {/* Input Bar */}
-          <div style={{ display: 'flex', alignItems: 'center', padding: '7px 18px', borderTop: '1px solid #2A2A2A', background: '#111', flexShrink: 0 }}>
-            <span style={{ color: '#3CC27B', marginRight: 0, userSelect: 'none', whiteSpace: 'pre' }}>root@{t.name}:~$ </span>
-            <input
-              ref={podTerminalInputRef}
-              style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#F0F0F0', fontFamily: 'Menlo, Monaco, Consolas, monospace', fontSize: 13, caretColor: '#D0D0D0' }}
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  const input = e.target as HTMLInputElement;
-                  const cmd = input.value.trim();
-                  input.value = '';
-                  if (!cmd) return;
-                  setPodTerminalHistory((h) => [...h, '$ ' + cmd]);
-                  if (cmd === 'exit' || cmd === 'logout') {
-                    setTimeout(() => setPodConsoleTarget(null), 300);
-                  } else if (cmd === 'clear') {
-                    setPodTerminalHistory([]);
-                  } else if (cmd.startsWith('kubectl ')) {
-                    setPodTerminalHistory((h) => [...h, 'Error from server (Forbidden): kubectl is not available in this container shell.']);
-                  } else if (cmd.startsWith('top') || cmd === 'htop') {
-                    setPodTerminalHistory((h) => [...h, 'top - ' + new Date().toLocaleTimeString(), 'Tasks: 1 total, 0 running, 1 sleeping', '%Cpu(s): ' + (30 + Math.round(Math.random() * 40)) + '.0 us, 12.0 sy, 0.0 ni, 58.0 id', 'MiB Mem : ' + (120000 + Math.round(Math.random() * 20000)) + ' total,  ' + (40000 + Math.round(Math.random() * 10000)) + ' free', 'MiB Swap: 0 total, 0 free']);
-                  } else if (cmd.startsWith('ls')) {
-                    setPodTerminalHistory((h) => [...h, 'app.py  requirements.txt  Dockerfile  config.yaml  models/  logs/  data/']);
-                  } else if (cmd.startsWith('cd ')) {
-                    const dir = cmd.slice(3) || '/';
-                    setPodTerminalHistory((h) => [...h, '']);
-                  } else if (cmd === 'pwd') {
-                    setPodTerminalHistory((h) => [...h, '/app']);
-                  } else if (cmd === 'whoami') {
-                    setPodTerminalHistory((h) => [...h, 'root']);
-                  } else if (cmd.startsWith('cat ') || cmd.startsWith('head ') || cmd.startsWith('tail ')) {
-                    setPodTerminalHistory((h) => [...h, '# File content would be displayed here']);
-                  } else if (cmd === 'df -h') {
-                    setPodTerminalHistory((h) => [...h, 'Filesystem      Size  Used Avail Use% Mounted on', '/dev/sda1       500G  234G  266G  47% /', 'tmpfs            64G   12G   52G  19% /dev/shm']);
-                  } else if (cmd === 'free -h') {
-                    setPodTerminalHistory((h) => [...h, '              total        used        free', 'Mem:          125Gi       72Gi       53Gi', 'Swap:            0B         0B         0B']);
-                  } else if (cmd.startsWith('env') || cmd.startsWith('printenv')) {
-                    setPodTerminalHistory((h) => [...h, 'POD_IP=' + (t?.podIP || ''), 'NODE_NAME=' + (t?.node || ''), 'PATH=/usr/local/bin:/usr/bin:/bin', 'HOME=/root']);
-                  } else if (cmd === 'help') {
-                    setPodTerminalHistory((h) => [...h, 'Available commands: ls, cd, pwd, cat, top, df -h, free -h, env, whoami, clear, exit']);
-                  } else if (cmd === '') {
-                    setPodTerminalHistory((h) => [...h, '']);
-                  } else {
-                    setPodTerminalHistory((h) => [...h, 'bash: ' + cmd.split(' ')[0] + ': command not found']);
-                  }
-                }
-              }}
-            />
-          </div>
-        </div>
-      );
-    }
     switch (activeTab) {
       case 'overview': return (
 			<div className="ataas-section-stack">
@@ -11108,6 +11008,100 @@ const AtAasDesign = () => {
         ];
         const podYaml = podActionTarget ? getPodYaml(podActionTarget) : '';
         const podLogs = podActionTarget ? getPodLogs(podActionTarget) : '';
+        if (podConsoleTarget) {
+          const t2 = podConsoleTarget;
+          return (
+            <div className="ataas-section-stack">
+              <ConfigProvider theme={{ token: { colorPrimary: '#6738E8', colorPrimaryHover: '#5D30D8', colorPrimaryActive: '#5127C7', controlOutline: 'rgba(103, 56, 232, 0.12)' }, components: { Table: { headerBg: '#f7f8fa' } } }}>
+                <div className="ataas-panel ataas-api-key-page ataas-engine-page ataas-deploy-list">
+                  <div className="ataas-panel-head ataas-api-key-head">
+                    <div>
+                      <h2>容器管理 <span style={{ fontSize: 12, color: '#86909C', fontWeight: 400 }}>/ 控制台</span></h2>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Button type="link" size="small" icon={<ArrowLeftOutlined />} style={{ padding: 0, fontSize: 12 }} onClick={() => setPodConsoleTarget(null)}>返回 Pod 列表</Button>
+                        <span style={{ color: '#C9CDD4' }}>|</span>
+                        <span style={{ color: '#7DC67D' }}>●</span>
+                        <span>已连接 {t2.name} ({t2.podIP})</span>
+                        <span style={{ color: '#C9CDD4' }}>|</span>
+                        <span>{t2.cluster}/{t2.namespace}</span>
+                        <span style={{ color: '#C9CDD4' }}>|</span>
+                        <span>Node: {t2.node}</span>
+                      </span>
+                    </div>
+                  </div>
+                  <div style={{ background: '#0C0C0C', borderRadius: 8, overflow: 'hidden', border: '1px solid #2A2A2A', fontFamily: 'Menlo, Monaco, Consolas, monospace', fontSize: 13 }}>
+                    <div ref={podTerminalRef} style={{ height: 500, overflow: 'auto', padding: '14px 18px', lineHeight: 1.55, color: '#D0D0D0' }}>
+                      {podTerminalHistory.map((line, i) => {
+                        if (line.startsWith('[system] ')) return <div key={i} style={{ color: '#777', fontStyle: 'italic' }}>{line.slice(9)}</div>;
+                        if (line.startsWith('[error] ')) return <div key={i} style={{ color: '#F1707B' }}>{line.slice(8)}</div>;
+                        if (line.startsWith('$ ')) {
+                          const cmd = line.slice(2);
+                          return <div key={i}><span style={{ color: '#3CC27B' }}>root@{t2.name}:~$ </span><span style={{ color: '#F0F0F0' }}>{cmd}</span></div>;
+                        }
+                        return <div key={i} style={{ color: '#C0C0C0', paddingLeft: 14 }}>{line}</div>;
+                      })}
+                      {/* Inline prompt + input */}
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <span style={{ color: '#3CC27B', whiteSpace: 'pre', flexShrink: 0 }}>root@{t2.name}:~$ </span>
+                        <input
+                          ref={podTerminalInputRef}
+                          style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#F0F0F0', fontFamily: 'inherit', fontSize: 'inherit', padding: 0, caretColor: '#D0D0D0' }}
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              const input = e.target as HTMLInputElement;
+                              const cmd = input.value.trim();
+                              input.value = '';
+                              if (!cmd) return;
+                              setPodTerminalHistory((h) => [...h, '$ ' + cmd]);
+                              if (cmd === 'exit' || cmd === 'logout') {
+                                setTimeout(() => setPodConsoleTarget(null), 300);
+                              } else if (cmd === 'clear') {
+                                setPodTerminalHistory([]);
+                              } else if (cmd.startsWith('kubectl ')) {
+                                setPodTerminalHistory((h) => [...h, 'Error from server (Forbidden): kubectl is not available in this container shell.']);
+                              } else if (cmd.startsWith('top') || cmd === 'htop') {
+                                setPodTerminalHistory((h) => [...h, 'top - ' + new Date().toLocaleTimeString(), 'Tasks: 1 total, 0 running, 1 sleeping', '%Cpu(s): ' + (30 + Math.round(Math.random() * 40)) + '.0 us, 12.0 sy, 0.0 ni, 58.0 id', 'MiB Mem : ' + (120000 + Math.round(Math.random() * 20000)) + ' total,  ' + (40000 + Math.round(Math.random() * 10000)) + ' free', 'MiB Swap: 0 total, 0 free']);
+                              } else if (cmd.startsWith('ls')) {
+                                setPodTerminalHistory((h) => [...h, 'app.py  requirements.txt  Dockerfile  config.yaml  models/  logs/  data/']);
+                              } else if (cmd.startsWith('cd ')) {
+                                setPodTerminalHistory((h) => [...h, '']);
+                              } else if (cmd === 'pwd') {
+                                setPodTerminalHistory((h) => [...h, '/app']);
+                              } else if (cmd === 'whoami') {
+                                setPodTerminalHistory((h) => [...h, 'root']);
+                              } else if (cmd.startsWith('cat ') || cmd.startsWith('head ') || cmd.startsWith('tail ')) {
+                                setPodTerminalHistory((h) => [...h, '# File content would be displayed here']);
+                              } else if (cmd === 'df -h') {
+                                setPodTerminalHistory((h) => [...h, 'Filesystem      Size  Used Avail Use% Mounted on', '/dev/sda1       500G  234G  266G  47% /', 'tmpfs            64G   12G   52G  19% /dev/shm']);
+                              } else if (cmd === 'free -h') {
+                                setPodTerminalHistory((h) => [...h, '              total        used        free', 'Mem:          125Gi       72Gi       53Gi', 'Swap:            0B         0B         0B']);
+                              } else if (cmd.startsWith('env') || cmd.startsWith('printenv')) {
+                                setPodTerminalHistory((h) => [...h, 'POD_IP=' + (t2?.podIP || ''), 'NODE_NAME=' + (t2?.node || ''), 'PATH=/usr/local/bin:/usr/bin:/bin', 'HOME=/root']);
+                              } else if (cmd === 'help') {
+                                setPodTerminalHistory((h) => [...h, 'Available commands: ls, cd, pwd, cat, top, df -h, free -h, env, whoami, clear, exit']);
+                              } else {
+                                setPodTerminalHistory((h) => [...h, 'bash: ' + cmd.split(' ')[0] + ': command not found']);
+                              }
+                            }
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '5px 14px', background: '#1A1A1A', borderTop: '1px solid #2A2A2A', fontSize: 11, color: '#666' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: '#3CC27B' }} /> Connected</span>
+                      <span style={{ color: '#555' }}>|</span>
+                      <span>SSH: root@{t2.name}</span>
+                      <span style={{ flex: 1 }} />
+                      <span>输入 <span style={{ color: '#888' }}>exit</span> 断开连接</span>
+                    </div>
+                  </div>
+                </div>
+              </ConfigProvider>
+            </div>
+          );
+        }
         return (
           <div className="ataas-section-stack">
             <ConfigProvider theme={{ token: { colorPrimary: '#6738E8', colorPrimaryHover: '#5D30D8', colorPrimaryActive: '#5127C7', controlOutline: 'rgba(103, 56, 232, 0.12)' }, components: { Table: { headerBg: '#f7f8fa' } } }}>
