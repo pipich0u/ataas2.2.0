@@ -6400,7 +6400,6 @@ const AtAasDesign = () => {
   const [podClusterFilter, setPodClusterFilter] = useState('all');
   const [podNamespaceFilter, setPodNamespaceFilter] = useState('all');
   const [podSearch, setPodSearch] = useState('');
-  const [modelOpsSegmentWidths, setModelOpsSegmentWidths] = useState<Record<string, number>>({});
   const [podActionTarget, setPodActionTarget] = useState<PodRecord | null>(null);
   const [podYamlOpen, setPodYamlOpen] = useState(false);
   const [podLogOpen, setPodLogOpen] = useState(false);
@@ -10087,7 +10086,6 @@ const AtAasDesign = () => {
               return index === routers.length - 1 ? 100 - base * (routers.length - 1) : base;
             };
             const getRouterWeight = (routers: typeof routerRows, index: number) => modelOpsWeights[routers[index].key] ?? getDefaultWeight(routers, index);
-            const getSegmentWidth = (routerKey: string) => modelOpsSegmentWidths[routerKey] ?? 148;
             const startStripDrag = (event: ReactMouseEvent<HTMLDivElement>) => {
               const strip = event.currentTarget;
               const startX = event.clientX;
@@ -10098,22 +10096,6 @@ const AtAasDesign = () => {
               };
               const onUp = () => {
                 strip.classList.remove('dragging');
-                document.removeEventListener('mousemove', onMove);
-                document.removeEventListener('mouseup', onUp);
-              };
-              document.addEventListener('mousemove', onMove);
-              document.addEventListener('mouseup', onUp);
-            };
-            const startSegmentResize = (event: ReactMouseEvent<HTMLButtonElement>, routerKey: string) => {
-              event.preventDefault();
-              event.stopPropagation();
-              const startX = event.clientX;
-              const startWidth = getSegmentWidth(routerKey);
-              const onMove = (moveEvent: MouseEvent) => {
-                const nextWidth = Math.max(112, Math.min(260, startWidth + moveEvent.clientX - startX));
-                setModelOpsSegmentWidths((prev) => ({ ...prev, [routerKey]: nextWidth }));
-              };
-              const onUp = () => {
                 document.removeEventListener('mousemove', onMove);
                 document.removeEventListener('mouseup', onUp);
               };
@@ -10284,7 +10266,7 @@ const AtAasDesign = () => {
                             <table className="ataas-model-ops-weight-table">
                               <colgroup>
                                 <col style={{ width: 150 }} />
-                                <col style={{ width: 240 }} />
+                                <col style={{ width: 180 }} />
                                 <col style={{ width: 90 }} />
                                 <col />
                                 <col style={{ width: 150 }} />
@@ -10330,18 +10312,11 @@ const AtAasDesign = () => {
                                           <Tooltip key={router.key} title={`${router.routerName} · ${weight}%`}>
                                             <span
                                               className="ataas-model-ops-weight-segment"
-                                              style={{ width: getSegmentWidth(router.key) }}
                                             >
                                               <span className="ataas-model-ops-weight-segment-main">
                                                 <b>{router.routerName}</b>
                                                 <em>{weight}%</em>
                                               </span>
-                                              <button
-                                                type="button"
-                                                className="ataas-model-ops-weight-segment-resizer"
-                                                aria-label="调整块宽度"
-                                                onMouseDown={(event) => startSegmentResize(event, router.key)}
-                                              />
                                             </span>
                                           </Tooltip>
                                         );
