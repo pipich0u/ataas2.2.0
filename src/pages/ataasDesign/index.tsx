@@ -410,6 +410,9 @@ type PodRecord = {
   tpotP50?: number;
   tpotP99?: number;
   tpotHistory?: number[];
+  ttftP50?: number;
+  ttftP99?: number;
+  ttftHistory?: number[];
 };
 
 type ModelMonitorRecord = {
@@ -536,18 +539,18 @@ const pods: PodRecord[] = [
   { key: 'p2', name: 'deepseek-prod-r1-p2', cluster: 'shanghai-online', role: 'decode', namespace: 'production', ready: '1/1', status: 'Running', restart: 1, load: 72, performance: 88, image: 'vllm/vllm-openai:latest', podIP: '10.0.1.13', node: 'nj-h20-001', nodeGPU: 'H20 141G × 8', gpuUtil: 68, gpuVram: 58, age: '10d', trafficSource: 'rbg-deepseek-prod', tpotP50: 68, tpotP99: 95, tpotHistory: [65,67,70,72,69,66,64,68,71,74,73,70,67,65,63,67,70,73,71,68,65,64,67,71,75,77,76,73,70,68,65,63,66,70,73,75,73,70,68,66,64,67,71,74,76,78,76,73,71,68,66,68,71,74,72,69,67,64,68,70] },
   { key: 'p3', name: 'qwen3-coding-p1', cluster: 'shanghai-online', role: 'decode', namespace: 'production', ready: '1/1', status: 'Running', restart: 0, load: 65, performance: 85, image: 'sglang/sglang:latest', podIP: '10.0.2.15', node: 'nj-h20-002', nodeGPU: 'H20 141G × 8', gpuUtil: 76, gpuVram: 69, age: '8d', trafficSource: 'qwen3-coding-slo', tpotP50: 62, tpotP99: 88, tpotHistory: [60,63,65,64,61,59,58,62,65,68,66,63,61,59,57,61,64,67,65,62,60,58,61,65,68,70,68,65,63,61,58,57,60,64,67,69,67,64,62,60,58,61,64,67,70,71,69,66,64,61,59,62,65,67,65,62,60,57,61,63] },
   { key: 'p4', name: 'qwen3-coding-p2', cluster: 'shanghai-online', role: 'decode', namespace: 'production', ready: '1/1', status: 'Running', restart: 2, load: 61, performance: 82, image: 'sglang/sglang:latest', podIP: '10.0.2.16', node: 'nj-h20-002', nodeGPU: 'H20 141G × 8', gpuUtil: 71, gpuVram: 64, age: '8d', trafficSource: 'qwen3-coding-slo', tpotP50: 58, tpotP99: 85, tpotHistory: [56,58,61,60,57,55,54,58,61,63,62,59,57,55,53,57,60,62,61,58,56,54,57,61,63,65,64,61,59,57,54,53,56,60,62,64,63,60,58,56,54,57,60,63,65,66,64,62,59,57,55,58,60,63,61,58,56,53,57,59] },
-  { key: 'p5', name: 'glm51-1-prefill-p1', cluster: 'shanghai-online', role: 'prefill', namespace: 'production', ready: '1/1', status: 'Running', restart: 0, load: 89, performance: 95, image: 'sglang/sglang:latest', podIP: '10.0.1.8', node: 'nj-h20-001', nodeGPU: 'H20 141G × 8', gpuUtil: 85, gpuVram: 73, age: '15d', trafficSource: 'glm51-1-slo' },
-  { key: 'p6', name: 'glm51-1-prefill-p2', cluster: 'shanghai-online', role: 'prefill', namespace: 'production', ready: '1/1', status: 'Running', restart: 1, load: 84, performance: 91, image: 'sglang/sglang:latest', podIP: '10.0.1.9', node: 'nj-h20-001', nodeGPU: 'H20 141G × 8', gpuUtil: 82, gpuVram: 70, age: '14d', trafficSource: 'glm51-1-slo' },
+  { key: 'p5', name: 'glm51-1-prefill-p1', cluster: 'shanghai-online', role: 'prefill', namespace: 'production', ready: '1/1', status: 'Running', restart: 0, load: 89, performance: 95, image: 'sglang/sglang:latest', podIP: '10.0.1.8', node: 'nj-h20-001', nodeGPU: 'H20 141G × 8', gpuUtil: 85, gpuVram: 73, age: '15d', trafficSource: 'glm51-1-slo', ttftP50: 320, ttftP99: 580, ttftHistory: [310,325,340,335,315,305,298,320,345,360,350,330,315,308,295,318,340,355,345,325,310,302,325,348,365,370,358,340,322,310,300,315,338,355,360,345,328,312,305,298,315,335,355,370,375,362,342,325,312,305,320,340,358,350,332,315,302,310,330,345] },
+  { key: 'p6', name: 'glm51-1-prefill-p2', cluster: 'shanghai-online', role: 'prefill', namespace: 'production', ready: '1/1', status: 'Running', restart: 1, load: 84, performance: 91, image: 'sglang/sglang:latest', podIP: '10.0.1.9', node: 'nj-h20-001', nodeGPU: 'H20 141G × 8', gpuUtil: 82, gpuVram: 70, age: '14d', trafficSource: 'glm51-1-slo', ttftP50: 305, ttftP99: 560, ttftHistory: [295,310,325,320,300,290,285,308,332,348,338,318,302,292,282,305,328,342,332,312,298,288,310,335,352,358,345,326,310,298,288,302,325,342,348,332,315,300,290,282,300,322,342,358,362,350,330,312,300,288,305,328,345,338,318,302,290,298,318,332] },
   { key: 'p7', name: 'glm-air-batch-p1', cluster: 'guangzhou-test', role: 'other', namespace: 'batch', ready: '1/1', status: 'Running', restart: 3, load: 45, performance: 63, image: 'vllm/vllm-openai:latest', podIP: '10.0.3.22', node: 'gz-l20-001', nodeGPU: 'L20 48G × 4', gpuUtil: 54, gpuVram: 66, age: '6d', trafficSource: 'glm-air-batch' },
   { key: 'p8', name: 'glm-air-batch-p2', cluster: 'guangzhou-test', role: 'other', namespace: 'batch', ready: '0/1', status: 'Pending', restart: 5, load: 0, performance: 0, image: 'vllm/vllm-openai:latest', podIP: '10.0.3.23', node: 'gz-l20-001', nodeGPU: 'L20 48G × 4', gpuUtil: 0, gpuVram: 0, age: '6d', trafficSource: 'glm-air-batch' },
-  { key: 'p9', name: 'kimi-router-canary-p1', cluster: 'wuhan-kunpeng', role: 'router', namespace: 'canary', ready: '1/1', status: 'Running', restart: 0, load: 52, performance: 74, image: 'mindie/mindie:latest', podIP: '10.0.4.5', node: 'nj-910b-001', nodeGPU: 'Ascend 910B × 8', gpuUtil: 61, gpuVram: 52, age: '5d', trafficSource: 'kimi-router-canary' },
-  { key: 'p10', name: 'kimi-router-canary-p2', cluster: 'wuhan-kunpeng', role: 'router', namespace: 'canary', ready: '1/1', status: 'Running', restart: 1, load: 48, performance: 71, image: 'mindie/mindie:latest', podIP: '10.0.4.6', node: 'nj-910b-001', nodeGPU: 'Ascend 910B × 8', gpuUtil: 57, gpuVram: 48, age: '4d', trafficSource: 'kimi-router-canary' },
+  { key: 'p9', name: 'kimi-router-canary-p1', cluster: 'wuhan-kunpeng', role: 'router', namespace: 'canary', ready: '1/1', status: 'Running', restart: 0, load: 52, performance: 74, image: 'mindie/mindie:latest', podIP: '10.0.4.5', node: 'nj-910b-001', nodeGPU: 'Ascend 910B × 8', gpuUtil: 61, gpuVram: 52, age: '5d', trafficSource: 'kimi-router-canary', ttftP50: 180, ttftP99: 350, ttftHistory: [172,185,195,190,178,168,162,182,198,210,205,188,175,165,158,178,195,208,202,185,172,162,180,198,212,218,208,192,178,168,158,172,192,208,215,200,182,170,162,155,172,190,208,218,222,210,195,180,168,158,175,192,210,205,188,175,162,170,185,200] },
+  { key: 'p10', name: 'kimi-router-canary-p2', cluster: 'wuhan-kunpeng', role: 'router', namespace: 'canary', ready: '1/1', status: 'Running', restart: 1, load: 48, performance: 71, image: 'mindie/mindie:latest', podIP: '10.0.4.6', node: 'nj-910b-001', nodeGPU: 'Ascend 910B × 8', gpuUtil: 57, gpuVram: 48, age: '4d', trafficSource: 'kimi-router-canary', ttftP50: 165, ttftP99: 320, ttftHistory: [158,170,182,178,162,155,150,168,185,198,190,175,162,152,145,165,182,195,188,172,158,150,168,185,200,205,195,180,165,155,148,160,178,195,202,188,170,158,150,142,160,178,195,205,210,198,182,168,155,145,162,178,195,190,172,160,148,155,172,188] },
   { key: 'p11', name: 'deepseek-prod-r1-p3', cluster: 'shanghai-online', role: 'decode', namespace: 'production', ready: '1/1', status: 'Running', restart: 0, load: 75, performance: 90, image: 'vllm/vllm-openai:latest', podIP: '10.0.2.18', node: 'nj-h20-002', nodeGPU: 'H20 141G × 8', gpuUtil: 74, gpuVram: 66, age: '9d', trafficSource: 'rbg-deepseek-prod', tpotP50: 70, tpotP99: 96, tpotHistory: [66,69,72,74,71,67,65,69,73,76,74,71,68,66,63,67,71,74,72,69,66,65,68,73,76,79,77,74,71,69,66,64,67,71,74,76,74,71,69,66,64,68,71,74,77,79,77,75,72,69,67,69,72,75,73,70,67,64,68,71] },
   { key: 'p12', name: 'deepseek-dev-p1', cluster: 'beijing-prod', role: 'decode', namespace: 'development', ready: '1/1', status: 'Running', restart: 0, load: 28, performance: 55, image: 'vllm/vllm-openai:latest', podIP: '10.0.5.2', node: 'qujing4', nodeGPU: 'A100 80G × 4', gpuUtil: 36, gpuVram: 42, age: '2d', trafficSource: 'deepseek-dev', tpotP50: 42, tpotP99: 65, tpotHistory: [40,42,44,43,41,39,38,41,44,46,45,42,40,38,37,40,43,45,44,41,39,38,41,44,46,48,46,44,42,40,38,37,40,43,45,47,45,43,41,39,37,40,43,46,48,49,47,45,42,40,38,41,43,46,44,41,39,37,40,42] },
   { key: 'p13', name: 'deepseek-dev-p2', cluster: 'beijing-prod', role: 'decode', namespace: 'development', ready: '1/1', status: 'Running', restart: 2, load: 24, performance: 48, image: 'vllm/vllm-openai:latest', podIP: '10.0.5.3', node: 'qujing7', nodeGPU: 'A100 80G × 4', gpuUtil: 31, gpuVram: 38, age: '1d', trafficSource: 'deepseek-dev', tpotP50: 39, tpotP99: 60, tpotHistory: [37,39,41,40,38,36,35,38,41,43,42,39,37,35,34,37,40,42,41,38,36,35,38,41,43,45,43,41,39,37,35,34,37,40,42,44,42,40,38,36,34,37,40,43,45,46,44,42,39,37,35,38,40,43,41,38,36,34,37,39] },
   { key: 'p14', name: 'qwen2-demo-p1', cluster: 'beijing-prod', role: 'other', namespace: 'demo', ready: '1/1', status: 'Running', restart: 0, load: 18, performance: 42, image: 'sglang/sglang:latest', podIP: '10.0.5.4', node: 'qujing4', nodeGPU: 'A100 80G × 4', gpuUtil: 24, gpuVram: 32, age: '3d', trafficSource: 'qwen2-demo' },
   { key: 'p15', name: 'qwen2-demo-p2', cluster: 'beijing-prod', role: 'other', namespace: 'demo', ready: '0/1', status: 'Failed', restart: 8, load: 0, performance: 0, image: 'sglang/sglang:latest', podIP: '10.0.5.5', node: 'qujing4', nodeGPU: 'A100 80G × 4', gpuUtil: 0, gpuVram: 0, age: '3d', trafficSource: 'qwen2-demo' },
-  { key: 'p16', name: 'mistral-prod-p1', cluster: 'shanghai-online', role: 'prefill', namespace: 'production', ready: '1/1', status: 'Running', restart: 0, load: 82, performance: 93, image: 'sglang/sglang:latest', podIP: '10.0.1.20', node: 'nj-h20-001', nodeGPU: 'H20 141G × 8', gpuUtil: 79, gpuVram: 67, age: '20d', trafficSource: 'mistral-vllm-slo' },
+  { key: 'p16', name: 'mistral-prod-p1', cluster: 'shanghai-online', role: 'prefill', namespace: 'production', ready: '1/1', status: 'Running', restart: 0, load: 82, performance: 93, image: 'sglang/sglang:latest', podIP: '10.0.1.20', node: 'nj-h20-001', nodeGPU: 'H20 141G × 8', gpuUtil: 79, gpuVram: 67, age: '20d', trafficSource: 'mistral-vllm-slo', ttftP50: 280, ttftP99: 520, ttftHistory: [272,285,298,292,278,268,260,282,305,320,310,290,275,265,255,278,300,315,305,285,270,260,282,305,322,328,315,298,280,268,258,272,295,312,318,302,285,270,262,252,270,292,312,328,332,318,300,282,270,258,275,298,315,308,290,275,262,270,288,302] },
 ];
 
 const podYamlTemplates = [
@@ -11172,25 +11175,31 @@ const AtAasDesign = () => {
           { title: 'Restarts', dataIndex: 'restart', key: 'restart', width: 75, render: (v) => <span style={{ color: v > 5 ? '#E02D2D' : v > 2 ? '#FA8C16' : '#4E5969' }}>{v}</span> },
           { title: '负载', dataIndex: 'load', key: 'load', width: 60, render: (v) => v > 0 ? <span style={{ fontSize: 13, fontWeight: 500, color: v > 80 ? '#E02D2D' : v > 60 ? '#FA8C16' : '#3CC27B' }}>{v}</span> : <span style={{ color: '#C9CDD4' }}>-</span> },
           { title: '性能（60s）', dataIndex: 'performance', key: 'performance', width: 190, render: (v, record) => {
-            if (record.role === 'decode' && record.tpotHistory) {
-              const hist = record.tpotHistory;
+            const isDecode = record.role === 'decode' && record.tpotHistory;
+            const hasTtft = (record.role === 'prefill' || record.role === 'router') && record.ttftHistory;
+            if (isDecode || hasTtft) {
+              const label = isDecode ? 'TPOT' : 'TTFT';
+              const hist = isDecode ? record.tpotHistory! : record.ttftHistory!;
+              const p50 = isDecode ? record.tpotP50! : record.ttftP50!;
+              const p99 = isDecode ? record.tpotP99! : record.ttftP99!;
               const min = Math.min(...hist), max = Math.max(...hist), range = max - min || 1;
               const w = 120, h = 32;
+              const gradId = 'sparkGrad_' + record.key;
               const pts = hist.map((val, i) => `${(i / (hist.length - 1)) * w},${h - ((val - min) / range) * (h - 4) - 2}`).join(' ');
               return (
                 <Tooltip
                   title={
                     <div style={{ padding: 4 }}>
-                      <div style={{ fontSize: 11, color: '#aaa', marginBottom: 4 }}>TPOT - 过去 60s</div>
+                      <div style={{ fontSize: 11, color: '#aaa', marginBottom: 4 }}>{label} - 过去 60s</div>
                       <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-                        <defs><linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#3CC27B" stopOpacity="0.2" /><stop offset="100%" stopColor="#3CC27B" stopOpacity="0" /></linearGradient></defs>
-                        <polygon points={`0,${h} ${pts} ${w},${h}`} fill="url(#sparkGrad)" />
+                        <defs><linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#3CC27B" stopOpacity="0.2" /><stop offset="100%" stopColor="#3CC27B" stopOpacity="0" /></linearGradient></defs>
+                        <polygon points={`0,${h} ${pts} ${w},${h}`} fill={`url(#${gradId})`} />
                         <polyline points={pts} fill="none" stroke="#3CC27B" strokeWidth="1.5" />
                       </svg>
                     </div>
                   }
                 >
-                  <span style={{ fontSize: 12, color: '#4E5969', cursor: 'pointer', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>tpot p50 {record.tpotP50}ms / p99 {record.tpotP99}ms</span>
+                  <span style={{ fontSize: 12, color: '#4E5969', cursor: 'pointer', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{label.toLowerCase()} p50 {p50}ms / p99 {p99}ms</span>
                 </Tooltip>
               );
             }
