@@ -6359,25 +6359,20 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 .ataas-model-ops-role-count {
   display: inline-flex;
   align-items: center;
-  color: #1D2129;
   font-size: 13px;
-  font-weight: 400;
+  font-weight: 500;
   line-height: 20px;
 
   &::before {
     display: none;
   }
 
-  &.router {
-    color: #1D2129;
+  &.ready {
+    color: #18A957;
   }
 
-  &.prefill {
-    color: #1D2129;
-  }
-
-  &.decode {
-    color: #1D2129;
+  &.warning {
+    color: #E02D2D;
   }
 }
 
@@ -19591,13 +19586,26 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
     z-index: 4;
   }
 
-  .ataas-model-ops-role-count,
   .ataas-model-ops-perf-value,
   .ataas-model-ops-weight-pill {
     color: #1D2129 !important;
     font-size: 13px !important;
     font-weight: 400 !important;
     line-height: 20px !important;
+  }
+
+  .ataas-model-ops-role-count {
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    line-height: 20px !important;
+  }
+
+  .ataas-model-ops-role-count.ready {
+    color: #18A957 !important;
+  }
+
+  .ataas-model-ops-role-count.warning {
+    color: #E02D2D !important;
   }
 
   .ataas-model-ops-role-count::before {
