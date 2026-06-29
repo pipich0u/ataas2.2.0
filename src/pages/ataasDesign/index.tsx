@@ -10157,13 +10157,11 @@ const AtAasDesign = () => {
             ];
             const modelOpsTtftSpark = miniTrend.map((value, index) => value + activeModelServices.length * 3 + (index % 3) * 2);
             const modelOpsTpotSpark = miniTrend.map((value, index) => value / 4 + activeModelServices.length * 0.8 + (index % 2) * 0.4);
-            const renderModelOpsPerfSummary = (label: string, values: number[], current: string, p99: string) => (
+            const renderModelOpsPerfSummary = (label: string, values: number[], current: string) => (
               <div className="ataas-model-ops-perf-summary-item">
                 <span className="ataas-model-ops-perf-summary-label">{label}</span>
                 <TinySparkline values={values} />
                 <strong>{current}</strong>
-                <em>p99</em>
-                <span>{p99}</span>
               </div>
             );
             const renderModelOpsNodePopover = (nodes: Array<{ name: string; color: string }>, label: string) => (
@@ -10220,8 +10218,8 @@ const AtAasDesign = () => {
                       <div className="ataas-model-ops-perf-topbar">
                         <button type="button" className="ataas-model-ops-perf-summary" onClick={() => setModelOpsPerfExpanded((value) => !value)}>
                           <div className="ataas-model-ops-perf-summary-metrics">
-                            {renderModelOpsPerfSummary('TTFT', modelOpsTtftSpark, String(3600 + activeModelServices.length * 175), String(24800 + activeModelServices.length * 810))}
-                            {renderModelOpsPerfSummary('TPOT', modelOpsTpotSpark, (18.5 + activeModelServices.length * 0.6).toFixed(1), (29.5 + activeModelServices.length * 0.8).toFixed(1))}
+                            {renderModelOpsPerfSummary('TTFT', modelOpsTtftSpark, String(3600 + activeModelServices.length * 175))}
+                            {renderModelOpsPerfSummary('TPOT', modelOpsTpotSpark, (18.5 + activeModelServices.length * 0.6).toFixed(1))}
                           </div>
                           <span className="ataas-model-ops-perf-toggle">
                             <DownOutlined />
