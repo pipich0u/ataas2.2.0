@@ -6241,6 +6241,121 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   border-color: #C4B5FD;
 }
 
+.ataas-scale-role-list {
+  display: grid;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.ataas-scale-role-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+  min-height: 64px;
+  padding: 12px 14px;
+  border: 1px solid #E5E6EB;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.ataas-scale-role-main {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 14px;
+
+  strong {
+    color: #1D2129;
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 22px;
+  }
+
+  span:not(.ataas-scale-role-badge) {
+    margin-left: 18px;
+    color: #8A8F99;
+    font-size: 13px;
+    line-height: 20px;
+  }
+
+  em {
+    color: #8A8F99;
+    font-size: 14px;
+    font-style: normal;
+    line-height: 22px;
+  }
+}
+
+.ataas-scale-role-badge {
+  display: inline-flex;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+
+  &.role-r {
+    background: #F2F6FF;
+    color: #2563EB;
+  }
+
+  &.role-p {
+    background: #F7F0FF;
+    color: #8B3DFF;
+  }
+
+  &.role-d {
+    background: #ECFDF3;
+    color: #18A957;
+  }
+}
+
+.ataas-scale-role-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  > span {
+    color: #8A8F99;
+    font-size: 13px;
+    line-height: 20px;
+  }
+}
+
+.ataas-scale-count-input.ant-input-number {
+  width: 96px;
+  height: 38px;
+  border-radius: 8px;
+
+  .ant-input-number-input {
+    height: 36px;
+    text-align: center;
+    font-size: 14px;
+  }
+}
+
+.ataas-scale-node-button.ant-btn {
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 8px;
+  color: #6738E8;
+
+  &:disabled {
+    color: #C9CDD4;
+  }
+}
+
+.ataas-scale-role-change-summary {
+  min-height: 24px;
+  color: #8A8F99;
+  font-size: 13px;
+  line-height: 22px;
+}
+
 .ataas-model-ops-role-count {
   display: inline-flex;
   align-items: center;

@@ -6789,13 +6789,97 @@ const AtAasDesign = () => {
   const addInstPrefillFileInputRef = useRef<HTMLInputElement>(null);
   const addInstDecodeFileInputRef = useRef<HTMLInputElement>(null);
 
+  const getScalePdCurrentCounts = (item: DeployServiceItem | null) => {
+    const detailCount = Math.max(1, item?.modelInfo.number || 1);
+    return {
+      router: 1,
+      prefill: item?.deployMode === 'PD 分离' ? Math.max(1, detailCount * 2) : detailCount,
+      decode: 1,
+    };
+  };
+  const getScalePdNextCount = (role: 'router' | 'prefill' | 'decode') => (
+    role === 'router' ? scalePdRouterCount : role === 'prefill' ? scalePdPrefillCount : scalePdDecodeCount
+  );
+  const getScalePdSelectedNodes = (role: 'router' | 'prefill' | 'decode') => (
+    role === 'router' ? scalePdRouterNodes : role === 'prefill' ? scalePdPrefillNodes : scalePdDecodeNodes
+  );
+  const setScalePdSelectedNodes = (role: 'router' | 'prefill' | 'decode', nodes: string[]) => {
+    if (role === 'router') setScalePdRouterNodes(nodes);
+    else if (role === 'prefill') setScalePdPrefillNodes(nodes);
+    else setScalePdDecodeNodes(nodes);
+  };
+  const getScalePdNodeRequired = (role: 'router' | 'prefill' | 'decode') => {
+    const current = getScalePdCurrentCounts(scalePdTarget)[role];
+    return Math.max(0, getScalePdNextCount(role) - current);
+  };
+  const updateScalePdCount = (role: 'router' | 'prefill' | 'decode', value: number | null) => {
+    const nextValue = Math.max(0, Math.round(value ?? 0));
+    const current = getScalePdCurrentCounts(scalePdTarget)[role];
+    const required = Math.max(0, nextValue - current);
+    if (role === 'router') {
+      setScalePdRouterCount(nextValue);
+      setScalePdRouterNodes((prev) => prev.slice(0, required));
+    } else if (role === 'prefill') {
+      setScalePdPrefillCount(nextValue);
+      setScalePdPrefillNodes((prev) => prev.slice(0, required));
+    } else {
+      setScalePdDecodeCount(nextValue);
+      setScalePdDecodeNodes((prev) => prev.slice(0, required));
+    }
+  };
+  const openScaleNodePicker = (role: 'router' | 'prefill' | 'decode') => {
+    const required = getScalePdNodeRequired(role);
+    if (required <= 0) return;
+    setScaleNodePickerMode(role);
+    setScaleNodePickerSelected(getScalePdSelectedNodes(role).slice(0, required));
+    setScaleNodePickerOpen(true);
+  };
+  const renderScaleRoleRow = (
+    role: 'router' | 'prefill' | 'decode',
+    label: string,
+    badge: string,
+    count: number,
+  ) => {
+    const current = getScalePdCurrentCounts(scalePdTarget)[role];
+    const required = Math.max(0, count - current);
+    const selectedNodes = getScalePdSelectedNodes(role);
+    return (
+      <div className="ataas-scale-role-row">
+        <div className="ataas-scale-role-main">
+          <span className={'ataas-scale-role-badge role-' + badge.toLowerCase()}>{badge}</span>
+          <strong>{label}</strong>
+          <span>当前</span>
+          <em>{current}/{current}</em>
+        </div>
+        <div className="ataas-scale-role-controls">
+          <span>新值</span>
+          <InputNumber
+            min={0}
+            value={count}
+            onChange={(value) => updateScalePdCount(role, value)}
+            controls
+            className="ataas-scale-count-input"
+          />
+          <Button
+            className="ataas-scale-node-button"
+            disabled={required <= 0}
+            onClick={() => openScaleNodePicker(role)}
+          >
+            选择节点 {required > 0 ? `${selectedNodes.length}/${required}` : ''}
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
   const handleScalePd = (item: DeployServiceItem) => {
+    const current = getScalePdCurrentCounts(item);
     setScalePdTarget(item);
-    setScalePdRouterCount(1);
+    setScalePdRouterCount(current.router);
     setScalePdRouterNodes([]);
-    setScalePdPrefillCount(1);
+    setScalePdPrefillCount(current.prefill);
     setScalePdPrefillNodes([]);
-    setScalePdDecodeCount(1);
+    setScalePdDecodeCount(current.decode);
     setScalePdDecodeNodes([]);
 
     setScalePdOpen(true);
@@ -12893,81 +12977,22 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
           <Button type="primary" onClick={() => { alert('扩缩容提交成功！请等待部署完成。'); setScalePdOpen(false); }}>确认扩缩容</Button>
         </div>
       }>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Router */}
-          <div className="ataas-pd-section">
-            <div className="ataas-pd-section-header">
-              <SwapRightOutlined className="ataas-pd-section-header-icon" style={{ color: '#722ed1' }} />
-              <span>Router 扩容</span>
-            </div>
-            <div className="ataas-pd-section-body">
-              <div className="ataas-pd-section-row">
-                <div>
-                  <div className="ataas-pd-field-label">实例个数</div>
-                  <Input value={String(scalePdRouterCount)} onChange={(e) => { const n = parseInt(e.target.value); if (!isNaN(n) && n > 0) setScalePdRouterCount(n); }} style={{ width: 72 }} size="small" />
-                </div>
-                <div className="ataas-pd-divider" />
-                <div>
-                  <div className="ataas-pd-field-label">节点选择</div>
-                  <div className="ataas-pd-node-selector" onClick={() => { setScaleNodePickerMode('router'); setScaleNodePickerSelected([...scalePdRouterNodes]); setScaleNodePickerOpen(true); }}>
-                    {scalePdRouterNodes.length > 0 ? scalePdRouterNodes.map((k) => {
-                      const n = deployNodes.find((d) => d.key === k);
-                      return n ? <Tag key={k} closable onClose={(e) => { e.stopPropagation(); setScalePdRouterNodes((prev) => prev.filter((x) => x !== k)); }} className="ataas-pd-node-tag ataas-pd-node-tag-router">{n.name}</Tag> : null;
-                    }) : <span className="ataas-pd-node-placeholder">点击选择节点</span>}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          {/* Prefill */}
-          <div className="ataas-pd-section">
-            <div className="ataas-pd-section-header">
-              <ThunderboltOutlined className="ataas-pd-section-header-icon" style={{ color: '#6951FF' }} />
-              <span>Prefill 扩容</span>
-            </div>
-            <div className="ataas-pd-section-body">
-              <div className="ataas-pd-section-row">
-                <div>
-                  <div className="ataas-pd-field-label">实例个数</div>
-                  <Input value={String(scalePdPrefillCount)} onChange={(e) => { const n = parseInt(e.target.value); if (!isNaN(n) && n > 0) setScalePdPrefillCount(n); }} style={{ width: 72 }} size="small" />
-                </div>
-                <div className="ataas-pd-divider" />
-                <div>
-                  <div className="ataas-pd-field-label">节点选择</div>
-                  <div className="ataas-pd-node-selector" onClick={() => { setScaleNodePickerMode('prefill'); setScaleNodePickerSelected([...scalePdPrefillNodes]); setScaleNodePickerOpen(true); }}>
-                    {scalePdPrefillNodes.length > 0 ? scalePdPrefillNodes.map((k) => {
-                      const n = deployNodes.find((d) => d.key === k);
-                      return n ? <Tag key={k} closable onClose={(e) => { e.stopPropagation(); setScalePdPrefillNodes((prev) => prev.filter((x) => x !== k)); }} className="ataas-pd-node-tag ataas-pd-node-tag-prefill">{n.name}</Tag> : null;
-                    }) : <span className="ataas-pd-node-placeholder">点击选择节点</span>}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          {/* Decode */}
-          <div className="ataas-pd-section">
-            <div className="ataas-pd-section-header">
-              <BarChartOutlined className="ataas-pd-section-header-icon" style={{ color: '#722ed1' }} />
-              <span>Decode 扩容</span>
-            </div>
-            <div className="ataas-pd-section-body">
-              <div className="ataas-pd-section-row">
-                <div>
-                  <div className="ataas-pd-field-label">实例个数</div>
-                  <Input value={String(scalePdDecodeCount)} onChange={(e) => { const n = parseInt(e.target.value); if (!isNaN(n) && n > 0) setScalePdDecodeCount(n); }} style={{ width: 72 }} size="small" />
-                </div>
-                <div className="ataas-pd-divider" />
-                <div>
-                  <div className="ataas-pd-field-label">节点选择</div>
-                  <div className="ataas-pd-node-selector" onClick={() => { setScaleNodePickerMode('decode'); setScaleNodePickerSelected([...scalePdDecodeNodes]); setScaleNodePickerOpen(true); }}>
-                    {scalePdDecodeNodes.length > 0 ? scalePdDecodeNodes.map((k) => {
-                      const n = deployNodes.find((d) => d.key === k);
-                      return n ? <Tag key={k} closable onClose={(e) => { e.stopPropagation(); setScalePdDecodeNodes((prev) => prev.filter((x) => x !== k)); }} className="ataas-pd-node-tag ataas-pd-node-tag-decode">{n.name}</Tag> : null;
-                    }) : <span className="ataas-pd-node-placeholder">点击选择节点</span>}
-                  </div>
-                </div>
-              </div>
-            </div>
+        <div className="ataas-scale-role-list">
+          {renderScaleRoleRow('router', 'router', 'R', scalePdRouterCount)}
+          {renderScaleRoleRow('prefill', 'prefill', 'P', scalePdPrefillCount)}
+          {renderScaleRoleRow('decode', 'decode', 'D', scalePdDecodeCount)}
+          <div className="ataas-scale-role-change-summary">
+            {(() => {
+              const current = getScalePdCurrentCounts(scalePdTarget);
+              const required = getScalePdNodeRequired('router') + getScalePdNodeRequired('prefill') + getScalePdNodeRequired('decode');
+              const reduced = Math.max(0, current.router - scalePdRouterCount)
+                + Math.max(0, current.prefill - scalePdPrefillCount)
+                + Math.max(0, current.decode - scalePdDecodeCount);
+              const selected = scalePdRouterNodes.length + scalePdPrefillNodes.length + scalePdDecodeNodes.length;
+              if (required > 0) return `新增 ${required} 个实例，已选择 ${selected} 个节点`;
+              if (reduced > 0) return `减少 ${reduced} 个实例，无需选择节点`;
+              return '暂无变更';
+            })()}
           </div>
         </div>
       </Modal>
@@ -12976,11 +13001,14 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
           <Button onClick={() => setScaleNodePickerOpen(false)}>取消</Button>
           <Button type="primary" onClick={() => {
-            if (scaleNodePickerMode === 'router') setScalePdRouterNodes([...scaleNodePickerSelected]);
-            else if (scaleNodePickerMode === 'prefill') setScalePdPrefillNodes([...scaleNodePickerSelected]);
-            else if (scaleNodePickerMode === 'decode') setScalePdDecodeNodes([...scaleNodePickerSelected]);
+            const required = getScalePdNodeRequired(scaleNodePickerMode);
+            if (scaleNodePickerSelected.length !== required) {
+              message.warning(`需要选择 ${required} 个节点`);
+              return;
+            }
+            setScalePdSelectedNodes(scaleNodePickerMode, [...scaleNodePickerSelected]);
             setScaleNodePickerOpen(false);
-          }}>确认（{scaleNodePickerSelected.length}个）</Button>
+          }}>确认（{scaleNodePickerSelected.length}/{getScalePdNodeRequired(scaleNodePickerMode)}）</Button>
         </div>
       } width={600}>
         <Table
@@ -12990,15 +13018,23 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
             type: 'checkbox',
             selectedRowKeys: scaleNodePickerSelected,
             onSelect: (record) => {
+              const required = getScalePdNodeRequired(scaleNodePickerMode);
               setScaleNodePickerSelected((prev) =>
-                prev.includes(record.key) ? prev.filter((k) => k !== record.key) : [...prev, record.key]
+                prev.includes(record.key)
+                  ? prev.filter((k) => k !== record.key)
+                  : prev.length >= required
+                    ? (message.warning(`最多选择 ${required} 个节点`), prev)
+                    : [...prev, record.key]
               );
             },
             onSelectAll: (selected, _selectedRows, changeRows) => {
+              const required = getScalePdNodeRequired(scaleNodePickerMode);
               setScaleNodePickerSelected((prev) => {
                 const changeKeys = changeRows.map((r) => r.key);
                 if (selected) {
-                  return [...new Set([...prev, ...changeKeys])];
+                  const next = [...new Set([...prev, ...changeKeys])];
+                  if (next.length > required) message.warning(`最多选择 ${required} 个节点`);
+                  return next.slice(0, required);
                 }
                 return prev.filter((k) => !changeKeys.includes(k));
               });
