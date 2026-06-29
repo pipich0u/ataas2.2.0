@@ -10053,12 +10053,30 @@ const AtAasDesign = () => {
                 instanceName: service.name,
               };
             });
-            const clusterWeightGroups = routerRows.reduce<Array<{ cluster: string; routers: typeof routerRows }>>((groups, router) => {
+            const baseClusterWeightGroups = routerRows.reduce<Array<{ cluster: string; routers: typeof routerRows }>>((groups, router) => {
               const current = groups.find((group) => group.cluster === router.cluster);
               if (current) current.routers.push(router);
               else groups.push({ cluster: router.cluster, routers: [router] });
               return groups;
             }, []);
+            const clusterWeightGroups = baseClusterWeightGroups.map((group, groupIndex) => {
+              const tailIndex = groupIndex - Math.max(0, baseClusterWeightGroups.length - 2);
+              if (tailIndex < 0) return group;
+              const targetCount = tailIndex === 0 ? 12 : 14;
+              if (group.routers.length >= targetCount) return group;
+              const extraRouters = Array.from({ length: targetCount - group.routers.length }, (_, index) => {
+                const seq = group.routers.length + index + 1;
+                const prefix = group.routers[0]?.serviceName?.split('-router-')[0] || group.cluster;
+                return {
+                  key: `${group.cluster}-mock-router-${seq}`,
+                  cluster: group.cluster,
+                  serviceName: `${prefix}-mock-${seq}`,
+                  routerName: `${prefix}-router-${seq}`,
+                  instanceName: `${prefix}-mock-${seq}`,
+                };
+              });
+              return { ...group, routers: [...group.routers, ...extraRouters] };
+            });
             const getModelOpsServiceEntryName = (cluster: string) => {
               const normalize = (value: string) => value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'default';
               return `sve.${normalize(activeModelName)}.${normalize(cluster)}.local`;
