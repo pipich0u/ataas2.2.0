@@ -11189,10 +11189,10 @@ const AtAasDesign = () => {
               const pw = cw - ml - mr, ph = ch - mt - mb;
               const pts = hist.map((val, i) => `${ml + (i / (hist.length - 1)) * pw},${mt + ph - ((val - min) / range) * ph}`).join(' ');
               return (
-                <Tooltip
+                <Tooltip color="#fff"
                   title={
-                    <div style={{ background: '#fff', borderRadius: 8, padding: 0, fontSize: 12, color: '#1D2129' }}>
-                      <div style={{ padding: '10px 14px 4px', fontWeight: 600, fontSize: 13 }}>{label} · 60s p50 {p50} · p99 {p99} ms</div>
+                    <div style={{ borderRadius: 6, padding: 0, fontSize: 12, color: '#1D2129' }}>
+                      <div style={{ padding: '10px 14px 4px', fontWeight: 600, fontSize: 13, letterSpacing: 0.3 }}>{label}  ·  60s  ·  p50 {p50}  ·  p99 {p99} ms</div>
                       <svg width={cw} height={ch} viewBox={`0 0 ${cw} ${ch}`}>
                         <defs><linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#2B65D9" stopOpacity="0.12" /><stop offset="100%" stopColor="#2B65D9" stopOpacity="0.01" /></linearGradient></defs>
                         <line x1={ml} y1={mt} x2={ml + pw} y2={mt} stroke="#E8E8E8" strokeWidth="1" />
@@ -11209,7 +11209,6 @@ const AtAasDesign = () => {
                       </svg>
                     </div>
                   }
-                  styles={{ root: { padding: 0, background: '#fff', '--ant-color-bg-elevated': '#fff' } as any }}
                 >
                   <span style={{ fontSize: 12, color: '#4E5969', cursor: 'pointer', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{label.toLowerCase()} p50 {p50}ms / p99 {p99}ms</span>
                 </Tooltip>
