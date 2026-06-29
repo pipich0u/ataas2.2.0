@@ -10058,6 +10058,10 @@ const AtAasDesign = () => {
               else groups.push({ cluster: router.cluster, routers: [router] });
               return groups;
             }, []);
+            const getModelOpsServiceEntryName = (cluster: string) => {
+              const normalize = (value: string) => value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'default';
+              return `sve.${normalize(activeModelName)}.${normalize(cluster)}.local`;
+            };
             const getDefaultWeight = (routers: typeof routerRows, index: number) => {
               if (routers.length <= 1) return 100;
               const base = Math.floor(100 / routers.length);
@@ -10230,6 +10234,7 @@ const AtAasDesign = () => {
                               <thead>
                                 <tr>
                                   <th>集群</th>
+                                  <th>SVE</th>
                                   <th>组数量</th>
                                   {Array.from({ length: maxRouterCount }, (_, index) => <th key={index}>组{index + 1}</th>)}
                                   <th className="fixed-action">操作</th>
@@ -10245,6 +10250,11 @@ const AtAasDesign = () => {
 	                                <td className="ataas-model-ops-weight-cluster">
 	                                  <strong>{group.cluster}</strong>
 	                                </td>
+                                  <td>
+                                    <Tooltip title={getModelOpsServiceEntryName(group.cluster)}>
+                                      <span className="ataas-model-ops-weight-sve">{getModelOpsServiceEntryName(group.cluster)}</span>
+                                    </Tooltip>
+                                  </td>
                                   <td>{group.routers.length}</td>
                                   {Array.from({ length: maxRouterCount }, (_, index) => {
                                     const router = group.routers[index];
