@@ -6656,7 +6656,7 @@ const AtAasDesign = () => {
   const [modelOpsSelectedModel, setModelOpsSelectedModel] = useState('');
   const [modelOpsWeights, setModelOpsWeights] = useState<Record<string, number>>({});
   const [modelOpsWeightModalCluster, setModelOpsWeightModalCluster] = useState('');
-  const [modelOpsActiveTab, setModelOpsActiveTab] = useState<'weight' | 'detail'>('weight');
+  const [modelOpsActiveTab, setModelOpsActiveTab] = useState<'weight' | 'detail'>('detail');
   const [modelOpsPerfExpanded, setModelOpsPerfExpanded] = useState(false);
   const [deployMode, setDeployMode] = useState<string>('single');
   const [startupTemplateForm] = Form.useForm();
@@ -10141,17 +10141,17 @@ const AtAasDesign = () => {
                     <div className="ataas-model-ops-tabs">
                       <button
                         type="button"
-                        className={modelOpsActiveTab === 'weight' ? 'active' : ''}
-                        onClick={() => setModelOpsActiveTab('weight')}
-                      >
-                        组权重
-                      </button>
-                      <button
-                        type="button"
                         className={modelOpsActiveTab === 'detail' ? 'active' : ''}
                         onClick={() => setModelOpsActiveTab('detail')}
                       >
                         组详情
+                      </button>
+                      <button
+                        type="button"
+                        className={modelOpsActiveTab === 'weight' ? 'active' : ''}
+                        onClick={() => setModelOpsActiveTab('weight')}
+                      >
+                        组权重
                       </button>
                     </div>
                     {modelOpsActiveTab === 'weight' && (
@@ -10220,26 +10220,39 @@ const AtAasDesign = () => {
 		                    </div>
                     )}
                     {modelOpsActiveTab === 'detail' && (
-                    <DeployList
-                      mode="modelOps"
-                      data={activeModelServices}
-                      onDetail={handleDeployDetail}
-                      onStop={handleDeployStop}
-                      onMonitor={handleDeployMonitor}
-                      onExperience={handleDeployExperience}
-                      onLog={handleDeployLog}
-                      onDeleteInstance={handleDeployDeleteInstance}
-                      onAddInstance={handleDeployAddInstance}
-                      onOpenCreate={handleOpenCreate}
-                      onScalePd={handleScalePd}
-                      onNodeFilter={handleDeployNodeFilter}
-                      onScheduleDetail={handleScheduleDetail}
-                      viewModeValue={modelOpsListViewMode}
-                      onViewModeChange={setModelOpsListViewMode}
-                      clusterFilterValue={modelOpsClusterFilter}
-		                      onClusterFilterChange={setModelOpsClusterFilter}
-		                      getModelOpsRowWeight={getServiceWeight}
-		                    />
+                      <>
+                        <div className="ataas-model-ops-detail-toolbar">
+                          <Button
+                            className="ataas-deploy-create-button"
+                            type="primary"
+                            icon={<PlusOutlined />}
+                            disabled={activeModelServices.length === 0}
+                            onClick={() => activeModelServices[0] && handleDeployAddInstance(activeModelServices[0])}
+                          >
+                            添加实例
+                          </Button>
+                        </div>
+                        <DeployList
+                          mode="modelOps"
+                          data={activeModelServices}
+                          onDetail={handleDeployDetail}
+                          onStop={handleDeployStop}
+                          onMonitor={handleDeployMonitor}
+                          onExperience={handleDeployExperience}
+                          onLog={handleDeployLog}
+                          onDeleteInstance={handleDeployDeleteInstance}
+                          onAddInstance={handleDeployAddInstance}
+                          onOpenCreate={handleOpenCreate}
+                          onScalePd={handleScalePd}
+                          onNodeFilter={handleDeployNodeFilter}
+                          onScheduleDetail={handleScheduleDetail}
+                          viewModeValue={modelOpsListViewMode}
+                          onViewModeChange={setModelOpsListViewMode}
+                          clusterFilterValue={modelOpsClusterFilter}
+		                          onClusterFilterChange={setModelOpsClusterFilter}
+		                          getModelOpsRowWeight={getServiceWeight}
+		                        />
+                      </>
                     )}
 		                    <Modal
                         className="ataas-model-ops-weight-modal-shell"
