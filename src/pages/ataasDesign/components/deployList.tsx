@@ -1,7 +1,7 @@
 import { Button, ConfigProvider, Dropdown, Image, Input, InputNumber, message, Modal, Popconfirm, Select, Table, Tag, Tooltip } from 'antd';
 import type { ThemeConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { AppstoreOutlined, BarChartOutlined, BarsOutlined, CodeOutlined, FileSearchOutlined, InfoCircleOutlined, LinkOutlined, PlayCircleOutlined, PlusOutlined, PoweroffOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
+import { AppstoreOutlined, BarChartOutlined, BarsOutlined, CodeOutlined, DisconnectOutlined, FileSearchOutlined, InfoCircleOutlined, LinkOutlined, PlayCircleOutlined, PlusOutlined, PoweroffOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import deepseekLogo from '../deepseek-logo.svg';
@@ -679,13 +679,21 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
                       </td>
                       <td>
                         <div className="ataas-model-ops-row-actions">
-                          <Button size="small" icon={<FileSearchOutlined />} onClick={() => onLog(item, row.logId)}>日志</Button>
+                          <Tooltip title="日志">
+                            <Button className="ataas-model-ops-row-action-button" type="text" shape="circle" size="small" icon={<FileSearchOutlined />} onClick={() => onLog(item, row.logId)} />
+                          </Tooltip>
                           {row.role === 'R' ? (
-                            <Button className="warning" size="small">摘流</Button>
+                            <Tooltip title="摘流">
+                              <Button className="ataas-model-ops-row-action-button warning" type="text" shape="circle" size="small" icon={<DisconnectOutlined />} />
+                            </Tooltip>
                           ) : (
                             <>
-                              <Button className="warning" size="small">下线</Button>
-                              <Button className="link" size="small" onClick={() => openRouterLinkModal(item, row)}>关联</Button>
+                              <Tooltip title="下线">
+                                <Button className="ataas-model-ops-row-action-button warning" type="text" shape="circle" size="small" icon={<PoweroffOutlined />} />
+                              </Tooltip>
+                              <Tooltip title="关联">
+                                <Button className="ataas-model-ops-row-action-button link" type="text" shape="circle" size="small" icon={<LinkOutlined />} onClick={() => openRouterLinkModal(item, row)} />
+                              </Tooltip>
                             </>
                           )}
                         </div>

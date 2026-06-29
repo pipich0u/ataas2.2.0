@@ -7024,25 +7024,52 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 .ataas-model-ops-row-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 6px;
 
   .ant-btn {
+    width: 30px;
+    min-width: 30px;
     height: 30px;
-    padding: 0 10px;
-    border-radius: 8px;
+    padding: 0;
+    border: 1px solid #E5E6EB;
+    border-radius: 50%;
+    background: #fff;
+    color: #4E5969;
     box-shadow: none;
+
+    .anticon {
+      font-size: 15px;
+    }
+
+    &:hover {
+      border-color: #D8DCE5;
+      background: #F7F8FA;
+      color: #1D2129;
+    }
   }
 
   .ant-btn.warning {
     border-color: #FFE1A6;
     background: #FFF8E8;
     color: #D98500;
+
+    &:hover {
+      border-color: #FFD37A;
+      background: #FFF3D6;
+      color: #B76B00;
+    }
   }
 
   .ant-btn.link {
     border-color: #DDD0FF;
     background: #F5F0FF;
     color: #7C3AED;
+
+    &:hover {
+      border-color: #C7B6FF;
+      background: #EFE7FF;
+      color: #6738E8;
+    }
   }
 }
 
