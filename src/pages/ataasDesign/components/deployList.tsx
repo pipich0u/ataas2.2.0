@@ -813,6 +813,10 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
   const getModelOpsPerfSummary = (item: DeployServiceItem) => ({
     ttft: 11800 + item.id * 817,
     tpot: (18 + (item.id % 7) * 1.6).toFixed(1),
+    prefillTps: 680 + (item.id % 9) * 37,
+    decodeTps: 420 + (item.id % 8) * 29,
+    routherRps: 1300 + (item.id % 11) * 86,
+    hitRate: `${(92 + (item.id % 7) * 0.8).toFixed(1)}%`,
   });
 
   const getModelOpsRouterCandidates = (item: DeployServiceItem) => {
@@ -865,7 +869,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
   ];
 
   const modelOpsTableColumns: ColumnsType<DeployServiceItem> = [
-    { title: 'PD组名', dataIndex: 'name', key: 'name', width: 210, render: (v, r) => <><span className="ataas-deploy-table-main">{v}</span><div className="ataas-deploy-table-sub">{r.serviceGroupName || r.modelInfo.engine}</div></> },
+    { title: 'PD组名', dataIndex: 'name', key: 'name', width: 150, render: (v) => <span className="ataas-deploy-table-main">{v}</span> },
     { title: '集群', key: 'cluster', width: 150, render: (_, r) => <span className="ataas-deploy-table-cluster">{getDeployClusterName(r)}</span> },
     { title: '状态', key: 'status', width: 110, render: (_, r) => <TableStatus item={r} /> },
     { title: 'Router', key: 'router', width: 100, render: (_, r) => renderModelOpsRoleCount(getModelOpsRoleSummary(r).router, 'router') },
@@ -873,6 +877,10 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
     { title: 'Decode', key: 'decode', width: 100, render: (_, r) => renderModelOpsRoleCount(getModelOpsRoleSummary(r).decode, 'decode') },
     { title: 'TTFT', key: 'ttft', width: 92, render: (_, r) => <span className="ataas-model-ops-perf-value">{getModelOpsPerfSummary(r).ttft}</span> },
     { title: 'TPOT', key: 'tpot', width: 92, render: (_, r) => <span className="ataas-model-ops-perf-value">{getModelOpsPerfSummary(r).tpot}</span> },
+    { title: 'Prefill TPS', key: 'prefillTps', width: 120, render: (_, r) => <span className="ataas-model-ops-perf-value">{getModelOpsPerfSummary(r).prefillTps}</span> },
+    { title: 'Decode TPS', key: 'decodeTps', width: 120, render: (_, r) => <span className="ataas-model-ops-perf-value">{getModelOpsPerfSummary(r).decodeTps}</span> },
+    { title: 'Routher RPS', key: 'routherRps', width: 120, render: (_, r) => <span className="ataas-model-ops-perf-value">{getModelOpsPerfSummary(r).routherRps}</span> },
+    { title: 'Hit%', key: 'hitRate', width: 90, render: (_, r) => <span className="ataas-model-ops-perf-value">{getModelOpsPerfSummary(r).hitRate}</span> },
     { title: '当前权重', key: 'weight', width: 110, render: (_, r) => <span className="ataas-model-ops-weight-pill">{getModelOpsRowWeight?.(r) ?? 100}%</span> },
     { title: '操作', key: 'action', width: 150, fixed: 'right' as const, className: 'ataas-deploy-fixed-action-cell', render: (_, r) => (
       <div className="ataas-model-ops-table-actions">
@@ -1005,7 +1013,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
         </div>
       ) : (
           <div className={`ataas-deploy-table-wrap${mode === 'modelOps' ? ' ataas-model-ops-detail-table-wrap' : ''}`}>
-            <Table dataSource={paginated} rowKey="id" pagination={{ pageSize: 10, showTotal: (t) => `共 ${t} 条`, showSizeChanger: true }} scroll={{ x: mode === 'modelOps' ? 1320 : 1180 }}
+            <Table dataSource={paginated} rowKey="id" pagination={{ pageSize: 10, showTotal: (t) => `共 ${t} 条`, showSizeChanger: true }} scroll={{ x: mode === 'modelOps' ? 1780 : 1180 }}
             expandable={{
               expandedRowKeys: expandedServiceIds,
               onExpand: (expanded, record) => {
