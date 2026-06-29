@@ -6695,6 +6695,8 @@ const AtAasDesign = () => {
   const [deployDetailModalOpen, setDeployDetailModalOpen] = useState(false);
   const [deployDetailExtraNodes, setDeployDetailExtraNodes] = useState<ExtraInstanceInfo[]>([]);
   const [detailTrafficEnabled, setDetailTrafficEnabled] = useState(false);
+  const [deployLogModal, setDeployLogModal] = useState<{ podName: string; namespace: string; lines: string[]; follow: boolean } | null>(null);
+  const deployLogBodyRef = useRef<HTMLPreElement | null>(null);
   const resetGatewayTrafficByCount = (count: number) => {
     const safeCount = Math.max(1, count);
     if (safeCount <= 1) {
@@ -6766,9 +6768,62 @@ const AtAasDesign = () => {
     setActiveTab(target.tab);
     window.history.replaceState(null, '', target.path);
   };
-  const handleDeployLog = (item: DeployServiceItem, logId: number) => {
-    message.info('查看日志: ' + item.name + ' - ' + (item.modelInfo.logs.find((l) => l.id === logId)?.name || ''));
+  const createDeployPodLogLines = (podName: string, start: number, count: number) => {
+    const pad = (value: number) => String(value).padStart(2, '0');
+    const base = new Date('2026-06-29T13:09:35');
+    const templates = [
+      'INFO:        10.25.110.224:59532 - "GET /metrics HTTP/1.1" 200 OK',
+      'ATTN_CP{lane} TP{lane} Req Time Stats(rid={rid}, bootstrap_room={room}, input_len={input}, output_len=1, type=prefill): bootstrap_queue_duration({boot}.74ms) = bootstrap({boot}.73ms) + alloc_wait(0.02ms); queue_duration={queue}ms, forward_duration={forward}ms, transfer_speed={speed}GB/s, transfer_total={total}MB, #retries=0',
+      'Prefill batch, #new-seq: {seq}, #new-token: {token}, #cached-token: {cached}, token usage: 0.02, #running-req: 0, #queue-req: 0, #prealloc-req: 0, #inflight-req: 1, cuda graph: False, input throughput (token/s): {throughput}',
+      'INFO:        10.25.110.35:58620 - "POST /v1/chat/completions HTTP/1.1" 200 OK',
+    ];
+    return Array.from({ length: count }, (_, index) => {
+      const seq = start + index;
+      const time = new Date(base.getTime() + seq * 1000);
+      const stamp = `${time.getFullYear()}-${pad(time.getMonth() + 1)}-${pad(time.getDate())} ${pad(time.getHours())}:${pad(time.getMinutes())}:${pad(time.getSeconds())}`;
+      const lane = seq % 8;
+      const rid = `${podName.replace(/[^a-z0-9]/gi, '').slice(0, 8)}${String(seq).padStart(4, '0')}`;
+      const line = templates[seq % templates.length]
+        .replaceAll('{lane}', String(lane))
+        .replace('{rid}', rid)
+        .replace('{room}', String(4783591193743515556 + seq * 97))
+        .replace('{input}', String(71750 + seq * 141))
+        .replaceAll('{boot}', (44 + (seq % 70)).toFixed(0))
+        .replace('{queue}', (2.8 + (seq % 9) * 0.31).toFixed(2))
+        .replace('{forward}', (508 + (seq % 13) * 5.17).toFixed(2))
+        .replace('{speed}', (2.7 + (seq % 11) * 0.13).toFixed(2))
+        .replace('{total}', (355 + (seq % 8) * 42.91).toFixed(2))
+        .replace('{seq}', String(1 + (seq % 3)))
+        .replace('{token}', String(768 + (seq % 12) * 2304))
+        .replace('{cached}', String(33408 + (seq % 9) * 1564))
+        .replace('{throughput}', (159.98 + (seq % 17) * 612.31).toFixed(2));
+      return `[${stamp}] ${line}`;
+    });
   };
+  const handleDeployLog = (item: DeployServiceItem, logId: number, podName?: string) => {
+    const logName = item.modelInfo.logs.find((log) => log.id === logId)?.name || '运行日志';
+    const resolvedPodName = podName || logName.replace(/\s*日志$/, '').replace(/\s+/g, '-') || `${item.name}-pod-0`;
+    setDeployLogModal({
+      podName: resolvedPodName,
+      namespace: 'default',
+      follow: true,
+      lines: createDeployPodLogLines(resolvedPodName, 0, 113),
+    });
+  };
+  useEffect(() => {
+    if (!deployLogModal) return undefined;
+    const timer = window.setInterval(() => {
+      setDeployLogModal((prev) => prev ? {
+        ...prev,
+        lines: [...prev.lines, ...createDeployPodLogLines(prev.podName, prev.lines.length, 2)].slice(-180),
+      } : prev);
+    }, 1800);
+    return () => window.clearInterval(timer);
+  }, [deployLogModal?.podName]);
+  useEffect(() => {
+    if (!deployLogModal?.follow || !deployLogBodyRef.current) return;
+    deployLogBodyRef.current.scrollTop = deployLogBodyRef.current.scrollHeight;
+  }, [deployLogModal?.lines.length, deployLogModal?.follow]);
   const [scalePdOpen, setScalePdOpen] = useState(false);
   const [scalePdTarget, setScalePdTarget] = useState<DeployServiceItem | null>(null);
 
@@ -13824,6 +13879,39 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
             })
           )}
         </div>
+      </Modal>
+      <Modal
+        className="ataas-deploy-realtime-log-modal"
+        title={deployLogModal ? (
+          <div className="ataas-deploy-realtime-log-title">
+            <FileSearchOutlined />
+            <strong>日志</strong>
+            <em>{deployLogModal.podName}</em>
+            <span>{deployLogModal.namespace}</span>
+          </div>
+        ) : '日志'}
+        open={!!deployLogModal}
+        width="96vw"
+        footer={null}
+        destroyOnClose
+        onCancel={() => setDeployLogModal(null)}
+      >
+        {deployLogModal && (
+          <div className="ataas-deploy-realtime-log">
+            <div className="ataas-deploy-realtime-log-toolbar">
+              <button
+                type="button"
+                className={deployLogModal.follow ? 'active' : ''}
+                onClick={() => setDeployLogModal((prev) => prev ? { ...prev, follow: !prev.follow } : prev)}
+              >
+                <i />
+                跟随
+              </button>
+              <span>{deployLogModal.lines.length} 行</span>
+            </div>
+            <pre ref={deployLogBodyRef}>{deployLogModal.lines.join('\n')}</pre>
+          </div>
+        )}
       </Modal>
     </div>
   );

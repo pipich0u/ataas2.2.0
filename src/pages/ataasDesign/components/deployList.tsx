@@ -1,4 +1,4 @@
-import { Button, ConfigProvider, Dropdown, Image, Input, InputNumber, message, Modal, Popconfirm, Select, Table, Tag, Tooltip } from 'antd';
+import { Button, ConfigProvider, Dropdown, Image, Input, InputNumber, message, Modal, Popconfirm, Select, Slider, Table, Tag, Tooltip } from 'antd';
 import type { ThemeConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { AppstoreOutlined, BarChartOutlined, BarsOutlined, CodeOutlined, DisconnectOutlined, FileSearchOutlined, InfoCircleOutlined, LinkOutlined, PlayCircleOutlined, PlusOutlined, PoweroffOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
@@ -211,7 +211,7 @@ interface DeployListProps {
   onStop: (item: DeployServiceItem) => void;
   onMonitor: (item: DeployServiceItem) => void;
   onExperience: (item: DeployServiceItem) => void;
-  onLog: (item: DeployServiceItem, logId: number) => void;
+  onLog: (item: DeployServiceItem, logId: number, podName?: string) => void;
   onDeleteInstance?: (item: DeployServiceItem, instanceIndex: number) => void;
   onAddInstance?: (item: DeployServiceItem) => void;
   onOpenCreate: () => void;
@@ -239,6 +239,12 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
   const [expandedServiceIds, setExpandedServiceIds] = useState<number[]>([]);
   const [inlineGatewayConfigs, setInlineGatewayConfigs] = useState<Record<number, InlineGatewayConfig>>({});
   const [routerLinkModal, setRouterLinkModal] = useState<{ item: DeployServiceItem; row: any; selected: string[] } | null>(null);
+  const [drainWeightModal, setDrainWeightModal] = useState<{
+    item: DeployServiceItem;
+    row: any;
+    routers: Array<{ key: string; routerName: string; groupName: string; cluster: string }>;
+    weights: Record<string, number>;
+  } | null>(null);
   const runtimeBaseRef = useRef(Date.now());
   const modelInfoHoveringRef = useRef(false);
 
@@ -680,11 +686,11 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
                       <td>
                         <div className="ataas-model-ops-row-actions">
                           <Tooltip title="日志">
-                            <Button className="ataas-model-ops-row-action-button" type="text" shape="circle" size="small" icon={<FileSearchOutlined />} onClick={() => onLog(item, row.logId)} />
+                            <Button className="ataas-model-ops-row-action-button" type="text" shape="circle" size="small" icon={<FileSearchOutlined />} onClick={() => onLog(item, row.logId, row.podName)} />
                           </Tooltip>
                           {row.role === 'R' ? (
                             <Tooltip title="摘流">
-                              <Button className="ataas-model-ops-row-action-button warning" type="text" shape="circle" size="small" icon={<DisconnectOutlined />} />
+                              <Button className="ataas-model-ops-row-action-button warning" type="text" shape="circle" size="small" icon={<DisconnectOutlined />} onClick={() => openDrainWeightModal(item, row)} />
                             </Tooltip>
                           ) : (
                             <>
@@ -838,6 +844,77 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
         groupName: service.name,
         cluster: getDeployClusterName(service),
       }));
+  };
+
+  const getModelOpsDrainRouters = (item: DeployServiceItem) => {
+    const cluster = getDeployClusterName(item);
+    const modelName = item.modelInfo.name;
+    return data
+      .filter((service) => service.modelInfo.name === modelName && getDeployClusterName(service) === cluster)
+      .map((service) => ({
+        key: `${service.id}-router-0`,
+        routerName: `${service.name}-router-0`,
+        groupName: service.name,
+        cluster: getDeployClusterName(service),
+        service,
+      }));
+  };
+
+  const getDefaultDrainWeights = (routers: ReturnType<typeof getModelOpsDrainRouters>) => {
+    if (routers.length <= 1) {
+      return routers.reduce<Record<string, number>>((acc, router) => ({ ...acc, [router.key]: 100 }), {});
+    }
+    const base = Math.floor(100 / routers.length);
+    return routers.reduce<Record<string, number>>((acc, router, index) => ({
+      ...acc,
+      [router.key]: getModelOpsRowWeight?.(router.service) ?? (index === routers.length - 1 ? 100 - base * (routers.length - 1) : base),
+    }), {});
+  };
+
+  const openDrainWeightModal = (item: DeployServiceItem, row: any) => {
+    const routers = getModelOpsDrainRouters(item);
+    setDrainWeightModal({
+      item,
+      row,
+      routers,
+      weights: getDefaultDrainWeights(routers),
+    });
+  };
+
+  const updateDrainWeight = (routerKey: string, value: number) => {
+    setDrainWeightModal((prev) => prev ? {
+      ...prev,
+      weights: { ...prev.weights, [routerKey]: Math.max(0, Math.min(100, Math.round(value))) },
+    } : prev);
+  };
+
+  const normalizeDrainWeights = () => {
+    setDrainWeightModal((prev) => {
+      if (!prev) return prev;
+      const total = prev.routers.reduce((sum, router) => sum + (prev.weights[router.key] ?? 0), 0);
+      if (total <= 0) return prev;
+      const next = prev.routers.map((router) => Math.floor(((prev.weights[router.key] ?? 0) / total) * 100));
+      const rest = 100 - next.reduce((sum, value) => sum + value, 0);
+      if (next.length > 0) next[next.length - 1] += rest;
+      return {
+        ...prev,
+        weights: prev.routers.reduce<Record<string, number>>((acc, router, index) => ({ ...acc, [router.key]: next[index] }), {}),
+      };
+    });
+  };
+
+  const averageDrainWeights = () => {
+    setDrainWeightModal((prev) => {
+      if (!prev || prev.routers.length === 0) return prev;
+      const base = Math.floor(100 / prev.routers.length);
+      return {
+        ...prev,
+        weights: prev.routers.reduce<Record<string, number>>((acc, router, index) => ({
+          ...acc,
+          [router.key]: index === prev.routers.length - 1 ? 100 - base * (prev.routers.length - 1) : base,
+        }), {}),
+      };
+    });
   };
 
   const openRouterLinkModal = (item: DeployServiceItem, row: any) => {
@@ -1091,6 +1168,72 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
                 );
               })}
               {candidates.length === 0 && <div className="ataas-model-ops-router-link-empty">暂无可关联 Router POD</div>}
+            </div>
+          </div>
+        );
+      })()}
+    </Modal>
+    <Modal
+      className="ataas-model-ops-weight-modal-shell ataas-model-ops-drain-modal-shell"
+      title={drainWeightModal ? (
+        <div className="ataas-model-ops-weight-modal-title">
+          <DisconnectOutlined />
+          <strong>摘流 · 降权</strong>
+          <em>{drainWeightModal.item.modelInfo.name}</em>
+        </div>
+      ) : '摘流 · 降权'}
+      open={!!drainWeightModal}
+      width={720}
+      onCancel={() => setDrainWeightModal(null)}
+      footer={[
+        <Button key="cancel" onClick={() => setDrainWeightModal(null)}>取消</Button>,
+        <Button
+          key="save"
+          type="primary"
+          onClick={() => {
+            message.success('摘流权重调整已提交为 task');
+            setDrainWeightModal(null);
+          }}
+        >
+          确定
+        </Button>,
+      ]}
+    >
+      {drainWeightModal && (() => {
+        const activeKey = `${drainWeightModal.item.id}-router-0`;
+        const total = drainWeightModal.routers.reduce((sum, router) => sum + (drainWeightModal.weights[router.key] ?? 0), 0);
+        return (
+          <div className="ataas-model-ops-weight-modal ataas-model-ops-drain-modal">
+            <div className="ataas-model-ops-weight-modal-subtitle">
+              higress-system · host {getDeployClusterName(drainWeightModal.item)}.cluster.local · 占比超过 3%，先降权再摘除
+            </div>
+            <div className="ataas-model-ops-weight-modal-toolbar">
+              <span>当前总和 <strong>{total}</strong></span>
+              <div>
+                <Button onClick={normalizeDrainWeights}>归一化到 100</Button>
+                <Button onClick={averageDrainWeights}>均分</Button>
+              </div>
+            </div>
+            <div className="ataas-model-ops-weight-modal-list">
+              {drainWeightModal.routers.map((router) => {
+                const value = drainWeightModal.weights[router.key] ?? 0;
+                const active = router.key === activeKey;
+                return (
+                  <div key={router.key} className={'ataas-model-ops-weight-modal-row' + (active ? ' drain-target' : '')}>
+                    <Tooltip title={router.routerName}>
+                      <strong>
+                        {active && <span className="ataas-model-ops-drain-mark">降</span>}
+                        {router.routerName}
+                      </strong>
+                    </Tooltip>
+                    <Slider min={0} max={100} value={value} tooltip={{ formatter: null }} onChange={(nextValue) => updateDrainWeight(router.key, Number(nextValue))} />
+                    <span className="ataas-model-ops-weight-modal-percent">{value.toFixed(1)}%</span>
+                    <InputNumber min={0} max={100} value={value} size="middle" onChange={(nextValue) => { if (nextValue !== null) updateDrainWeight(router.key, Number(nextValue)); }} />
+                    <i />
+                  </div>
+                );
+              })}
+              {drainWeightModal.routers.length === 0 && <div className="ataas-model-ops-router-link-empty">暂无可调整 Router</div>}
             </div>
           </div>
         );
