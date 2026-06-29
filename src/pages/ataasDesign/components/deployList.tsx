@@ -438,6 +438,12 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
       const ipLast = 24 + ((item.id * 7 + index * 3) % 18);
       const nodeIndex = 24 + ((item.id * 5 + index * 3) % 18);
       const instanceName = row.instanceRecord?.instance || row.instance || `实例 ${index + 1}`;
+      const util = compText.includes('router') ? 20 : 0;
+      const vram = compText.includes('router') ? 99 : 95 + ((item.id + index) % 5);
+      const age = compText.includes('prefill') && index % 2 === 0 ? '6h' : '12h';
+      const trafficSources = compText.includes('router')
+        ? [item.modelInfo.name]
+        : [`${item.serviceGroupName || getDeployClusterName(item)}-${item.name}-ha-1`, `${item.serviceGroupName || getDeployClusterName(item)}-${item.name}-router-0`];
       return {
         ...row,
         role,
@@ -450,6 +456,10 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
         image,
         ip: `10.25.110.${ipLast}`,
         nodeName: `pod11-b300gpu${nodeIndex}`,
+        util,
+        vram,
+        age,
+        trafficSources,
       };
     });
     const baseColumns = [
@@ -533,6 +543,10 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
                   <col style={{ width: 260 }} />
                   <col style={{ width: 132 }} />
                   <col style={{ width: 148 }} />
+                  <col style={{ width: 180 }} />
+                  <col style={{ width: 80 }} />
+                  <col style={{ width: 320 }} />
+                  <col style={{ width: 232 }} />
                 </colgroup>
                 <thead>
                   <tr>
@@ -545,6 +559,10 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
                     <th>镜像</th>
                     <th>IP</th>
                     <th>NODE</th>
+                    <th>NODE GPU</th>
+                    <th>AGE</th>
+                    <th>接流来源</th>
+                    <th>操作</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -578,6 +596,46 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
                       <td><Tooltip title={row.image}><span className="ataas-deploy-inline-pod-name">{row.image}</span></Tooltip></td>
                       <td>{row.ip}</td>
                       <td>{row.nodeName}</td>
+                      <td>
+                        <div style={{ display: 'grid', gap: 4, minWidth: 150 }}>
+                          {[
+                            { label: 'util', value: row.util, color: row.util > 80 ? '#E02D2D' : '#1D2129' },
+                            { label: 'vram', value: row.vram, color: row.vram > 90 ? '#E02D2D' : '#18A957' },
+                          ].map((metric) => (
+                            <div key={metric.label} style={{ display: 'grid', gridTemplateColumns: '34px 1fr 42px', gap: 8, alignItems: 'center' }}>
+                              <span>{metric.label}</span>
+                              <i style={{ height: 8, borderRadius: 999, background: '#F2F3F5', overflow: 'hidden' }}>
+                                <b style={{ display: 'block', width: `${metric.value}%`, height: '100%', borderRadius: 999, background: metric.label === 'vram' ? '#E02D2D' : '#1D2129' }} />
+                              </i>
+                              <span style={{ color: metric.color }}>{metric.value}%</span>
+                            </div>
+                          ))}
+                        </div>
+                      </td>
+                      <td>{row.age}</td>
+                      <td>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {row.trafficSources.map((source: string) => (
+                            <span key={source} style={{ display: 'inline-flex', alignItems: 'center', maxWidth: 210, padding: '3px 9px', borderRadius: 8, color: '#2F6BFF', background: '#F2F6FF', border: '1px solid #D8E5FF' }}>
+                              <em style={{ width: 6, height: 6, borderRadius: 999, background: '#2F6BFF', marginRight: 6, flex: '0 0 auto' }} />
+                              <Tooltip title={source}><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{source}</span></Tooltip>
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                          <Button size="small" icon={<FileSearchOutlined />} onClick={() => onLog(item, row.logId)}>日志</Button>
+                          {row.role === 'R' ? (
+                            <Button size="small" style={{ color: '#D98500', borderColor: '#FFE1A6', background: '#FFF8E8' }}>摘流</Button>
+                          ) : (
+                            <>
+                              <Button size="small" style={{ color: '#D98500', borderColor: '#FFE1A6', background: '#FFF8E8' }}>下线</Button>
+                              <Button size="small" style={{ color: '#2F6BFF', borderColor: '#D8E5FF', background: '#F2F6FF' }}>关联</Button>
+                            </>
+                          )}
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

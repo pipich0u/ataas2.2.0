@@ -6627,6 +6627,8 @@ const AtAasDesign = () => {
   const [deployListClusterFilter, setDeployListClusterFilter] = useState('');
   const [modelOpsListViewMode, setModelOpsListViewMode] = useState<ViewMode>('table');
   const [modelOpsClusterFilter, setModelOpsClusterFilter] = useState('');
+  const [modelOpsSelectedModel, setModelOpsSelectedModel] = useState('');
+  const [modelOpsWeights, setModelOpsWeights] = useState<Record<string, number>>({});
   const [deployMode, setDeployMode] = useState<string>('single');
   const [startupTemplateForm] = Form.useForm();
   const [addInstPdTemplateForm] = Form.useForm();
@@ -9927,29 +9929,167 @@ const AtAasDesign = () => {
               />
             </div>
           );
-      case 'modelOps': return (
-            <div className="ataas-section-stack">
-              <DeployList
-                mode="modelOps"
-                data={deployServices}
-                onDetail={handleDeployDetail}
-                onStop={handleDeployStop}
-                onMonitor={handleDeployMonitor}
-                onExperience={handleDeployExperience}
-                onLog={handleDeployLog}
-                onDeleteInstance={handleDeployDeleteInstance}
-                onAddInstance={handleDeployAddInstance}
-                onOpenCreate={handleOpenCreate}
-                onScalePd={handleScalePd}
-                onNodeFilter={handleDeployNodeFilter}
-                onScheduleDetail={handleScheduleDetail}
-                viewModeValue={modelOpsListViewMode}
-                onViewModeChange={setModelOpsListViewMode}
-                clusterFilterValue={modelOpsClusterFilter}
-                onClusterFilterChange={setModelOpsClusterFilter}
-              />
-            </div>
-          );
+      case 'modelOps': {
+            const modelServiceGroups = deployServices.reduce<Array<{ name: string; services: DeployServiceItem[]; instances: number }>>((groups, service) => {
+              const name = service.modelInfo.name || service.typeStr || service.name;
+              const current = groups.find((group) => group.name === name);
+              const instanceCount = Math.max(1, service.modelInfo.number || service.modelInfo.works?.split(',').filter(Boolean).length || 1);
+              if (current) {
+                current.services.push(service);
+                current.instances += instanceCount;
+              } else {
+                groups.push({ name, services: [service], instances: instanceCount });
+              }
+              return groups;
+            }, []);
+            const activeModelName = modelServiceGroups.some((group) => group.name === modelOpsSelectedModel)
+              ? modelOpsSelectedModel
+              : modelServiceGroups[0]?.name || '';
+            const activeModelGroup = modelServiceGroups.find((group) => group.name === activeModelName);
+            const activeModelServices = activeModelGroup?.services || [];
+            const routerRows = activeModelServices.flatMap((service) => {
+              const cluster = getDeployClusterName(service);
+              const works = service.modelInfo.works?.split(',').map((item) => item.trim()).filter(Boolean) || [];
+              const count = Math.max(1, service.modelInfo.number || works.length || 1);
+              return Array.from({ length: count }, (_, index) => ({
+                key: `${cluster}-${service.id}-${index}`,
+                cluster,
+                serviceName: service.name,
+                routerName: `${service.name}-router-${index + 1}`,
+                instanceName: `实例 ${index + 1}`,
+              }));
+            });
+            const clusterWeightGroups = routerRows.reduce<Array<{ cluster: string; routers: typeof routerRows }>>((groups, router) => {
+              const current = groups.find((group) => group.cluster === router.cluster);
+              if (current) current.routers.push(router);
+              else groups.push({ cluster: router.cluster, routers: [router] });
+              return groups;
+            }, []);
+            const getDefaultWeight = (routers: typeof routerRows, index: number) => {
+              if (routers.length <= 1) return 100;
+              const base = Math.floor(100 / routers.length);
+              return index === routers.length - 1 ? 100 - base * (routers.length - 1) : base;
+            };
+            const getRouterWeight = (routers: typeof routerRows, index: number) => modelOpsWeights[routers[index].key] ?? getDefaultWeight(routers, index);
+            return (
+              <div className="ataas-section-stack">
+                <div style={{ display: 'grid', gridTemplateColumns: '240px minmax(0, 1fr)', gap: 16, alignItems: 'start' }}>
+                  <aside className="ataas-panel" style={{ padding: 0, overflow: 'hidden' }}>
+                    <div className="ataas-panel-head" style={{ padding: '16px 16px 10px', margin: 0 }}>
+                      <div>
+                        <h2>模型服务</h2>
+                        <span>{modelServiceGroups.length} 个模型</span>
+                      </div>
+                    </div>
+                    <div style={{ borderTop: '1px solid #F2F3F5' }}>
+                      {modelServiceGroups.map((group) => {
+                        const active = group.name === activeModelName;
+                        return (
+                          <button
+                            key={group.name}
+                            type="button"
+                            onClick={() => { setModelOpsSelectedModel(group.name); setModelOpsClusterFilter(''); }}
+                            style={{
+                              width: '100%',
+                              border: 0,
+                              borderLeft: active ? '3px solid #3370FF' : '3px solid transparent',
+                              background: active ? '#F2F6FF' : '#fff',
+                              padding: '14px 16px 14px 13px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              cursor: 'pointer',
+                              textAlign: 'left',
+                            }}
+                          >
+                            <span style={{ minWidth: 0 }}>
+                              <strong style={{ display: 'block', color: '#1D2129', fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{group.name}</strong>
+                              <em style={{ display: 'block', marginTop: 4, color: '#86909C', fontStyle: 'normal', fontSize: 12 }}>{group.services.length} 服务 · {group.instances} 实例</em>
+                            </span>
+                            <span style={{ color: active ? '#3370FF' : '#4E5969', fontSize: 12 }}>{group.instances}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </aside>
+                  <main style={{ minWidth: 0 }}>
+                    <div className="ataas-panel" style={{ marginBottom: 16 }}>
+                      <div className="ataas-panel-head" style={{ marginBottom: 12 }}>
+                        <div>
+                          <h2>权重配置</h2>
+                          <span>同一 K8S 集群内多个 Router 权重总和需为 100</span>
+                        </div>
+                        <Button onClick={() => message.success('权重配置已保存')}>保存权重</Button>
+                      </div>
+                      {clusterWeightGroups.length === 0 ? (
+                        <div style={{ padding: '28px 0', textAlign: 'center', color: '#98A2B3' }}>暂无 Router 实例</div>
+                      ) : (
+                        <div style={{ display: 'grid', gap: 12 }}>
+                          {clusterWeightGroups.map((group) => {
+                            const total = group.routers.reduce((sum, _, index) => sum + getRouterWeight(group.routers, index), 0);
+                            return (
+                              <div key={group.cluster} style={{ border: '1px solid #E5E6EB', borderRadius: 8, padding: 12, background: '#fff' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                                  <strong style={{ color: '#1D2129' }}>{group.cluster}</strong>
+                                  <span style={{ color: total === 100 ? '#18A957' : '#E02D2D', fontSize: 12 }}>合计 {total}/100</span>
+                                </div>
+                                <div style={{ display: 'grid', gap: 8 }}>
+                                  {group.routers.map((router, index) => {
+                                    const value = getRouterWeight(group.routers, index);
+                                    return (
+                                      <div key={router.key} style={{ display: 'grid', gridTemplateColumns: 'minmax(160px, 1fr) minmax(180px, 2fr) 84px', gap: 10, alignItems: 'center' }}>
+                                        <Tooltip title={`${router.serviceName} / ${router.instanceName}`}>
+                                          <span style={{ color: '#1D2129', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{router.routerName}</span>
+                                        </Tooltip>
+                                        <div style={{ height: 8, borderRadius: 999, background: '#F2F3F5', overflow: 'hidden' }}>
+                                          <i style={{ display: 'block', width: `${value}%`, height: '100%', background: '#3370FF' }} />
+                                        </div>
+                                        <InputNumber
+                                          min={0}
+                                          max={100}
+                                          value={value}
+                                          size="small"
+                                          formatter={(inputValue) => (inputValue !== undefined ? `${inputValue}%` : '')}
+                                          parser={(inputValue) => Number(inputValue?.replace('%', '') || 0)}
+                                          onChange={(nextValue) => {
+                                            if (nextValue === null) return;
+                                            setModelOpsWeights((prev) => ({ ...prev, [router.key]: Number(nextValue) }));
+                                          }}
+                                        />
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                    <DeployList
+                      mode="modelOps"
+                      data={activeModelServices}
+                      onDetail={handleDeployDetail}
+                      onStop={handleDeployStop}
+                      onMonitor={handleDeployMonitor}
+                      onExperience={handleDeployExperience}
+                      onLog={handleDeployLog}
+                      onDeleteInstance={handleDeployDeleteInstance}
+                      onAddInstance={handleDeployAddInstance}
+                      onOpenCreate={handleOpenCreate}
+                      onScalePd={handleScalePd}
+                      onNodeFilter={handleDeployNodeFilter}
+                      onScheduleDetail={handleScheduleDetail}
+                      viewModeValue={modelOpsListViewMode}
+                      onViewModeChange={setModelOpsListViewMode}
+                      clusterFilterValue={modelOpsClusterFilter}
+                      onClusterFilterChange={setModelOpsClusterFilter}
+                    />
+                  </main>
+                </div>
+              </div>
+            );
+          }
       case 'startupTemplates': return (
             <div className="ataas-section-stack">
               <StartupTemplateManager templates={startupTemplates} setTemplates={setStartupTemplates} onDeployTemplate={handleDeployStartupTemplate} />
