@@ -9998,6 +9998,23 @@ const AtAasDesign = () => {
               return index === routers.length - 1 ? 100 - base * (routers.length - 1) : base;
             };
             const getRouterWeight = (routers: typeof routerRows, index: number) => modelOpsWeights[routers[index].key] ?? getDefaultWeight(routers, index);
+            const maxRouterCount = Math.max(1, ...clusterWeightGroups.map((group) => group.routers.length));
+            const updateRouterWeight = (routerKey: string, value: number) => {
+              setModelOpsWeights((prev) => ({ ...prev, [routerKey]: Math.max(0, Math.min(100, Math.round(value))) }));
+            };
+            const normalizeClusterWeights = (routers: typeof routerRows) => {
+              const current = routers.map((_, index) => getRouterWeight(routers, index));
+              const total = current.reduce((sum, value) => sum + value, 0);
+              if (total <= 0) return;
+              const next = current.map((value) => Math.floor((value / total) * 100));
+              const rest = 100 - next.reduce((sum, value) => sum + value, 0);
+              if (next.length > 0) next[next.length - 1] += rest;
+              setModelOpsWeights((prev) => routers.reduce((acc, router, index) => ({ ...acc, [router.key]: next[index] }), { ...prev }));
+            };
+            const averageClusterWeights = (routers: typeof routerRows) => {
+              const base = Math.floor(100 / routers.length);
+              setModelOpsWeights((prev) => routers.reduce((acc, router, index) => ({ ...acc, [router.key]: index === routers.length - 1 ? 100 - base * (routers.length - 1) : base }), { ...prev }));
+            };
             const getServiceWeight = (service: DeployServiceItem) => {
               const cluster = getDeployClusterName(service);
               const group = clusterWeightGroups.find((item) => item.cluster === cluster);
@@ -10005,6 +10022,7 @@ const AtAasDesign = () => {
               return group && index >= 0 ? getRouterWeight(group.routers, index) : 100;
             };
             const activeWeightModalGroup = clusterWeightGroups.find((group) => group.cluster === modelOpsWeightModalCluster);
+            const activeWeightModalTotal = activeWeightModalGroup ? activeWeightModalGroup.routers.reduce((sum, _, index) => sum + getRouterWeight(activeWeightModalGroup.routers, index), 0) : 0;
             const modelOpsNodeColors = ['#22C7D9', '#8B7CF6', '#2ECC8F', '#FF8A34', '#FF6B6B', '#F7B500', '#5AA9FF', '#D95CFF'];
             const modelOpsPrefillNodes = activeModelServices.flatMap((service, serviceIndex) => {
               const count = Math.max(1, (service.deployMode === 'PD 分离' ? service.modelInfo.number * 2 : service.modelInfo.number) || 1);
@@ -10141,38 +10159,59 @@ const AtAasDesign = () => {
 	                      {clusterWeightGroups.length === 0 ? (
 	                        <div className="ataas-model-ops-empty">暂无 Router 实例</div>
 	                      ) : (
-	                        <div className="ataas-model-ops-weight-groups">
-                            <div className="ataas-model-ops-weight-table-head">
-                              <span>集群</span>
-                              <span>权重合计</span>
-                              <span>操作</span>
-                            </div>
+	                        <div className="ataas-model-ops-weight-table-wrap">
+                            <table className="ataas-model-ops-weight-table">
+                              <thead>
+                                <tr>
+                                  <th>集群</th>
+                                  <th>PD组数量</th>
+                                  {Array.from({ length: maxRouterCount }, (_, index) => <th key={index}>PD组{index + 1}权重</th>)}
+                                  <th className="fixed-action">操作</th>
+                                </tr>
+                              </thead>
+                              <tbody>
 	                          {clusterWeightGroups.map((group) => {
 	                            const total = group.routers.reduce((sum, _, index) => sum + getRouterWeight(group.routers, index), 0);
 	                            return (
-	                              <button
+	                              <tr
 	                                key={group.cluster}
-	                                type="button"
 	                                className={'ataas-model-ops-weight-card' + (modelOpsClusterFilter === group.cluster ? ' active' : '')}
 	                                onClick={() => setModelOpsClusterFilter(group.cluster)}
 	                              >
-	                                <span className="ataas-model-ops-weight-cluster">
+	                                <td className="ataas-model-ops-weight-cluster">
 	                                  <strong>{group.cluster}</strong>
-	                                  <em>PD组数量 {group.routers.length}</em>
-	                                </span>
-	                                <span className={total === 100 ? 'ataas-model-ops-weight-total ok' : 'ataas-model-ops-weight-total error'}>合计 {total}/100</span>
-	                                <Button
-	                                  size="small"
-	                                  onClick={(event) => {
-	                                    event.stopPropagation();
-	                                    setModelOpsWeightModalCluster(group.cluster);
-	                                  }}
-	                                >
-	                                  调整权重
-	                                </Button>
-	                              </button>
+	                                  <em className={total === 100 ? 'ok' : 'error'}>合计 {total}/100</em>
+	                                </td>
+                                  <td>{group.routers.length}</td>
+                                  {Array.from({ length: maxRouterCount }, (_, index) => {
+                                    const router = group.routers[index];
+                                    return (
+                                      <td key={index}>
+                                        {router ? (
+                                          <span className="ataas-model-ops-weight-cell">
+                                            <Tooltip title={router.serviceName}><b>{router.serviceName}</b></Tooltip>
+                                            <em>{getRouterWeight(group.routers, index)}%</em>
+                                          </span>
+                                        ) : <span className="ataas-model-ops-weight-empty">-</span>}
+                                      </td>
+                                    );
+                                  })}
+                                  <td className="fixed-action">
+                                    <Button
+                                      size="small"
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        setModelOpsWeightModalCluster(group.cluster);
+                                      }}
+                                    >
+                                      调整权重
+                                    </Button>
+                                  </td>
+	                              </tr>
 	                            );
 	                          })}
+                              </tbody>
+                            </table>
 	                        </div>
 		                      )}
 		                    </div>
@@ -10200,41 +10239,35 @@ const AtAasDesign = () => {
 		                    />
                     )}
 		                    <Modal
-	                      title={`${modelOpsWeightModalCluster || '集群'} 权重调整`}
+                        className="ataas-model-ops-weight-modal-shell"
+	                      title={<div className="ataas-model-ops-weight-modal-title"><span>⚖</span><strong>调整流量配比</strong><em>{activeModelName}</em></div>}
 	                      open={!!activeWeightModalGroup}
 	                      width={720}
 	                      onCancel={() => setModelOpsWeightModalCluster('')}
 	                      footer={[
 	                        <Button key="cancel" onClick={() => setModelOpsWeightModalCluster('')}>取消</Button>,
-	                        <Button key="save" type="primary" onClick={() => { message.success('权重配置已保存'); setModelOpsWeightModalCluster(''); }}>保存权重</Button>,
+	                        <Button key="save" type="primary" onClick={() => { message.success('权重配置预览已生成'); setModelOpsWeightModalCluster(''); }}>预览（0）</Button>,
 	                      ]}
 	                    >
 	                      {activeWeightModalGroup && (
 	                        <div className="ataas-model-ops-weight-modal">
-	                          <div className="ataas-model-ops-weight-modal-head">
-	                            <span>PD组</span>
-	                            <span>当前权重</span>
+                            <div className="ataas-model-ops-weight-modal-subtitle">higress-system · host {activeWeightModalGroup.cluster}.cluster.local</div>
+	                          <div className="ataas-model-ops-weight-modal-toolbar">
+                              <span>当前总和 <strong>{activeWeightModalTotal}</strong></span>
+                              <div>
+                                <Button onClick={() => normalizeClusterWeights(activeWeightModalGroup.routers)}>归一化到 100</Button>
+                                <Button onClick={() => averageClusterWeights(activeWeightModalGroup.routers)}>均分</Button>
+                              </div>
 	                          </div>
 	                          {activeWeightModalGroup.routers.map((router, index) => {
 	                            const value = getRouterWeight(activeWeightModalGroup.routers, index);
 	                            return (
 	                              <div key={router.key} className="ataas-model-ops-weight-modal-row">
-	                                <div>
-	                                  <strong>{router.serviceName}</strong>
-	                                  <span>{router.routerName}</span>
-	                                </div>
-	                                <InputNumber
-	                                  min={0}
-	                                  max={100}
-	                                  value={value}
-	                                  size="middle"
-	                                  formatter={(inputValue) => (inputValue !== undefined ? `${inputValue}%` : '')}
-	                                  parser={(inputValue) => Number(inputValue?.replace('%', '') || 0)}
-	                                  onChange={(nextValue) => {
-	                                    if (nextValue === null) return;
-	                                    setModelOpsWeights((prev) => ({ ...prev, [router.key]: Number(nextValue) }));
-	                                  }}
-	                                />
+	                                <strong>{router.routerName}</strong>
+                                  <Slider min={0} max={100} value={value} tooltip={{ formatter: null }} onChange={(nextValue) => updateRouterWeight(router.key, Number(nextValue))} />
+                                  <span className="ataas-model-ops-weight-modal-percent">{value.toFixed(1)}%</span>
+                                  <InputNumber min={0} max={100} value={value} size="middle" onChange={(nextValue) => { if (nextValue !== null) updateRouterWeight(router.key, Number(nextValue)); }} />
+                                  <i />
 	                              </div>
 	                            );
 	                          })}
@@ -11297,10 +11330,10 @@ const AtAasDesign = () => {
               const pw = cw - ml - mr, ph = ch - mt - mb;
               const pts = hist.map((val, i) => `${ml + (i / (hist.length - 1)) * pw},${mt + ph - ((val - min) / range) * ph}`).join(' ');
               return (
-                <Tooltip color="#fff"
+                <Tooltip
                   title={
-                    <div style={{ borderRadius: 6, padding: 0, fontSize: 12, color: '#1D2129' }}>
-                      <div style={{ padding: '10px 14px 4px', fontWeight: 600, fontSize: 13, letterSpacing: 0.3 }}>{label}  ·  60s  ·  p50 {p50}  ·  p99 {p99} ms</div>
+                    <div style={{ background: '#fff', borderRadius: 8, padding: 0, fontSize: 12, color: '#1D2129' }}>
+                      <div style={{ padding: '10px 14px 4px', fontWeight: 600, fontSize: 13 }}>{label} · 60s p50 {p50} · p99 {p99} ms</div>
                       <svg width={cw} height={ch} viewBox={`0 0 ${cw} ${ch}`}>
                         <defs><linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#2B65D9" stopOpacity="0.12" /><stop offset="100%" stopColor="#2B65D9" stopOpacity="0.01" /></linearGradient></defs>
                         <line x1={ml} y1={mt} x2={ml + pw} y2={mt} stroke="#E8E8E8" strokeWidth="1" />
@@ -11317,6 +11350,7 @@ const AtAasDesign = () => {
                       </svg>
                     </div>
                   }
+                  styles={{ root: { padding: 0, background: '#fff', '--ant-color-bg-elevated': '#fff' } as any }}
                 >
                   <span style={{ fontSize: 12, color: '#4E5969', cursor: 'pointer', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{label.toLowerCase()} p50 {p50}ms / p99 {p99}ms</span>
                 </Tooltip>

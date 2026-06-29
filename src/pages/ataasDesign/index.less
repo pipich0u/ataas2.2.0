@@ -5056,7 +5056,7 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   display: grid;
   grid-template-columns: 184px minmax(0, 1fr);
   gap: 16px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .ataas-model-ops-sidebar {
@@ -5067,6 +5067,7 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   box-shadow: none;
   overflow: hidden;
   padding: 0 12px 0 0;
+  min-height: calc(100vh - 150px);
 }
 
 .ataas-model-ops-sidebar-head {
@@ -5327,47 +5328,54 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   text-align: center;
 }
 
-.ataas-model-ops-weight-groups {
-  display: grid;
-  gap: 0;
+.ataas-model-ops-weight-table-wrap {
+  overflow-x: auto;
 }
 
-.ataas-model-ops-weight-table-head {
-  display: grid;
-  grid-template-columns: minmax(180px, 1fr) 112px 96px;
-  gap: 12px;
-  align-items: center;
-  padding: 10px 12px;
-  border-bottom: 1px solid #E5E6EB;
-  background: #F7F8FA;
-  color: #4E5969;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.ataas-model-ops-weight-card {
-  display: grid;
+.ataas-model-ops-weight-table {
   width: 100%;
-  grid-template-columns: minmax(180px, 1fr) 112px 96px;
-  gap: 12px;
-  align-items: center;
-  padding: 11px 12px;
-  border: 0;
-  border-bottom: 1px solid #F2F3F5;
-  border-radius: 0;
-  background: #fff;
-  cursor: pointer;
-  text-align: left;
-  transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+  min-width: 760px;
+  border-collapse: collapse;
+  table-layout: fixed;
 
-  &:hover {
-    background: #F8FAFF;
+  th,
+  td {
+    height: 48px;
+    padding: 9px 12px;
+    border-bottom: 1px solid #F2F3F5;
+    color: #1D2129;
+    font-size: 13px;
+    text-align: left;
+    vertical-align: middle;
   }
 
-  &.active {
-    border-left: 3px solid #3370FF;
-    background: #F2F6FF;
-    box-shadow: none;
+  th {
+    height: 42px;
+    background: #F7F8FA;
+    color: #4E5969;
+    font-weight: 600;
+  }
+
+  tr.ataas-model-ops-weight-card {
+    cursor: pointer;
+    transition: background 0.16s ease;
+
+    &:hover {
+      background: #F8FAFF;
+    }
+
+    &.active td:first-child {
+      box-shadow: inset 3px 0 0 #3370FF;
+    }
+  }
+
+  .fixed-action {
+    position: sticky;
+    right: 0;
+    width: 112px;
+    background: inherit;
+    box-shadow: -1px 0 0 #F2F3F5;
+    text-align: right;
   }
 }
 
@@ -5392,64 +5400,779 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
     font-size: 12px;
     font-style: normal;
     line-height: 18px;
+
+    &.ok {
+      color: #18A957;
+    }
+
+    &.error {
+      color: #E02D2D;
+    }
   }
 }
 
-.ataas-model-ops-weight-total {
-  color: #4E5969;
-  font-size: 13px;
+.ataas-model-ops-weight-cell {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+
+  b {
+    overflow: hidden;
+    color: #1D2129;
+    font-size: 12px;
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  em {
+    color: #2F6BFF;
+    font-size: 13px;
+    font-style: normal;
+    font-weight: 600;
+  }
+}
+
+.ataas-model-ops-weight-empty {
+  color: #C9CDD4;
+}
+
+.ataas-model-ops-weight-modal-shell .ant-modal-content {
+  border-radius: 10px;
+  padding: 0;
+}
+
+.ataas-model-ops-weight-modal-shell .ant-modal-header {
+  margin: 0;
+  padding: 26px 28px 0;
+}
+
+.ataas-model-ops-weight-modal-shell .ant-modal-body {
+  padding: 18px 28px 12px;
+}
+
+.ataas-model-ops-weight-modal-shell .ant-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin: 0;
+  padding: 12px 28px 22px;
+}
+
+.ataas-model-ops-weight-modal-shell .ant-modal-footer .ant-btn {
+  height: 38px;
+  min-width: 88px;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.ataas-model-ops-weight-modal-shell .ant-modal-footer .ant-btn-primary {
+  min-width: 110px;
+  border-color: #8BCFA4;
+  background: #8BCFA4;
+  color: #fff;
   font-weight: 600;
+}
 
-  &.ok {
-    color: #18A957;
+.ataas-model-ops-weight-modal-shell .ant-modal-footer .ant-btn-primary:hover {
+  border-color: #7DC896;
+  background: #7DC896;
+}
+
+.ataas-model-ops-weight-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  strong {
+    color: #1D2129;
+    font-size: 18px;
+    font-weight: 700;
   }
 
-  &.error {
-    color: #E02D2D;
+  em {
+    color: #2F6BFF;
+    font-size: 18px;
+    font-style: normal;
+    font-weight: 700;
   }
+}
+
+.ataas-model-ops-weight-modal-subtitle {
+  margin-bottom: 26px;
+  color: #86909C;
+  font-size: 15px;
+}
+
+.ataas-model-ops-weight-modal-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #E5E6EB;
+  color: #86909C;
+  font-size: 14px;
+
+  strong {
+    margin-left: 10px;
+    color: #1D2129;
+    font-size: 15px;
+  }
+
+  > div {
+    display: flex;
+    gap: 8px;
+  }
+}
+
+.ataas-model-ops-weight-modal-row {
+  display: grid;
+  grid-template-columns: 210px minmax(180px, 1fr) 70px 86px 12px;
+  min-height: 74px;
+  gap: 18px;
+  align-items: center;
+
+  strong {
+    color: #1D2129;
+    font-size: 15px;
+    font-weight: 500;
+  }
+
+  .ant-slider {
+    margin: 0;
+  }
+
+  .ant-slider-track {
+    background: #2F6BFF;
+  }
+
+  .ant-slider-handle::after {
+    box-shadow: 0 0 0 2px #2F6BFF;
+  }
+
+  i {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: #18A957;
+  }
+}
+
+.ataas-model-ops-weight-modal-percent {
+  color: #86909C;
+  font-size: 15px;
+  text-align: right;
 }
 
 .ataas-model-ops-weight-modal {
   overflow: hidden;
-  border: 1px solid #E5E6EB;
+}
+
+.ataas-model-ops-weight-modal .ant-input-number {
+  width: 82px;
   border-radius: 8px;
 }
 
-.ataas-model-ops-weight-modal-head,
-.ataas-model-ops-weight-modal-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 132px;
-  gap: 16px;
-  align-items: center;
+.ataas-model-ops-weight-modal .ant-btn {
+  border-radius: 8px;
 }
 
-.ataas-model-ops-weight-modal-head {
-  padding: 10px 14px;
-  background: #F7F8FA;
-  color: #4E5969;
-  font-size: 13px;
+.ataas-model-ops-weight-modal .ant-btn-primary {
+  background: #8BCFA4;
+  border-color: #8BCFA4;
+}
+
+.ataas-model-ops-weight-modal .ant-btn-primary:hover {
+  background: #79C795;
+  border-color: #79C795;
+}
+
+.ataas-model-ops-weight-modal .ant-btn:not(.ant-btn-primary) {
+  border-color: #E5E6EB;
+}
+
+.ataas-model-ops-weight-modal .ant-btn[disabled] {
+  color: #C9CDD4;
+}
+
+.ataas-model-ops-weight-modal .ant-btn + .ant-btn {
+  margin-left: 0;
+}
+
+.ataas-model-ops-weight-modal .ant-input-number-input {
+  text-align: center;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-rail {
+  background: #F2F3F5;
+}
+
+.ataas-model-ops-weight-modal .ant-slider:hover .ant-slider-track {
+  background: #2F6BFF;
+}
+
+.ataas-model-ops-weight-modal .ant-slider:hover .ant-slider-handle::after {
+  box-shadow: 0 0 0 2px #2F6BFF;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-handle:focus::after {
+  box-shadow: 0 0 0 3px rgba(47, 107, 255, 0.22);
+}
+
+.ataas-model-ops-weight-modal .ant-slider-dot {
+  display: none;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-mark {
+  display: none;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-step {
+  display: none;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-disabled {
+  opacity: 1;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-disabled .ant-slider-track {
+  background: #2F6BFF !important;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-disabled .ant-slider-handle::after {
+  box-shadow: 0 0 0 2px #2F6BFF !important;
+}
+
+.ataas-model-ops-weight-modal .ant-input-number-affix-wrapper {
+  border-radius: 8px;
+}
+
+.ataas-model-ops-weight-modal .ant-input-number-handler-wrap {
+  display: none;
+}
+
+.ataas-model-ops-weight-modal .ant-input-number:hover,
+.ataas-model-ops-weight-modal .ant-input-number-focused {
+  border-color: #2F6BFF;
+  box-shadow: 0 0 0 2px rgba(47, 107, 255, 0.08);
+}
+
+.ataas-model-ops-weight-modal .ant-slider-handle {
+  width: 16px;
+  height: 16px;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-handle::before {
+  display: none;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-handle::after {
+  width: 12px;
+  height: 12px;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-track,
+.ataas-model-ops-weight-modal .ant-slider-rail {
+  height: 8px;
+  border-radius: 999px;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-horizontal .ant-slider-handle {
+  margin-top: -4px;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-horizontal {
+  height: 18px;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-horizontal .ant-slider-rail,
+.ataas-model-ops-weight-modal .ant-slider-horizontal .ant-slider-track {
+  top: 5px;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn {
+  height: 38px;
+  min-width: 88px;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-primary {
+  min-width: 110px;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-default {
+  background: #fff;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-default:hover {
+  color: #1D2129;
+  border-color: #C9CDD4;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-close {
+  top: 20px;
+  right: 20px;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-close-x {
+  font-size: 20px;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-title {
+  line-height: 1;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-body {
+  max-height: 62vh;
+  overflow-y: auto;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-mask {
+  backdrop-filter: blur(1px);
+}
+
+.ataas-model-ops-weight-modal .ant-modal-content {
+  box-shadow: 0 16px 48px rgba(15, 23, 42, 0.18);
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-primary[disabled] {
+  background: #A7D9B8;
+  border-color: #A7D9B8;
+  color: #fff;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-primary span {
+  color: inherit;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-default span {
+  color: inherit;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-handle:hover::after {
+  box-shadow: 0 0 0 3px rgba(47, 107, 255, 0.18);
+}
+
+.ataas-model-ops-weight-modal .ant-slider-handle:active::after {
+  box-shadow: 0 0 0 4px rgba(47, 107, 255, 0.22);
+}
+
+.ataas-model-ops-weight-modal .ant-slider:hover .ant-slider-rail {
+  background: #EEF0F4;
+}
+
+.ataas-model-ops-weight-modal .ant-input-number-input {
+  font-size: 15px;
+}
+
+.ataas-model-ops-weight-modal .ant-input-number {
+  height: 36px;
+}
+
+.ataas-model-ops-weight-modal .ant-input-number-input-wrap,
+.ataas-model-ops-weight-modal .ant-input-number-input {
+  height: 34px;
+}
+
+.ataas-model-ops-weight-modal .ant-input-number-input {
+  line-height: 34px;
+}
+
+.ataas-model-ops-weight-modal .ant-input-number-focused {
+  outline: 0;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-handle:focus-visible {
+  outline: none;
+}
+
+.ataas-model-ops-weight-modal .ant-btn {
+  box-shadow: none;
+}
+
+.ataas-model-ops-weight-modal .ant-btn-primary {
   font-weight: 600;
 }
 
-.ataas-model-ops-weight-modal-row {
-  min-height: 58px;
-  padding: 10px 14px;
-  border-top: 1px solid #F2F3F5;
+.ataas-model-ops-weight-modal .ant-btn-default {
+  font-weight: 600;
+}
 
-  strong {
-    display: block;
-    color: #1D2129;
-    font-size: 14px;
-    line-height: 20px;
-  }
+.ataas-model-ops-weight-modal .ant-slider {
+  cursor: pointer;
+}
 
-  span {
-    display: block;
-    margin-top: 2px;
-    color: #86909C;
-    font-size: 12px;
-    line-height: 18px;
-  }
+.ataas-model-ops-weight-modal .ant-slider-handle {
+  cursor: grab;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-handle:active {
+  cursor: grabbing;
+}
+
+.ataas-model-ops-weight-modal .ant-input-number {
+  color: #1D2129;
+}
+
+.ataas-model-ops-weight-modal .ant-input-number-input {
+  font-weight: 500;
+}
+
+.ataas-model-ops-weight-modal .ant-input-number-disabled {
+  color: #1D2129;
+}
+
+.ataas-model-ops-weight-modal .ant-input-number-disabled .ant-input-number-input {
+  color: #1D2129;
+}
+
+.ataas-model-ops-weight-modal .ant-input-number-disabled {
+  background: #fff;
+}
+
+.ataas-model-ops-weight-modal .ant-input-number-disabled:hover {
+  border-color: #E5E6EB;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-disabled .ant-slider-handle {
+  cursor: default;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-disabled .ant-slider-rail {
+  background: #F2F3F5 !important;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-disabled .ant-slider-handle::after {
+  background: #fff;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-disabled .ant-slider-track {
+  opacity: 1;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-disabled .ant-slider-handle {
+  opacity: 1;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-disabled .ant-slider-handle::after {
+  opacity: 1;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-disabled .ant-slider-rail,
+.ataas-model-ops-weight-modal .ant-slider-disabled .ant-slider-track {
+  cursor: default;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-disabled .ant-slider-handle::before {
+  display: none;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-disabled .ant-slider-handle::after {
+  box-shadow: 0 0 0 2px #2F6BFF;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-disabled {
+  cursor: default;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-disabled .ant-slider-handle {
+  pointer-events: none;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-disabled .ant-slider-track,
+.ataas-model-ops-weight-modal .ant-slider-disabled .ant-slider-rail {
+  pointer-events: none;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-disabled .ant-slider-step {
+  pointer-events: none;
+}
+
+.ataas-model-ops-weight-modal .ant-input-number-disabled {
+  cursor: default;
+}
+
+.ataas-model-ops-weight-modal .ant-input-number-disabled input {
+  cursor: default;
+}
+
+.ataas-model-ops-weight-modal .ant-input-number-disabled .ant-input-number-handler-wrap {
+  display: none;
+}
+
+.ataas-model-ops-weight-modal .ant-input-number-disabled:hover {
+  background: #fff;
+}
+
+.ataas-model-ops-weight-modal .ant-input-number-disabled input {
+  color: #1D2129;
+}
+
+.ataas-model-ops-weight-modal .ant-input-number-disabled {
+  opacity: 1;
+}
+
+.ataas-model-ops-weight-modal .ant-input-number-disabled * {
+  opacity: 1;
+}
+
+.ataas-model-ops-weight-modal .ant-input-number-disabled .ant-input-number-input {
+  -webkit-text-fill-color: #1D2129;
+}
+
+.ataas-model-ops-weight-modal .ant-input-number-status-error {
+  border-color: #E02D2D;
+}
+
+.ataas-model-ops-weight-modal .ant-input-number-status-error:hover {
+  border-color: #E02D2D;
+}
+
+.ataas-model-ops-weight-modal .ant-input-number-status-error.ant-input-number-focused {
+  box-shadow: 0 0 0 2px rgba(224, 45, 45, 0.08);
+}
+
+.ataas-model-ops-weight-modal .ant-slider-disabled .ant-slider-mark-text {
+  color: #86909C;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-disabled .ant-slider-dot {
+  border-color: #E5E6EB;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-disabled .ant-slider-dot-active {
+  border-color: #2F6BFF;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-disabled .ant-slider-rail {
+  opacity: 1;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-disabled .ant-slider-track {
+  opacity: 1;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-disabled .ant-slider-handle::after {
+  opacity: 1;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-disabled .ant-slider-handle {
+  opacity: 1;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-disabled .ant-slider-dot {
+  opacity: 1;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-disabled .ant-slider-mark {
+  opacity: 1;
+}
+
+.ataas-model-ops-weight-modal .ant-slider-disabled {
+  opacity: 1;
+}
+
+.ataas-model-ops-weight-modal .ant-input-number-group-addon {
+  border-radius: 8px;
+}
+
+.ataas-model-ops-weight-modal .ant-input-number-outlined {
+  border-color: #E5E6EB;
+}
+
+.ataas-model-ops-weight-modal .ant-input-number-outlined:hover {
+  border-color: #C9CDD4;
+}
+
+.ataas-model-ops-weight-modal .ant-input-number-outlined:focus,
+.ataas-model-ops-weight-modal .ant-input-number-outlined-focused {
+  border-color: #2F6BFF;
+}
+
+.ataas-model-ops-weight-modal .ant-btn-default {
+  color: #1D2129;
+}
+
+.ataas-model-ops-weight-modal .ant-btn-default:hover {
+  background: #fff;
+}
+
+.ataas-model-ops-weight-modal .ant-btn-primary:hover {
+  color: #fff;
+}
+
+.ataas-model-ops-weight-modal .ant-btn-primary:focus-visible {
+  outline: none;
+}
+
+.ataas-model-ops-weight-modal .ant-btn-default:focus-visible {
+  outline: none;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn + .ant-btn {
+  margin-inline-start: 0;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer {
+  display: flex;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer > * {
+  margin-inline-start: 0 !important;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn {
+  margin-inline-start: 0 !important;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer {
+  gap: 12px;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-primary {
+  background: #8BCFA4;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-primary:hover {
+  background: #7DC896;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-default {
+  border-color: #E5E6EB;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-default:hover {
+  border-color: #C9CDD4;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer {
+  justify-content: flex-end;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn {
+  border-radius: 8px;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-primary span {
+  color: #fff;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-default span {
+  color: #1D2129;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-primary {
+  border-color: #8BCFA4;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-primary:hover {
+  border-color: #7DC896;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-default:hover span {
+  color: #1D2129;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-primary:hover span {
+  color: #fff;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-default:active span {
+  color: #1D2129;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-primary:active span {
+  color: #fff;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-primary:active {
+  background: #70BF8A;
+  border-color: #70BF8A;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-default:active {
+  border-color: #C9CDD4;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-default:focus span {
+  color: #1D2129;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-primary:focus span {
+  color: #fff;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-primary:focus {
+  background: #8BCFA4;
+  border-color: #8BCFA4;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-default:focus {
+  border-color: #E5E6EB;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-default:focus-visible {
+  box-shadow: none;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-primary:focus-visible {
+  box-shadow: none;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-default:hover {
+  background: #fff;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-primary:hover {
+  background: #7DC896;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-primary {
+  color: #fff;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-default {
+  color: #1D2129;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-default:hover {
+  color: #1D2129;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-primary:hover {
+  color: #fff;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-default:active {
+  color: #1D2129;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-primary:active {
+  color: #fff;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-default:focus {
+  color: #1D2129;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-primary:focus {
+  color: #fff;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-default:disabled {
+  color: #86909C;
+}
+
+.ataas-model-ops-weight-modal .ant-modal-footer .ant-btn-primary:disabled {
+  color: #fff;
+  background: #A7D9B8;
+  border-color: #A7D9B8;
 }
 
 .ataas-model-ops-role-count {
