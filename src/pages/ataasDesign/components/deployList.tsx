@@ -145,7 +145,61 @@ export const getDeployModelLogo = (item: DeployServiceItem) => {
   return item.logo;
 };
 
+const createModelOpsMockService = (id: number, name: string, works: string, number: number): DeployServiceItem => ({
+  id,
+  name,
+  description: '模型运维 mock 数据，用于检查多集群、多 PD 组、权重列和弹窗交互',
+  logo: glmLogo,
+  status: 'running',
+  category: 'llm',
+  typeStr: '5.1',
+  timeStr: `运行 ${6 + (id % 9)}天`,
+  updateTime: '2026-06-29 12:00',
+  deployMode: 'PD 分离',
+  serviceGroupKey: 'glm51',
+  serviceGroupName: name.split('-').slice(0, 2).join('-'),
+  modelInfo: {
+    name: 'glm-5.1',
+    supplier: '智谱AI',
+    number,
+    works,
+    size: '72B',
+    tokens: `${(2.4 + id / 100).toFixed(2)}B`,
+    point: 'BF16',
+    memory: '192 GB',
+    disk: '480 GB',
+    vram: '320 GB',
+    contextLength: '128K',
+    attentionHeads: '64',
+    layers: '80',
+    engine: 'SGLang',
+    engineVersion: '0.5.9',
+    restartStatus: true,
+    restartNumber: 0,
+    restartCount: 2,
+    restartPage: [],
+    concurrencyControllStatus: true,
+    concurrencyControllCount: 300 + id,
+    logs: [{ id: id * 10 + 1, name: `${name} router 日志` }, { id: id * 10 + 2, name: `${name} worker 日志` }],
+    updateTime: '2026-06-29',
+  },
+});
+
 export const MOCK_DEPLOY_DATA: DeployServiceItem[] = [
+  ...[
+    ['st-router-1', 'gz-l20-worker-001, gz-l20-worker-002', 2],
+    ['st-router-2', 'gz-l20-worker-003, gz-l20-worker-004', 2],
+    ['st-router-3', 'gz-l20-worker-005, gz-l20-worker-006', 2],
+    ['st-router-4', 'gz-l20-worker-007, gz-l20-worker-008', 2],
+    ['h20-router-1', 'nj-h20-worker-001, nj-h20-worker-002', 2],
+    ['h20-router-2', 'nj-h20-worker-003, nj-h20-worker-004', 2],
+    ['h20-router-3', 'nj-h20-worker-005, nj-h20-worker-006', 2],
+    ['kp-router-1', '910b-kunpeng-worker-001, 910b-kunpeng-worker-002', 2],
+    ['kp-router-2', '910b-kunpeng-worker-003, 910b-kunpeng-worker-004', 2],
+    ['bj-router-1', 'beijing-prod-worker-001, beijing-prod-worker-002', 2],
+    ['bj-router-2', 'beijing-prod-worker-003, beijing-prod-worker-004', 2],
+    ['bj-router-3', 'beijing-prod-worker-005, beijing-prod-worker-006', 2],
+  ].map(([name, works, number], index) => createModelOpsMockService(100 + index, String(name), String(works), Number(number))),
   { id: 1, name: 'deepseek-r1-prod', description: '生产环境 DeepSeek-R1 模型服务，671B 参数规模', logo: 'https://api.dicebear.com/7.x/identicon/svg?seed=deepseek', status: 'running', category: 'llm', typeStr: 'DeepSeek-R1-671B', timeStr: '运行 12天', updateTime: '2026-05-28 10:30', deployMode: 'PD 分离', modelInfo: { name: 'DeepSeek-R1-671B', supplier: '深度求索', number: 2, works: 'qujing4, qujing7', size: '671B', tokens: '4.82B', point: 'BF16', memory: '128 GB', disk: '256 GB', vram: '320 GB', contextLength: '128K', attentionHeads: '96', layers: '64', engine: 'vLLM', engineVersion: '0.6.2', restartStatus: true, restartNumber: 0, restartCount: 3, restartPage: [], concurrencyControllStatus: true, concurrencyControllCount: 100, logs: [{ id: 1, name: '实例-1 运行日志' }, { id: 2, name: '实例-2 运行日志' }], updateTime: '2026-05-28' } },
   { id: 2, name: 'glm-4-air-prod', description: '生产环境 GLM-4-Air 模型服务，9B 参数规模', logo: glmLogo, status: 'running', category: 'llm', typeStr: 'GLM-4-Air', timeStr: '运行 15天', updateTime: '2026-05-27 08:00', deployMode: '单机部署', modelInfo: { name: 'GLM-4-Air', supplier: '智谱AI', number: 1, works: 'qujing4', size: '9B', tokens: '1.26B', point: 'BF16', memory: '48 GB', disk: '96 GB', vram: '48 GB', contextLength: '128K', attentionHeads: '64', layers: '40', engine: 'vLLM', engineVersion: '0.6.1', restartStatus: true, restartNumber: 0, restartCount: 3, restartPage: [], concurrencyControllStatus: true, concurrencyControllCount: 200, logs: [{ id: 6, name: '运行日志' }], updateTime: '2026-05-27' } },
   { id: 3, name: 'glm-4-air-dist-prod', description: '生产环境 GLM-4-Air 分布式模型服务，9B 参数规模', logo: glmLogo, status: 'running', category: 'llm', typeStr: 'GLM-4-Air', timeStr: '运行 8天', updateTime: '2026-05-29 09:20', deployMode: '分布式部署', modelInfo: { name: 'GLM-4-Air', supplier: '智谱AI', number: 2, works: 'gz-l20-worker-003, gz-l20-worker-005', size: '9B', tokens: '1.92B', point: 'BF16', memory: '96 GB', disk: '180 GB', vram: '96 GB', contextLength: '128K', attentionHeads: '64', layers: '40', engine: 'SGLang', engineVersion: '0.5.8', restartStatus: true, restartNumber: 0, restartCount: 3, restartPage: [], concurrencyControllStatus: true, concurrencyControllCount: 320, logs: [{ id: 7, name: '实例-1 运行日志' }, { id: 8, name: '实例-2 运行日志' }], updateTime: '2026-05-29' } },
@@ -779,11 +833,17 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
     { title: 'TTFT', key: 'ttft', width: 92, render: (_, r) => <span className="ataas-model-ops-perf-value">{getModelOpsPerfSummary(r).ttft}</span> },
     { title: 'TPOT', key: 'tpot', width: 92, render: (_, r) => <span className="ataas-model-ops-perf-value">{getModelOpsPerfSummary(r).tpot}</span> },
     { title: '当前权重', key: 'weight', width: 110, render: (_, r) => <span className="ataas-model-ops-weight-pill">{getModelOpsRowWeight?.(r) ?? 100}%</span> },
-    { title: '操作', key: 'action', width: 260, fixed: 'right' as const, className: 'ataas-deploy-fixed-action-cell', render: (_, r) => (
+    { title: '操作', key: 'action', width: 132, fixed: 'right' as const, className: 'ataas-deploy-fixed-action-cell', render: (_, r) => (
       <div className="ataas-model-ops-table-actions">
-        <Button size="small" icon={<ReloadOutlined />}>重建</Button>
-        <Button className="danger" size="small" icon={<PoweroffOutlined />} onClick={() => onStop(r)}>整组下线</Button>
-        <Button size="small" icon={<SettingOutlined />} onClick={() => onScalePd?.(r)}>扩缩容</Button>
+        <Tooltip title="重建">
+          <button type="button" className="ataas-model-ops-icon-action"><ReloadOutlined /></button>
+        </Tooltip>
+        <Tooltip title="整组下线">
+          <button type="button" className="ataas-model-ops-icon-action danger" onClick={() => onStop(r)}><PoweroffOutlined /></button>
+        </Tooltip>
+        <Tooltip title="扩缩容">
+          <button type="button" className="ataas-model-ops-icon-action" onClick={() => onScalePd?.(r)}><SettingOutlined /></button>
+        </Tooltip>
       </div>
     ) },
   ];

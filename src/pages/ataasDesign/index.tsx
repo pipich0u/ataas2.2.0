@@ -10164,14 +10164,13 @@ const AtAasDesign = () => {
                               <thead>
                                 <tr>
                                   <th>集群</th>
-                                  <th>PD组数量</th>
-                                  {Array.from({ length: maxRouterCount }, (_, index) => <th key={index}>PD组{index + 1}权重</th>)}
+                                  <th>组数量</th>
+                                  {Array.from({ length: maxRouterCount }, (_, index) => <th key={index}>组{index + 1}</th>)}
                                   <th className="fixed-action">操作</th>
                                 </tr>
                               </thead>
                               <tbody>
 	                          {clusterWeightGroups.map((group) => {
-	                            const total = group.routers.reduce((sum, _, index) => sum + getRouterWeight(group.routers, index), 0);
 	                            return (
 	                              <tr
 	                                key={group.cluster}
@@ -10180,7 +10179,6 @@ const AtAasDesign = () => {
 	                              >
 	                                <td className="ataas-model-ops-weight-cluster">
 	                                  <strong>{group.cluster}</strong>
-	                                  <em className={total === 100 ? 'ok' : 'error'}>合计 {total}/100</em>
 	                                </td>
                                   <td>{group.routers.length}</td>
                                   {Array.from({ length: maxRouterCount }, (_, index) => {
@@ -10188,24 +10186,26 @@ const AtAasDesign = () => {
                                     return (
                                       <td key={index}>
                                         {router ? (
-                                          <span className="ataas-model-ops-weight-cell">
-                                            <Tooltip title={router.serviceName}><b>{router.serviceName}</b></Tooltip>
-                                            <em>{getRouterWeight(group.routers, index)}%</em>
-                                          </span>
+                                          <Tooltip title={router.serviceName}>
+                                            <span className="ataas-model-ops-weight-cell">{getRouterWeight(group.routers, index)}%</span>
+                                          </Tooltip>
                                         ) : <span className="ataas-model-ops-weight-empty">-</span>}
                                       </td>
                                     );
                                   })}
                                   <td className="fixed-action">
-                                    <Button
-                                      size="small"
-                                      onClick={(event) => {
-                                        event.stopPropagation();
-                                        setModelOpsWeightModalCluster(group.cluster);
-                                      }}
-                                    >
-                                      调整权重
-                                    </Button>
+                                    <Tooltip title="调整权重">
+                                      <button
+                                        type="button"
+                                        className="ataas-model-ops-icon-action"
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          setModelOpsWeightModalCluster(group.cluster);
+                                        }}
+                                      >
+                                        <SettingOutlined />
+                                      </button>
+                                    </Tooltip>
                                   </td>
 	                              </tr>
 	                            );
@@ -10240,7 +10240,7 @@ const AtAasDesign = () => {
                     )}
 		                    <Modal
                         className="ataas-model-ops-weight-modal-shell"
-	                      title={<div className="ataas-model-ops-weight-modal-title"><span>⚖</span><strong>调整流量配比</strong><em>{activeModelName}</em></div>}
+	                      title={<div className="ataas-model-ops-weight-modal-title"><SettingOutlined /><strong>调整流量配比</strong><em>{activeModelName}</em></div>}
 	                      open={!!activeWeightModalGroup}
 	                      width={720}
 	                      onCancel={() => setModelOpsWeightModalCluster('')}
