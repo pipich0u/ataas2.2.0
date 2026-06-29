@@ -6768,35 +6768,22 @@ const AtAasDesign = () => {
   };
   const [scalePdOpen, setScalePdOpen] = useState(false);
   const [scalePdTarget, setScalePdTarget] = useState<DeployServiceItem | null>(null);
-  const [scalePdRouterParamMode, setScalePdRouterParamMode] = useState<'template' | 'manual'>('template');
-  const [scalePdPrefillParamMode, setScalePdPrefillParamMode] = useState<'template' | 'manual'>('template');
-  const [scalePdDecodeParamMode, setScalePdDecodeParamMode] = useState<'template' | 'manual'>('template');
 
   const [scalePdRouterCount, setScalePdRouterCount] = useState(1);
   const [scalePdRouterNodes, setScalePdRouterNodes] = useState<string[]>([]);
-  const [scalePdRouterParams, setScalePdRouterParams] = useState<Array<{key: string; value: string}>>([]);
   const [scalePdPrefillCount, setScalePdPrefillCount] = useState(1);
   const [scalePdPrefillNodes, setScalePdPrefillNodes] = useState<string[]>([]);
-  const [scalePdPrefillParams, setScalePdPrefillParams] = useState<Array<{key: string; value: string}>>([]);
   const [scalePdDecodeCount, setScalePdDecodeCount] = useState(1);
   const [scalePdDecodeNodes, setScalePdDecodeNodes] = useState<string[]>([]);
-  const [scalePdDecodeParams, setScalePdDecodeParams] = useState<Array<{key: string; value: string}>>([]);
   const [scaleNodePickerOpen, setScaleNodePickerOpen] = useState(false);
   const [scaleNodePickerMode, setScaleNodePickerMode] = useState<'router' | 'prefill' | 'decode'>('router');
   const [scaleNodePickerSelected, setScaleNodePickerSelected] = useState<string[]>([]);
-  const [scalePdRouterUploadedYaml, setScalePdRouterUploadedYaml] = useState<string>('');
-  const [scalePdPrefillUploadedYaml, setScalePdPrefillUploadedYaml] = useState<string>('');
-  const [scalePdDecodeUploadedYaml, setScalePdDecodeUploadedYaml] = useState<string>('');
   const [pdTemplateUploadOpen, setPdTemplateUploadOpen] = useState(false);
   const [pdTemplateUploadTarget, setPdTemplateUploadTarget] = useState<'deploy' | 'add-instance'>('deploy');
 
   const pdRouterFileInputRef = useRef<HTMLInputElement>(null);
   const pdPrefillFileInputRef = useRef<HTMLInputElement>(null);
   const pdDecodeFileInputRef = useRef<HTMLInputElement>(null);
-
-  const scalePdRouterFileInputRef = useRef<HTMLInputElement>(null);
-  const scalePdPrefillFileInputRef = useRef<HTMLInputElement>(null);
-  const scalePdDecodeFileInputRef = useRef<HTMLInputElement>(null);
 
   const addInstRouterFileInputRef = useRef<HTMLInputElement>(null);
   const addInstPrefillFileInputRef = useRef<HTMLInputElement>(null);
@@ -6808,13 +6795,8 @@ const AtAasDesign = () => {
     setScalePdRouterNodes([]);
     setScalePdPrefillCount(1);
     setScalePdPrefillNodes([]);
-    setScalePdPrefillParams([]);
     setScalePdDecodeCount(1);
     setScalePdDecodeNodes([]);
-    setScalePdDecodeParams([]);
-    setScalePdRouterUploadedYaml('');
-    setScalePdPrefillUploadedYaml('');
-    setScalePdDecodeUploadedYaml('');
 
     setScalePdOpen(true);
   };
@@ -12919,10 +12901,10 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
         </Form>
       </Modal>
 
-      <Modal title={'PD 扩容 - ' + (scalePdTarget?.name || '')} open={scalePdOpen} onCancel={() => setScalePdOpen(false)} width={720} footer={
+      <Modal title={'扩缩容 - ' + (scalePdTarget?.name || '')} open={scalePdOpen} onCancel={() => setScalePdOpen(false)} width={720} footer={
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
           <Button onClick={() => setScalePdOpen(false)}>取消</Button>
-          <Button type="primary" onClick={() => { alert('扩容提交成功！请等待部署完成。'); setScalePdOpen(false); }}>确认扩容</Button>
+          <Button type="primary" onClick={() => { alert('扩缩容提交成功！请等待部署完成。'); setScalePdOpen(false); }}>确认扩缩容</Button>
         </div>
       }>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -12947,52 +12929,6 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
                       return n ? <Tag key={k} closable onClose={(e) => { e.stopPropagation(); setScalePdRouterNodes((prev) => prev.filter((x) => x !== k)); }} className="ataas-pd-node-tag ataas-pd-node-tag-router">{n.name}</Tag> : null;
                     }) : <span className="ataas-pd-node-placeholder">点击选择节点</span>}
                   </div>
-                </div>
-              </div>
-              <div className="ataas-pd-mode-bar">
-                <Segmented value={scalePdRouterParamMode} onChange={(v) => setScalePdRouterParamMode(v as 'template' | 'manual')} size="small" options={[{ value: 'template', label: 'YAML 模版' }, { value: 'manual', label: '手填参数' }]} />
-                <div style={{ flex: 1 }}>
-                  {scalePdRouterParamMode === 'template' ? (
-                    scalePdRouterNodes.length === 0 ? (
-                      <span className="ataas-pd-template-placeholder">请先选择节点</span>
-                    ) : (
-                      <div className="ataas-pd-template-content">
-                        <input type="file" accept=".yaml,.yml" ref={scalePdRouterFileInputRef} style={{ display: 'none' }} onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            if (!isYamlFile(file)) {
-                              message.error('仅支持 .yaml / .yml 文件');
-                              e.target.value = '';
-                              return;
-                            }
-                            const reader = new FileReader();
-                            reader.onload = (ev) => { setScalePdRouterUploadedYaml(ev.target?.result as string || ''); };
-                            reader.readAsText(file);
-                          }
-                          e.target.value = '';
-                        }} />
-                        <Button icon={<UploadOutlined />} size="small" onClick={() => scalePdRouterFileInputRef.current?.click()}>上传模版</Button>
-                        {scalePdRouterUploadedYaml && <Tag closable onClose={() => setScalePdRouterUploadedYaml('')} style={{ margin: 0 }}>已上传 YAML</Tag>}
-                      </div>
-                    )
-                  ) : scalePdRouterParamMode === 'manual' && (
-                    <div className="ataas-pd-params-area">
-                      {scalePdRouterParams.length === 0 ? (
-                        <div className="ataas-pd-param-empty">暂无参数</div>
-                      ) : (
-                        scalePdRouterParams.map((param, pi) => (
-                          <div key={pi} className="ataas-pd-param-row">
-                            <Input placeholder="参数名" value={param.key} onChange={(e) => { const next = [...scalePdRouterParams]; next[pi] = { ...next[pi], key: e.target.value }; setScalePdRouterParams(next); }} style={{ flex: 1 }} size="small" />
-                            <Input placeholder="参数值" value={param.value} onChange={(e) => { const next = [...scalePdRouterParams]; next[pi] = { ...next[pi], value: e.target.value }; setScalePdRouterParams(next); }} style={{ flex: 1 }} size="small" />
-                            <Button icon={<DeleteOutlined />} danger size="small" onClick={() => setScalePdRouterParams(scalePdRouterParams.filter((_, j) => j !== pi))} />
-                          </div>
-                        ))
-                      )}
-                      <div className="ataas-pd-param-add">
-                        <Button size="small" icon={<PlusOutlined />} onClick={() => setScalePdRouterParams([...scalePdRouterParams, { key: '', value: '' }])}>添加参数</Button>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
@@ -13020,61 +12956,6 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
                   </div>
                 </div>
               </div>
-              <div className="ataas-pd-mode-bar">
-                <Segmented value={scalePdPrefillParamMode} onChange={(v) => setScalePdPrefillParamMode(v as 'template' | 'manual')} size="small" options={[{ value: 'template', label: 'YAML 模版' }, { value: 'manual', label: '手填参数' }]} />
-                <div style={{ flex: 1 }}>
-                  {scalePdPrefillParamMode === 'template' ? (
-                    scalePdPrefillNodes.length === 0 ? (
-                      <span className="ataas-pd-template-placeholder">请先选择节点</span>
-                    ) : (
-                      <div className="ataas-pd-template-content">
-                        <input type="file" accept=".yaml,.yml" ref={scalePdPrefillFileInputRef} style={{ display: 'none' }} onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            if (!isYamlFile(file)) {
-                              message.error('仅支持 .yaml / .yml 文件');
-                              e.target.value = '';
-                              return;
-                            }
-                            const reader = new FileReader();
-                            reader.onload = (ev) => { setScalePdPrefillUploadedYaml(ev.target?.result as string || ''); };
-                            reader.readAsText(file);
-                          }
-                          e.target.value = '';
-                        }} />
-                        <Button icon={<UploadOutlined />} size="small" onClick={() => scalePdPrefillFileInputRef.current?.click()}>上传模版</Button>
-                        {scalePdPrefillUploadedYaml && <Tag closable onClose={() => setScalePdPrefillUploadedYaml('')} style={{ margin: 0 }}>已上传 YAML</Tag>}
-                      </div>
-                    )
-                  ) : scalePdPrefillParamMode === 'manual' && (
-                    <div className="ataas-pd-params-area">
-                      {scalePdPrefillParams.length === 0 ? (
-                        <div className="ataas-pd-param-empty">暂无参数</div>
-                      ) : (
-                        scalePdPrefillParams.map((param, pi) => (
-                          <div key={pi} className="ataas-pd-param-row">
-                            <Input placeholder="参数名" value={param.key} onChange={(e) => { const next = [...scalePdPrefillParams]; next[pi] = { ...next[pi], key: e.target.value }; setScalePdPrefillParams(next); }} style={{ flex: 1 }} size="small" />
-                            <Input placeholder="参数值" value={param.value} onChange={(e) => { const next = [...scalePdPrefillParams]; next[pi] = { ...next[pi], value: e.target.value }; setScalePdPrefillParams(next); }} style={{ flex: 1 }} size="small" />
-                            <Button icon={<DeleteOutlined />} danger size="small" onClick={() => setScalePdPrefillParams(scalePdPrefillParams.filter((_, j) => j !== pi))} />
-                          </div>
-                        ))
-                      )}
-                      <div className="ataas-pd-param-add">
-                        <Button size="small" icon={<PlusOutlined />} onClick={() => setScalePdPrefillParams([...scalePdPrefillParams, { key: '', value: '' }])}>添加参数</Button>
-                      </div>
-                      <div className="ataas-pd-advanced-toggle" onClick={() => setExpandedSections((p) => ({ ...p, 'scale-prefill-adv': !p['scale-prefill-adv'] }))}>
-                        <span className="ataas-pd-advanced-toggle-label">高级参数</span>
-                        <DownOutlined className={'ataas-pd-advanced-toggle-icon' + (expandedSections['scale-prefill-adv'] ? ' open' : '')} />
-                      </div>
-                      {expandedSections['scale-prefill-adv'] && (
-                        <div className="ataas-pd-advanced-content">
-                          {scalePdPrefillParams.length > 0 && <div className="ataas-pd-advanced-hint">以下为额外高级配置参数，可按需添加</div>}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
             </div>
           </div>
           {/* Decode */}
@@ -13098,61 +12979,6 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
                       return n ? <Tag key={k} closable onClose={(e) => { e.stopPropagation(); setScalePdDecodeNodes((prev) => prev.filter((x) => x !== k)); }} className="ataas-pd-node-tag ataas-pd-node-tag-decode">{n.name}</Tag> : null;
                     }) : <span className="ataas-pd-node-placeholder">点击选择节点</span>}
                   </div>
-                </div>
-              </div>
-              <div className="ataas-pd-mode-bar">
-                <Segmented value={scalePdDecodeParamMode} onChange={(v) => setScalePdDecodeParamMode(v as 'template' | 'manual')} size="small" options={[{ value: 'template', label: 'YAML 模版' }, { value: 'manual', label: '手填参数' }]} />
-                <div style={{ flex: 1 }}>
-                  {scalePdDecodeParamMode === 'template' ? (
-                    scalePdDecodeNodes.length === 0 ? (
-                      <span className="ataas-pd-template-placeholder">请先选择节点</span>
-                    ) : (
-                      <div className="ataas-pd-template-content">
-                        <input type="file" accept=".yaml,.yml" ref={scalePdDecodeFileInputRef} style={{ display: 'none' }} onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            if (!isYamlFile(file)) {
-                              message.error('仅支持 .yaml / .yml 文件');
-                              e.target.value = '';
-                              return;
-                            }
-                            const reader = new FileReader();
-                            reader.onload = (ev) => { setScalePdDecodeUploadedYaml(ev.target?.result as string || ''); };
-                            reader.readAsText(file);
-                          }
-                          e.target.value = '';
-                        }} />
-                        <Button icon={<UploadOutlined />} size="small" onClick={() => scalePdDecodeFileInputRef.current?.click()}>上传模版</Button>
-                        {scalePdDecodeUploadedYaml && <Tag closable onClose={() => setScalePdDecodeUploadedYaml('')} style={{ margin: 0 }}>已上传 YAML</Tag>}
-                      </div>
-                    )
-                  ) : scalePdDecodeParamMode === 'manual' && (
-                    <div className="ataas-pd-params-area">
-                      {scalePdDecodeParams.length === 0 ? (
-                        <div className="ataas-pd-param-empty">暂无参数</div>
-                      ) : (
-                        scalePdDecodeParams.map((param, pi) => (
-                          <div key={pi} className="ataas-pd-param-row">
-                            <Input placeholder="参数名" value={param.key} onChange={(e) => { const next = [...scalePdDecodeParams]; next[pi] = { ...next[pi], key: e.target.value }; setScalePdDecodeParams(next); }} style={{ flex: 1 }} size="small" />
-                            <Input placeholder="参数值" value={param.value} onChange={(e) => { const next = [...scalePdDecodeParams]; next[pi] = { ...next[pi], value: e.target.value }; setScalePdDecodeParams(next); }} style={{ flex: 1 }} size="small" />
-                            <Button icon={<DeleteOutlined />} danger size="small" onClick={() => setScalePdDecodeParams(scalePdDecodeParams.filter((_, j) => j !== pi))} />
-                          </div>
-                        ))
-                      )}
-                      <div className="ataas-pd-param-add">
-                        <Button size="small" icon={<PlusOutlined />} onClick={() => setScalePdDecodeParams([...scalePdDecodeParams, { key: '', value: '' }])}>添加参数</Button>
-                      </div>
-                      <div className="ataas-pd-advanced-toggle" onClick={() => setExpandedSections((p) => ({ ...p, 'scale-decode-adv': !p['scale-decode-adv'] }))}>
-                        <span className="ataas-pd-advanced-toggle-label">高级参数</span>
-                        <DownOutlined className={'ataas-pd-advanced-toggle-icon' + (expandedSections['scale-decode-adv'] ? ' open' : '')} />
-                      </div>
-                      {expandedSections['scale-decode-adv'] && (
-                        <div className="ataas-pd-advanced-content">
-                          {scalePdDecodeParams.length > 0 && <div className="ataas-pd-advanced-hint">以下为额外高级配置参数，可按需添加</div>}
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
