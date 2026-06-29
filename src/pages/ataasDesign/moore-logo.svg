@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100" role="img" aria-label="Moore Threads">
+  <defs>
+    <linearGradient id="moore-g" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#F7A84B"/>
+      <stop offset="1" stop-color="#F15A24"/>
+    </linearGradient>
+  </defs>
+  <g fill="none" stroke="url(#moore-g)" stroke-width="8" stroke-linejoin="miter" stroke-linecap="butt">
+    <path d="M14 22h82l-8 10H24z"/>
+    <path d="M22 42h73l-9 10H29z"/>
+    <path d="M9 31h103l-8 10H17z"/>
+    <path d="M16 43l30 49 9-16-21-33"/>
+    <path d="M34 43l27 49 28-70"/>
+    <path d="M103 31 67 88"/>
+    <path d="M72 92 106 43"/>
+    <path d="M97 42h14l-6 10H91"/>
+    <path d="M49 83l9 12 9-12"/>
+  </g>
+</svg>
