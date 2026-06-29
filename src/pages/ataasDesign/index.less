@@ -5389,6 +5389,26 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 
 .ataas-model-ops-weight-table-wrap {
   overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #E6E8EE transparent;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgba(134, 144, 156, 0.22);
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: rgba(134, 144, 156, 0.34);
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
 }
 
 .ataas-model-ops-weight-table {
@@ -19611,6 +19631,34 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 }
 
 .ataas-model-ops-detail-table-wrap {
+  .ant-table-content,
+  .ant-table-body {
+    scrollbar-width: thin;
+    scrollbar-color: #E6E8EE transparent;
+  }
+
+  .ant-table-content::-webkit-scrollbar,
+  .ant-table-body::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .ant-table-content::-webkit-scrollbar-thumb,
+  .ant-table-body::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgba(134, 144, 156, 0.22);
+  }
+
+  .ant-table-content::-webkit-scrollbar-thumb:hover,
+  .ant-table-body::-webkit-scrollbar-thumb:hover {
+    background: rgba(134, 144, 156, 0.34);
+  }
+
+  .ant-table-content::-webkit-scrollbar-track,
+  .ant-table-body::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
   .ant-table-tbody > tr.ant-table-measure-row,
   .ant-table-measure-row {
     display: none !important;
