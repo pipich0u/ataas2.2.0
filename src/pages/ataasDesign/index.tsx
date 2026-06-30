@@ -6498,7 +6498,7 @@ const LogBoardCard = ({ icon, label, detail, time, status }: { icon: React.React
 const AtAasDesign = () => {
   const [activeTab, setActiveTab] = useState(() => {
     if (window.location.pathname.includes('/playground/chat')) return 'playgroundChat';
-    if (window.location.pathname.includes('/playground/vision')) return 'playgroundVision';
+    if (window.location.pathname.includes('/playground/vision')) return 'playgroundChat';
     if (window.location.pathname.includes('/playground/visual')) return 'playgroundVisual';
     if (window.location.pathname.includes('/playground/embedding')) return 'playgroundEmbedding';
     if (window.location.pathname.includes('/playground/rerank')) return 'playgroundRerank';
@@ -6932,7 +6932,7 @@ const AtAasDesign = () => {
   const handleDeployExperience = (item: DeployServiceItem) => {
     const targetMap: Record<DeployServiceItem['category'], { tab: string; path: string; label: string }> = {
       llm: { tab: 'playgroundChat', path: '/playground/chat', label: '文本模型' },
-      vlm: { tab: 'playgroundVision', path: '/playground/vision', label: '图像模型' },
+      vlm: { tab: 'playgroundChat', path: '/playground/chat', label: '文本模型' },
       embedding: { tab: 'playgroundEmbedding', path: '/playground/embedding', label: '嵌入模型' },
       rerank: { tab: 'playgroundRerank', path: '/playground/rerank', label: '重排模型' },
     };
@@ -9654,7 +9654,7 @@ const AtAasDesign = () => {
     { key: 'images', icon: <SidebarIcon name="image" />, label: '镜像仓库' },
     { key: 'monitoring', icon: <SidebarIcon name="monitor" />, label: '模型监控' },
     { key: 'playgroundChat', icon: <SidebarIcon name="playground" />, label: '文本模型' },
-    { key: 'playgroundVision', icon: <SidebarIcon name="imageModel" />, label: '图像模型' },
+    // { key: 'playgroundVision', icon: <SidebarIcon name="imageModel" />, label: '图像模型' },
     { key: 'playgroundVisual', icon: <SidebarIcon name="visionModel" />, label: '视觉模型' },
     { key: 'playgroundEmbedding', icon: <SidebarIcon name="embedding" />, label: '嵌入模型' },
     { key: 'playgroundRerank', icon: <SidebarIcon name="rerank" />, label: '重排模型' },
@@ -9674,7 +9674,7 @@ const AtAasDesign = () => {
     { title: '概览', items: getSidebarItems(['overview']) },
     { title: '资源管理', items: getSidebarItems(['clusters', 'nodes', 'engines', 'pods', 'services', 'se']) },
     { title: '模型管理', items: getSidebarItems(['modelRepo', 'startupTemplates', 'deploy', 'modelOps', 'monitoring']) },
-    { title: '模型测试', items: getSidebarItems(['playgroundChat', 'playgroundVision', 'playgroundVisual', 'playgroundEmbedding', 'playgroundRerank', 'benchmark']) },
+    { title: '模型测试', items: getSidebarItems(['playgroundChat', 'playgroundVisual', 'playgroundEmbedding', 'playgroundRerank', 'benchmark']) },
     { title: '身份权限', items: getSidebarItems(['apiKeys', 'users']) },
     { title: '系统监控', items: getSidebarItems(['alerts', 'logs']) },
   ];
@@ -11916,7 +11916,6 @@ const AtAasDesign = () => {
                     const pathMap: Record<string, string> = {
                       benchmark: '/benchmark',
                       playgroundChat: '/playground/chat',
-                      playgroundVision: '/playground/vision',
                       playgroundVisual: '/playground/visual',
                       playgroundEmbedding: '/playground/embedding',
                       playgroundRerank: '/playground/rerank',
