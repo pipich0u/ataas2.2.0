@@ -6776,6 +6776,32 @@ const AtAasDesign = () => {
     setActiveTab('monitoring');
   };
   const handleDeployStop = (item: DeployServiceItem) => {
+    const parseRoleCount = (value?: string) => {
+      const total = Number(String(value || '').split('/')[1]);
+      return Number.isFinite(total) && total > 0 ? total : 0;
+    };
+    const sourceServiceId = item.modelOpsSourceServiceId || item.id;
+    if (item.modelOpsRoleSummary) {
+      const routerCount = parseRoleCount(item.modelOpsRoleSummary.router);
+      const prefillCount = parseRoleCount(item.modelOpsRoleSummary.prefill);
+      const decodeCount = parseRoleCount(item.modelOpsRoleSummary.decode);
+      Modal.confirm({
+        title: '确认整组下线',
+        content: (
+          <div>
+            <p>当前 PD 组包含 {routerCount} 个 Router、{prefillCount} 个 Prefill、{decodeCount} 个 Decode，点击确认后将同时下线。</p>
+            <div style={{ marginTop: 8, color: '#4E5969', lineHeight: 1.8 }}>
+              模型实例：{item.name}
+            </div>
+          </div>
+        ),
+        onOk: () => {
+          setDeployServices((prev) => prev.map((s) => s.id === sourceServiceId ? { ...s, status: 'ready' as const, timeStr: '未部署' } : s));
+          message.success('已下线');
+        },
+      });
+      return;
+    }
     const workInstances = item.modelInfo.works?.split(',').map((work: string) => work.trim()).filter(Boolean) || [];
     const instanceCount = Math.max(1, workInstances.length || item.modelInfo.number || 1);
     const instanceNames = workInstances.length > 0
@@ -6792,7 +6818,7 @@ const AtAasDesign = () => {
         </div>
       ),
       onOk: () => {
-        setDeployServices((prev) => prev.map((s) => s.id === item.id ? { ...s, status: 'ready' as const, timeStr: '未部署' } : s));
+        setDeployServices((prev) => prev.map((s) => s.id === sourceServiceId ? { ...s, status: 'ready' as const, timeStr: '未部署' } : s));
         message.success('已停止');
       },
     });
@@ -10279,7 +10305,7 @@ const AtAasDesign = () => {
                       mode="modelOps"
                       data={activeModelInstanceRows}
                       onDetail={(item) => handleDeployDetail(resolveModelOpsSourceService(item))}
-                      onStop={(item) => handleDeployStop(resolveModelOpsSourceService(item))}
+                      onStop={handleDeployStop}
                       onMonitor={(item) => handleDeployMonitor(resolveModelOpsSourceService(item))}
                       onExperience={(item) => handleDeployExperience(resolveModelOpsSourceService(item))}
                       onLog={(item, logId, podName) => handleDeployLog(resolveModelOpsSourceService(item), logId, podName)}
