@@ -575,19 +575,30 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
       { title: '状态', dataIndex: 'status', key: 'status', width: 100, render: () => <DetailStatus /> },
     ];
     const liveGroupReportCount = Math.max(1, opsRoleRows.length);
+    const liveMetricPhase = Math.floor(nowTick / 1000) + item.id;
+    const liveMetricWave = (offset: number, amplitude: number) => Math.sin((liveMetricPhase + offset) / 3) * amplitude;
     const liveGroupMetrics = {
       podsTotal: liveGroupReportCount,
       reporting: liveGroupReportCount,
       window: '60s',
-      tpsP: 7600 + item.id * 17 + Math.max(1, detailInstances.length) * 128,
-      tpsD: 720 + item.id * 9 + Math.max(1, detailInstances.length) * 18,
-      inflightP: Number((7 + (item.id % 5) * 0.68 + detailInstances.length * 0.24).toFixed(2)),
-      inflightD: Number((2 + (item.id % 3) * 0.34).toFixed(2)),
-      routerRps: Number((7 + (item.id % 4) * 0.08 + Math.max(1, detailInstances.length) * 0.02).toFixed(2)),
-      ttft: 1180 + item.id * 11 + Math.max(1, detailInstances.length) * 23,
-      cacheHit: Number((71 + (item.id % 6) * 1.4).toFixed(1)),
-      runningReq: Number((11 + (item.id % 5) * 0.5 + Math.max(1, detailInstances.length) * 0.2).toFixed(1)),
-      queueReq: Number((1 + (item.id % 4) * 0.12).toFixed(2)),
+      tpsP: Math.max(0, Math.round(43998 + liveMetricWave(0, 620) + (item.id % 5) * 71)),
+      tpsPAvg: Math.max(0, Math.round(60640 + liveMetricWave(4, 420))),
+      tpsD: Math.max(0, Math.round(955 + liveMetricWave(1, 34) + (item.id % 4) * 7)),
+      tpsDAvg: Math.max(0, Math.round(834 + liveMetricWave(6, 18))),
+      inflightP: Number(Math.max(0, 7 + liveMetricWave(2, 0.42)).toFixed(2)),
+      inflightPAvg: Number(Math.max(0, 10.6 + liveMetricWave(7, 0.18)).toFixed(1)),
+      inflightD: Number(Math.max(0, 5 + liveMetricWave(3, 0.32)).toFixed(2)),
+      inflightDAvg: Number(Math.max(0, 2.85 + liveMetricWave(8, 0.12)).toFixed(2)),
+      routerRps: Number(Math.max(0, 8.45 + liveMetricWave(4, 0.28)).toFixed(2)),
+      routerRpsAvg: Number(Math.max(0, 8.45 + liveMetricWave(9, 0.16)).toFixed(2)),
+      ttft: Math.max(0, Math.round(1511 + liveMetricWave(5, 86))),
+      ttftAvg: Math.max(0, Math.round(2548 + liveMetricWave(10, 94))),
+      cacheHit: Number(Math.max(0, 74.4 + liveMetricWave(6, 1.6)).toFixed(1)),
+      cacheHitAvg: Number(Math.max(0, 84 + liveMetricWave(11, 0.8)).toFixed(1)),
+      runningReq: Number(Math.max(0, 19 + liveMetricWave(7, 1.8)).toFixed(1)),
+      runningReqAvg: Number(Math.max(0, 15.8 + liveMetricWave(12, 0.7)).toFixed(1)),
+      queueReq: Number(Math.max(0, 35 + liveMetricWave(8, 2.7)).toFixed(1)),
+      queueReqAvg: Number(Math.max(0, 3.44 + liveMetricWave(13, 0.22)).toFixed(2)),
       gpuPower: 17836 + item.id * 13,
       gpuUtil: Number((47 + (item.id % 7) * 0.8).toFixed(1)),
       tempAvg: Number((46 + (item.id % 6) * 0.3).toFixed(1)),
@@ -667,25 +678,23 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
                     {
                       title: 'TPS',
                       rows: [
-                        { label: 'P', value: '43998', avg: 'avg 60640', color: '#8B48FF' },
-                        { label: 'D', value: '955', avg: 'avg 834', color: '#14A0C7' },
+                        { label: 'P', value: String(liveGroupMetrics.tpsP), avg: `avg ${liveGroupMetrics.tpsPAvg}`, color: '#8B48FF' },
+                        { label: 'D', value: String(liveGroupMetrics.tpsD), avg: `avg ${liveGroupMetrics.tpsDAvg}`, color: '#14A0C7' },
                       ],
-                      note: 'prefill 4/4 · decode 1/1',
                     },
                     {
                       title: 'INFLIGHT / XFER',
                       rows: [
-                        { label: 'P', value: '7.00', avg: 'avg 10.6', color: '#8B48FF' },
-                        { label: 'D', value: '5.00', avg: 'avg 2.85', color: '#14A0C7' },
+                        { label: 'P', value: liveGroupMetrics.inflightP.toFixed(2), avg: `avg ${liveGroupMetrics.inflightPAvg}`, color: '#8B48FF' },
+                        { label: 'D', value: liveGroupMetrics.inflightD.toFixed(2), avg: `avg ${liveGroupMetrics.inflightDAvg}`, color: '#14A0C7' },
                       ],
-                      note: 'P inflight · D transfer',
                     },
-                    { title: 'ROUTER RPS', value: '8.45', suffix: 'req/s', avg: 'avg 8.45', note: '1 of 1 routers', color: '#18A957' },
-                    { title: 'TTFT', value: '1511', suffix: 'ms', avg: 'avg 2548', note: 'routers, mean of means · 1 reporting', color: '#18A957' },
-                    { title: 'CACHE HIT', value: '74.4', suffix: '%', avg: 'avg 84.0', note: 'prefill, mean of means · 4 reporting', color: '#8B48FF' },
-                    { title: 'RUNNING REQ', value: '19.0', suffix: '', avg: 'avg 15.8', note: 'decode, sum', color: '#14A0C7' },
-                    { title: 'QUEUE REQ', value: '35.0', suffix: '', avg: 'avg 3.44', note: 'prefill, sum', color: '#8B48FF' },
-                    { title: 'KV XFER', value: '—', suffix: '', avg: '', note: 'workers, sum', color: '#8A8F98' },
+                    { title: 'ROUTER RPS', value: liveGroupMetrics.routerRps.toFixed(2), suffix: 'req/s', avg: `avg ${liveGroupMetrics.routerRpsAvg.toFixed(2)}`, color: '#18A957' },
+                    { title: 'TTFT', value: String(liveGroupMetrics.ttft), suffix: 'ms', avg: `avg ${liveGroupMetrics.ttftAvg}`, color: '#18A957' },
+                    { title: 'CACHE HIT', value: liveGroupMetrics.cacheHit.toFixed(1), suffix: '%', avg: `avg ${liveGroupMetrics.cacheHitAvg.toFixed(1)}`, color: '#8B48FF' },
+                    { title: 'RUNNING REQ', value: liveGroupMetrics.runningReq.toFixed(1), suffix: '', avg: `avg ${liveGroupMetrics.runningReqAvg.toFixed(1)}`, color: '#14A0C7' },
+                    { title: 'QUEUE REQ', value: liveGroupMetrics.queueReq.toFixed(1), suffix: '', avg: `avg ${liveGroupMetrics.queueReqAvg.toFixed(2)}`, color: '#8B48FF' },
+                    { title: 'KV XFER', value: '—', suffix: '', avg: '', color: '#8A8F98' },
                   ].map((card) => (
                     <div key={card.title} className="ataas-model-ops-live-metric-card">
                       <div className="ataas-model-ops-live-metric-title">{card.title}</div>
@@ -706,7 +715,6 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
                           {card.avg ? <em>{card.avg}</em> : null}
                         </div>
                       )}
-                      <div className="ataas-model-ops-live-metric-note">{card.note}</div>
                     </div>
                   ))}
                 </div>
