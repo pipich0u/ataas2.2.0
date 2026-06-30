@@ -10309,7 +10309,6 @@ const AtAasDesign = () => {
 	                    >
 	                      {activeWeightModalService && (
 	                        <div className="ataas-model-ops-weight-modal">
-                            <div className="ataas-model-ops-weight-modal-subtitle">{activeWeightModalService.name} · {getDeployClusterName(activeWeightModalService)} · {activeWeightModalInstances.length} 个实例</div>
 	                          <div className="ataas-model-ops-weight-modal-toolbar">
                               <span>当前总和 <strong>{activeWeightModalTotal}</strong></span>
                               <div>
@@ -10324,9 +10323,8 @@ const AtAasDesign = () => {
                                   <div key={instance.key} className="ataas-model-ops-weight-modal-row">
                                     <Tooltip title={instance.instanceName}><strong>{instance.instanceName}</strong></Tooltip>
                                     <Slider min={0} max={100} value={value} tooltip={{ formatter: null }} onChange={(nextValue) => updateInstanceWeight(instance.key, Number(nextValue))} />
-                                    <span className="ataas-model-ops-weight-modal-percent">{value.toFixed(1)}%</span>
                                     <InputNumber min={0} max={100} value={value} size="middle" onChange={(nextValue) => { if (nextValue !== null) updateInstanceWeight(instance.key, Number(nextValue)); }} />
-                                    <i />
+                                    <span className="ataas-model-ops-weight-modal-percent">%</span>
                                   </div>
                                 );
                               })}
