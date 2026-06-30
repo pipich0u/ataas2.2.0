@@ -9904,7 +9904,39 @@ const AtAasDesign = () => {
                       <Input.Search placeholder="按模型名称筛选..." className="ataas-cluster-search ataas-cluster-model-search" value={clusterNodeModelSearch} onChange={(e) => setClusterNodeModelSearch(e.target.value)} allowClear />
                     </div>
                     <div className="ataas-cluster-table-wrap">
-                    <Table dataSource={filteredNodes} rowKey="key" columns={nodeColumns} scroll={{ x: 2000 }} pagination={{ pageSize: 8, showSizeChanger: true, showTotal: (t) => `共 ${t} 个节点` }} />
+                    <Table dataSource={filteredNodes} rowKey="key" columns={nodeColumns} scroll={{ x: 2000 }} pagination={{ pageSize: 8, showSizeChanger: true, showTotal: (t) => `共 ${t} 个节点` }} expandable={{
+                      expandedRowRender: (r) => (
+                        <div className="ataas-node-expand-detail">
+                          <div className="ataas-node-resource-list">
+                            <div><span>CPU</span><Tooltip title={`${r.cpu} 核（已用 ${r.cpuUsed} 核） / ${getNodeCpuModel(r)} / ${getNodeArchitecture(r)}`}><strong>{r.cpu} 核（已用 {r.cpuUsed} 核） / {getNodeCpuModel(r)} / {getNodeArchitecture(r)}</strong></Tooltip></div>
+                            <div><span>内存</span><strong>{r.memory}（已用 {r.memoryUsed}）</strong></div>
+                            <div><span>GPU</span><strong>{getNodeDisplayGpuCards(r).length} 片（显存 {r.gpuMemoryUsed} / {r.gpuMemory}）</strong></div>
+                            <div><span>磁盘</span><strong>{r.disk}（已用 {r.diskUsed}）</strong></div>
+                            <div><span>模型</span><strong>{r.modelCount} 个 / {r.runningInstances} 实例</strong></div>
+                            <div><span>操作系统</span><strong>{getNodeOperatingSystem(r)}</strong></div>
+                          </div>
+                          <div className="ataas-node-gpu-panel">
+                            <div className="ataas-node-gpu-card-grid">
+                              {getNodeDisplayGpuCards(r).map((card) => (
+                                <div key={card.index} className={'ataas-node-gpu-card' + (card.status === 'idle' ? ' idle' : '')}>
+                                  <div className="ataas-node-gpu-card-head">
+                                    <strong>GPU {card.index}</strong>
+                                    <span className={'ataas-node-gpu-card-status' + (card.status === 'idle' ? ' idle' : '')}>{card.status === 'idle' ? '空闲' : '使用中'}</span>
+                                  </div>
+                                  <div className="ataas-node-gpu-card-model">{card.model}<em>{card.spec}</em></div>
+                                  <Progress percent={card.utilization} showInfo={false} size="small" strokeColor={card.utilization > 90 ? '#E02D2D' : '#6951FF'} trailColor="#F2F3F5" />
+                                  <div className="ataas-node-gpu-card-meta">
+                                    <span>显存 {card.memoryUsed} / {card.memoryTotal}</span>
+                                  </div>
+                                  {renderGpuCardRunningModels(r, card)}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      ),
+                      rowExpandable: () => true,
+                    }} />
                     </div>
                   </div>
                 )}
