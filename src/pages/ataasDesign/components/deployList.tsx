@@ -1006,16 +1006,16 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
   ];
 
   const modelOpsTableColumns: ColumnsType<DeployServiceItem> = [
-    { title: 'PD组名', dataIndex: 'name', key: 'name', width: 150, render: (v) => <span className="ataas-deploy-table-main">{v}</span> },
-    { title: '当前权重', key: 'weight', width: 100, render: (_, r) => <span className="ataas-model-ops-weight-pill">{getModelOpsRowWeight?.(r) ?? 100}%</span> },
-    { title: '集群', key: 'cluster', width: 140, render: (_, r) => <span className="ataas-deploy-table-cluster">{getDeployClusterName(r)}</span> },
-    { title: '状态', key: 'status', width: 100, render: (_, r) => <TableStatus item={r} /> },
-    { title: 'Router', key: 'router', width: 90, render: (_, r) => renderModelOpsRoleCount(getModelOpsRoleSummary(r).router, 'router') },
-    { title: 'Prefill', key: 'prefill', width: 90, render: (_, r) => renderModelOpsRoleCount(getModelOpsRoleSummary(r).prefill, 'prefill') },
-    { title: 'Decode', key: 'decode', width: 90, render: (_, r) => renderModelOpsRoleCount(getModelOpsRoleSummary(r).decode, 'decode') },
-    { title: 'TTFT', key: 'ttft', width: 90, render: (_, r) => <span className="ataas-model-ops-perf-value">{getModelOpsPerfSummary(r).ttft}</span> },
-    { title: 'TPOT', key: 'tpot', width: 90, render: (_, r) => <span className="ataas-model-ops-perf-value">{getModelOpsPerfSummary(r).tpot}</span> },
-    { title: '操作', key: 'action', width: 110, fixed: 'right' as const, className: 'ataas-deploy-fixed-action-cell', render: (_, r) => (
+    { title: 'PD组名', dataIndex: 'name', key: 'name', width: 130, render: (v) => <span className="ataas-deploy-table-main">{v}</span> },
+    { title: '当前权重', key: 'weight', width: 86, render: (_, r) => <span className="ataas-model-ops-weight-pill">{getModelOpsRowWeight?.(r) ?? 100}%</span> },
+    { title: '状态', key: 'status', width: 86, render: (_, r) => <TableStatus item={r} /> },
+    { title: '集群', key: 'cluster', width: 120, render: (_, r) => <span className="ataas-deploy-table-cluster">{getDeployClusterName(r)}</span> },
+    { title: 'Router', key: 'router', width: 78, render: (_, r) => renderModelOpsRoleCount(getModelOpsRoleSummary(r).router, 'router') },
+    { title: 'Prefill', key: 'prefill', width: 78, render: (_, r) => renderModelOpsRoleCount(getModelOpsRoleSummary(r).prefill, 'prefill') },
+    { title: 'Decode', key: 'decode', width: 78, render: (_, r) => renderModelOpsRoleCount(getModelOpsRoleSummary(r).decode, 'decode') },
+    { title: 'TTFT', key: 'ttft', width: 76, render: (_, r) => <span className="ataas-model-ops-perf-value">{getModelOpsPerfSummary(r).ttft}</span> },
+    { title: 'TPOT', key: 'tpot', width: 76, render: (_, r) => <span className="ataas-model-ops-perf-value">{getModelOpsPerfSummary(r).tpot}</span> },
+    { title: '操作', key: 'action', width: 96, fixed: 'right' as const, className: 'ataas-deploy-fixed-action-cell', render: (_, r) => (
       <div className="ataas-model-ops-table-actions">
         <Tooltip title="重建">
           <button type="button" className="ataas-model-ops-icon-action"><ReloadOutlined /></button>
