@@ -187,7 +187,7 @@ const createModelOpsMockService = (id: number, name: string, works: string, numb
 
 export const MOCK_DEPLOY_DATA: DeployServiceItem[] = [
   ...[
-    ['st-router-1', 'gz-l20-worker-001, gz-l20-worker-002', 2],
+    ['st-router-1', Array.from({ length: 10 }, (_, index) => `st-router-1-inst-${index + 1}`).join(', '), 10],
     ['st-router-2', 'gz-l20-worker-003, gz-l20-worker-004', 2],
     ['st-router-3', 'gz-l20-worker-005, gz-l20-worker-006', 2],
     ['st-router-4', 'gz-l20-worker-007, gz-l20-worker-008', 2],
@@ -214,7 +214,7 @@ interface DeployListProps {
   onLog: (item: DeployServiceItem, logId: number, podName?: string) => void;
   onDeleteInstance?: (item: DeployServiceItem, instanceIndex: number) => void;
   onAddInstance?: (item: DeployServiceItem) => void;
-  onAllocateWeight?: () => void;
+  onAllocateWeight?: (item: DeployServiceItem) => void;
   onOpenCreate: () => void;
   onScalePd?: (item: DeployServiceItem) => void;
   onNodeFilter?: (item: DeployServiceItem) => void;
@@ -1044,6 +1044,17 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
         <Select className="ataas-deploy-list-select" value={clusterFilter} onChange={(value) => { setClusterFilter(value); onClusterFilterChange?.(value); setPage(1); }} options={CLUSTER_OPTIONS} placeholder="集群名称" size="middle" />
         <Input.Search className="ataas-deploy-list-search" placeholder="搜索服务名称..." value={searchText} onChange={(e) => setSearchText(e.target.value)} allowClear size="middle" />
         <div style={{ flex: 1 }} />
+        {mode === 'modelOps' && onAllocateWeight && (
+          <Button
+            className="ataas-deploy-create-button"
+            type="primary"
+            icon={<SettingOutlined />}
+            disabled={filtered.length === 0}
+            onClick={() => filtered[0] && onAllocateWeight(filtered[0])}
+          >
+            分配权重
+          </Button>
+        )}
         {mode === 'modelOps' && onAddInstance && (
           <Button
             className="ataas-deploy-create-button"
@@ -1053,16 +1064,6 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
             onClick={() => filtered[0] && onAddInstance(filtered[0])}
           >
             添加实例
-          </Button>
-        )}
-        {mode === 'modelOps' && onAllocateWeight && (
-          <Button
-            className="ataas-traffic-enable-button"
-            icon={<SettingOutlined />}
-            disabled={filtered.length === 0}
-            onClick={onAllocateWeight}
-          >
-            分配权重
           </Button>
         )}
         {mode !== 'modelOps' && (

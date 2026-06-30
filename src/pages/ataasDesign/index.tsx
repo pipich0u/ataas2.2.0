@@ -6683,7 +6683,7 @@ const AtAasDesign = () => {
   const [modelOpsSelectedModel, setModelOpsSelectedModel] = useState('');
   const [modelOpsSelectedServiceId, setModelOpsSelectedServiceId] = useState<number | null>(null);
   const [modelOpsWeights, setModelOpsWeights] = useState<Record<string, number>>({});
-  const [modelOpsWeightModalCluster, setModelOpsWeightModalCluster] = useState('');
+  const [modelOpsWeightModalServiceId, setModelOpsWeightModalServiceId] = useState<number | null>(null);
   const [deployMode, setDeployMode] = useState<string>('single');
   const [startupTemplateForm] = Form.useForm();
   const [addInstPdTemplateForm] = Form.useForm();
@@ -10181,78 +10181,58 @@ const AtAasDesign = () => {
               ? deployServices.find((service) => service.id === modelOpsSelectedServiceId)
               : null;
             const activeModelServices = selectedModelOpsService ? [selectedModelOpsService] : (activeModelGroup?.services || []);
-            const routerRows = activeModelServices.map((service) => {
-              const cluster = getDeployClusterName(service);
-              return {
-                key: `${cluster}-${service.id}`,
-                cluster,
+            const getModelOpsServiceInstances = (service: DeployServiceItem) => {
+              const works = (service.modelInfo.works || '')
+                .split(',')
+                .map((name) => name.trim())
+                .filter(Boolean);
+              const count = Math.max(1, works.length || service.modelInfo.number || 1);
+              return Array.from({ length: count }, (_, index) => ({
+                key: `${service.id}-instance-${index}`,
                 serviceName: service.name,
-                routerName: `${service.name}-router-0`,
-                instanceName: service.name,
-              };
-            });
-            const baseClusterWeightGroups = routerRows.reduce<Array<{ cluster: string; routers: typeof routerRows }>>((groups, router) => {
-              const current = groups.find((group) => group.cluster === router.cluster);
-              if (current) current.routers.push(router);
-              else groups.push({ cluster: router.cluster, routers: [router] });
-              return groups;
-            }, []);
-            const clusterWeightGroups = baseClusterWeightGroups.map((group, groupIndex) => {
-              const tailIndex = groupIndex - Math.max(0, baseClusterWeightGroups.length - 2);
-              if (tailIndex < 0) return group;
-              const targetCount = tailIndex === 0 ? 12 : 14;
-              if (group.routers.length >= targetCount) return group;
-              const extraRouters = Array.from({ length: targetCount - group.routers.length }, (_, index) => {
-                const seq = group.routers.length + index + 1;
-                const prefix = group.routers[0]?.serviceName?.split('-router-')[0] || group.cluster;
-                return {
-                  key: `${group.cluster}-mock-router-${seq}`,
-                  cluster: group.cluster,
-                  serviceName: `${prefix}-mock-${seq}`,
-                  routerName: `${prefix}-router-${seq}`,
-                  instanceName: `${prefix}-mock-${seq}`,
-                };
-              });
-              return { ...group, routers: [...group.routers, ...extraRouters] };
-            });
-            const getDefaultWeight = (routers: typeof routerRows, index: number) => {
-              if (routers.length <= 1) return 100;
-              const base = Math.floor(100 / routers.length);
-              return index === routers.length - 1 ? 100 - base * (routers.length - 1) : base;
+                instanceName: works[index] || `${service.name}-实例${index + 1}`,
+                cluster: getDeployClusterName(service),
+              }));
             };
-            const getRouterWeight = (routers: typeof routerRows, index: number) => modelOpsWeights[routers[index].key] ?? getDefaultWeight(routers, index);
-            const updateRouterWeight = (routerKey: string, value: number) => {
-              setModelOpsWeights((prev) => ({ ...prev, [routerKey]: Math.max(0, Math.min(100, Math.round(value))) }));
+            const getDefaultWeight = (instances: ReturnType<typeof getModelOpsServiceInstances>, index: number) => {
+              if (instances.length <= 1) return 100;
+              const base = Math.floor(100 / instances.length);
+              return index === instances.length - 1 ? 100 - base * (instances.length - 1) : base;
             };
-            const normalizeClusterWeights = (routers: typeof routerRows) => {
-              const current = routers.map((_, index) => getRouterWeight(routers, index));
+            const getInstanceWeight = (instances: ReturnType<typeof getModelOpsServiceInstances>, index: number) => modelOpsWeights[instances[index].key] ?? getDefaultWeight(instances, index);
+            const updateInstanceWeight = (instanceKey: string, value: number) => {
+              setModelOpsWeights((prev) => ({ ...prev, [instanceKey]: Math.max(0, Math.min(100, Math.round(value))) }));
+            };
+            const normalizeInstanceWeights = (instances: ReturnType<typeof getModelOpsServiceInstances>) => {
+              const current = instances.map((_, index) => getInstanceWeight(instances, index));
               const total = current.reduce((sum, value) => sum + value, 0);
               if (total <= 0) return;
               const next = current.map((value) => Math.floor((value / total) * 100));
               const rest = 100 - next.reduce((sum, value) => sum + value, 0);
               if (next.length > 0) next[next.length - 1] += rest;
-              setModelOpsWeights((prev) => routers.reduce((acc, router, index) => ({ ...acc, [router.key]: next[index] }), { ...prev }));
+              setModelOpsWeights((prev) => instances.reduce((acc, instance, index) => ({ ...acc, [instance.key]: next[index] }), { ...prev }));
             };
-            const averageClusterWeights = (routers: typeof routerRows) => {
-              const base = Math.floor(100 / routers.length);
-              setModelOpsWeights((prev) => routers.reduce((acc, router, index) => ({ ...acc, [router.key]: index === routers.length - 1 ? 100 - base * (routers.length - 1) : base }), { ...prev }));
+            const averageInstanceWeights = (instances: ReturnType<typeof getModelOpsServiceInstances>) => {
+              const base = Math.floor(100 / instances.length);
+              setModelOpsWeights((prev) => instances.reduce((acc, instance, index) => ({ ...acc, [instance.key]: index === instances.length - 1 ? 100 - base * (instances.length - 1) : base }), { ...prev }));
             };
             const getServiceWeight = (service: DeployServiceItem) => {
-              const cluster = getDeployClusterName(service);
-              const group = clusterWeightGroups.find((item) => item.cluster === cluster);
-              const index = group?.routers.findIndex((router) => router.serviceName === service.name) ?? -1;
-              return group && index >= 0 ? getRouterWeight(group.routers, index) : 100;
+              const instances = getModelOpsServiceInstances(service);
+              return instances.reduce((sum, _, index) => sum + getInstanceWeight(instances, index), 0);
             };
-            const openModelOpsWeightModal = () => {
-              const targetGroup = clusterWeightGroups.find((group) => group.cluster === modelOpsClusterFilter) || clusterWeightGroups[0];
-              if (!targetGroup) {
-                message.warning('暂无可分配权重的 PD 组');
+            const openModelOpsWeightModal = (service?: DeployServiceItem) => {
+              const targetService = service || selectedModelOpsService || activeModelServices[0];
+              if (!targetService) {
+                message.warning('暂无可分配权重的实例');
                 return;
               }
-              setModelOpsWeightModalCluster(targetGroup.cluster);
+              setModelOpsWeightModalServiceId(targetService.id);
             };
-            const activeWeightModalGroup = clusterWeightGroups.find((group) => group.cluster === modelOpsWeightModalCluster);
-            const activeWeightModalTotal = activeWeightModalGroup ? activeWeightModalGroup.routers.reduce((sum, _, index) => sum + getRouterWeight(activeWeightModalGroup.routers, index), 0) : 0;
+            const activeWeightModalService = modelOpsWeightModalServiceId
+              ? deployServices.find((service) => service.id === modelOpsWeightModalServiceId)
+              : null;
+            const activeWeightModalInstances = activeWeightModalService ? getModelOpsServiceInstances(activeWeightModalService) : [];
+            const activeWeightModalTotal = activeWeightModalInstances.reduce((sum, _, index) => sum + getInstanceWeight(activeWeightModalInstances, index), 0);
             return (
               <div className="ataas-section-stack">
                 <div className="ataas-model-ops-layout">
@@ -10280,34 +10260,34 @@ const AtAasDesign = () => {
                     />
 		                    <Modal
                         className="ataas-model-ops-weight-modal-shell"
-	                      title={<div className="ataas-model-ops-weight-modal-title"><SettingOutlined /><strong>调整流量配比</strong><em>{activeModelName}</em></div>}
-	                      open={!!activeWeightModalGroup}
+	                      title={<div className="ataas-model-ops-weight-modal-title"><SettingOutlined /><strong>调整流量配比</strong><em>{activeWeightModalService?.name || activeModelName}</em></div>}
+	                      open={!!activeWeightModalService}
 	                      width={720}
-	                      onCancel={() => setModelOpsWeightModalCluster('')}
+	                      onCancel={() => setModelOpsWeightModalServiceId(null)}
 	                      footer={[
-	                        <Button key="cancel" onClick={() => setModelOpsWeightModalCluster('')}>取消</Button>,
-	                        <Button key="save" type="primary" onClick={() => { message.success('权重配置已保存'); setModelOpsWeightModalCluster(''); }}>确定</Button>,
+	                        <Button key="cancel" onClick={() => setModelOpsWeightModalServiceId(null)}>取消</Button>,
+	                        <Button key="save" type="primary" onClick={() => { message.success('权重配置已保存'); setModelOpsWeightModalServiceId(null); }}>确定</Button>,
 	                      ]}
 	                    >
-	                      {activeWeightModalGroup && (
+	                      {activeWeightModalService && (
 	                        <div className="ataas-model-ops-weight-modal">
-                            <div className="ataas-model-ops-weight-modal-subtitle">higress-system · host {activeWeightModalGroup.cluster}.cluster.local</div>
+                            <div className="ataas-model-ops-weight-modal-subtitle">{activeWeightModalService.name} · {getDeployClusterName(activeWeightModalService)} · {activeWeightModalInstances.length} 个实例</div>
 	                          <div className="ataas-model-ops-weight-modal-toolbar">
                               <span>当前总和 <strong>{activeWeightModalTotal}</strong></span>
                               <div>
-                                <Button onClick={() => normalizeClusterWeights(activeWeightModalGroup.routers)}>归一化到 100</Button>
-                                <Button onClick={() => averageClusterWeights(activeWeightModalGroup.routers)}>均分</Button>
+                                <Button onClick={() => normalizeInstanceWeights(activeWeightModalInstances)}>归一化到 100</Button>
+                                <Button onClick={() => averageInstanceWeights(activeWeightModalInstances)}>均分</Button>
                               </div>
 	                          </div>
                             <div className="ataas-model-ops-weight-modal-list">
-                              {activeWeightModalGroup.routers.map((router, index) => {
-                                const value = getRouterWeight(activeWeightModalGroup.routers, index);
+                              {activeWeightModalInstances.map((instance, index) => {
+                                const value = getInstanceWeight(activeWeightModalInstances, index);
                                 return (
-                                  <div key={router.key} className="ataas-model-ops-weight-modal-row">
-                                    <Tooltip title={router.routerName}><strong>{router.routerName}</strong></Tooltip>
-                                    <Slider min={0} max={100} value={value} tooltip={{ formatter: null }} onChange={(nextValue) => updateRouterWeight(router.key, Number(nextValue))} />
+                                  <div key={instance.key} className="ataas-model-ops-weight-modal-row">
+                                    <Tooltip title={instance.instanceName}><strong>{instance.instanceName}</strong></Tooltip>
+                                    <Slider min={0} max={100} value={value} tooltip={{ formatter: null }} onChange={(nextValue) => updateInstanceWeight(instance.key, Number(nextValue))} />
                                     <span className="ataas-model-ops-weight-modal-percent">{value.toFixed(1)}%</span>
-                                    <InputNumber min={0} max={100} value={value} size="middle" onChange={(nextValue) => { if (nextValue !== null) updateRouterWeight(router.key, Number(nextValue)); }} />
+                                    <InputNumber min={0} max={100} value={value} size="middle" onChange={(nextValue) => { if (nextValue !== null) updateInstanceWeight(instance.key, Number(nextValue)); }} />
                                     <i />
                                   </div>
                                 );
