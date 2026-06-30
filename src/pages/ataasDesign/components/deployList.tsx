@@ -745,10 +745,10 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
                 <colgroup>
                   <col style={{ width: 190 }} />
                   <col style={{ width: 112 }} />
-                  <col style={{ width: 96 }} />
+                  <col style={{ width: 64 }} />
                   <col style={{ width: 78 }} />
                   <col style={{ width: 138 }} />
-                  <col style={{ width: 180 }} />
+                  <col style={{ width: 140 }} />
                   <col style={{ width: 132 }} />
                   <col style={{ width: 148 }} />
                   <col style={{ width: 180 }} />
