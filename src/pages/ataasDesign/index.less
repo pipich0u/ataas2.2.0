@@ -5257,85 +5257,9 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 
 .ataas-model-ops-layout {
   display: grid;
-  grid-template-columns: 156px minmax(0, 1fr);
-  gap: 14px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
   align-items: stretch;
-}
-
-.ataas-model-ops-sidebar {
-  border: 0;
-  border-right: 1px solid #EEF0F4;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  overflow: hidden;
-  padding: 0 10px 0 0;
-  min-height: calc(100vh - 150px);
-}
-
-.ataas-model-ops-sidebar-head {
-  margin: 0;
-  padding: 4px 4px 10px;
-}
-
-.ataas-model-ops-service-list {
-  border-top: 0;
-}
-
-.ataas-model-ops-service-item {
-  display: flex;
-  width: 100%;
-  min-height: 44px;
-  align-items: center;
-  gap: 9px;
-  padding: 8px 8px;
-  border: 0;
-  background: #fff;
-  cursor: pointer;
-  text-align: left;
-  transition: background 0.16s ease;
-
-  &:hover {
-    background: #F7F8FA;
-  }
-
-  &.active {
-    background: #F7F8FA;
-  }
-
-  > span:not(.ataas-model-ops-service-logo) {
-    min-width: 0;
-  }
-
-  strong {
-    display: block;
-    overflow: hidden;
-    color: #1D2129;
-    font-size: 14px;
-    font-weight: 600;
-    line-height: 20px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-}
-
-.ataas-model-ops-service-logo {
-  display: inline-flex;
-  width: 28px;
-  height: 28px;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  border: 1px solid #E8ECF4;
-  border-radius: 8px;
-  background: #fff;
-
-  img {
-    width: 22px;
-    height: 22px;
-    object-fit: contain;
-  }
 }
 
 .ataas-model-ops-main {
@@ -20709,20 +20633,12 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 }
 
 .ataas-model-ops-layout {
-  grid-template-columns: 156px minmax(0, 1fr) !important;
-  gap: 14px !important;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 0 !important;
 }
 
-.ataas-model-ops-sidebar {
-  padding-right: 10px !important;
-}
-
-.ataas-model-ops-service-item {
-  border-left: 0 !important;
-}
-
-.ataas-model-ops-service-item.active {
-  background: #F7F8FA !important;
+.ataas-model-ops-main {
+  min-width: 0 !important;
 }
 
 .ataas-model-ops-tiny-sparkline {

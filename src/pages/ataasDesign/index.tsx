@@ -10257,35 +10257,6 @@ const AtAasDesign = () => {
             return (
               <div className="ataas-section-stack">
                 <div className="ataas-model-ops-layout">
-                  <aside className="ataas-panel ataas-model-ops-sidebar">
-                    <div className="ataas-panel-head ataas-model-ops-sidebar-head">
-                      <div>
-                        <h2>模型服务</h2>
-                        <span>{modelServiceGroups.length} 个模型</span>
-                      </div>
-                    </div>
-                    <div className="ataas-model-ops-service-list">
-                      {modelServiceGroups.map((group) => {
-                        const active = group.name === activeModelName;
-                        const logo = getDeployModelLogo(group.services[0]);
-                        return (
-                          <button
-                            key={group.name}
-                            type="button"
-                            onClick={() => { setModelOpsSelectedModel(group.name); setModelOpsClusterFilter(''); setModelOpsServiceEntrySearch(''); }}
-                            className={'ataas-model-ops-service-item' + (active ? ' active' : '')}
-                          >
-                            <span className="ataas-model-ops-service-logo">
-                              <img src={logo} alt="" />
-                            </span>
-                            <span>
-                              <strong>{group.name}</strong>
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </aside>
                   <main className="ataas-model-ops-main">
                     <div className="ataas-model-ops-toolbar">
                       <div className="ataas-deploy-list-view-toggle ataas-model-ops-tab-toggle" role="group" aria-label="模型运维视图切换">
