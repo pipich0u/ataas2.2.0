@@ -1853,7 +1853,7 @@ body,
 
 .ataas-model-ops-live-metric-card {
   min-height: 92px !important;
-  padding: 16px 22px 14px !important;
+  padding: 16px 20px 14px !important;
   border-right: 1px solid #e5e7eb !important;
   border-bottom: 0 !important;
   background: #fff !important;
@@ -1879,24 +1879,25 @@ body,
 
 .ataas-model-ops-live-metric-pair {
   display: grid !important;
-  gap: 6px !important;
+  gap: 4px !important;
 }
 
 .ataas-model-ops-live-metric-row {
-  display: flex !important;
+  display: grid !important;
+  grid-template-columns: 14px minmax(72px, max-content) minmax(58px, 1fr) !important;
   min-width: 0 !important;
   align-items: baseline !important;
-  gap: 6px !important;
-  flex-wrap: nowrap !important;
+  column-gap: 6px !important;
 
   &.single {
     margin-top: 2px !important;
-    gap: 6px !important;
+    grid-template-columns: minmax(72px, max-content) auto minmax(58px, 1fr) !important;
+    column-gap: 6px !important;
   }
 
   strong {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace !important;
-    font-size: 27px !important;
+    font-size: 26px !important;
     font-weight: 400 !important;
     line-height: 32px !important;
     letter-spacing: 0 !important;
@@ -1904,7 +1905,8 @@ body,
   }
 
   em {
-    margin-left: auto !important;
+    justify-self: end !important;
+    margin-left: 0 !important;
     color: #a5a5a5 !important;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace !important;
     font-size: 13px !important;
@@ -1913,10 +1915,15 @@ body,
     line-height: 18px !important;
     white-space: nowrap !important;
   }
+
+  &.single em {
+    grid-column: 3 !important;
+  }
 }
 
 .ataas-model-ops-live-metric-role {
   display: inline !important;
+  align-self: center !important;
   min-width: auto !important;
   height: auto !important;
   margin: 0 !important;
@@ -1929,6 +1936,7 @@ body,
 }
 
 .ataas-model-ops-live-metric-suffix {
+  align-self: baseline !important;
   color: #9a9a9a !important;
   font-size: 14px !important;
   font-weight: 400 !important;
