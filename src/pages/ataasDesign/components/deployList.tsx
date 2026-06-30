@@ -652,22 +652,6 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
                     </div>
                   ))}
                 </div>
-                <div className="ataas-model-ops-live-metrics-grid bottom">
-                  {[
-                    { title: 'GPU POWER', primaryValue: `${liveGroupMetrics.gpuPower}W`, secondaryValue: '40 GPUs', primaryColor: '#D99A18' },
-                    { title: 'GPU UTIL AVG', primaryValue: `${liveGroupMetrics.gpuUtil.toFixed(1)}%`, secondaryValue: 'max 100.0%', primaryColor: '#1B94C2' },
-                    { title: 'TEMP AVG', primaryValue: `${liveGroupMetrics.tempAvg.toFixed(1)}°C`, secondaryValue: 'max 59°C', primaryColor: '#3E78FF' },
-                    { title: 'HBM USED', primaryValue: `${liveGroupMetrics.hbmUsed}GB`, secondaryValue: '96% of 10708 GB', primaryColor: '#7B49FF' },
-                  ].map((card) => (
-                    <div key={card.title} className="ataas-model-ops-live-metric-card compact">
-                      <div className="ataas-model-ops-live-metric-title">{card.title}</div>
-                      <div className="ataas-model-ops-live-metric-row">
-                        <strong style={{ color: card.primaryColor }}>{card.primaryValue}</strong>
-                      </div>
-                      <div className="ataas-model-ops-live-metric-note">{card.secondaryValue}</div>
-                    </div>
-                  ))}
-                </div>
               </div>
               <div className="ataas-deploy-inline-table">
               <table className="ataas-deploy-inline-native-table">
