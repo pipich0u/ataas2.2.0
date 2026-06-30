@@ -1143,7 +1143,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
           </>
         )}
         <Select className="ataas-deploy-list-select" value={clusterFilter} onChange={(value) => { setClusterFilter(value); onClusterFilterChange?.(value); setPage(1); }} options={CLUSTER_OPTIONS} placeholder="集群名称" size="middle" />
-        <Input.Search className="ataas-deploy-list-search" placeholder="搜索服务名称..." value={searchText} onChange={(e) => setSearchText(e.target.value)} allowClear size="middle" />
+        <Input.Search className="ataas-deploy-list-search" placeholder={mode === 'modelOps' ? '搜索实例名称...' : '搜索服务名称...'} value={searchText} onChange={(e) => setSearchText(e.target.value)} allowClear size="middle" />
         <div style={{ flex: 1 }} />
         {mode === 'modelOps' && onAllocateWeight && (
           <Button
