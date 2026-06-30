@@ -3414,6 +3414,42 @@ type StartupTemplateManagerProps = {
   onDeployTemplate: (template: StartupTemplateRecord) => void;
 };
 
+type PdConfigFileRecord = {
+  path: string;
+  group: string;
+  name: string;
+  versions: Array<{ key: string; label: string; meta: string; content: string }>;
+};
+
+const pdConfigCenterFiles: PdConfigFileRecord[] = [
+  {
+    path: 'devpod/djw.yaml',
+    group: 'devpod',
+    name: 'djw.yaml',
+    versions: [
+      { key: 'latest', label: 'latest（最新）', meta: 'f51faa4 d j w · 37d ago', content: 'apiVersion: devpod.io/v1alpha1\nkind: DevPod\nmetadata:\n  name: ${NAME}\n  namespace: devpods\nspec:\n  owner: ${OWNER}\n  pod:\n    metadata: {}\n    spec:\n      hostNetwork: true\n      hostIPC: true\n      dnsPolicy: ClusterFirstWithHostNet\n      nodeSelector:\n        kubernetes.io/hostname: ${NODE}\n      containers:\n        - name: dev\n          image: 10.12.11.7:16622/sglang:v0.5.10_glm51_0425\n          imagePullPolicy: IfNotPresent\n          command:\n            - sleep\n            - infinity\n          resources:\n            limits:\n              nvidia.com/gpu: 1' },
+      { key: 'f51faa4', label: 'f51faa4  d j w', meta: '37d ago', content: 'apiVersion: devpod.io/v1alpha1\nkind: DevPod\nmetadata:\n  name: djw\n  namespace: devpods\nspec:\n  owner: djw\n  pod:\n    spec:\n      hostNetwork: true\n      containers:\n        - name: dev\n          image: 10.12.11.7:16622/sglang:v0.5.10_glm51_0425' },
+      { key: '9c30d65', label: '9c30d65  djw', meta: '37d ago', content: 'apiVersion: devpod.io/v1alpha1\nkind: DevPod\nmetadata:\n  name: djw-old\nspec:\n  pod:\n    spec:\n      containers:\n        - name: dev\n          image: registry.internal/sglang:v0.5.8' },
+    ],
+  },
+  {
+    path: 'glm/djw_router.yaml',
+    group: 'glm',
+    name: 'djw_router.yaml',
+    versions: [
+      { key: 'latest', label: 'latest（最新）', meta: 'router · 12d ago', content: 'apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: glm-router\nspec:\n  replicas: 1\n  template:\n    spec:\n      containers:\n        - name: router\n          image: registry.internal/sglang:glm-router\n          args:\n            - --host\n            - 0.0.0.0\n            - --port\n            - "30000"' },
+    ],
+  },
+  {
+    path: 'glm/bx_config/worker.yaml',
+    group: 'glm / bx_config',
+    name: 'worker.yaml',
+    versions: [
+      { key: 'latest', label: 'latest（最新）', meta: 'worker · 8d ago', content: 'apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: glm-worker\nspec:\n  replicas: 1\n  template:\n    spec:\n      containers:\n        - name: worker\n          image: registry.internal/sglang:glm-worker\n          args:\n            - --model-path\n            - /models/GLM-5\n            - --tp\n            - "4"' },
+    ],
+  },
+];
+
 const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate }: StartupTemplateManagerProps) => {
   const [activeType, setActiveType] = useState<'single' | 'pd' | 'kt' | 'scene'>('single');
   const [keyword, setKeyword] = useState('');
@@ -3442,6 +3478,9 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate }: S
   const [benchmarkImportOpen, setBenchmarkImportOpen] = useState(false);
   const [benchmarkKeyword, setBenchmarkKeyword] = useState('');
   const [importedBenchmarkSource, setImportedBenchmarkSource] = useState<StartupTemplateRecord['benchmarkSource']>();
+  const [pdConfigPickerTarget, setPdConfigPickerTarget] = useState<'routerYaml' | 'workerYaml' | null>(null);
+  const [pdConfigSelectedPath, setPdConfigSelectedPath] = useState(pdConfigCenterFiles[0].path);
+  const [pdConfigSelectedVersion, setPdConfigSelectedVersion] = useState('latest');
   const importedBenchmarkSourceRef = useRef<StartupTemplateRecord['benchmarkSource']>(undefined);
   const editorType = Form.useWatch('type', form) || (activeType === 'scene' ? 'single' : activeType);
   const requiredTemplateLabel = (label: string) => (
@@ -3504,6 +3543,19 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate }: S
     if (!keywordText) return benchmarkImportRecords;
     return benchmarkImportRecords.filter((record) => `#${record.id} ${record.taskName} ${record.mode} ${record.serviceName} ${record.modelName} ${record.createdBy} ${record.createdAt}`.toLowerCase().includes(keywordText));
   }, [benchmarkKeyword]);
+  const selectedPdConfigFile = pdConfigCenterFiles.find((file) => file.path === pdConfigSelectedPath) || pdConfigCenterFiles[0];
+  const selectedPdConfigVersion = selectedPdConfigFile.versions.find((version) => version.key === pdConfigSelectedVersion) || selectedPdConfigFile.versions[0];
+  const openPdConfigPicker = (target: 'routerYaml' | 'workerYaml') => {
+    setPdConfigPickerTarget(target);
+    setPdConfigSelectedPath(target === 'routerYaml' ? 'glm/djw_router.yaml' : 'glm/bx_config/worker.yaml');
+    setPdConfigSelectedVersion('latest');
+  };
+  const applyPdConfigSelection = () => {
+    if (!pdConfigPickerTarget) return;
+    form.setFieldValue(pdConfigPickerTarget, selectedPdConfigVersion.content);
+    message.success(`${pdConfigPickerTarget === 'routerYaml' ? 'Router' : 'Worker'} YAML 已选择：${selectedPdConfigFile.name}`);
+    setPdConfigPickerTarget(null);
+  };
 
   const resetFilters = () => {
     setKeyword('');
@@ -4486,6 +4538,62 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate }: S
           ))}
         </div>
       </Modal>
+      <Modal
+        className="ataas-pd-config-picker-modal"
+        title="选择配置文件"
+        open={!!pdConfigPickerTarget}
+        onCancel={() => setPdConfigPickerTarget(null)}
+        width={1100}
+        footer={[
+          <Button key="cancel" onClick={() => setPdConfigPickerTarget(null)}>取消</Button>,
+          <Button key="ok" type="primary" icon={<CheckCircleOutlined />} onClick={applyPdConfigSelection}>确认选择</Button>,
+        ]}
+      >
+        <div className="ataas-pd-config-picker">
+          <section className="ataas-pd-config-picker-files">
+            <h3>文件</h3>
+            {['devpod', 'glm'].map((group) => (
+              <div key={group} className="ataas-pd-config-picker-group">
+                <strong>{group}</strong>
+                {pdConfigCenterFiles.filter((file) => file.path.startsWith(group)).map((file) => (
+                  <button
+                    key={file.path}
+                    type="button"
+                    className={selectedPdConfigFile.path === file.path ? 'active' : ''}
+                    onClick={() => { setPdConfigSelectedPath(file.path); setPdConfigSelectedVersion(file.versions[0].key); }}
+                  >
+                    <FileSearchOutlined />
+                    <span>{file.name}</span>
+                  </button>
+                ))}
+              </div>
+            ))}
+          </section>
+          <section className="ataas-pd-config-picker-versions">
+            <h3>历史版本</h3>
+            {selectedPdConfigFile.versions.map((version) => (
+              <button
+                key={version.key}
+                type="button"
+                className={selectedPdConfigVersion.key === version.key ? 'active' : ''}
+                onClick={() => setPdConfigSelectedVersion(version.key)}
+              >
+                <strong>{version.label}</strong>
+                <span>{version.meta}</span>
+              </button>
+            ))}
+          </section>
+          <section className="ataas-pd-config-picker-preview">
+            <h3>{selectedPdConfigFile.path.toUpperCase()} <span>{selectedPdConfigVersion.key === 'latest' ? 'LATEST' : selectedPdConfigVersion.key}</span></h3>
+            <pre>
+              {selectedPdConfigVersion.content.split('\n').map((line, index) => (
+                <span key={index}><em>{index + 1}</em><code>{line || ' '}</code></span>
+              ))}
+            </pre>
+          </section>
+        </div>
+        <div className="ataas-pd-config-picker-note"><WarningOutlined /> 部署时始终使用文件的最新内容，历史版本仅供参考对比</div>
+      </Modal>
       <Drawer
         className="ataas-template-editor-drawer"
         title={editing ? '编辑模板' : '新建模板'}
@@ -4553,6 +4661,7 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate }: S
                 <p className="ant-upload-drag-icon"><UploadOutlined /></p>
                 <p className="ant-upload-text">Router YAML</p>
                 <p className="ant-upload-hint">点击或拖拽文件上传</p>
+                <button className="ataas-pd-config-select-button" type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); openPdConfigPicker('routerYaml'); }}>从配置中心选择</button>
               </Upload.Dragger>
               <Upload.Dragger
                 accept=".yaml,.yml,text/yaml,text/x-yaml"
@@ -4573,14 +4682,11 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate }: S
                 <p className="ant-upload-drag-icon"><UploadOutlined /></p>
                 <p className="ant-upload-text">PD Worker YAML</p>
                 <p className="ant-upload-hint">点击或拖拽文件上传</p>
+                <button className="ataas-pd-config-select-button" type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); openPdConfigPicker('workerYaml'); }}>从配置中心选择</button>
               </Upload.Dragger>
             </div>
-            <Form.Item name="routerYaml" rules={[{ required: true, message: '请上传或粘贴 Router YAML' }]}>
-              <Input.TextArea rows={5} placeholder="apiVersion: apps/v1&#10;kind: Deployment&#10;metadata:&#10;  name: pd-router" style={{ marginTop: 8 }} />
-            </Form.Item>
-            <Form.Item name="workerYaml" rules={[{ required: true, message: '请上传或粘贴 PD Worker YAML' }]}>
-              <Input.TextArea rows={5} placeholder="apiVersion: apps/v1&#10;kind: Deployment&#10;metadata:&#10;  name: pd-worker" style={{ marginTop: 8 }} />
-            </Form.Item>
+            <Form.Item name="routerYaml" rules={[{ required: true, message: '请上传或选择 Router YAML' }]} hidden><Input /></Form.Item>
+            <Form.Item name="workerYaml" rules={[{ required: true, message: '请上传或选择 PD Worker YAML' }]} hidden><Input /></Form.Item>
           </div>}
           {editorType !== 'pd' && <div className="ataas-template-form-section">
             <strong className="ataas-template-section-title">
