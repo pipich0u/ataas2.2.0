@@ -6765,7 +6765,7 @@ const AtAasDesign = () => {
     message.success(`实例 ${instanceIndex + 1} 已删除`);
   };
   const handleDeployMonitor = (item: DeployServiceItem) => {
-    const serviceName = item.modelInfo.name || item.name;
+    const serviceName = item.name;
     setMonitorSearchText(serviceName);
     setMonitorExactServiceName(serviceName);
     setMonitorClusterFilter('');
@@ -9340,10 +9340,11 @@ const AtAasDesign = () => {
 
   const allMonitorRows = useMemo(() => {
     const deployRows = deployServices.reduce<Array<MonitorRow & { avgTtftSum: number; avgOtpsSum: number; cacheHitSum: number }>>((rows, item, index) => {
+      const serviceName = item.name;
       const modelName = item.modelInfo.name || item.name;
       const cluster = getDeployClusterName(item);
       const metrics = getMockMonitorMetrics(index + 12, 1.18);
-      const existing = rows.find((row) => row.name === modelName);
+      const existing = rows.find((row) => row.serviceName === serviceName);
       const nextClusterList = existing ? Array.from(new Set([...existing.clusterList, cluster])) : [cluster];
       if (existing) {
         existing.clusterList = nextClusterList;
@@ -9361,8 +9362,8 @@ const AtAasDesign = () => {
       } else {
         rows.push({
           key: `deploy-monitor-${item.id}`,
-          name: modelName,
-          serviceName: item.name,
+          name: serviceName,
+          serviceName,
           modelName,
           cluster: nextClusterList.length > 1 ? nextClusterList.join(' / ') : nextClusterList[0],
           clusterList: nextClusterList,
