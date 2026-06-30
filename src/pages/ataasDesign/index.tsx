@@ -4543,7 +4543,7 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate }: S
         title="选择配置文件"
         open={!!pdConfigPickerTarget}
         onCancel={() => setPdConfigPickerTarget(null)}
-        width={1100}
+        width={960}
         footer={[
           <Button key="cancel" onClick={() => setPdConfigPickerTarget(null)}>取消</Button>,
           <Button key="ok" type="primary" icon={<CheckCircleOutlined />} onClick={applyPdConfigSelection}>确认选择</Button>,
