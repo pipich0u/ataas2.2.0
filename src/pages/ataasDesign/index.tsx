@@ -6681,6 +6681,7 @@ const AtAasDesign = () => {
   const [modelOpsListViewMode, setModelOpsListViewMode] = useState<ViewMode>('table');
   const [modelOpsClusterFilter, setModelOpsClusterFilter] = useState('');
   const [modelOpsSelectedModel, setModelOpsSelectedModel] = useState('');
+  const [modelOpsSelectedServiceId, setModelOpsSelectedServiceId] = useState<number | null>(null);
   const [modelOpsWeights, setModelOpsWeights] = useState<Record<string, number>>({});
   const [modelOpsWeightModalCluster, setModelOpsWeightModalCluster] = useState('');
   const [deployMode, setDeployMode] = useState<string>('single');
@@ -6730,7 +6731,11 @@ const AtAasDesign = () => {
   };
   const handleDeployDetail = (item: DeployServiceItem) => {
     setDeployDetailItem(item);
-    setDeployDetailModalOpen(true);
+    setDeployDetailModalOpen(false);
+    setModelOpsSelectedModel(item.modelInfo.name || item.typeStr || item.name);
+    setModelOpsSelectedServiceId(item.id);
+    setModelOpsClusterFilter('');
+    setActiveTab('modelOps');
     setDeployDetailExtraNodes([]);
     setDetailTrafficEnabled(false);
     const works = item.modelInfo.works?.split(',').map((w: string) => w.trim()).filter(Boolean) || [];
@@ -10160,7 +10165,10 @@ const AtAasDesign = () => {
               ? modelOpsSelectedModel
               : modelServiceGroups[0]?.name || '';
             const activeModelGroup = modelServiceGroups.find((group) => group.name === activeModelName);
-            const activeModelServices = activeModelGroup?.services || [];
+            const selectedModelOpsService = modelOpsSelectedServiceId
+              ? deployServices.find((service) => service.id === modelOpsSelectedServiceId)
+              : null;
+            const activeModelServices = selectedModelOpsService ? [selectedModelOpsService] : (activeModelGroup?.services || []);
             const routerRows = activeModelServices.map((service) => {
               const cluster = getDeployClusterName(service);
               return {
@@ -11728,6 +11736,7 @@ const AtAasDesign = () => {
                 {expandedGroups.has(group.title || 'overview') && group.items.map((item) => (
                   <div key={item.key} className={'ataas-sidebar-item' + (activeTab === item.key ? ' active' : '')} onClick={() => {
                     setActiveTab(item.key);
+                    if (item.key === 'modelOps') setModelOpsSelectedServiceId(null);
                     if (item.key === 'clusters') setClusterPanel('clusters');
                     if (item.key === 'nodes') setClusterPanel('nodes');
                     const pathMap: Record<string, string> = {

@@ -1156,18 +1156,22 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
         </div>
       ) : (
           <div className={`ataas-deploy-table-wrap${mode === 'modelOps' ? ' ataas-model-ops-detail-table-wrap' : ''}`}>
-            <Table dataSource={paginated} rowKey="id" pagination={{ pageSize: 10, showTotal: (t) => `共 ${t} 条`, showSizeChanger: true }} scroll={{ x: mode === 'modelOps' ? 'max-content' : 1180 }}
-            expandable={{
-              columnWidth: mode === 'modelOps' ? 40 : undefined,
-              expandedRowKeys: expandedServiceIds,
-              onExpand: (expanded, record) => {
-                setExpandedServiceIds((prev) => (expanded ? [...new Set([...prev, record.id])] : prev.filter((id) => id !== record.id)));
-              },
-              expandedRowRender: (record) => renderDeployInlineDetail(record),
-              rowExpandable: () => true,
-            }}
-            columns={mode === 'modelOps' ? modelOpsTableColumns : deployTableColumns}
-          />
+            <Table
+              dataSource={paginated}
+              rowKey="id"
+              pagination={{ pageSize: 10, showTotal: (t) => `共 ${t} 条`, showSizeChanger: true }}
+              scroll={{ x: mode === 'modelOps' ? 'max-content' : 1180 }}
+              expandable={mode === 'modelOps' ? {
+                columnWidth: 40,
+                expandedRowKeys: expandedServiceIds,
+                onExpand: (expanded, record) => {
+                  setExpandedServiceIds((prev) => (expanded ? [...new Set([...prev, record.id])] : prev.filter((id) => id !== record.id)));
+                },
+                expandedRowRender: (record) => renderDeployInlineDetail(record),
+                rowExpandable: () => true,
+              } : undefined}
+              columns={mode === 'modelOps' ? modelOpsTableColumns : deployTableColumns}
+            />
           </div>
       )}
     </div>
