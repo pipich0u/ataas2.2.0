@@ -289,6 +289,14 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
       return true;
     });
   }, [data, statusFilter, categoryFilter, clusterFilter, searchText]);
+  const clusterOptions = useMemo(() => {
+    if (mode !== 'modelOps') return CLUSTER_OPTIONS;
+    const clusters = [...new Set(data.map((item) => getDeployClusterName(item)).filter(Boolean))];
+    return [
+      { value: '', label: '全部集群' },
+      ...clusters.map((cluster) => ({ value: cluster, label: cluster })),
+    ];
+  }, [data, mode]);
 
   const effectiveViewMode = mode === 'modelOps' ? 'table' : viewMode;
 
@@ -1142,8 +1150,8 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
             <Select className="ataas-deploy-list-select" value={categoryFilter} onChange={setCategoryFilter} options={CATEGORY_OPTIONS} placeholder="模型类型" size="middle" />
           </>
         )}
-        <Select className="ataas-deploy-list-select" value={clusterFilter} onChange={(value) => { setClusterFilter(value); onClusterFilterChange?.(value); setPage(1); }} options={CLUSTER_OPTIONS} placeholder="集群名称" size="middle" />
-        <Input.Search className="ataas-deploy-list-search" placeholder={mode === 'modelOps' ? '搜索实例名称...' : '搜索服务名称...'} value={searchText} onChange={(e) => setSearchText(e.target.value)} allowClear size="middle" />
+        <Select className="ataas-deploy-list-select" value={clusterFilter} onChange={(value) => { setClusterFilter(value); onClusterFilterChange?.(value); setPage(1); }} options={clusterOptions} placeholder="集群名称" size="middle" />
+        <Input.Search className="ataas-deploy-list-search" placeholder={mode === 'modelOps' ? '搜索模型实例...' : '搜索服务名称...'} value={searchText} onChange={(e) => setSearchText(e.target.value)} allowClear size="middle" />
         <div style={{ flex: 1 }} />
         {mode === 'modelOps' && onAllocateWeight && (
           <Button
