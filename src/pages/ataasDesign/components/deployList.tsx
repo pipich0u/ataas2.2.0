@@ -536,6 +536,25 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
       { title: '节点', dataIndex: 'node', key: 'node', width: 160 },
       { title: '状态', dataIndex: 'status', key: 'status', width: 100, render: () => <DetailStatus /> },
     ];
+    const liveGroupReportCount = Math.max(1, opsRoleRows.length);
+    const liveGroupMetrics = {
+      podsTotal: liveGroupReportCount,
+      reporting: liveGroupReportCount,
+      window: '60s',
+      tpsP: 7600 + item.id * 17 + Math.max(1, detailInstances.length) * 128,
+      tpsD: 720 + item.id * 9 + Math.max(1, detailInstances.length) * 18,
+      inflightP: Number((7 + (item.id % 5) * 0.68 + detailInstances.length * 0.24).toFixed(2)),
+      inflightD: Number((2 + (item.id % 3) * 0.34).toFixed(2)),
+      routerRps: Number((7 + (item.id % 4) * 0.08 + Math.max(1, detailInstances.length) * 0.02).toFixed(2)),
+      ttft: 1180 + item.id * 11 + Math.max(1, detailInstances.length) * 23,
+      cacheHit: Number((71 + (item.id % 6) * 1.4).toFixed(1)),
+      runningReq: Number((11 + (item.id % 5) * 0.5 + Math.max(1, detailInstances.length) * 0.2).toFixed(1)),
+      queueReq: Number((1 + (item.id % 4) * 0.12).toFixed(2)),
+      gpuPower: 17836 + item.id * 13,
+      gpuUtil: Number((47 + (item.id % 7) * 0.8).toFixed(1)),
+      tempAvg: Number((46 + (item.id % 6) * 0.3).toFixed(1)),
+      hbmUsed: 10318 + item.id * 9,
+    };
     return (
       <div className="ataas-deploy-inline-detail">
         {mode !== 'modelOps' && (
@@ -603,7 +622,54 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
             </div>
           )}
           {mode === 'modelOps' ? (
-            <div className="ataas-deploy-inline-table">
+            <div className="ataas-deploy-inline-monitoring">
+              <div className="ataas-model-ops-live-metrics">
+                <div className="ataas-model-ops-live-metrics-head">
+                  <strong>Live group metrics</strong>
+                  <span>{liveGroupMetrics.podsTotal} pods total · {liveGroupMetrics.reporting} reporting · {liveGroupMetrics.window} window</span>
+                </div>
+                <div className="ataas-model-ops-live-metrics-grid top">
+                  {[
+                    { title: 'TPS', primaryLabel: 'P', primaryValue: liveGroupMetrics.tpsP, secondaryLabel: 'D', secondaryValue: liveGroupMetrics.tpsD, suffix: '', note: `prefill ${Math.max(1, detailInstances.length * 2)}/4 · decode 1/1`, primaryColor: '#7B49FF', secondaryColor: '#2DA6D6' },
+                    { title: 'INFLIGHT / XFER', primaryLabel: 'P', primaryValue: liveGroupMetrics.inflightP.toFixed(2), secondaryLabel: 'D', secondaryValue: liveGroupMetrics.inflightD.toFixed(2), suffix: '', note: 'P inflight · D transfer', primaryColor: '#7B49FF', secondaryColor: '#2DA6D6' },
+                    { title: 'ROUTER RPS', primaryValue: `${liveGroupMetrics.routerRps.toFixed(2)} req/s`, secondaryValue: 'avg 7.02', note: '1 of 1 routers', primaryColor: '#18A957', secondaryColor: '#8A8F98' },
+                    { title: 'TTFT', primaryValue: `${liveGroupMetrics.ttft} ms`, secondaryValue: `avg ${Math.round(liveGroupMetrics.ttft * 1.84)}`, note: 'routers, mean of means · reporting', primaryColor: '#18A957', secondaryColor: '#8A8F98' },
+                    { title: 'CACHE HIT', primaryValue: `${liveGroupMetrics.cacheHit.toFixed(1)}%`, secondaryValue: 'avg 80.7', note: 'prefill, mean of means · reporting', primaryColor: '#7B49FF', secondaryColor: '#8A8F98' },
+                    { title: 'RUNNING REQ', primaryValue: `${liveGroupMetrics.runningReq.toFixed(1)}`, secondaryValue: 'avg 11.5', note: 'decode, sum', primaryColor: '#1B94C2', secondaryColor: '#8A8F98' },
+                    { title: 'QUEUE REQ', primaryValue: `${liveGroupMetrics.queueReq.toFixed(2)}`, secondaryValue: 'avg 0.31', note: 'prefill, sum', primaryColor: '#7B49FF', secondaryColor: '#8A8F98' },
+                    { title: 'KV XFER', primaryValue: '—', secondaryValue: '', note: 'workers, sum', primaryColor: '#8A8F98', secondaryColor: '#8A8F98' },
+                  ].map((card) => (
+                    <div key={card.title} className="ataas-model-ops-live-metric-card">
+                      <div className="ataas-model-ops-live-metric-title">{card.title}</div>
+                      <div className="ataas-model-ops-live-metric-row">
+                        {card.primaryLabel ? <span className="ataas-model-ops-live-metric-role role-primary">{card.primaryLabel}</span> : null}
+                        {card.secondaryLabel ? <span className="ataas-model-ops-live-metric-role role-secondary">{card.secondaryLabel}</span> : null}
+                        <strong style={{ color: card.primaryColor }}>{card.primaryValue}</strong>
+                        {card.secondaryValue ? <em>{card.secondaryValue}</em> : null}
+                      </div>
+                      {card.suffix ? <div className="ataas-model-ops-live-metric-suffix">{card.suffix}</div> : null}
+                      <div className="ataas-model-ops-live-metric-note">{card.note}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="ataas-model-ops-live-metrics-grid bottom">
+                  {[
+                    { title: 'GPU POWER', primaryValue: `${liveGroupMetrics.gpuPower}W`, secondaryValue: '40 GPUs', primaryColor: '#D99A18' },
+                    { title: 'GPU UTIL AVG', primaryValue: `${liveGroupMetrics.gpuUtil.toFixed(1)}%`, secondaryValue: 'max 100.0%', primaryColor: '#1B94C2' },
+                    { title: 'TEMP AVG', primaryValue: `${liveGroupMetrics.tempAvg.toFixed(1)}°C`, secondaryValue: 'max 59°C', primaryColor: '#3E78FF' },
+                    { title: 'HBM USED', primaryValue: `${liveGroupMetrics.hbmUsed}GB`, secondaryValue: '96% of 10708 GB', primaryColor: '#7B49FF' },
+                  ].map((card) => (
+                    <div key={card.title} className="ataas-model-ops-live-metric-card compact">
+                      <div className="ataas-model-ops-live-metric-title">{card.title}</div>
+                      <div className="ataas-model-ops-live-metric-row">
+                        <strong style={{ color: card.primaryColor }}>{card.primaryValue}</strong>
+                      </div>
+                      <div className="ataas-model-ops-live-metric-note">{card.secondaryValue}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="ataas-deploy-inline-table">
               <table className="ataas-deploy-inline-native-table">
                 <colgroup>
                   <col style={{ width: 260 }} />
@@ -708,6 +774,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
                   ))}
                 </tbody>
               </table>
+            </div>
             </div>
           ) : pdMode ? (
             <div className="ataas-deploy-inline-table">

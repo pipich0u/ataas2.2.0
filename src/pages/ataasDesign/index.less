@@ -1684,6 +1684,150 @@ body,
   }
 }
 
+.ataas-deploy-inline-monitoring {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.ataas-model-ops-live-metrics {
+  padding: 18px 20px 14px;
+  border: 1px solid #E8EBF2;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+.ataas-model-ops-live-metrics-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+
+  strong {
+    color: #1D2129;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 24px;
+  }
+
+  span {
+    padding: 5px 12px;
+    border: 1px solid #E5E6EB;
+    border-radius: 999px;
+    color: #4E5969;
+    font-size: 12px;
+    line-height: 18px;
+    background: #fff;
+    white-space: nowrap;
+  }
+}
+
+.ataas-model-ops-live-metrics-grid {
+  display: grid;
+  gap: 0;
+  border: 1px solid #EEF0F4;
+  border-radius: 10px;
+  background: #fff;
+  overflow: hidden;
+
+  &.top {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  &.bottom {
+    margin-top: -1px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+}
+
+.ataas-model-ops-live-metric-card {
+  min-width: 0;
+  padding: 18px 18px 16px;
+  border-right: 1px solid #EEF0F4;
+  border-bottom: 1px solid #EEF0F4;
+  background: #fff;
+
+  &:nth-child(4n) {
+    border-right: 0;
+  }
+
+  &.compact {
+    padding: 16px 18px 14px;
+  }
+}
+
+.ataas-model-ops-live-metric-title {
+  margin-bottom: 10px;
+  color: #86909C;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 18px;
+  text-transform: uppercase;
+}
+
+.ataas-model-ops-live-metric-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+
+  strong {
+    font-family: "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  em {
+    color: #4E5969;
+    font-size: 12px;
+    font-style: normal;
+    line-height: 18px;
+  }
+}
+
+.ataas-model-ops-live-metric-role {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  border-radius: 4px;
+  background: #F2F4F7;
+  color: #8A8F98;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+
+  &.role-secondary {
+    background: #F4F0FF;
+    color: #7B49FF;
+  }
+
+  &.role-primary {
+    background: #EEF4FF;
+    color: #3E78FF;
+  }
+}
+
+.ataas-model-ops-live-metric-suffix,
+.ataas-model-ops-live-metric-note {
+  color: #8A8F98;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.ataas-model-ops-live-metric-note {
+  margin-top: 8px;
+}
+
 .ataas-node-name-cell {
   display: flex;
   align-items: center;
