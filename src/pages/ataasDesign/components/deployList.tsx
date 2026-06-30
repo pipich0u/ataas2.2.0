@@ -936,12 +936,15 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
     };
   };
 
-  const renderModelOpsRoleCount = (value: string, role: 'router' | 'prefill' | 'decode') => {
-    const [readyText, totalText] = value.split('/');
-    const ready = Number(readyText);
-    const total = Number(totalText);
-    const isFull = Number.isFinite(ready) && Number.isFinite(total) && ready === total;
-    return <span className={`ataas-model-ops-role-count ${role} ${isFull ? 'ready' : 'warning'}`}>{value}</span>;
+  const renderModelOpsRoleSummary = (item: DeployServiceItem) => {
+    const summary = getModelOpsRoleSummary(item);
+    return (
+      <span className="ataas-model-ops-role-summary">
+        <span><b>R</b>{summary.router}</span>
+        <span><b>P</b>{summary.prefill}</span>
+        <span><b>D</b>{summary.decode}</span>
+      </span>
+    );
   };
 
   const getModelOpsPerfSummary = (item: DeployServiceItem) => ({
@@ -1078,9 +1081,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
     { title: '当前权重', key: 'weight', width: 86, render: (_, r) => <span className="ataas-model-ops-weight-pill">{getModelOpsRowWeight?.(r) ?? 100}%</span> },
     { title: '状态', key: 'status', width: 86, render: (_, r) => <TableStatus item={r} /> },
     { title: '集群', key: 'cluster', width: 120, render: (_, r) => <span className="ataas-deploy-table-cluster">{getDeployClusterName(r)}</span> },
-    { title: 'Router', key: 'router', width: 78, render: (_, r) => renderModelOpsRoleCount(getModelOpsRoleSummary(r).router, 'router') },
-    { title: 'Prefill', key: 'prefill', width: 78, render: (_, r) => renderModelOpsRoleCount(getModelOpsRoleSummary(r).prefill, 'prefill') },
-    { title: 'Decode', key: 'decode', width: 78, render: (_, r) => renderModelOpsRoleCount(getModelOpsRoleSummary(r).decode, 'decode') },
+    { title: 'Role', key: 'role', width: 180, render: (_, r) => renderModelOpsRoleSummary(r) },
     { title: 'TTFT', key: 'ttft', width: 76, render: (_, r) => <span className="ataas-model-ops-perf-value">{getModelOpsPerfSummary(r).ttft}</span> },
     { title: 'TPOT', key: 'tpot', width: 76, render: (_, r) => <span className="ataas-model-ops-perf-value">{getModelOpsPerfSummary(r).tpot}</span> },
     { title: '操作', key: 'action', width: 96, fixed: 'right' as const, className: 'ataas-deploy-fixed-action-cell', render: (_, r) => (
