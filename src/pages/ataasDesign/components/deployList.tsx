@@ -662,30 +662,50 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
           {mode === 'modelOps' ? (
             <div className="ataas-deploy-inline-monitoring">
               <div className="ataas-model-ops-live-metrics">
-                <div className="ataas-model-ops-live-metrics-head">
-                  <strong>Live group metrics</strong>
-                  <span>{liveGroupMetrics.podsTotal} pods total · {liveGroupMetrics.reporting} reporting · {liveGroupMetrics.window} window</span>
-                </div>
                 <div className="ataas-model-ops-live-metrics-grid top">
                   {[
-                    { title: 'TPS', primaryLabel: 'P', primaryValue: liveGroupMetrics.tpsP, secondaryLabel: 'D', secondaryValue: liveGroupMetrics.tpsD, suffix: '', note: `prefill ${Math.max(1, detailInstances.length * 2)}/4 · decode 1/1`, primaryColor: '#7B49FF', secondaryColor: '#2DA6D6' },
-                    { title: 'INFLIGHT / XFER', primaryLabel: 'P', primaryValue: liveGroupMetrics.inflightP.toFixed(2), secondaryLabel: 'D', secondaryValue: liveGroupMetrics.inflightD.toFixed(2), suffix: '', note: 'P inflight · D transfer', primaryColor: '#7B49FF', secondaryColor: '#2DA6D6' },
-                    { title: 'ROUTER RPS', primaryValue: `${liveGroupMetrics.routerRps.toFixed(2)} req/s`, secondaryValue: 'avg 7.02', note: '1 of 1 routers', primaryColor: '#18A957', secondaryColor: '#8A8F98' },
-                    { title: 'TTFT', primaryValue: `${liveGroupMetrics.ttft} ms`, secondaryValue: `avg ${Math.round(liveGroupMetrics.ttft * 1.84)}`, note: 'routers, mean of means · reporting', primaryColor: '#18A957', secondaryColor: '#8A8F98' },
-                    { title: 'CACHE HIT', primaryValue: `${liveGroupMetrics.cacheHit.toFixed(1)}%`, secondaryValue: 'avg 80.7', note: 'prefill, mean of means · reporting', primaryColor: '#7B49FF', secondaryColor: '#8A8F98' },
-                    { title: 'RUNNING REQ', primaryValue: `${liveGroupMetrics.runningReq.toFixed(1)}`, secondaryValue: 'avg 11.5', note: 'decode, sum', primaryColor: '#1B94C2', secondaryColor: '#8A8F98' },
-                    { title: 'QUEUE REQ', primaryValue: `${liveGroupMetrics.queueReq.toFixed(2)}`, secondaryValue: 'avg 0.31', note: 'prefill, sum', primaryColor: '#7B49FF', secondaryColor: '#8A8F98' },
-                    { title: 'KV XFER', primaryValue: '—', secondaryValue: '', note: 'workers, sum', primaryColor: '#8A8F98', secondaryColor: '#8A8F98' },
+                    {
+                      title: 'TPS',
+                      rows: [
+                        { label: 'P', value: '43998', avg: 'avg 60640', color: '#8B48FF' },
+                        { label: 'D', value: '955', avg: 'avg 834', color: '#14A0C7' },
+                      ],
+                      note: 'prefill 4/4 · decode 1/1',
+                    },
+                    {
+                      title: 'INFLIGHT / XFER',
+                      rows: [
+                        { label: 'P', value: '7.00', avg: 'avg 10.6', color: '#8B48FF' },
+                        { label: 'D', value: '5.00', avg: 'avg 2.85', color: '#14A0C7' },
+                      ],
+                      note: 'P inflight · D transfer',
+                    },
+                    { title: 'ROUTER RPS', value: '8.45', suffix: 'req/s', avg: 'avg 8.45', note: '1 of 1 routers', color: '#18A957' },
+                    { title: 'TTFT', value: '1511', suffix: 'ms', avg: 'avg 2548', note: 'routers, mean of means · 1 reporting', color: '#18A957' },
+                    { title: 'CACHE HIT', value: '74.4', suffix: '%', avg: 'avg 84.0', note: 'prefill, mean of means · 4 reporting', color: '#8B48FF' },
+                    { title: 'RUNNING REQ', value: '19.0', suffix: '', avg: 'avg 15.8', note: 'decode, sum', color: '#14A0C7' },
+                    { title: 'QUEUE REQ', value: '35.0', suffix: '', avg: 'avg 3.44', note: 'prefill, sum', color: '#8B48FF' },
+                    { title: 'KV XFER', value: '—', suffix: '', avg: '', note: 'workers, sum', color: '#8A8F98' },
                   ].map((card) => (
                     <div key={card.title} className="ataas-model-ops-live-metric-card">
                       <div className="ataas-model-ops-live-metric-title">{card.title}</div>
-                      <div className="ataas-model-ops-live-metric-row">
-                        {card.primaryLabel ? <span className="ataas-model-ops-live-metric-role role-primary">{card.primaryLabel}</span> : null}
-                        {card.secondaryLabel ? <span className="ataas-model-ops-live-metric-role role-secondary">{card.secondaryLabel}</span> : null}
-                        <strong style={{ color: card.primaryColor }}>{card.primaryValue}</strong>
-                        {card.secondaryValue ? <em>{card.secondaryValue}</em> : null}
-                      </div>
-                      {card.suffix ? <div className="ataas-model-ops-live-metric-suffix">{card.suffix}</div> : null}
+                      {'rows' in card ? (
+                        <div className="ataas-model-ops-live-metric-pair">
+                          {card.rows?.map((row) => (
+                            <div key={row.label} className="ataas-model-ops-live-metric-row">
+                              <span className="ataas-model-ops-live-metric-role">{row.label}</span>
+                              <strong style={{ color: row.color }}>{row.value}</strong>
+                              <em>{row.avg}</em>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="ataas-model-ops-live-metric-row single">
+                          <strong style={{ color: card.color }}>{card.value}</strong>
+                          {card.suffix ? <span className="ataas-model-ops-live-metric-suffix">{card.suffix}</span> : null}
+                          {card.avg ? <em>{card.avg}</em> : null}
+                        </div>
+                      )}
                       <div className="ataas-model-ops-live-metric-note">{card.note}</div>
                     </div>
                   ))}
