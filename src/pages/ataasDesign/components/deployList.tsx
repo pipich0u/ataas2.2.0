@@ -1354,9 +1354,9 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
       })()}
     </Modal>
     <Modal
-      className="ataas-model-ops-weight-modal-shell ataas-model-ops-drain-modal-shell"
+      className="ataas-model-ops-weight-modal-shell ataas-model-ops-task-modal ataas-model-ops-drain-modal-shell"
       title={drainWeightModal ? (
-        <div className="ataas-model-ops-weight-modal-title">
+        <div className="ataas-model-ops-router-link-title">
           <DisconnectOutlined />
           <strong>摘流 · 降权</strong>
           <em>{drainWeightModal.item.modelInfo.name}</em>

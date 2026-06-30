@@ -10325,9 +10325,9 @@ const AtAasDesign = () => {
                       onClusterFilterChange={setModelOpsClusterFilter}
                       getModelOpsRowWeight={getServiceWeight}
                     />
-		                    <Modal
-                        className="ataas-model-ops-weight-modal-shell"
-	                      title={<div className="ataas-model-ops-weight-modal-title"><SettingOutlined /><strong>调整流量配比</strong><em>{activeWeightModalService?.name || activeModelName}</em></div>}
+                    <Modal
+                        className="ataas-model-ops-weight-modal-shell ataas-model-ops-task-modal ataas-model-ops-allocate-modal-shell"
+	                      title={<div className="ataas-model-ops-router-link-title"><SettingOutlined /><strong>调整流量配比</strong><em>{activeWeightModalService?.name || activeModelName}</em></div>}
 	                      open={!!activeWeightModalService}
 	                      width={720}
 	                      onCancel={() => setModelOpsWeightModalServiceId(null)}
@@ -13009,7 +13009,7 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
         </Form>
       </Modal>
 
-      <Modal className="ataas-scale-pd-modal" title={'扩缩容 - ' + (scalePdTarget?.name || '')} open={scalePdOpen} onCancel={() => setScalePdOpen(false)} width={560} footer={
+      <Modal className="ataas-scale-pd-modal ataas-model-ops-task-modal" title={<div className="ataas-model-ops-router-link-title"><SettingOutlined /><strong>扩缩容</strong><em>{scalePdTarget?.name || ''}</em></div>} open={scalePdOpen} onCancel={() => setScalePdOpen(false)} width={640} footer={
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
           <Button onClick={() => setScalePdOpen(false)}>取消</Button>
           <Button type="primary" onClick={() => { alert('扩缩容提交成功！请等待部署完成。'); setScalePdOpen(false); }}>确认扩缩容</Button>
