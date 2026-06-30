@@ -10348,9 +10348,9 @@ const AtAasDesign = () => {
                                         <strong>{group.cluster}</strong>
                                         <span>{group.items.length} 个实例</span>
                                       </div>
-                                      <span className="ataas-model-ops-weight-modal-cluster-total">总和 <em className={total === 100 ? '' : 'warning'}>{total}%</em></span>
+                                      <span className="ataas-model-ops-weight-modal-cluster-total">当前总和 <em className={total === 100 ? '' : 'warning'}>{total}</em></span>
                                       <div>
-                                        <Button onClick={() => normalizeInstanceWeights(activeWeightModalInstances, group.cluster)}>归一</Button>
+                                        <Button onClick={() => normalizeInstanceWeights(activeWeightModalInstances, group.cluster)}>归一化至100</Button>
                                         <Button onClick={() => averageInstanceWeights(activeWeightModalInstances, group.cluster)}>均分</Button>
                                       </div>
                                     </div>
