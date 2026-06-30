@@ -6680,11 +6680,9 @@ const AtAasDesign = () => {
   const [deployListClusterFilter, setDeployListClusterFilter] = useState('');
   const [modelOpsListViewMode, setModelOpsListViewMode] = useState<ViewMode>('table');
   const [modelOpsClusterFilter, setModelOpsClusterFilter] = useState('');
-  const [modelOpsServiceEntrySearch, setModelOpsServiceEntrySearch] = useState('');
   const [modelOpsSelectedModel, setModelOpsSelectedModel] = useState('');
   const [modelOpsWeights, setModelOpsWeights] = useState<Record<string, number>>({});
   const [modelOpsWeightModalCluster, setModelOpsWeightModalCluster] = useState('');
-  const [modelOpsActiveTab, setModelOpsActiveTab] = useState<'weight' | 'detail'>('detail');
   const [deployMode, setDeployMode] = useState<string>('single');
   const [startupTemplateForm] = Form.useForm();
   const [addInstPdTemplateForm] = Form.useForm();
@@ -10197,39 +10195,12 @@ const AtAasDesign = () => {
               });
               return { ...group, routers: [...group.routers, ...extraRouters] };
             });
-            const getModelOpsServiceEntryName = (cluster: string) => {
-              const normalize = (value: string) => value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'default';
-              return `sve.${normalize(activeModelName)}.${normalize(cluster)}.local`;
-            };
-            const filteredClusterWeightGroups = clusterWeightGroups.filter((group) => {
-              const serviceEntryName = getModelOpsServiceEntryName(group.cluster).toLowerCase();
-              const keyword = modelOpsServiceEntrySearch.trim().toLowerCase();
-              const clusterMatched = !modelOpsClusterFilter || group.cluster === modelOpsClusterFilter;
-              const serviceEntryMatched = !keyword || serviceEntryName.includes(keyword);
-              return clusterMatched && serviceEntryMatched;
-            });
             const getDefaultWeight = (routers: typeof routerRows, index: number) => {
               if (routers.length <= 1) return 100;
               const base = Math.floor(100 / routers.length);
               return index === routers.length - 1 ? 100 - base * (routers.length - 1) : base;
             };
             const getRouterWeight = (routers: typeof routerRows, index: number) => modelOpsWeights[routers[index].key] ?? getDefaultWeight(routers, index);
-            const startStripDrag = (event: ReactMouseEvent<HTMLDivElement>) => {
-              const strip = event.currentTarget;
-              const startX = event.clientX;
-              const startScrollLeft = strip.scrollLeft;
-              strip.classList.add('dragging');
-              const onMove = (moveEvent: MouseEvent) => {
-                strip.scrollLeft = startScrollLeft - (moveEvent.clientX - startX);
-              };
-              const onUp = () => {
-                strip.classList.remove('dragging');
-                document.removeEventListener('mousemove', onMove);
-                document.removeEventListener('mouseup', onUp);
-              };
-              document.addEventListener('mousemove', onMove);
-              document.addEventListener('mouseup', onUp);
-            };
             const updateRouterWeight = (routerKey: string, value: number) => {
               setModelOpsWeights((prev) => ({ ...prev, [routerKey]: Math.max(0, Math.min(100, Math.round(value))) }));
             };
@@ -10253,7 +10224,7 @@ const AtAasDesign = () => {
               return group && index >= 0 ? getRouterWeight(group.routers, index) : 100;
             };
             const openModelOpsWeightModal = () => {
-              const targetGroup = filteredClusterWeightGroups.find((group) => group.cluster === modelOpsClusterFilter) || filteredClusterWeightGroups[0] || clusterWeightGroups[0];
+              const targetGroup = clusterWeightGroups.find((group) => group.cluster === modelOpsClusterFilter) || clusterWeightGroups[0];
               if (!targetGroup) {
                 message.warning('暂无可分配权重的 PD 组');
                 return;
@@ -10266,160 +10237,27 @@ const AtAasDesign = () => {
               <div className="ataas-section-stack">
                 <div className="ataas-model-ops-layout">
                   <main className="ataas-model-ops-main">
-                    <div className="ataas-model-ops-toolbar">
-                      <div className="ataas-deploy-list-view-toggle ataas-model-ops-tab-toggle" role="group" aria-label="模型运维视图切换">
-                        <button
-                          type="button"
-                          className={modelOpsActiveTab === 'detail' ? 'active' : ''}
-                          onClick={() => setModelOpsActiveTab('detail')}
-                        >
-                          <AppstoreOutlined />组详情
-                        </button>
-                        <span className="ataas-deploy-view-divider" aria-hidden="true" />
-                        <button
-                          type="button"
-                          className={modelOpsActiveTab === 'weight' ? 'active' : ''}
-                          onClick={() => setModelOpsActiveTab('weight')}
-                        >
-                          <BarsOutlined />组权重
-                        </button>
-                      </div>
-                    </div>
-                    {modelOpsActiveTab === 'weight' && (
-                      <>
-                        {clusterWeightGroups.length > 0 && (
-                          <div className="ataas-model-ops-weight-filterbar">
-                            <Select
-                              className="ataas-model-ops-weight-cluster-select"
-                              value={modelOpsClusterFilter}
-                              onChange={setModelOpsClusterFilter}
-                              options={[
-                                { value: '', label: '全部集群' },
-                                ...clusterWeightGroups.map((group) => ({ value: group.cluster, label: group.cluster })),
-                              ]}
-                            />
-                            <Input.Search
-                              className="ataas-model-ops-weight-sve-search"
-                              placeholder="搜索 ServiceEntry..."
-                              allowClear
-                              value={modelOpsServiceEntrySearch}
-                              onChange={(event) => setModelOpsServiceEntrySearch(event.target.value)}
-                            />
-                          </div>
-                        )}
-	                      <div className="ataas-panel ataas-model-ops-weight-panel">
-	                        {clusterWeightGroups.length === 0 ? (
-	                          <div className="ataas-model-ops-empty">暂无 Router 实例</div>
-	                        ) : (
-	                        <div className="ataas-model-ops-weight-table-wrap">
-                            <table className="ataas-model-ops-weight-table">
-                              <colgroup>
-                                <col style={{ width: 150 }} />
-                                <col style={{ width: 180 }} />
-                                <col style={{ width: 90 }} />
-                                <col />
-                                <col style={{ width: 96 }} />
-                              </colgroup>
-                              <thead>
-                                <tr>
-                                  <th>集群</th>
-                                  <th>SVE</th>
-                                  <th>组数量</th>
-                                  <th>PD组权重</th>
-                                  <th className="fixed-action">操作</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-	                          {filteredClusterWeightGroups.map((group) => {
-	                            return (
-	                              <tr
-	                                key={group.cluster}
-	                                className="ataas-model-ops-weight-card"
-	                              >
-	                                <td className="ataas-model-ops-weight-cluster">
-	                                  <strong>{group.cluster}</strong>
-	                                </td>
-                                  <td>
-                                    <Tooltip title={getModelOpsServiceEntryName(group.cluster)}>
-                                      <span className="ataas-model-ops-weight-sve">{getModelOpsServiceEntryName(group.cluster)}</span>
-                                    </Tooltip>
-                                  </td>
-                                  <td>{group.routers.length}</td>
-                                  <td className="ataas-model-ops-weight-groups-cell">
-                                    <div
-                                      className="ataas-model-ops-weight-strip"
-                                      onMouseDown={startStripDrag}
-                                      onWheel={(event) => {
-                                        if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
-                                          event.currentTarget.scrollLeft += event.deltaY;
-                                        }
-                                      }}
-                                    >
-                                      {group.routers.map((router, index) => {
-                                        const weight = getRouterWeight(group.routers, index);
-                                        return (
-                                          <Tooltip key={router.key} title={`${router.routerName} · ${weight}%`}>
-                                            <span
-                                              className="ataas-model-ops-weight-segment"
-                                            >
-                                              <span className="ataas-model-ops-weight-segment-main">
-                                                <b>{router.routerName}</b>
-                                                <em>{weight}%</em>
-                                              </span>
-                                            </span>
-                                          </Tooltip>
-                                        );
-                                      })}
-                                    </div>
-                                  </td>
-                                  <td className="fixed-action">
-                                    <Tooltip title="调整权重">
-                                      <button
-                                        type="button"
-                                        className="ataas-model-ops-icon-action"
-                                        onClick={(event) => {
-                                          event.stopPropagation();
-                                          setModelOpsWeightModalCluster(group.cluster);
-                                        }}
-                                      >
-                                        <SettingOutlined />
-                                      </button>
-                                    </Tooltip>
-                                  </td>
-	                              </tr>
-	                            );
-	                          })}
-                              </tbody>
-                            </table>
-                            {filteredClusterWeightGroups.length === 0 && <div className="ataas-model-ops-empty">暂无匹配的 ServiceEntry</div>}
-	                        </div>
-		                      )}
-		                    </div>
-                      </>
-                    )}
-                    {modelOpsActiveTab === 'detail' && (
-                        <DeployList
-                          mode="modelOps"
-                          data={activeModelServices}
-                          onDetail={handleDeployDetail}
-                          onStop={handleDeployStop}
-                          onMonitor={handleDeployMonitor}
-                          onExperience={handleDeployExperience}
-                          onLog={handleDeployLog}
-                          onDeleteInstance={handleDeployDeleteInstance}
-                          onAddInstance={handleDeployAddInstance}
-                          onAllocateWeight={openModelOpsWeightModal}
-                          onOpenCreate={handleOpenCreate}
-                          onScalePd={handleScalePd}
-                          onNodeFilter={handleDeployNodeFilter}
-                          onScheduleDetail={handleScheduleDetail}
-                          viewModeValue={modelOpsListViewMode}
-                          onViewModeChange={setModelOpsListViewMode}
-                          clusterFilterValue={modelOpsClusterFilter}
-		                          onClusterFilterChange={setModelOpsClusterFilter}
-		                          getModelOpsRowWeight={getServiceWeight}
-		                        />
-                    )}
+                    <DeployList
+                      mode="modelOps"
+                      data={activeModelServices}
+                      onDetail={handleDeployDetail}
+                      onStop={handleDeployStop}
+                      onMonitor={handleDeployMonitor}
+                      onExperience={handleDeployExperience}
+                      onLog={handleDeployLog}
+                      onDeleteInstance={handleDeployDeleteInstance}
+                      onAddInstance={handleDeployAddInstance}
+                      onAllocateWeight={openModelOpsWeightModal}
+                      onOpenCreate={handleOpenCreate}
+                      onScalePd={handleScalePd}
+                      onNodeFilter={handleDeployNodeFilter}
+                      onScheduleDetail={handleScheduleDetail}
+                      viewModeValue={modelOpsListViewMode}
+                      onViewModeChange={setModelOpsListViewMode}
+                      clusterFilterValue={modelOpsClusterFilter}
+                      onClusterFilterChange={setModelOpsClusterFilter}
+                      getModelOpsRowWeight={getServiceWeight}
+                    />
 		                    <Modal
                         className="ataas-model-ops-weight-modal-shell"
 	                      title={<div className="ataas-model-ops-weight-modal-title"><SettingOutlined /><strong>调整流量配比</strong><em>{activeModelName}</em></div>}
