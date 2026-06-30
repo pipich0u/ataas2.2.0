@@ -1014,10 +1014,6 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
     { title: 'Decode', key: 'decode', width: 100, render: (_, r) => renderModelOpsRoleCount(getModelOpsRoleSummary(r).decode, 'decode') },
     { title: 'TTFT', key: 'ttft', width: 92, render: (_, r) => <span className="ataas-model-ops-perf-value">{getModelOpsPerfSummary(r).ttft}</span> },
     { title: 'TPOT', key: 'tpot', width: 92, render: (_, r) => <span className="ataas-model-ops-perf-value">{getModelOpsPerfSummary(r).tpot}</span> },
-    { title: 'Prefill TPS', key: 'prefillTps', width: 120, render: (_, r) => <span className="ataas-model-ops-perf-value">{getModelOpsPerfSummary(r).prefillTps}</span> },
-    { title: 'Decode TPS', key: 'decodeTps', width: 120, render: (_, r) => <span className="ataas-model-ops-perf-value">{getModelOpsPerfSummary(r).decodeTps}</span> },
-    { title: 'Routher RPS', key: 'routherRps', width: 120, render: (_, r) => <span className="ataas-model-ops-perf-value">{getModelOpsPerfSummary(r).routherRps}</span> },
-    { title: 'Hit%', key: 'hitRate', width: 90, render: (_, r) => <span className="ataas-model-ops-perf-value">{getModelOpsPerfSummary(r).hitRate}</span> },
     { title: '当前权重', key: 'weight', width: 110, render: (_, r) => <span className="ataas-model-ops-weight-pill">{getModelOpsRowWeight?.(r) ?? 100}%</span> },
     { title: '操作', key: 'action', width: 120, fixed: 'right' as const, className: 'ataas-deploy-fixed-action-cell', render: (_, r) => (
       <div className="ataas-model-ops-table-actions">
