@@ -1363,7 +1363,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
         </div>
       ) : '摘流 · 降权'}
       open={!!drainWeightModal}
-      width={640}
+      width={600}
       onCancel={() => setDrainWeightModal(null)}
       footer={[
         <Button key="cancel" onClick={() => setDrainWeightModal(null)}>取消</Button>,
