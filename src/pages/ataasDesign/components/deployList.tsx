@@ -947,6 +947,15 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
     );
   };
 
+  const renderModelOpsYamlFile = (fileName: string) => (
+    <Tooltip title={fileName}>
+      <span className="ataas-model-ops-yaml-file">
+        <CodeOutlined />
+        <span>{fileName}</span>
+      </span>
+    </Tooltip>
+  );
+
   const getModelOpsPerfSummary = (item: DeployServiceItem) => ({
     ttft: 11800 + item.id * 817,
     tpot: (18 + (item.id % 7) * 1.6).toFixed(1),
@@ -1082,6 +1091,8 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
     { title: '状态', key: 'status', width: 86, render: (_, r) => <TableStatus item={r} /> },
     { title: '集群', key: 'cluster', width: 120, render: (_, r) => <span className="ataas-deploy-table-cluster">{getDeployClusterName(r)}</span> },
     { title: 'Role', key: 'role', width: 180, render: (_, r) => renderModelOpsRoleSummary(r) },
+    { title: 'Routher', key: 'routerYaml', width: 130, render: (_, r) => renderModelOpsYamlFile(`${r.modelInfo.name}/router.yaml`) },
+    { title: 'Worker', key: 'workerYaml', width: 130, render: (_, r) => renderModelOpsYamlFile(`${r.modelInfo.name}/worker.yaml`) },
     { title: 'TTFT', key: 'ttft', width: 76, render: (_, r) => <span className="ataas-model-ops-perf-value">{getModelOpsPerfSummary(r).ttft}</span> },
     { title: 'TPOT', key: 'tpot', width: 76, render: (_, r) => <span className="ataas-model-ops-perf-value">{getModelOpsPerfSummary(r).tpot}</span> },
     { title: '操作', key: 'action', width: 96, fixed: 'right' as const, className: 'ataas-deploy-fixed-action-cell', render: (_, r) => (
