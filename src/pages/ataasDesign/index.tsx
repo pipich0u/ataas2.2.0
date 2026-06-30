@@ -10181,6 +10181,9 @@ const AtAasDesign = () => {
               ? deployServices.find((service) => service.id === modelOpsSelectedServiceId)
               : null;
             const activeModelServices = selectedModelOpsService ? [selectedModelOpsService] : (activeModelGroup?.services || []);
+            const resolveModelOpsSourceService = (item: DeployServiceItem) => (
+              deployServices.find((service) => service.id === (item.modelOpsSourceServiceId || item.id)) || item
+            );
             const getModelOpsServiceInstances = (service: DeployServiceItem) => {
               const works = (service.modelInfo.works || '')
                 .split(',')
@@ -10194,6 +10197,28 @@ const AtAasDesign = () => {
                 cluster: getDeployClusterName(service),
               }));
             };
+            const getModelOpsInstanceRows = (service: DeployServiceItem): DeployServiceItem[] => (
+              getModelOpsServiceInstances(service).map((instance, index) => ({
+                ...service,
+                id: service.id * 1000 + index + 1,
+                name: instance.instanceName,
+                serviceGroupName: service.name,
+                modelOpsSourceServiceId: service.id,
+                modelOpsInstanceKey: instance.key,
+                modelOpsRoleSummary: {
+                  router: '1/1',
+                  prefill: '4/4',
+                  decode: '1/1',
+                },
+                modelInfo: {
+                  ...service.modelInfo,
+                  number: 1,
+                  works: instance.instanceName,
+                  logs: service.modelInfo.logs.map((log) => ({ ...log, name: `${instance.instanceName} ${log.name}` })),
+                },
+              }))
+            );
+            const activeModelInstanceRows = activeModelServices.flatMap((service) => getModelOpsInstanceRows(service));
             const getDefaultWeight = (instances: ReturnType<typeof getModelOpsServiceInstances>, index: number) => {
               if (instances.length <= 1) return 100;
               const base = Math.floor(100 / instances.length);
@@ -10216,12 +10241,25 @@ const AtAasDesign = () => {
               const base = Math.floor(100 / instances.length);
               setModelOpsWeights((prev) => instances.reduce((acc, instance, index) => ({ ...acc, [instance.key]: index === instances.length - 1 ? 100 - base * (instances.length - 1) : base }), { ...prev }));
             };
-            const getServiceWeight = (service: DeployServiceItem) => {
-              const instances = getModelOpsServiceInstances(service);
+            const getServiceWeight = (item: DeployServiceItem) => {
+              const sourceService = resolveModelOpsSourceService(item);
+              const instances = getModelOpsServiceInstances(sourceService);
+              const instanceIndex = item.modelOpsInstanceKey
+                ? instances.findIndex((instance) => instance.key === item.modelOpsInstanceKey)
+                : -1;
+              if (instanceIndex >= 0) return getInstanceWeight(instances, instanceIndex);
               return instances.reduce((sum, _, index) => sum + getInstanceWeight(instances, index), 0);
             };
+            const getModelOpsSourceInstanceIndex = (item: DeployServiceItem, fallbackIndex: number) => {
+              const sourceService = resolveModelOpsSourceService(item);
+              const instances = getModelOpsServiceInstances(sourceService);
+              const instanceIndex = item.modelOpsInstanceKey
+                ? instances.findIndex((instance) => instance.key === item.modelOpsInstanceKey)
+                : -1;
+              return instanceIndex >= 0 ? instanceIndex : fallbackIndex;
+            };
             const openModelOpsWeightModal = (service?: DeployServiceItem) => {
-              const targetService = service || selectedModelOpsService || activeModelServices[0];
+              const targetService = service ? resolveModelOpsSourceService(service) : (selectedModelOpsService || activeModelServices[0]);
               if (!targetService) {
                 message.warning('暂无可分配权重的实例');
                 return;
@@ -10239,19 +10277,19 @@ const AtAasDesign = () => {
                   <main className="ataas-model-ops-main">
                     <DeployList
                       mode="modelOps"
-                      data={activeModelServices}
-                      onDetail={handleDeployDetail}
-                      onStop={handleDeployStop}
-                      onMonitor={handleDeployMonitor}
-                      onExperience={handleDeployExperience}
-                      onLog={handleDeployLog}
-                      onDeleteInstance={handleDeployDeleteInstance}
-                      onAddInstance={handleDeployAddInstance}
+                      data={activeModelInstanceRows}
+                      onDetail={(item) => handleDeployDetail(resolveModelOpsSourceService(item))}
+                      onStop={(item) => handleDeployStop(resolveModelOpsSourceService(item))}
+                      onMonitor={(item) => handleDeployMonitor(resolveModelOpsSourceService(item))}
+                      onExperience={(item) => handleDeployExperience(resolveModelOpsSourceService(item))}
+                      onLog={(item, logId, podName) => handleDeployLog(resolveModelOpsSourceService(item), logId, podName)}
+                      onDeleteInstance={(item, instanceIndex) => handleDeployDeleteInstance(resolveModelOpsSourceService(item), getModelOpsSourceInstanceIndex(item, instanceIndex))}
+                      onAddInstance={(item) => handleDeployAddInstance(resolveModelOpsSourceService(item))}
                       onAllocateWeight={openModelOpsWeightModal}
                       onOpenCreate={handleOpenCreate}
-                      onScalePd={handleScalePd}
-                      onNodeFilter={handleDeployNodeFilter}
-                      onScheduleDetail={handleScheduleDetail}
+                      onScalePd={(item) => handleScalePd(resolveModelOpsSourceService(item))}
+                      onNodeFilter={(item) => handleDeployNodeFilter(resolveModelOpsSourceService(item))}
+                      onScheduleDetail={(item) => handleScheduleDetail(resolveModelOpsSourceService(item))}
                       viewModeValue={modelOpsListViewMode}
                       onViewModeChange={setModelOpsListViewMode}
                       clusterFilterValue={modelOpsClusterFilter}

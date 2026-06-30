@@ -37,6 +37,13 @@ export type DeployServiceItem = {
   scheduleAlertWebhook?: string;
   serviceGroupKey?: string;
   serviceGroupName?: string;
+  modelOpsSourceServiceId?: number;
+  modelOpsInstanceKey?: string;
+  modelOpsRoleSummary?: {
+    router: string;
+    prefill: string;
+    decode: string;
+  };
   modelInfo: {
     name: string;
     supplier: string;
@@ -859,6 +866,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
   };
 
   const getModelOpsRoleSummary = (item: DeployServiceItem) => {
+    if (item.modelOpsRoleSummary) return item.modelOpsRoleSummary;
     const detailCount = Math.max(1, getDetailInstances(item).length || item.modelInfo.number || 1);
     const prefillCount = item.deployMode === 'PD 分离' ? Math.max(1, detailCount * 2) : detailCount;
     return {
