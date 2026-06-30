@@ -593,7 +593,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
       return (
         <span className={'ataas-model-ops-performance-cell' + (performance.label === 'TTFT' ? ' ttft' : '')}>
           <span><em>{performance.label}</em><strong>{performance.avg}</strong></span>
-          <span><em>p99</em><strong>{performance.p99}</strong></span>
+          <span><em>P99</em><strong>{performance.p99}</strong></span>
         </span>
       );
     };
@@ -1363,7 +1363,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
         </div>
       ) : '摘流 · 降权'}
       open={!!drainWeightModal}
-      width={720}
+      width={640}
       onCancel={() => setDrainWeightModal(null)}
       footer={[
         <Button key="cancel" onClick={() => setDrainWeightModal(null)}>取消</Button>,
@@ -1407,9 +1407,10 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
                       </strong>
                     </Tooltip>
                     <Slider min={0} max={100} value={value} tooltip={{ formatter: null }} onChange={(nextValue) => updateDrainWeight(router.key, Number(nextValue))} />
-                    <span className="ataas-model-ops-weight-modal-percent">{value.toFixed(1)}%</span>
-                    <InputNumber min={0} max={100} value={value} size="middle" onChange={(nextValue) => { if (nextValue !== null) updateDrainWeight(router.key, Number(nextValue)); }} />
-                    <i />
+                    <div className="ataas-model-ops-weight-modal-input">
+                      <InputNumber min={0} max={100} value={value} size="middle" onChange={(nextValue) => { if (nextValue !== null) updateDrainWeight(router.key, Number(nextValue)); }} />
+                      <span>%</span>
+                    </div>
                   </div>
                 );
               })}

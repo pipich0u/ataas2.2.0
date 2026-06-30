@@ -1893,7 +1893,7 @@ body,
   column-gap: 6px !important;
 
   &.single {
-    margin-top: 2px !important;
+    margin-top: 0 !important;
     grid-template-columns: max-content auto !important;
     min-height: 28px !important;
     column-gap: 6px !important;
@@ -1911,7 +1911,7 @@ body,
   em {
     justify-self: end !important;
     margin-left: 0 !important;
-    color: #b3b3b3 !important;
+    color: #6B7280 !important;
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace !important;
     font-size: 11px !important;
     font-style: normal !important;
@@ -1929,7 +1929,7 @@ body,
   margin: 0 !important;
   border-radius: 0 !important;
   background: transparent !important;
-  color: #8f8f8f !important;
+  color: #6B7280 !important;
   font-size: 11px !important;
   font-weight: 400 !important;
   line-height: 18px !important;
@@ -1937,8 +1937,8 @@ body,
 
 .ataas-model-ops-live-metric-suffix {
   align-self: center !important;
-  color: #9a9a9a !important;
-  font-size: 14px !important;
+  color: #6B7280 !important;
+  font-size: 11px !important;
   font-weight: 400 !important;
   line-height: 18px !important;
   white-space: nowrap !important;
@@ -1949,7 +1949,7 @@ body,
   align-items: center !important;
   height: 24px !important;
   margin-top: 0 !important;
-  color: #b3b3b3 !important;
+  color: #6B7280 !important;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace !important;
   font-size: 11px !important;
   font-weight: 400 !important;
@@ -6033,12 +6033,28 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
     border-radius: 999px;
     background: #18A957;
   }
+
 }
 
 .ataas-model-ops-weight-modal-percent {
   color: #86909C;
   font-size: 15px;
   text-align: right;
+}
+
+.ataas-model-ops-weight-modal-input {
+  display: inline-flex;
+  height: 34px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  color: #4E5969;
+  font-size: 13px;
+}
+
+.ataas-model-ops-weight-modal-input span {
+  flex: 0 0 auto;
+  color: #4E5969;
 }
 
 .ataas-model-ops-weight-modal {
@@ -21392,4 +21408,130 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   font-size: 13px !important;
   line-height: 20px !important;
   text-align: left !important;
+}
+
+.ataas-model-ops-drain-modal-shell .ant-modal-content {
+  border-radius: 10px !important;
+}
+
+.ataas-model-ops-drain-modal-shell .ant-modal-header {
+  padding: 20px 24px 0 !important;
+}
+
+.ataas-model-ops-drain-modal-shell .ant-modal-body {
+  padding: 12px 24px 8px !important;
+}
+
+.ataas-model-ops-drain-modal-shell .ant-modal-footer {
+  padding: 12px 24px 20px !important;
+}
+
+.ataas-model-ops-drain-modal-shell .ataas-model-ops-weight-modal-title {
+  gap: 10px !important;
+}
+
+.ataas-model-ops-drain-modal-shell .ataas-model-ops-weight-modal-title strong {
+  font-size: 17px !important;
+  line-height: 24px !important;
+}
+
+.ataas-model-ops-drain-modal-shell .ataas-model-ops-weight-modal-title em {
+  font-size: 16px !important;
+  line-height: 22px !important;
+}
+
+.ataas-model-ops-drain-modal-shell .ataas-model-ops-weight-modal-subtitle {
+  margin-bottom: 12px !important;
+  font-size: 13px !important;
+  line-height: 20px !important;
+}
+
+.ataas-model-ops-drain-modal-shell .ataas-model-ops-weight-modal-toolbar {
+  margin-bottom: 10px !important;
+  padding: 10px 12px !important;
+  border: 1px solid #edf0f5 !important;
+  border-radius: 8px !important;
+  background: #f7f8fa !important;
+  font-size: 13px !important;
+}
+
+.ataas-model-ops-drain-modal-shell .ataas-model-ops-weight-modal-toolbar .ant-btn {
+  height: 28px !important;
+  padding: 0 10px !important;
+  border-radius: 6px !important;
+  font-size: 13px !important;
+}
+
+.ataas-model-ops-drain-modal-shell .ataas-model-ops-weight-modal-list {
+  max-height: 312px !important;
+  padding: 0 !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  border: 1px solid #edf0f5 !important;
+  border-radius: 8px !important;
+  background: #fff !important;
+}
+
+.ataas-model-ops-drain-modal-shell .ataas-model-ops-weight-modal-row {
+  display: grid !important;
+  grid-template-columns: minmax(0, 220px) minmax(160px, 1fr) 92px !important;
+  min-height: 54px !important;
+  align-items: center !important;
+  gap: 12px !important;
+  padding: 8px 12px !important;
+  border: 0 !important;
+  border-bottom: 1px solid #edf0f5 !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+  box-shadow: none !important;
+}
+
+.ataas-model-ops-drain-modal-shell .ataas-model-ops-weight-modal-row:last-child {
+  border-bottom: 0 !important;
+}
+
+.ataas-model-ops-drain-modal-shell .ataas-model-ops-weight-modal-row.drain-target {
+  background: #f8faff !important;
+  box-shadow: inset 3px 0 0 #2f6bff !important;
+}
+
+.ataas-model-ops-drain-modal-shell .ataas-model-ops-weight-modal-row strong {
+  display: block !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  color: #1d2129 !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  line-height: 20px !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.ataas-model-ops-drain-modal-shell .ataas-model-ops-weight-modal-input {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 6px !important;
+  color: #4e5969 !important;
+  font-size: 13px !important;
+}
+
+.ataas-model-ops-drain-modal-shell .ataas-model-ops-weight-modal-input .ant-input-number {
+  width: 64px !important;
+  height: 30px !important;
+  border-radius: 6px !important;
+}
+
+.ataas-model-ops-drain-modal-shell .ataas-model-ops-weight-modal-input .ant-input-number-input {
+  height: 28px !important;
+  color: #1d2129 !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  line-height: 28px !important;
+  text-align: center !important;
+}
+
+.ataas-model-ops-drain-modal-shell .ataas-model-ops-weight-modal-input span {
+  flex: 0 0 auto !important;
+  color: #4e5969 !important;
 }
