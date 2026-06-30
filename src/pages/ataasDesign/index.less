@@ -7024,21 +7024,32 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   max-width: 118px;
   align-items: center;
   gap: 8px;
-  color: #0099B8;
+  color: #4E5969;
+  cursor: pointer;
   font-size: 13px;
   line-height: 20px;
   vertical-align: middle;
+  transition: color 0.16s ease;
 
   .anticon {
     flex: 0 0 auto;
     color: #8A8F99;
     font-size: 16px;
+    transition: color 0.16s ease;
   }
 
   span {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  &:hover {
+    color: #1D2129;
+  }
+
+  &:hover .anticon {
+    color: #4E5969;
   }
 }
 
