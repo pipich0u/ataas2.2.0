@@ -6660,7 +6660,6 @@ const AtAasDesign = () => {
   const [modelOpsWeights, setModelOpsWeights] = useState<Record<string, number>>({});
   const [modelOpsWeightModalCluster, setModelOpsWeightModalCluster] = useState('');
   const [modelOpsActiveTab, setModelOpsActiveTab] = useState<'weight' | 'detail'>('detail');
-  const [modelOpsPerfExpanded, setModelOpsPerfExpanded] = useState(false);
   const [deployMode, setDeployMode] = useState<string>('single');
   const [startupTemplateForm] = Form.useForm();
   const [addInstPdTemplateForm] = Form.useForm();
@@ -10191,51 +10190,6 @@ const AtAasDesign = () => {
             };
             const activeWeightModalGroup = clusterWeightGroups.find((group) => group.cluster === modelOpsWeightModalCluster);
             const activeWeightModalTotal = activeWeightModalGroup ? activeWeightModalGroup.routers.reduce((sum, _, index) => sum + getRouterWeight(activeWeightModalGroup.routers, index), 0) : 0;
-            const modelOpsNodeColors = ['#22C7D9', '#8B7CF6', '#2ECC8F', '#FF8A34', '#FF6B6B', '#F7B500', '#5AA9FF', '#D95CFF'];
-            const modelOpsPrefillNodes = activeModelServices.flatMap((service, serviceIndex) => {
-              const count = Math.max(1, (service.deployMode === 'PD 分离' ? service.modelInfo.number * 2 : service.modelInfo.number) || 1);
-              const color = modelOpsNodeColors[serviceIndex % modelOpsNodeColors.length];
-              return Array.from({ length: count }, (_, index) => ({ name: `${service.name} prefill-${index}`, color }));
-            });
-            const modelOpsDecodeNodes = activeModelServices.flatMap((service, serviceIndex) => {
-              const count = Math.max(1, service.modelInfo.number || 1);
-              const color = modelOpsNodeColors[(serviceIndex + 2) % modelOpsNodeColors.length];
-              return Array.from({ length: count }, (_, index) => ({ name: `${service.name} decode-${index}`, color }));
-            });
-            const modelOpsPrefillLegends = [
-              { name: 'P99', color: '#4F46FF', value: 420 + activeModelServices.length * 18 },
-              { name: 'P90', color: '#8DDC7F', value: 330 + activeModelServices.length * 14 },
-              { name: 'P50', color: '#6FA9B3', value: 230 + activeModelServices.length * 10 },
-            ];
-            const modelOpsDecodeLegends = [
-              { name: 'AVG', color: '#4F46FF', value: 38 + activeModelServices.length * 2.4 },
-            ];
-            const modelOpsTtftSpark = miniTrend.map((value, index) => value + activeModelServices.length * 3 + (index % 3) * 2);
-            const modelOpsTpotSpark = miniTrend.map((value, index) => value / 4 + activeModelServices.length * 0.8 + (index % 2) * 0.4);
-            const renderModelOpsPerfSummary = (label: string, values: number[], current: string) => (
-              <div className="ataas-model-ops-perf-summary-item">
-                <span className="ataas-model-ops-perf-summary-label">{label}</span>
-                <TinySparkline values={values} color="#6738E8" />
-                <strong>{current}</strong>
-              </div>
-            );
-            const renderModelOpsNodePopover = (nodes: Array<{ name: string; color: string }>, label: string) => (
-              <Popover
-                placement="bottomRight"
-                content={(
-                  <div className="ataas-model-ops-node-popover">
-                    {nodes.map((node) => (
-                      <span key={node.name}>
-                        <i style={{ background: node.color }} />
-                        {node.name}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              >
-                <Button className="ataas-model-ops-node-button" size="small">{label} {nodes.length}</Button>
-              </Popover>
-            );
             return (
               <div className="ataas-section-stack">
                 <div className="ataas-model-ops-layout">
@@ -10269,59 +10223,24 @@ const AtAasDesign = () => {
                     </div>
                   </aside>
                   <main className="ataas-model-ops-main">
-                    <div className={'ataas-model-ops-perf-panel' + (modelOpsPerfExpanded ? ' expanded' : '')}>
-                      <div className="ataas-model-ops-perf-topbar">
-                        <button type="button" className="ataas-model-ops-perf-summary" onClick={() => setModelOpsPerfExpanded((value) => !value)}>
-                          <div className="ataas-model-ops-perf-summary-metrics">
-                            {renderModelOpsPerfSummary('TTFT', modelOpsTtftSpark, String(3600 + activeModelServices.length * 175))}
-                            {renderModelOpsPerfSummary('TPOT', modelOpsTpotSpark, (18.5 + activeModelServices.length * 0.6).toFixed(1))}
-                          </div>
-                          <span className="ataas-model-ops-perf-toggle">
-                            <DownOutlined />
-                          </span>
+                    <div className="ataas-model-ops-toolbar">
+                      <div className="ataas-deploy-list-view-toggle ataas-model-ops-tab-toggle" role="group" aria-label="模型运维视图切换">
+                        <button
+                          type="button"
+                          className={modelOpsActiveTab === 'detail' ? 'active' : ''}
+                          onClick={() => setModelOpsActiveTab('detail')}
+                        >
+                          <AppstoreOutlined />组详情
                         </button>
-                        <div className="ataas-deploy-list-view-toggle ataas-model-ops-tab-toggle" role="group" aria-label="模型运维视图切换">
-                          <button
-                            type="button"
-                            className={modelOpsActiveTab === 'detail' ? 'active' : ''}
-                            onClick={() => setModelOpsActiveTab('detail')}
-                          >
-                            <AppstoreOutlined />组详情
-                          </button>
-                          <span className="ataas-deploy-view-divider" aria-hidden="true" />
-                          <button
-                            type="button"
-                            className={modelOpsActiveTab === 'weight' ? 'active' : ''}
-                            onClick={() => setModelOpsActiveTab('weight')}
-                          >
-                            <BarsOutlined />组权重
-                          </button>
-                        </div>
+                        <span className="ataas-deploy-view-divider" aria-hidden="true" />
+                        <button
+                          type="button"
+                          className={modelOpsActiveTab === 'weight' ? 'active' : ''}
+                          onClick={() => setModelOpsActiveTab('weight')}
+                        >
+                          <BarsOutlined />组权重
+                        </button>
                       </div>
-                      {modelOpsPerfExpanded && (
-                        <div className="ataas-model-ops-perf-grid">
-                          <div className="ataas-monitor-chart-card ataas-model-ops-perf-card">
-                            <div className="ataas-monitor-chart-head">
-                              <div>
-                                <strong>TTFT：Prefill 节点汇总</strong>
-                                <span className="ataas-monitor-chart-hint">毫秒</span>
-                              </div>
-                              {renderModelOpsNodePopover(modelOpsPrefillNodes, 'Prefill 节点')}
-                            </div>
-                            <MonitorLineChart legends={modelOpsPrefillLegends} timePrecision="minute" height={190} seed={`${activeModelName}-prefill`} />
-                          </div>
-                          <div className="ataas-monitor-chart-card ataas-model-ops-perf-card">
-                            <div className="ataas-monitor-chart-head">
-                              <div>
-                                <strong>TPOT：Decode 节点汇总</strong>
-                                <span className="ataas-monitor-chart-hint">毫秒</span>
-                              </div>
-                              {renderModelOpsNodePopover(modelOpsDecodeNodes, 'Decode 节点')}
-                            </div>
-                            <MonitorLineChart legends={modelOpsDecodeLegends} timePrecision="minute" height={190} seed={`${activeModelName}-decode`} />
-                          </div>
-                        </div>
-                      )}
                     </div>
                     {modelOpsActiveTab === 'weight' && (
                       <>
