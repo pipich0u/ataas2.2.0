@@ -10252,6 +10252,14 @@ const AtAasDesign = () => {
               const index = group?.routers.findIndex((router) => router.serviceName === service.name) ?? -1;
               return group && index >= 0 ? getRouterWeight(group.routers, index) : 100;
             };
+            const openModelOpsWeightModal = () => {
+              const targetGroup = filteredClusterWeightGroups.find((group) => group.cluster === modelOpsClusterFilter) || filteredClusterWeightGroups[0] || clusterWeightGroups[0];
+              if (!targetGroup) {
+                message.warning('暂无可分配权重的 PD 组');
+                return;
+              }
+              setModelOpsWeightModalCluster(targetGroup.cluster);
+            };
             const activeWeightModalGroup = clusterWeightGroups.find((group) => group.cluster === modelOpsWeightModalCluster);
             const activeWeightModalTotal = activeWeightModalGroup ? activeWeightModalGroup.routers.reduce((sum, _, index) => sum + getRouterWeight(activeWeightModalGroup.routers, index), 0) : 0;
             return (
@@ -10400,6 +10408,7 @@ const AtAasDesign = () => {
                           onLog={handleDeployLog}
                           onDeleteInstance={handleDeployDeleteInstance}
                           onAddInstance={handleDeployAddInstance}
+                          onAllocateWeight={openModelOpsWeightModal}
                           onOpenCreate={handleOpenCreate}
                           onScalePd={handleScalePd}
                           onNodeFilter={handleDeployNodeFilter}

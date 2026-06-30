@@ -214,6 +214,7 @@ interface DeployListProps {
   onLog: (item: DeployServiceItem, logId: number, podName?: string) => void;
   onDeleteInstance?: (item: DeployServiceItem, instanceIndex: number) => void;
   onAddInstance?: (item: DeployServiceItem) => void;
+  onAllocateWeight?: () => void;
   onOpenCreate: () => void;
   onScalePd?: (item: DeployServiceItem) => void;
   onNodeFilter?: (item: DeployServiceItem) => void;
@@ -226,7 +227,7 @@ interface DeployListProps {
   mode?: 'deploy' | 'modelOps';
 }
 
-export default function DeployList({ data, onDetail, onStop, onMonitor, onExperience, onLog, onDeleteInstance, onAddInstance, onOpenCreate, onScalePd, onNodeFilter, onScheduleDetail, viewModeValue, onViewModeChange, clusterFilterValue, onClusterFilterChange, getModelOpsRowWeight, mode = 'deploy' }: DeployListProps) {
+export default function DeployList({ data, onDetail, onStop, onMonitor, onExperience, onLog, onDeleteInstance, onAddInstance, onAllocateWeight, onOpenCreate, onScalePd, onNodeFilter, onScheduleDetail, viewModeValue, onViewModeChange, clusterFilterValue, onClusterFilterChange, getModelOpsRowWeight, mode = 'deploy' }: DeployListProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('card');
   const [statusFilter, setStatusFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -1056,6 +1057,16 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
             onClick={() => filtered[0] && onAddInstance(filtered[0])}
           >
             添加实例
+          </Button>
+        )}
+        {mode === 'modelOps' && onAllocateWeight && (
+          <Button
+            className="ataas-traffic-enable-button"
+            icon={<SettingOutlined />}
+            disabled={filtered.length === 0}
+            onClick={onAllocateWeight}
+          >
+            分配权重
           </Button>
         )}
         {mode !== 'modelOps' && (
