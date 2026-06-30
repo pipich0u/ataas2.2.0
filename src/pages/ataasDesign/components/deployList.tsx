@@ -709,11 +709,13 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
                           ))}
                         </div>
                       ) : (
-                        <div className="ataas-model-ops-live-metric-row single">
-                          <strong style={{ color: card.color }}>{card.value}</strong>
-                          {card.suffix ? <span className="ataas-model-ops-live-metric-suffix">{card.suffix}</span> : null}
-                          {card.avg ? <em>{card.avg}</em> : null}
-                        </div>
+                        <>
+                          <div className="ataas-model-ops-live-metric-row single">
+                            <strong style={{ color: card.color }}>{card.value}</strong>
+                            {card.suffix ? <span className="ataas-model-ops-live-metric-suffix">{card.suffix}</span> : null}
+                          </div>
+                          {card.avg ? <div className="ataas-model-ops-live-metric-avg">{card.avg}</div> : null}
+                        </>
                       )}
                     </div>
                   ))}
