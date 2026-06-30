@@ -1006,7 +1006,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
   ];
 
   const modelOpsTableColumns: ColumnsType<DeployServiceItem> = [
-    { title: 'PD组名', dataIndex: 'name', key: 'name', width: 130, render: (v) => <span className="ataas-deploy-table-main">{v}</span> },
+    { title: '模型实例', dataIndex: 'name', key: 'name', width: 130, render: (v) => <span className="ataas-deploy-table-main">{v}</span> },
     { title: '当前权重', key: 'weight', width: 86, render: (_, r) => <span className="ataas-model-ops-weight-pill">{getModelOpsRowWeight?.(r) ?? 100}%</span> },
     { title: '状态', key: 'status', width: 86, render: (_, r) => <TableStatus item={r} /> },
     { title: '集群', key: 'cluster', width: 120, render: (_, r) => <span className="ataas-deploy-table-cluster">{getDeployClusterName(r)}</span> },
