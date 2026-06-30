@@ -713,7 +713,6 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
                     { title: 'CACHE HIT', value: liveGroupMetrics.cacheHit.toFixed(1), suffix: '%', avg: `avg ${liveGroupMetrics.cacheHitAvg.toFixed(1)}`, color: '#8B48FF' },
                     { title: 'RUNNING REQ', value: liveGroupMetrics.runningReq.toFixed(1), suffix: '', avg: `avg ${liveGroupMetrics.runningReqAvg.toFixed(1)}`, color: '#14A0C7' },
                     { title: 'QUEUE REQ', value: liveGroupMetrics.queueReq.toFixed(1), suffix: '', avg: `avg ${liveGroupMetrics.queueReqAvg.toFixed(2)}`, color: '#8B48FF' },
-                    { title: 'KV XFER', value: '—', suffix: '', avg: '', color: '#8A8F98' },
                   ].map((card) => (
                     <div key={card.title} className="ataas-model-ops-live-metric-card">
                       <div className="ataas-model-ops-live-metric-title">{card.title}</div>
