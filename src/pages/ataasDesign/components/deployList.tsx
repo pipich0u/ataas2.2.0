@@ -986,10 +986,10 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
   );
 
   const getModelOpsPerfSummary = (item: DeployServiceItem) => {
-    const phase = Math.floor(nowTick / 1000) + item.id;
+    const phase = Math.floor(nowTick / 60000) + item.id;
     const wave = (offset: number, amplitude: number) => Math.sin((phase + offset) / 3) * amplitude;
     return {
-      ttft: Math.max(0, Math.round(11800 + item.id * 817 + wave(0, 260))),
+      ttft: Math.max(0, Math.round(31234 + (item.id % 9) * 137 + wave(0, 220))),
       tpot: Math.max(0, 18 + (item.id % 7) * 1.6 + wave(2, 0.8)).toFixed(1),
       prefillTps: 680 + (item.id % 9) * 37,
       decodeTps: 420 + (item.id % 8) * 29,
