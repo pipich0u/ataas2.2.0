@@ -1101,15 +1101,9 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
                         </Tooltip>
                         <div className="ataas-deploy-service-subline">
                           <CategoryTag category={item.category} />
-                          {item.serviceGroupName ? (
-                            <Tooltip title={`Group: ${item.serviceGroupName}`}>
-                              <span className="ataas-deploy-service-group-badge">Group: {item.serviceGroupName}</span>
-                            </Tooltip>
-                          ) : (
-                            <Tooltip title={item.typeStr}>
-                              <span className="ataas-deploy-service-type-text">{item.typeStr}</span>
-                            </Tooltip>
-                          )}
+                          <Tooltip title={item.modelInfo.name || item.typeStr || item.name}>
+                            <span className="ataas-deploy-service-type-text">{item.modelInfo.name || item.typeStr || item.name}</span>
+                          </Tooltip>
                           <ModelInfoPopover item={item} />
                         </div>
                       </div>
