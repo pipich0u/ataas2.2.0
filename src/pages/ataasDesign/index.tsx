@@ -655,13 +655,38 @@ const getMockMonitorMetrics = (index: number, scale = 1) => {
   };
 };
 
-const monitorRows = Array.from({ length: 107 }, (_, index) => {
+type MonitorRow = {
+  key: string;
+  name: string;
+  serviceName: string;
+  modelName: string;
+  cluster: string;
+  clusterList: string[];
+  callTotal: number;
+  callFailed: number;
+  failRate: string;
+  totalTokens: number;
+  inputTokens: number;
+  outputTokens: number;
+  avgTtft: number;
+  avgOtps: number;
+  cacheHitRate: string;
+  interfaceCount: number;
+  hasV2: boolean;
+};
+
+const monitorRows: MonitorRow[] = Array.from({ length: 107 }, (_, index) => {
   const name = monitorModelNames[index % monitorModelNames.length];
   const metrics = getMockMonitorMetrics(index);
+  const rowName = index < monitorModelNames.length ? name : `${name}-${Math.floor(index / monitorModelNames.length) + 1}`;
+  const cluster = monitorClusterNames[index % monitorClusterNames.length];
   return {
     key: `monitor-${index + 1}`,
-    name: index < monitorModelNames.length ? name : `${name}-${Math.floor(index / monitorModelNames.length) + 1}`,
-    cluster: monitorClusterNames[index % monitorClusterNames.length],
+    name: rowName,
+    serviceName: rowName,
+    modelName: rowName,
+    cluster,
+    clusterList: [cluster],
     ...metrics,
     hasV2: !['tokenizer', 'ERNIE Speed-AppBuilder'].includes(name),
   };
@@ -6492,7 +6517,7 @@ const AtAasDesign = () => {
   const [monitorClusterFilter, setMonitorClusterFilter] = useState('');
   const [monitorScope, setMonitorScope] = useState('all');
   const [monitorApp, setMonitorApp] = useState('all');
-  const [monitorReportRow, setMonitorReportRow] = useState<typeof monitorRows[0] | null>(null);
+  const [monitorReportRow, setMonitorReportRow] = useState<MonitorRow | null>(null);
   const [monitorRefreshMode, setMonitorRefreshMode] = useState('手动刷新');
   const [monitorTimePrecision, setMonitorTimePrecision] = useState<MonitorTimePrecision>('minute');
   const [monitorReportDate, setMonitorReportDate] = useState(() => dayjs());
@@ -6740,8 +6765,9 @@ const AtAasDesign = () => {
     message.success(`实例 ${instanceIndex + 1} 已删除`);
   };
   const handleDeployMonitor = (item: DeployServiceItem) => {
-    setMonitorSearchText(item.name);
-    setMonitorExactServiceName(item.name);
+    const serviceName = item.modelInfo.name || item.name;
+    setMonitorSearchText(serviceName);
+    setMonitorExactServiceName(serviceName);
     setMonitorClusterFilter('');
     setMonitorReportRow(null);
     setActiveTab('monitoring');
@@ -9313,22 +9339,58 @@ const AtAasDesign = () => {
   ];
 
   const allMonitorRows = useMemo(() => {
-    const deployRows = deployServices.map((item, index) => {
-      const text = `${item.name} ${item.modelInfo.works} ${item.typeStr}`.toLowerCase();
-      const cluster = text.includes('h20') || text.includes('qwen')
-        ? 'shanghai-online'
-        : text.includes('l20') || text.includes('glm')
-          ? 'guangzhou-test'
-          : text.includes('910b') || text.includes('kimi')
-            ? 'wuhan-kunpeng'
-            : 'beijing-prod';
+    const deployRows = deployServices.reduce<Array<MonitorRow & { avgTtftSum: number; avgOtpsSum: number; cacheHitSum: number }>>((rows, item, index) => {
+      const modelName = item.modelInfo.name || item.name;
+      const cluster = getDeployClusterName(item);
       const metrics = getMockMonitorMetrics(index + 12, 1.18);
+      const existing = rows.find((row) => row.name === modelName);
+      const nextClusterList = existing ? Array.from(new Set([...existing.clusterList, cluster])) : [cluster];
+      if (existing) {
+        existing.clusterList = nextClusterList;
+        existing.cluster = nextClusterList.length > 1 ? nextClusterList.join(' / ') : nextClusterList[0];
+        existing.callTotal += metrics.callTotal;
+        existing.callFailed += metrics.callFailed;
+        existing.totalTokens += metrics.totalTokens;
+        existing.inputTokens += metrics.inputTokens;
+        existing.outputTokens += metrics.outputTokens;
+        existing.interfaceCount += metrics.interfaceCount || 1;
+        existing.avgTtftSum += metrics.avgTtft * metrics.callTotal;
+        existing.avgOtpsSum += metrics.avgOtps * metrics.callTotal;
+        existing.cacheHitSum += Number(metrics.cacheHitRate.replace('%', '')) * metrics.callTotal;
+        existing.hasV2 = existing.hasV2 || true;
+      } else {
+        rows.push({
+          key: `deploy-monitor-${item.id}`,
+          name: modelName,
+          serviceName: item.name,
+          modelName,
+          cluster: nextClusterList.length > 1 ? nextClusterList.join(' / ') : nextClusterList[0],
+          clusterList: nextClusterList,
+          callTotal: metrics.callTotal,
+          callFailed: metrics.callFailed,
+          failRate: metrics.failRate,
+          totalTokens: metrics.totalTokens,
+          inputTokens: metrics.inputTokens,
+          outputTokens: metrics.outputTokens,
+          avgTtft: metrics.avgTtft,
+          avgOtps: metrics.avgOtps,
+          cacheHitRate: metrics.cacheHitRate,
+          interfaceCount: metrics.interfaceCount || 1,
+          hasV2: true,
+          avgTtftSum: metrics.avgTtft * metrics.callTotal,
+          avgOtpsSum: metrics.avgOtps * metrics.callTotal,
+          cacheHitSum: Number(metrics.cacheHitRate.replace('%', '')) * metrics.callTotal,
+        });
+      }
+      return rows;
+    }, []).map((row) => {
+      const total = row.callTotal || 1;
       return {
-        key: `deploy-monitor-${item.id}`,
-        name: item.name,
-        cluster,
-        ...metrics,
-        hasV2: true,
+        ...row,
+        failRate: `${((row.callFailed / Math.max(1, row.callTotal)) * 100).toFixed(2)}%`,
+        avgTtft: Math.round(row.avgTtftSum / total),
+        avgOtps: Number((row.avgOtpsSum / total).toFixed(1)),
+        cacheHitRate: `${(row.cacheHitSum / total).toFixed(1)}%`,
       };
     });
     const deployNames = new Set(deployRows.map((row) => row.name));
@@ -9338,9 +9400,10 @@ const AtAasDesign = () => {
   const filteredMonitorRows = useMemo(() => {
     const q = monitorSearchText.trim().toLowerCase();
     return allMonitorRows.filter((row) => {
-      if (monitorClusterFilter && row.cluster !== monitorClusterFilter) return false;
-      if (monitorExactServiceName) return row.name === monitorExactServiceName;
-      if (q && !row.name.toLowerCase().includes(q)) return false;
+      if (monitorClusterFilter && !row.clusterList.includes(monitorClusterFilter)) return false;
+      if (monitorExactServiceName) return row.name === monitorExactServiceName || row.modelName === monitorExactServiceName;
+      const searchable = `${row.name} ${row.serviceName} ${row.modelName}`.toLowerCase();
+      if (q && !searchable.includes(q)) return false;
       return true;
     });
   }, [allMonitorRows, monitorSearchText, monitorClusterFilter, monitorExactServiceName]);
@@ -9361,7 +9424,7 @@ const AtAasDesign = () => {
     };
   }, [filteredMonitorRows]);
 
-  const monitorColumns: ColumnsType<typeof monitorRows[0]> = [
+  const monitorColumns: ColumnsType<MonitorRow> = [
     { title: '服务名称', dataIndex: 'name', key: 'name', width: 220, fixed: 'left', sorter: (a, b) => a.name.localeCompare(b.name), render: (v) => {
       const logo = getModelLogo(v);
       return (
