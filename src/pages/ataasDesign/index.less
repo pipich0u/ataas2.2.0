@@ -20931,6 +20931,40 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   }
 }
 
+.ataas-deploy-inline-section:has(.ataas-deploy-inline-monitoring) {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.ataas-deploy-inline-section:has(.ataas-deploy-inline-monitoring) .ataas-deploy-inline-table {
+  border: 0 !important;
+  border-radius: 0 !important;
+}
+
+.ataas-deploy-inline-section:has(.ataas-deploy-inline-monitoring) .ataas-deploy-inline-native-table {
+  border-top: 1px solid #DDE2EA !important;
+}
+
+.ataas-model-ops-live-metric-card {
+  position: relative !important;
+  border-right: 0 !important;
+
+  &:nth-child(4n) {
+    border-right: 0 !important;
+  }
+
+  &:not(:last-child)::after {
+    position: absolute !important;
+    top: 14px !important;
+    right: 0 !important;
+    bottom: 14px !important;
+    width: 1px !important;
+    background: #e5e7eb !important;
+    content: '' !important;
+  }
+}
+
 .ataas-model-ops-weight-modal-shell {
   .ant-modal-content {
     overflow: hidden !important;
