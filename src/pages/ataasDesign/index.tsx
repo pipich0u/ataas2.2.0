@@ -10201,27 +10201,55 @@ const AtAasDesign = () => {
               }))
             );
             const activeModelInstanceRows = activeModelServices.flatMap((service) => getModelOpsInstanceRows(service));
+            const getInstanceClusterGroups = (instances: ReturnType<typeof getModelOpsServiceInstances>) => (
+              instances.reduce<Array<{ cluster: string; items: Array<{ instance: typeof instances[number]; index: number }> }>>((groups, instance, index) => {
+                const cluster = instance.cluster || '未指定集群';
+                const current = groups.find((group) => group.cluster === cluster);
+                if (current) current.items.push({ instance, index });
+                else groups.push({ cluster, items: [{ instance, index }] });
+                return groups;
+              }, [])
+            );
             const getDefaultWeight = (instances: ReturnType<typeof getModelOpsServiceInstances>, index: number) => {
-              if (instances.length <= 1) return 100;
-              const base = Math.floor(100 / instances.length);
-              return index === instances.length - 1 ? 100 - base * (instances.length - 1) : base;
+              const instance = instances[index];
+              const clusterItems = instances
+                .map((item, itemIndex) => ({ item, itemIndex }))
+                .filter(({ item }) => (item.cluster || '未指定集群') === (instance.cluster || '未指定集群'));
+              if (clusterItems.length <= 1) return 100;
+              const base = Math.floor(100 / clusterItems.length);
+              const clusterIndex = clusterItems.findIndex(({ itemIndex }) => itemIndex === index);
+              return clusterIndex === clusterItems.length - 1 ? 100 - base * (clusterItems.length - 1) : base;
             };
             const getInstanceWeight = (instances: ReturnType<typeof getModelOpsServiceInstances>, index: number) => modelOpsWeights[instances[index].key] ?? getDefaultWeight(instances, index);
             const updateInstanceWeight = (instanceKey: string, value: number) => {
               setModelOpsWeights((prev) => ({ ...prev, [instanceKey]: Math.max(0, Math.min(100, Math.round(value))) }));
             };
-            const normalizeInstanceWeights = (instances: ReturnType<typeof getModelOpsServiceInstances>) => {
-              const current = instances.map((_, index) => getInstanceWeight(instances, index));
-              const total = current.reduce((sum, value) => sum + value, 0);
-              if (total <= 0) return;
-              const next = current.map((value) => Math.floor((value / total) * 100));
-              const rest = 100 - next.reduce((sum, value) => sum + value, 0);
-              if (next.length > 0) next[next.length - 1] += rest;
-              setModelOpsWeights((prev) => instances.reduce((acc, instance, index) => ({ ...acc, [instance.key]: next[index] }), { ...prev }));
+            const normalizeInstanceWeights = (instances: ReturnType<typeof getModelOpsServiceInstances>, cluster?: string) => {
+              const groups = getInstanceClusterGroups(instances).filter((group) => !cluster || group.cluster === cluster);
+              const nextWeights: Record<string, number> = {};
+              groups.forEach((group) => {
+                const current = group.items.map(({ index }) => getInstanceWeight(instances, index));
+                const total = current.reduce((sum, value) => sum + value, 0);
+                if (total <= 0) return;
+                const next = current.map((value) => Math.floor((value / total) * 100));
+                const rest = 100 - next.reduce((sum, value) => sum + value, 0);
+                if (next.length > 0) next[next.length - 1] += rest;
+                group.items.forEach(({ instance }, index) => {
+                  nextWeights[instance.key] = next[index];
+                });
+              });
+              setModelOpsWeights((prev) => ({ ...prev, ...nextWeights }));
             };
-            const averageInstanceWeights = (instances: ReturnType<typeof getModelOpsServiceInstances>) => {
-              const base = Math.floor(100 / instances.length);
-              setModelOpsWeights((prev) => instances.reduce((acc, instance, index) => ({ ...acc, [instance.key]: index === instances.length - 1 ? 100 - base * (instances.length - 1) : base }), { ...prev }));
+            const averageInstanceWeights = (instances: ReturnType<typeof getModelOpsServiceInstances>, cluster?: string) => {
+              const groups = getInstanceClusterGroups(instances).filter((group) => !cluster || group.cluster === cluster);
+              const nextWeights: Record<string, number> = {};
+              groups.forEach((group) => {
+                const base = Math.floor(100 / group.items.length);
+                group.items.forEach(({ instance }, index) => {
+                  nextWeights[instance.key] = index === group.items.length - 1 ? 100 - base * (group.items.length - 1) : base;
+                });
+              });
+              setModelOpsWeights((prev) => ({ ...prev, ...nextWeights }));
             };
             const getServiceWeight = (item: DeployServiceItem) => {
               const sourceService = resolveModelOpsSourceService(item);
@@ -10252,7 +10280,7 @@ const AtAasDesign = () => {
               ? deployServices.find((service) => service.id === modelOpsWeightModalServiceId)
               : null;
             const activeWeightModalInstances = activeWeightModalService ? getModelOpsServiceInstances(activeWeightModalService) : [];
-            const activeWeightModalTotal = activeWeightModalInstances.reduce((sum, _, index) => sum + getInstanceWeight(activeWeightModalInstances, index), 0);
+            const activeWeightModalGroups = getInstanceClusterGroups(activeWeightModalInstances);
             return (
               <div className="ataas-section-stack">
                 <div className="ataas-model-ops-layout">
@@ -10292,21 +10320,36 @@ const AtAasDesign = () => {
 	                      {activeWeightModalService && (
 	                        <div className="ataas-model-ops-weight-modal">
 	                          <div className="ataas-model-ops-weight-modal-toolbar">
-                              <span>当前总和 <strong>{activeWeightModalTotal}</strong></span>
+                              <span>按集群独立分配 <strong>{activeWeightModalGroups.length}</strong> 个集群</span>
                               <div>
                                 <Button onClick={() => normalizeInstanceWeights(activeWeightModalInstances)}>归一化到 100</Button>
                                 <Button onClick={() => averageInstanceWeights(activeWeightModalInstances)}>均分</Button>
                               </div>
 	                          </div>
                             <div className="ataas-model-ops-weight-modal-list">
-                              {activeWeightModalInstances.map((instance, index) => {
-                                const value = getInstanceWeight(activeWeightModalInstances, index);
+                              {activeWeightModalGroups.map((group) => {
+                                const total = group.items.reduce((sum, { index }) => sum + getInstanceWeight(activeWeightModalInstances, index), 0);
                                 return (
-                                  <div key={instance.key} className="ataas-model-ops-weight-modal-row">
-                                    <Tooltip title={instance.instanceName}><strong>{instance.instanceName}</strong></Tooltip>
-                                    <Slider min={0} max={100} value={value} tooltip={{ formatter: null }} onChange={(nextValue) => updateInstanceWeight(instance.key, Number(nextValue))} />
-                                    <InputNumber min={0} max={100} value={value} size="middle" onChange={(nextValue) => { if (nextValue !== null) updateInstanceWeight(instance.key, Number(nextValue)); }} />
-                                    <span className="ataas-model-ops-weight-modal-percent">%</span>
+                                  <div key={group.cluster} className="ataas-model-ops-weight-modal-cluster">
+                                    <div className="ataas-model-ops-weight-modal-cluster-head">
+                                      <strong>{group.cluster}</strong>
+                                      <span>总和 <em className={total === 100 ? '' : 'warning'}>{total}</em></span>
+                                      <div>
+                                        <Button onClick={() => normalizeInstanceWeights(activeWeightModalInstances, group.cluster)}>归一</Button>
+                                        <Button onClick={() => averageInstanceWeights(activeWeightModalInstances, group.cluster)}>均分</Button>
+                                      </div>
+                                    </div>
+                                    {group.items.map(({ instance, index }) => {
+                                      const value = getInstanceWeight(activeWeightModalInstances, index);
+                                      return (
+                                        <div key={instance.key} className="ataas-model-ops-weight-modal-row">
+                                          <Tooltip title={instance.instanceName}><strong>{instance.instanceName}</strong></Tooltip>
+                                          <Slider min={0} max={100} value={value} tooltip={{ formatter: null }} onChange={(nextValue) => updateInstanceWeight(instance.key, Number(nextValue))} />
+                                          <InputNumber min={0} max={100} value={value} size="middle" onChange={(nextValue) => { if (nextValue !== null) updateInstanceWeight(instance.key, Number(nextValue)); }} />
+                                          <span className="ataas-model-ops-weight-modal-percent">%</span>
+                                        </div>
+                                      );
+                                    })}
                                   </div>
                                 );
                               })}
