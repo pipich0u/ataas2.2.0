@@ -744,7 +744,6 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
               <table className="ataas-deploy-inline-native-table">
                 <colgroup>
                   <col style={{ width: 260 }} />
-                  <col style={{ width: 82 }} />
                   <col style={{ width: 112 }} />
                   <col style={{ width: 96 }} />
                   <col style={{ width: 78 }} />
@@ -760,7 +759,6 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
                 <thead>
                   <tr>
                     <th>NAME</th>
-                    <th>READY</th>
                     <th>STATUS</th>
                     <th>RESTARTS</th>
                     <th>负载</th>
@@ -785,7 +783,6 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
                           </Tooltip>
                         </div>
                       </td>
-                      <td><span style={{ color: '#18A957', fontWeight: 600 }}>{row.ready}</span></td>
                       <td><span className="ataas-deploy-inline-status-running">{row.statusText}</span></td>
                       <td>{row.restarts}</td>
                       <td><span className="ataas-model-ops-load-pill">{row.load}</span></td>
