@@ -20695,13 +20695,15 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 }
 
 .ataas-deploy-realtime-log-modal {
+  max-width: calc(100vw - 64px);
+
   .ant-modal-content {
     overflow: hidden;
     border-radius: 8px !important;
   }
 
   .ant-modal-header {
-    padding: 14px 24px !important;
+    padding: 12px 20px !important;
     border-bottom: 1px solid #E5E6EB !important;
   }
 
@@ -20710,8 +20712,8 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   }
 
   .ant-modal-close {
-    top: 14px !important;
-    right: 18px !important;
+    top: 12px !important;
+    right: 14px !important;
   }
 }
 
@@ -20719,25 +20721,25 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   color: #1D2129;
 
   .anticon {
     color: #2F6BFF;
-    font-size: 18px;
+    font-size: 16px;
   }
 
   strong {
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 600;
-    line-height: 24px;
+    line-height: 22px;
   }
 
   em {
     overflow: hidden;
     color: #2F6BFF;
     font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
-    font-size: 14px;
+    font-size: 13px;
     font-style: normal;
     font-weight: 600;
     text-overflow: ellipsis;
@@ -20747,7 +20749,7 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   span {
     color: #4E5969;
     font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 400;
   }
 }
@@ -20758,21 +20760,21 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 
 .ataas-deploy-realtime-log-toolbar {
   display: flex;
-  height: 48px;
+  height: 40px;
   align-items: center;
   justify-content: flex-end;
-  gap: 12px;
-  padding: 0 24px;
+  gap: 10px;
+  padding: 0 20px;
   border-bottom: 1px solid #E5E6EB;
   color: #1D2129;
   font-size: 13px;
 
   button {
     display: inline-flex;
-    height: 30px;
+    height: 28px;
     align-items: center;
-    gap: 8px;
-    padding: 0 12px;
+    gap: 7px;
+    padding: 0 10px;
     border: 1px solid #E5E6EB;
     border-radius: 6px;
     background: #fff;
@@ -20793,9 +20795,9 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 }
 
 .ataas-deploy-realtime-log pre {
-  height: min(70vh, 760px);
+  height: min(58vh, 560px);
   margin: 0;
-  padding: 0 24px 18px;
+  padding: 10px 20px 16px;
   overflow: auto;
   color: #1D2129;
   background: #fff;

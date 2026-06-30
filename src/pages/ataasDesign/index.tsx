@@ -13776,7 +13776,7 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
           </div>
         ) : '日志'}
         open={!!deployLogModal}
-        width="96vw"
+        width={1120}
         footer={null}
         destroyOnClose
         onCancel={() => setDeployLogModal(null)}
