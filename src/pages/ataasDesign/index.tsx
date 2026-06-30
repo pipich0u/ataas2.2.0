@@ -13012,19 +13012,6 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
           {renderScaleRoleRow('router', 'router', 'R', scalePdRouterCount)}
           {renderScaleRoleRow('prefill', 'prefill', 'P', scalePdPrefillCount)}
           {renderScaleRoleRow('decode', 'decode', 'D', scalePdDecodeCount)}
-          <div className="ataas-scale-role-change-summary">
-            {(() => {
-              const current = getScalePdCurrentCounts(scalePdTarget);
-              const required = getScalePdNodeRequired('router') + getScalePdNodeRequired('prefill') + getScalePdNodeRequired('decode');
-              const reduced = Math.max(0, current.router - scalePdRouterCount)
-                + Math.max(0, current.prefill - scalePdPrefillCount)
-                + Math.max(0, current.decode - scalePdDecodeCount);
-              const selected = scalePdRouterNodes.length + scalePdPrefillNodes.length + scalePdDecodeNodes.length;
-              if (required > 0) return `新增 ${required} 个实例，已选择 ${selected} 个节点`;
-              if (reduced > 0) return `减少 ${reduced} 个实例，无需选择节点`;
-              return '暂无变更';
-            })()}
-          </div>
         </div>
       </Modal>
       {/* 节点选择弹窗 - 扩容PD */}

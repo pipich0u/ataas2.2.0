@@ -1391,7 +1391,6 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
               <span>当前总和 <strong>{total}</strong></span>
               <div>
                 <Button onClick={normalizeDrainWeights}>归一化到 100</Button>
-                <Button onClick={averageDrainWeights}>均分</Button>
               </div>
             </div>
             <div className="ataas-model-ops-weight-modal-list">
