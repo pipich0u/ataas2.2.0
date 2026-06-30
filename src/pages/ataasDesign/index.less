@@ -20940,10 +20940,57 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 .ataas-deploy-inline-section:has(.ataas-deploy-inline-monitoring) .ataas-deploy-inline-table {
   border: 0 !important;
   border-radius: 0 !important;
+  background: transparent !important;
 }
 
 .ataas-deploy-inline-section:has(.ataas-deploy-inline-monitoring) .ataas-deploy-inline-native-table {
-  border-top: 1px solid #DDE2EA !important;
+  border-top: 1px solid #EEF1F5 !important;
+  background: transparent !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+
+  th,
+  td {
+    height: 38px !important;
+    padding: 7px 12px !important;
+    border-right: 0 !important;
+    border-bottom: 1px solid #EEF1F5 !important;
+    background: transparent !important;
+  }
+
+  th {
+    height: 34px !important;
+    background: #fff !important;
+    color: #7B8494 !important;
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    letter-spacing: 0 !important;
+    text-transform: none !important;
+  }
+
+  td {
+    color: #2F3542 !important;
+    font-size: 12.5px !important;
+    font-weight: 400 !important;
+  }
+
+  tbody tr:hover > td {
+    background: #FBFCFE !important;
+  }
+
+  th:last-child,
+  td:last-child {
+    border-left: 0 !important;
+    background: #fff !important;
+
+    &::before {
+      display: none !important;
+    }
+  }
+
+  th:last-child {
+    background: #fff !important;
+  }
 }
 
 .ataas-model-ops-live-metric-card {
