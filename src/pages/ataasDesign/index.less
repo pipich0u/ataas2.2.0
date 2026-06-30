@@ -6863,19 +6863,19 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 
 .ataas-scale-role-list {
   display: grid;
-  gap: 12px;
-  padding-top: 4px;
+  gap: 8px;
+  padding-top: 2px;
 }
 
 .ataas-scale-role-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 18px;
+  gap: 12px;
   align-items: center;
-  min-height: 64px;
-  padding: 12px 14px;
+  min-height: 48px;
+  padding: 8px 10px;
   border: 1px solid #E5E6EB;
-  border-radius: 8px;
+  border-radius: 6px;
   background: #fff;
 }
 
@@ -6883,17 +6883,17 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
 
   strong {
     color: #1D2129;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 500;
     line-height: 22px;
   }
 
   span:not(.ataas-scale-role-badge) {
-    margin-left: 18px;
+    margin-left: 8px;
     color: #8A8F99;
     font-size: 13px;
     line-height: 20px;
@@ -6909,13 +6909,13 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 
 .ataas-scale-role-badge {
   display: inline-flex;
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
-  font-size: 13px;
+  border-radius: 7px;
+  font-size: 12px;
   font-weight: 700;
 
   &.role-r {
@@ -6947,21 +6947,21 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 }
 
 .ataas-scale-count-input.ant-input-number {
-  width: 96px;
-  height: 38px;
-  border-radius: 8px;
+  width: 76px;
+  height: 32px;
+  border-radius: 6px;
 
   .ant-input-number-input {
-    height: 36px;
+    height: 30px;
     text-align: center;
     font-size: 14px;
   }
 }
 
 .ataas-scale-node-button.ant-btn {
-  height: 38px;
-  padding: 0 12px;
-  border-radius: 8px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 6px;
   color: #6738E8;
 
   &:disabled {
@@ -6970,10 +6970,29 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 }
 
 .ataas-scale-role-change-summary {
-  min-height: 24px;
+  min-height: 20px;
   color: #8A8F99;
   font-size: 13px;
-  line-height: 22px;
+  line-height: 20px;
+}
+
+.ataas-scale-pd-modal {
+  .ant-modal-content {
+    border-radius: 8px;
+  }
+
+  .ant-modal-header {
+    margin-bottom: 12px;
+  }
+
+  .ant-modal-title {
+    font-size: 16px;
+    line-height: 24px;
+  }
+
+  .ant-modal-body {
+    padding-top: 0;
+  }
 }
 
 .ataas-model-ops-role-count {

@@ -12944,7 +12944,7 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
         </Form>
       </Modal>
 
-      <Modal title={'扩缩容 - ' + (scalePdTarget?.name || '')} open={scalePdOpen} onCancel={() => setScalePdOpen(false)} width={720} footer={
+      <Modal className="ataas-scale-pd-modal" title={'扩缩容 - ' + (scalePdTarget?.name || '')} open={scalePdOpen} onCancel={() => setScalePdOpen(false)} width={560} footer={
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
           <Button onClick={() => setScalePdOpen(false)}>取消</Button>
           <Button type="primary" onClick={() => { alert('扩缩容提交成功！请等待部署完成。'); setScalePdOpen(false); }}>确认扩缩容</Button>
