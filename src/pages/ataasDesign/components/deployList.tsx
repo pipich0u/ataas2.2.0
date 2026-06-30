@@ -581,7 +581,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
     const renderRolePerformance = (performance: any) => {
       if (!performance) return <span className="ataas-model-ops-performance-empty">-</span>;
       return (
-        <span className="ataas-model-ops-performance-cell">
+        <span className={'ataas-model-ops-performance-cell' + (performance.label === 'TTFT' ? ' ttft' : '')}>
           <span><em>{performance.label}</em><strong>{performance.avg}</strong></span>
           <span><em>p99</em><strong>{performance.p99}</strong></span>
         </span>
