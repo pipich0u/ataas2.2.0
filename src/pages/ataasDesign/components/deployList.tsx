@@ -758,16 +758,16 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
                 </colgroup>
                 <thead>
                   <tr>
-                    <th>NAME</th>
-                    <th>STATUS</th>
-                    <th>RESTARTS</th>
+                    <th>POD</th>
+                    <th>状态</th>
+                    <th>重启</th>
                     <th>负载</th>
                     <th>性能</th>
                     <th>镜像</th>
                     <th>IP</th>
                     <th>NODE</th>
                     <th>NODE GPU</th>
-                    <th>AGE</th>
+                    <th>运行时间</th>
                     <th>接流来源</th>
                     <th>操作</th>
                   </tr>
