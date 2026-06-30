@@ -479,16 +479,46 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
     const trafficEditable = gatewayConfig.enabled && !isSingleTrafficGroup;
     const podSuffix = (node: string) => node.toLowerCase().replace(/[^a-z0-9]/g, '-');
     const pdMode = item.deployMode === 'PD 分离';
+    const parseReadyTotal = (value?: string) => {
+      const total = Number(String(value || '').split('/')[1]);
+      return Number.isFinite(total) && total > 0 ? total : 1;
+    };
     const pdInstanceGroups = pdMode
       ? detailInstances.map((record) => {
         const suffix = podSuffix(record.node);
+        const routerCount = item.modelOpsRoleSummary ? parseReadyTotal(item.modelOpsRoleSummary.router) : 1;
+        const prefillCount = item.modelOpsRoleSummary ? parseReadyTotal(item.modelOpsRoleSummary.prefill) : 1;
+        const decodeCount = item.modelOpsRoleSummary ? parseReadyTotal(item.modelOpsRoleSummary.decode) : 1;
+        const routerRows = Array.from({ length: routerCount }, (_, index) => ({
+          key: `${record.key}-router-${index}`,
+          podName: `router-${suffix}-${index}`,
+          comp: 'Router',
+          cluster: record.cluster,
+          machine: record.node,
+          gpu: '-',
+          logId: 1,
+        }));
+        const prefillRows = Array.from({ length: prefillCount }, (_, index) => ({
+          key: `${record.key}-prefill-${index}`,
+          podName: `prefill-${suffix}-${index}`,
+          comp: 'Prefill',
+          cluster: record.cluster,
+          machine: record.node,
+          gpu: '8 卡',
+          logId: 2,
+        }));
+        const decodeRows = Array.from({ length: decodeCount }, (_, index) => ({
+          key: `${record.key}-decode-${index}`,
+          podName: `decode-${suffix}-${index}`,
+          comp: 'Decode',
+          cluster: record.cluster,
+          machine: record.node,
+          gpu: '8 卡',
+          logId: 3,
+        }));
         return {
           record,
-          rows: [
-            { key: `${record.key}-router`, podName: `router-${suffix}-0`, comp: 'Router', cluster: record.cluster, machine: record.node, gpu: '-', logId: 1 },
-            { key: `${record.key}-prefill`, podName: `prefill-${suffix}-0`, comp: 'Prefill', cluster: record.cluster, machine: record.node, gpu: '8 卡', logId: 2 },
-            { key: `${record.key}-decode`, podName: `decode-${suffix}-0`, comp: 'Decode', cluster: record.cluster, machine: record.node, gpu: '8 卡', logId: 3 },
-          ],
+          rows: [...routerRows, ...prefillRows, ...decodeRows],
         };
       })
       : [];
