@@ -985,14 +985,27 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
     </Tooltip>
   );
 
-  const getModelOpsPerfSummary = (item: DeployServiceItem) => ({
-    ttft: 11800 + item.id * 817,
-    tpot: (18 + (item.id % 7) * 1.6).toFixed(1),
-    prefillTps: 680 + (item.id % 9) * 37,
-    decodeTps: 420 + (item.id % 8) * 29,
-    routherRps: 1300 + (item.id % 11) * 86,
-    hitRate: `${(92 + (item.id % 7) * 0.8).toFixed(1)}%`,
-  });
+  const getModelOpsPerfSummary = (item: DeployServiceItem) => {
+    const phase = Math.floor(nowTick / 1000) + item.id;
+    const wave = (offset: number, amplitude: number) => Math.sin((phase + offset) / 3) * amplitude;
+    return {
+      ttft: Math.max(0, Math.round(11800 + item.id * 817 + wave(0, 260))),
+      tpot: Math.max(0, 18 + (item.id % 7) * 1.6 + wave(2, 0.8)).toFixed(1),
+      prefillTps: 680 + (item.id % 9) * 37,
+      decodeTps: 420 + (item.id % 8) * 29,
+      routherRps: 1300 + (item.id % 11) * 86,
+      hitRate: `${(92 + (item.id % 7) * 0.8).toFixed(1)}%`,
+    };
+  };
+  const renderModelOpsPerfValue = (item: DeployServiceItem, type: 'ttft' | 'tpot') => {
+    const perf = getModelOpsPerfSummary(item);
+    const title = type === 'ttft' ? '全组 60s prefill pods 的 TTFT 合并 P99' : '60s 全组 decode pods 的 TPOT 合并 P99';
+    return (
+      <Tooltip title={title}>
+        <span className="ataas-model-ops-perf-value dynamic">{perf[type]}</span>
+      </Tooltip>
+    );
+  };
 
   const getModelOpsRouterCandidates = (item: DeployServiceItem) => {
     const cluster = getDeployClusterName(item);
@@ -1122,8 +1135,8 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
     { title: 'Role', key: 'role', width: 180, render: (_, r) => renderModelOpsRoleSummary(r) },
     { title: 'Routher', key: 'routerYaml', width: 130, render: (_, r) => renderModelOpsYamlFile(`${r.modelInfo.name}/router.yaml`) },
     { title: 'Worker', key: 'workerYaml', width: 130, render: (_, r) => renderModelOpsYamlFile(`${r.modelInfo.name}/worker.yaml`) },
-    { title: 'TTFT', key: 'ttft', width: 76, render: (_, r) => <span className="ataas-model-ops-perf-value">{getModelOpsPerfSummary(r).ttft}</span> },
-    { title: 'TPOT', key: 'tpot', width: 76, render: (_, r) => <span className="ataas-model-ops-perf-value">{getModelOpsPerfSummary(r).tpot}</span> },
+    { title: 'TTFT', key: 'ttft', width: 76, render: (_, r) => renderModelOpsPerfValue(r, 'ttft') },
+    { title: 'TPOT', key: 'tpot', width: 76, render: (_, r) => renderModelOpsPerfValue(r, 'tpot') },
     { title: '操作', key: 'action', width: 96, fixed: 'right' as const, className: 'ataas-deploy-fixed-action-cell', render: (_, r) => (
       <div className="ataas-model-ops-table-actions">
         <Tooltip title="重建">

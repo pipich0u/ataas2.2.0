@@ -10295,7 +10295,10 @@ const AtAasDesign = () => {
             const activeWeightModalService = modelOpsWeightModalServiceId
               ? deployServices.find((service) => service.id === modelOpsWeightModalServiceId)
               : null;
-            const activeWeightModalInstances = activeWeightModalService ? getModelOpsServiceInstances(activeWeightModalService) : [];
+            const activeWeightModalAllInstances = activeWeightModalService ? getModelOpsServiceInstances(activeWeightModalService) : [];
+            const activeWeightModalInstances = modelOpsClusterFilter
+              ? activeWeightModalAllInstances.filter((instance) => instance.cluster === modelOpsClusterFilter)
+              : activeWeightModalAllInstances;
             const activeWeightModalGroups = getInstanceClusterGroups(activeWeightModalInstances);
             return (
               <div className="ataas-section-stack">
