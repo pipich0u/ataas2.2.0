@@ -544,8 +544,12 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
       const util = compText.includes('router') ? 20 : 0;
       const vram = compText.includes('router') ? 99 : 95 + ((item.id + index) % 5);
       const age = compText.includes('prefill') && index % 2 === 0 ? '6h' : '12h';
-      const avgTtft = 1800 + ((item.id * 19 + index * 257) % 2200);
-      const avgTpot = Number((16 + ((item.id + index) % 9) * 1.4).toFixed(1));
+      const roleMetricPhase = Math.floor(nowTick / 1000) + item.id + index;
+      const roleMetricWave = (offset: number, amplitude: number) => Math.sin((roleMetricPhase + offset) / 2.7) * amplitude;
+      const avgTtft = Math.max(0, Math.round(1800 + ((item.id * 19 + index * 257) % 2200) + roleMetricWave(0, 180)));
+      const p99Ttft = Math.max(0, Math.round(avgTtft + 3600 + ((item.id + index) % 6) * 260 + roleMetricWave(3, 260)));
+      const avgTpot = Number(Math.max(0, 16 + ((item.id + index) % 9) * 1.4 + roleMetricWave(1, 1.2)).toFixed(1));
+      const p99Tpot = Number(Math.max(0, avgTpot + 8 + ((item.id + index) % 5) * 0.7 + roleMetricWave(4, 1.6)).toFixed(1));
       const trafficSources = compText.includes('router')
         ? [item.modelInfo.name]
         : [`${item.serviceGroupName || getDeployClusterName(item)}-${item.name}-ha-1`, `${item.serviceGroupName || getDeployClusterName(item)}-${item.name}-router-0`];
@@ -560,8 +564,8 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
         performance: compText.includes('router')
           ? null
           : compText.includes('prefill')
-            ? { label: 'TTFT', avg: avgTtft, p99: avgTtft + 3600 + ((item.id + index) % 6) * 260 }
-            : { label: 'TPOT', avg: avgTpot, p99: Number((avgTpot + 8 + ((item.id + index) % 5) * 0.7).toFixed(1)) },
+            ? { label: 'TTFT', avg: avgTtft, p99: p99Ttft }
+            : { label: 'TPOT', avg: avgTpot, p99: p99Tpot },
         image,
         ip: `10.25.110.${ipLast}`,
         nodeName: `pod11-b300gpu${nodeIndex}`,
