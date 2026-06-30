@@ -544,6 +544,8 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
       const util = compText.includes('router') ? 20 : 0;
       const vram = compText.includes('router') ? 99 : 95 + ((item.id + index) % 5);
       const age = compText.includes('prefill') && index % 2 === 0 ? '6h' : '12h';
+      const avgTtft = 1800 + ((item.id * 19 + index * 257) % 2200);
+      const avgTpot = Number((16 + ((item.id + index) % 9) * 1.4).toFixed(1));
       const trafficSources = compText.includes('router')
         ? [item.modelInfo.name]
         : [`${item.serviceGroupName || getDeployClusterName(item)}-${item.name}-ha-1`, `${item.serviceGroupName || getDeployClusterName(item)}-${item.name}-router-0`];
@@ -555,7 +557,11 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
         statusText: 'Running',
         restarts: 0,
         load: 0,
-        performance: compText.includes('router') ? 'ERR 0' : '-',
+        performance: compText.includes('router')
+          ? null
+          : compText.includes('prefill')
+            ? { label: 'TTFT', avg: avgTtft, p99: avgTtft + 3600 + ((item.id + index) % 6) * 260 }
+            : { label: 'TPOT', avg: avgTpot, p99: Number((avgTpot + 8 + ((item.id + index) % 5) * 0.7).toFixed(1)) },
         image,
         ip: `10.25.110.${ipLast}`,
         nodeName: `pod11-b300gpu${nodeIndex}`,
@@ -568,6 +574,15 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
       const roleOrder: Record<string, number> = { R: 0, P: 1, D: 2, I: 3 };
       return (roleOrder[a.role] ?? 9) - (roleOrder[b.role] ?? 9);
     });
+    const renderRolePerformance = (performance: any) => {
+      if (!performance) return <span className="ataas-model-ops-performance-empty">-</span>;
+      return (
+        <span className="ataas-model-ops-performance-cell">
+          <span><em>{performance.label}</em><strong>{performance.avg}</strong></span>
+          <span><em>p99</em><strong>{performance.p99}</strong></span>
+        </span>
+      );
+    };
     const baseColumns = [
       { title: '实例', dataIndex: 'instance', key: 'instance', width: 90 },
       { title: '集群', dataIndex: 'cluster', key: 'cluster', width: 140 },
@@ -729,7 +744,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
                   <col style={{ width: 112 }} />
                   <col style={{ width: 96 }} />
                   <col style={{ width: 78 }} />
-                  <col style={{ width: 120 }} />
+                  <col style={{ width: 138 }} />
                   <col style={{ width: 260 }} />
                   <col style={{ width: 132 }} />
                   <col style={{ width: 148 }} />
@@ -770,7 +785,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
                       <td><span className="ataas-deploy-inline-status-running">{row.statusText}</span></td>
                       <td>{row.restarts}</td>
                       <td><span className="ataas-model-ops-load-pill">{row.load}</span></td>
-                      <td>{row.performance}</td>
+                      <td>{renderRolePerformance(row.performance)}</td>
                       <td><Tooltip title={row.image}><span className="ataas-deploy-inline-pod-name">{row.image}</span></Tooltip></td>
                       <td>{row.ip}</td>
                       <td>{row.nodeName}</td>

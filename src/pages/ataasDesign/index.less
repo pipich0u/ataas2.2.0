@@ -7053,6 +7053,44 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   }
 }
 
+.ataas-model-ops-performance-cell {
+  display: inline-grid;
+  min-width: 92px;
+  gap: 2px;
+  color: #1D2129;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
+  line-height: 18px;
+
+  span {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
+    align-items: baseline;
+    column-gap: 8px;
+  }
+
+  em {
+    color: #1D2129;
+    font-style: normal;
+    font-weight: 400;
+  }
+
+  strong {
+    color: #0099B8;
+    font-weight: 400;
+    text-align: right;
+  }
+
+  span + span strong {
+    color: #1D2129;
+  }
+}
+
+.ataas-model-ops-performance-empty {
+  color: #8A8F99;
+  font-size: 13px;
+}
+
 .ataas-model-ops-weight-pill {
   display: inline-flex;
   align-items: center;
