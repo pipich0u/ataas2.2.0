@@ -6660,7 +6660,6 @@ const AtAasDesign = () => {
   const [modelRepoCategory, setModelRepoCategory] = useState('all');
   const [modelRepoFamily, setModelRepoFamily] = useState('all');
   const [modelRepoSource, setModelRepoSource] = useState<'all' | 'official' | 'private'>('all');
-  const [modelRepoSection, setModelRepoSection] = useState<'models' | 'performance'>('models');
   const [modelRepoImportOpen, setModelRepoImportOpen] = useState(false);
   const [modelRepoTaskOpen, setModelRepoTaskOpen] = useState(false);
   const [modelRepoOfflineTarget, setModelRepoOfflineTarget] = useState<ModelRepoRecord | null>(null);
@@ -8920,7 +8919,7 @@ const AtAasDesign = () => {
                       {scheduleTaskType === 'pdScale' && <em>目标拓扑：{row.template.topology}</em>}
                     </div>
                   ) : (
-                    <button type="button" onClick={() => { setActiveTab('modelRepo'); setModelRepoSection('performance'); setDeployDrawerOpen(false); setStartupTemplateCreateOpen(true); }}>未关联，创建</button>
+                    <button type="button" onClick={() => { setActiveTab('startupTemplates'); setDeployDrawerOpen(false); setStartupTemplateCreateOpen(true); }}>未关联，创建</button>
                   )}
                 </div>
               ))}
@@ -9081,7 +9080,7 @@ const AtAasDesign = () => {
             }))}
             style={{ flex: 1 }}
           />
-          <Button onClick={() => { setActiveTab('modelRepo'); setModelRepoSection('performance'); }}>管理模板</Button>
+          <Button onClick={() => setActiveTab('startupTemplates')}>管理模板</Button>
         </div>
       )}
       <Form.Item label="部署拓扑" required style={{ marginBottom: 12 }}>
@@ -9543,6 +9542,7 @@ const AtAasDesign = () => {
     { key: 'clusters', icon: <SidebarIcon name="cluster" />, label: '集群管理' },
     { key: 'nodes', icon: <SidebarIcon name="engineMgr" />, label: '节点管理' },
     { key: 'modelRepo', icon: <SidebarIcon name="modelRepo" />, label: '模型仓库' },
+    { key: 'startupTemplates', icon: <SidebarIcon name="template" />, label: '性能仓库' },
     { key: 'deploy', icon: <SidebarIcon name="deploy" />, label: '模型部署' },
     { key: 'modelOps', icon: <SidebarIcon name="deploy" />, label: '模型运维' },
     { key: 'images', icon: <SidebarIcon name="image" />, label: '镜像仓库' },
@@ -9955,11 +9955,6 @@ const AtAasDesign = () => {
                 },
               }}>
               <div className="ataas-panel ataas-model-repo-page ataas-deploy-list">
-                <div className="ataas-model-repo-subnav">
-                  <button type="button" className={modelRepoSection === 'models' ? 'active' : ''} onClick={() => setModelRepoSection('models')}>模型</button>
-                  <button type="button" className={modelRepoSection === 'performance' ? 'active' : ''} onClick={() => setModelRepoSection('performance')}>性能仓库</button>
-                </div>
-                {modelRepoSection === 'models' ? (
                 <div className="ataas-model-repo-body">
                   <aside className="ataas-model-repo-filter">
                     <div className="ataas-model-repo-filter-section ataas-model-repo-filter-section-first">
@@ -10121,11 +10116,6 @@ const AtAasDesign = () => {
                     </div>
                   </main>
                 </div>
-                ) : (
-                  <div className="ataas-model-repo-template-body">
-                    <StartupTemplateManager templates={startupTemplates} setTemplates={setStartupTemplates} onDeployTemplate={handleDeployStartupTemplate} />
-                  </div>
-                )}
               </div>
               </ConfigProvider>
             </div>
@@ -10387,6 +10377,11 @@ const AtAasDesign = () => {
               </div>
             );
           }
+      case 'startupTemplates': return (
+            <div className="ataas-section-stack">
+              <StartupTemplateManager templates={startupTemplates} setTemplates={setStartupTemplates} onDeployTemplate={handleDeployStartupTemplate} />
+            </div>
+          );
       case 'benchmark': return (
             <div className="ataas-section-stack">
               <BenchmarkPage />
