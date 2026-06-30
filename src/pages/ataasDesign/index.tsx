@@ -6776,10 +6776,21 @@ const AtAasDesign = () => {
     setActiveTab('monitoring');
   };
   const handleDeployStop = (item: DeployServiceItem) => {
-    const instanceCount = Math.max(1, item.modelInfo.works?.split(',').map((work: string) => work.trim()).filter(Boolean).length || item.modelInfo.number || 1);
+    const workInstances = item.modelInfo.works?.split(',').map((work: string) => work.trim()).filter(Boolean) || [];
+    const instanceCount = Math.max(1, workInstances.length || item.modelInfo.number || 1);
+    const instanceNames = workInstances.length > 0
+      ? workInstances
+      : Array.from({ length: instanceCount }, (_, index) => `${item.name}-实例${index + 1}`);
     Modal.confirm({
       title: '确认停止',
-      content: `当前此模型服务包含 ${instanceCount} 个实例，点击确认后将同时下线。`,
+      content: (
+        <div>
+          <p>当前此模型服务包含 {instanceCount} 个实例，点击确认后将同时下线。</p>
+          <div style={{ marginTop: 8, color: '#4E5969', lineHeight: 1.8 }}>
+            实例名：{instanceNames.join('、')}
+          </div>
+        </div>
+      ),
       onOk: () => {
         setDeployServices((prev) => prev.map((s) => s.id === item.id ? { ...s, status: 'ready' as const, timeStr: '未部署' } : s));
         message.success('已停止');
