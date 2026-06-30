@@ -39,6 +39,7 @@ export type DeployServiceItem = {
   serviceGroupName?: string;
   modelOpsSourceServiceId?: number;
   modelOpsInstanceKey?: string;
+  modelOpsCluster?: string;
   modelOpsRoleSummary?: {
     router: string;
     prefill: string;
@@ -95,6 +96,7 @@ const CLUSTER_OPTIONS = [
 ];
 
 export const getDeployClusterName = (item: DeployServiceItem) => {
+  if (item.modelOpsCluster) return item.modelOpsCluster;
   const text = `${item.name} ${item.modelInfo.works} ${item.typeStr}`.toLowerCase();
   if (text.includes('nj-') || text.includes('h20') || text.includes('qwen')) return 'shanghai-online';
   if (text.includes('gz-') || text.includes('l20') || text.includes('glm')) return 'guangzhou-test';
@@ -953,11 +955,15 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
 
   const renderModelOpsRoleSummary = (item: DeployServiceItem) => {
     const summary = getModelOpsRoleSummary(item);
+    const roleState = (value: string) => {
+      const [ready, total] = value.split('/').map((part) => Number(part));
+      return Number.isFinite(ready) && Number.isFinite(total) && ready < total ? ' warning' : ' ready';
+    };
     return (
       <span className="ataas-model-ops-role-summary">
-        <span><b>R</b>{summary.router}</span>
-        <span><b>P</b>{summary.prefill}</span>
-        <span><b>D</b>{summary.decode}</span>
+        <span className={roleState(summary.router)}><b>R</b>{summary.router}</span>
+        <span className={roleState(summary.prefill)}><b>P</b>{summary.prefill}</span>
+        <span className={roleState(summary.decode)}><b>D</b>{summary.decode}</span>
       </span>
     );
   };

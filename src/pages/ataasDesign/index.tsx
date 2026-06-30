@@ -10172,11 +10172,26 @@ const AtAasDesign = () => {
                 .map((name) => name.trim())
                 .filter(Boolean);
               const count = Math.max(1, works.length || service.modelInfo.number || 1);
+              const stRouter1Mock = service.name === 'st-router-1'
+                ? [
+                    { cluster: 'guangzhou-test', roleSummary: { router: '1/1', prefill: '4/4', decode: '1/1' } },
+                    { cluster: 'guangzhou-test', roleSummary: { router: '1/1', prefill: '3/4', decode: '1/1' } },
+                    { cluster: 'guangzhou-test', roleSummary: { router: '1/1', prefill: '2/4', decode: '1/1' } },
+                    { cluster: 'shanghai-online', roleSummary: { router: '1/1', prefill: '4/4', decode: '1/1' } },
+                    { cluster: 'shanghai-online', roleSummary: { router: '1/1', prefill: '3/4', decode: '0/1' } },
+                    { cluster: 'shanghai-online', roleSummary: { router: '0/1', prefill: '4/4', decode: '1/1' } },
+                    { cluster: 'wuhan-kunpeng', roleSummary: { router: '1/1', prefill: '3/4', decode: '1/1' } },
+                    { cluster: 'wuhan-kunpeng', roleSummary: { router: '1/1', prefill: '4/4', decode: '0/1' } },
+                    { cluster: 'beijing-prod', roleSummary: { router: '1/1', prefill: '4/4', decode: '1/1' } },
+                    { cluster: 'beijing-prod', roleSummary: { router: '0/1', prefill: '3/4', decode: '1/1' } },
+                  ]
+                : [];
               return Array.from({ length: count }, (_, index) => ({
                 key: `${service.id}-instance-${index}`,
                 serviceName: service.name,
                 instanceName: works[index] || `${service.name}-实例${index + 1}`,
-                cluster: getDeployClusterName(service),
+                cluster: stRouter1Mock[index]?.cluster || getDeployClusterName(service),
+                roleSummary: stRouter1Mock[index]?.roleSummary,
               }));
             };
             const getModelOpsInstanceRows = (service: DeployServiceItem): DeployServiceItem[] => (
@@ -10187,7 +10202,8 @@ const AtAasDesign = () => {
                 serviceGroupName: service.name,
                 modelOpsSourceServiceId: service.id,
                 modelOpsInstanceKey: instance.key,
-                modelOpsRoleSummary: {
+                modelOpsCluster: instance.cluster,
+                modelOpsRoleSummary: instance.roleSummary || {
                   router: '1/1',
                   prefill: '4/4',
                   decode: '1/1',
