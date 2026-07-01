@@ -1,0 +1,159 @@
+/* Theme System — CSS Custom Properties with Dual Theme Support */
+
+/* Dark theme (default) */
+:root[data-theme="dark"],
+:root {
+  /* Backgrounds */
+  --color-bg: #0a0a0a;
+  --color-surface: #111111;
+  --color-elevated: #1a1a1a;
+
+  /* Borders */
+  --color-border: #222222;
+  --color-border-subtle: #1a1a1a;
+
+  /* Form inputs —— 凹陷井样式:填充比卡片更暗、边框明显高于普通分隔线,让输入框
+     在 #0a0a0a/#111 容器上清晰可辨(不再与背景同色)。聚焦走 --color-success 绿环。 */
+  --color-input-bg: #080808;
+  --color-input-border: #3a3a3a;
+
+  /* Text */
+  --color-muted: #555555;
+  --color-secondary: #999999;
+  --color-text: #e0e0e0;
+  --color-text-heading: #ffffff;
+
+  /* Semantic: Success (router / Ready) */
+  --color-success: #22c55e;
+  --color-success-bg: rgba(34, 197, 94, 0.15);
+  --color-success-subtle: rgba(34, 197, 94, 0.08);
+
+  /* Semantic: Info (prefill) */
+  --color-info: #3b82f6;
+  --color-info-bg: rgba(59, 130, 246, 0.15);
+  --color-info-subtle: rgba(59, 130, 246, 0.08);
+
+  /* Semantic: Warning (degraded / NotReady) */
+  --color-warning: #eab308;
+  --color-warning-bg: rgba(234, 179, 8, 0.15);
+  --color-warning-subtle: rgba(234, 179, 8, 0.08);
+
+  /* Semantic: Error */
+  --color-error: #ef4444;
+  --color-error-bg: rgba(239, 68, 68, 0.15);
+  --color-error-subtle: rgba(239, 68, 68, 0.08);
+
+  /* Semantic: Purple (decode) */
+  --color-purple: #a855f7;
+  --color-purple-bg: rgba(168, 85, 247, 0.15);
+  --color-purple-subtle: rgba(168, 85, 247, 0.08);
+
+  /* Semantic: Cyan (ServiceEntry / routes) */
+  --color-cyan: #06b6d4;
+  --color-cyan-bg: rgba(6, 182, 212, 0.15);
+  --color-cyan-subtle: rgba(6, 182, 212, 0.08);
+
+  /* Semantic: Encode (EPD encoder role) —— 暖橙,与 router/prefill/decode/workers 区分 */
+  --color-encode: #f59e0b;
+  --color-encode-bg: rgba(245, 158, 11, 0.15);
+  --color-encode-subtle: rgba(245, 158, 11, 0.08);
+
+  /* Morandi: 莫兰迪低饱和色,留给 mooncake 体系的 master / etcd 这类
+     "基础设施"角色专属配色,避免和 sglang 的 router/prefill/decode 撞色。
+     - rose  = mooncake master(协调器,暖灰玫瑰)
+     - sage  = mooncake etcd  (一致性存储,灰绿)
+     dark 主题用更亮的色相 + 0.15/0.08 alpha,与现有 semantic 色一致。 */
+  --color-morandi-rose: #c9b0a8;
+  --color-morandi-rose-bg: rgba(201, 176, 168, 0.18);
+  --color-morandi-rose-subtle: rgba(201, 176, 168, 0.10);
+
+  --color-morandi-sage: #9ba89b;
+  --color-morandi-sage-bg: rgba(155, 168, 155, 0.18);
+  --color-morandi-sage-subtle: rgba(155, 168, 155, 0.10);
+
+  /* Sidebar */
+  --color-sidebar: #0d0d0d;
+  --color-sidebar-hover: rgba(255, 255, 255, 0.08);
+  --color-sidebar-active: rgba(255, 255, 255, 0.12);
+
+  /* Shadows */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.4);
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-normal: 300ms ease;
+  --transition-slow: 1000ms ease-out;
+}
+
+/* Light theme */
+:root[data-theme="light"] {
+  --color-bg: #fafafa;
+  --color-surface: #ffffff;
+  --color-elevated: #f0f0f0;
+
+  --color-border: #e0e0e0;
+  --color-border-subtle: #eeeeee;
+
+  /* Form inputs(浅色):填充略暗于白卡 + 更深的可见边框。 */
+  --color-input-bg: #f6f6f6;
+  --color-input-border: #c4c4c4;
+
+  --color-muted: #999999;
+  --color-secondary: #666666;
+  --color-text: #1a1a1a;
+  --color-text-heading: #000000;
+
+  --color-success: #16a34a;
+  --color-success-bg: rgba(22, 163, 74, 0.12);
+  --color-success-subtle: rgba(22, 163, 74, 0.06);
+
+  --color-info: #2563eb;
+  --color-info-bg: rgba(37, 99, 235, 0.12);
+  --color-info-subtle: rgba(37, 99, 235, 0.06);
+
+  --color-warning: #ca8a04;
+  --color-warning-bg: rgba(202, 138, 4, 0.12);
+  --color-warning-subtle: rgba(202, 138, 4, 0.06);
+
+  --color-error: #dc2626;
+  --color-error-bg: rgba(220, 38, 38, 0.12);
+  --color-error-subtle: rgba(220, 38, 38, 0.06);
+
+  --color-purple: #9333ea;
+  --color-purple-bg: rgba(147, 51, 234, 0.12);
+  --color-purple-subtle: rgba(147, 51, 234, 0.06);
+
+  --color-cyan: #0891b2;
+  --color-cyan-bg: rgba(8, 145, 178, 0.12);
+  --color-cyan-subtle: rgba(8, 145, 178, 0.06);
+
+  --color-encode: #d97706;
+  --color-encode-bg: rgba(217, 119, 6, 0.12);
+  --color-encode-subtle: rgba(217, 119, 6, 0.06);
+
+  /* Morandi (light theme): 更深一档保证对比度,alpha 调小贴合 light 主题。 */
+  --color-morandi-rose: #a8908a;
+  --color-morandi-rose-bg: rgba(168, 144, 138, 0.14);
+  --color-morandi-rose-subtle: rgba(168, 144, 138, 0.07);
+
+  --color-morandi-sage: #7a8b7a;
+  --color-morandi-sage-bg: rgba(122, 139, 122, 0.14);
+  --color-morandi-sage-subtle: rgba(122, 139, 122, 0.07);
+
+  --color-sidebar: #f5f5f5;
+  --color-sidebar-hover: rgba(0, 0, 0, 0.05);
+  --color-sidebar-active: rgba(0, 0, 0, 0.08);
+
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --transition-fast: 0ms;
+    --transition-normal: 0ms;
+    --transition-slow: 0ms;
+  }
+}

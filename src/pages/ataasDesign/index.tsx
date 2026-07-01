@@ -59,6 +59,10 @@ import hygonLogo from './hygon-logo.png';
 import sglangLogo from './sglang-logo.png';
 import vllmLogo from './vllm-logo.png';
 import visionCatPreview from './vision-cat-preview.png';
+import ConfigsPage from '../Configs';
+import { MonacoEditor } from '../../components/shared/MonacoEditor';
+import { rpc } from '../../lib/bus/rpc';
+import type { ConfigCommitEntry, ConfigTreeNode } from '../../lib/types';
 import './index.less';
 
 type ClusterRecord = {
@@ -3412,6 +3416,7 @@ type StartupTemplateManagerProps = {
   templates: StartupTemplateRecord[];
   setTemplates: Dispatch<SetStateAction<StartupTemplateRecord[]>>;
   onDeployTemplate: (template: StartupTemplateRecord) => void;
+  onPickConfigYaml: (onSelect: (yaml: string, path: string) => void) => void;
 };
 
 type PdConfigFileRecord = {
@@ -3450,7 +3455,7 @@ const pdConfigCenterFiles: PdConfigFileRecord[] = [
   },
 ];
 
-const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate }: StartupTemplateManagerProps) => {
+const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate, onPickConfigYaml }: StartupTemplateManagerProps) => {
   const [activeType, setActiveType] = useState<'single' | 'pd' | 'kt' | 'scene'>('single');
   const [keyword, setKeyword] = useState('');
   const [vendor, setVendor] = useState('');
@@ -3465,6 +3470,9 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate }: S
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<StartupTemplateRecord | null>(null);
   const [form] = Form.useForm();
+  const watchedRouterYaml = Form.useWatch('routerYaml', form);
+  const watchedWorkerYaml = Form.useWatch('workerYaml', form);
+  const [pdYamlFileLabels, setPdYamlFileLabels] = useState<{ routerYaml: string; workerYaml: string }>({ routerYaml: '', workerYaml: '' });
   const [sceneTags, setSceneTags] = useState<string[]>([]);
   const [customSceneTags, setCustomSceneTags] = useState<string[]>([]);
   const [deletedSceneTags, setDeletedSceneTags] = useState<string[]>([]);
@@ -3478,9 +3486,6 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate }: S
   const [benchmarkImportOpen, setBenchmarkImportOpen] = useState(false);
   const [benchmarkKeyword, setBenchmarkKeyword] = useState('');
   const [importedBenchmarkSource, setImportedBenchmarkSource] = useState<StartupTemplateRecord['benchmarkSource']>();
-  const [pdConfigPickerTarget, setPdConfigPickerTarget] = useState<'routerYaml' | 'workerYaml' | null>(null);
-  const [pdConfigSelectedPath, setPdConfigSelectedPath] = useState(pdConfigCenterFiles[0].path);
-  const [pdConfigSelectedVersion, setPdConfigSelectedVersion] = useState('latest');
   const importedBenchmarkSourceRef = useRef<StartupTemplateRecord['benchmarkSource']>(undefined);
   const editorType = Form.useWatch('type', form) || (activeType === 'scene' ? 'single' : activeType);
   const requiredTemplateLabel = (label: string) => (
@@ -3543,18 +3548,12 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate }: S
     if (!keywordText) return benchmarkImportRecords;
     return benchmarkImportRecords.filter((record) => `#${record.id} ${record.taskName} ${record.mode} ${record.serviceName} ${record.modelName} ${record.createdBy} ${record.createdAt}`.toLowerCase().includes(keywordText));
   }, [benchmarkKeyword]);
-  const selectedPdConfigFile = pdConfigCenterFiles.find((file) => file.path === pdConfigSelectedPath) || pdConfigCenterFiles[0];
-  const selectedPdConfigVersion = selectedPdConfigFile.versions.find((version) => version.key === pdConfigSelectedVersion) || selectedPdConfigFile.versions[0];
   const openPdConfigPicker = (target: 'routerYaml' | 'workerYaml') => {
-    setPdConfigPickerTarget(target);
-    setPdConfigSelectedPath(target === 'routerYaml' ? 'glm/djw_router.yaml' : 'glm/bx_config/worker.yaml');
-    setPdConfigSelectedVersion('latest');
-  };
-  const applyPdConfigSelection = () => {
-    if (!pdConfigPickerTarget) return;
-    form.setFieldValue(pdConfigPickerTarget, selectedPdConfigVersion.content);
-    message.success(`${pdConfigPickerTarget === 'routerYaml' ? 'Router' : 'Worker'} YAML 已选择：${selectedPdConfigFile.name}`);
-    setPdConfigPickerTarget(null);
+    onPickConfigYaml((yaml, path) => {
+      form.setFieldValue(target, yaml);
+      setPdYamlFileLabels((prev) => ({ ...prev, [target]: path }));
+      message.success(`${target === 'routerYaml' ? 'Router' : 'Worker'} YAML 已选择：${path}`);
+    });
   };
 
   const resetFilters = () => {
@@ -3612,8 +3611,15 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate }: S
   const openEditor = (template?: StartupTemplateRecord) => {
     const next = template ? normalizeStartupTemplate(template) : undefined;
     const initialType: 'single' | 'pd' | 'kt' = next?.type || (activeType === 'scene' ? 'single' : activeType as 'single' | 'pd' | 'kt');
+    const typedNext = next as (StartupTemplateRecord & { routerYaml?: string; workerYaml?: string }) | undefined;
+    const nextRouterYaml = typedNext?.routerYaml;
+    const nextWorkerYaml = typedNext?.workerYaml;
     form.resetFields();
     setEditing(next || null);
+    setPdYamlFileLabels({
+      routerYaml: nextRouterYaml ? '当前模板 Router YAML' : '',
+      workerYaml: nextWorkerYaml ? '当前模板 PD Worker YAML' : '',
+    });
     setSceneTags(next?.sceneTags || []);
     setImportedBenchmarkSource(next?.benchmarkSource);
     importedBenchmarkSourceRef.current = next?.benchmarkSource;
@@ -3645,8 +3651,8 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate }: S
       engine: next.engine,
       topology: next.topology,
       command: next.command,
-      routerYaml: (next as StartupTemplateRecord & { routerYaml?: string }).routerYaml,
-      workerYaml: (next as StartupTemplateRecord & { workerYaml?: string }).workerYaml,
+      routerYaml: nextRouterYaml,
+      workerYaml: nextWorkerYaml,
       driverVersion: (next.env as (StartupTemplateRecord['env'] & { driver?: string }) | undefined)?.driver,
       cpuModel: next.cpu,
       ktMem: next.env?.mem,
@@ -3669,6 +3675,7 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate }: S
     setBenchmarkRows([{ label: '', len: 0, prefill: 0, decode: 0 }]);
     setSingleBenchmarkRows([{ inputLen: 0, outputLen: 0, concurrency: 0, ttft: 0, tpot: 0, tps: 0 }]);
     if (type === 'pd') form.setFieldsValue({ engine: 'SGLang' });
+    if (type !== 'pd') setPdYamlFileLabels({ routerYaml: '', workerYaml: '' });
     if (type === 'kt') form.setFieldsValue({ engine: 'KTransformers' });
   };
 
@@ -4538,62 +4545,6 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate }: S
           ))}
         </div>
       </Modal>
-      <Modal
-        className="ataas-pd-config-picker-modal"
-        title="选择配置文件"
-        open={!!pdConfigPickerTarget}
-        onCancel={() => setPdConfigPickerTarget(null)}
-        width={960}
-        footer={[
-          <Button key="cancel" onClick={() => setPdConfigPickerTarget(null)}>取消</Button>,
-          <Button key="ok" type="primary" icon={<CheckCircleOutlined />} onClick={applyPdConfigSelection}>确认选择</Button>,
-        ]}
-      >
-        <div className="ataas-pd-config-picker">
-          <section className="ataas-pd-config-picker-files">
-            <h3>文件</h3>
-            {['devpod', 'glm'].map((group) => (
-              <div key={group} className="ataas-pd-config-picker-group">
-                <strong>{group}</strong>
-                {pdConfigCenterFiles.filter((file) => file.path.startsWith(group)).map((file) => (
-                  <button
-                    key={file.path}
-                    type="button"
-                    className={selectedPdConfigFile.path === file.path ? 'active' : ''}
-                    onClick={() => { setPdConfigSelectedPath(file.path); setPdConfigSelectedVersion(file.versions[0].key); }}
-                  >
-                    <FileSearchOutlined />
-                    <span>{file.name}</span>
-                  </button>
-                ))}
-              </div>
-            ))}
-          </section>
-          <section className="ataas-pd-config-picker-versions">
-            <h3>历史版本</h3>
-            {selectedPdConfigFile.versions.map((version) => (
-              <button
-                key={version.key}
-                type="button"
-                className={selectedPdConfigVersion.key === version.key ? 'active' : ''}
-                onClick={() => setPdConfigSelectedVersion(version.key)}
-              >
-                <strong>{version.label}</strong>
-                <span>{version.meta}</span>
-              </button>
-            ))}
-          </section>
-          <section className="ataas-pd-config-picker-preview">
-            <h3>{selectedPdConfigFile.path.toUpperCase()} <span>{selectedPdConfigVersion.key === 'latest' ? 'LATEST' : selectedPdConfigVersion.key}</span></h3>
-            <pre>
-              {selectedPdConfigVersion.content.split('\n').map((line, index) => (
-                <span key={index}><em>{index + 1}</em><code>{line || ' '}</code></span>
-              ))}
-            </pre>
-          </section>
-        </div>
-        <div className="ataas-pd-config-picker-note"><WarningOutlined /> 部署时始终使用文件的最新内容，历史版本仅供参考对比</div>
-      </Modal>
       <Drawer
         className="ataas-template-editor-drawer"
         title={editing ? '编辑模板' : '新建模板'}
@@ -4652,16 +4603,30 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate }: S
                     return Upload.LIST_IGNORE;
                   }
                   const reader = new FileReader();
-                  reader.onload = (readerEvent) => form.setFieldValue('routerYaml', String(readerEvent.target?.result || ''));
+                  reader.onload = (readerEvent) => {
+                    form.setFieldValue('routerYaml', String(readerEvent.target?.result || ''));
+                    setPdYamlFileLabels((prev) => ({ ...prev, routerYaml: file.name }));
+                  };
                   reader.onerror = () => message.error('Router YAML 文件读取失败');
                   reader.readAsText(file);
                   return false;
                 }}
               >
-                <p className="ant-upload-drag-icon"><UploadOutlined /></p>
-                <p className="ant-upload-text">Router YAML</p>
-                <p className="ant-upload-hint">点击或拖拽文件上传</p>
-                <button className="ataas-pd-config-select-button" type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); openPdConfigPicker('routerYaml'); }}>从配置中心选择</button>
+                {watchedRouterYaml ? (
+                  <div className="ataas-pd-yaml-current-file">
+                    <FileSearchOutlined />
+                    <strong>Router YAML</strong>
+                    <span title={pdYamlFileLabels.routerYaml || '当前文件'}>{pdYamlFileLabels.routerYaml || '当前文件'}</span>
+                    <em>点击卡片重新上传</em>
+                  </div>
+                ) : (
+                  <>
+                    <p className="ant-upload-drag-icon"><UploadOutlined /></p>
+                    <p className="ant-upload-text">Router YAML</p>
+                    <p className="ant-upload-hint">点击或拖拽文件上传</p>
+                  </>
+                )}
+                <button className="ataas-pd-config-select-button" type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); openPdConfigPicker('routerYaml'); }}>从资源文件选择</button>
               </Upload.Dragger>
               <Upload.Dragger
                 accept=".yaml,.yml,text/yaml,text/x-yaml"
@@ -4673,16 +4638,30 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate }: S
                     return Upload.LIST_IGNORE;
                   }
                   const reader = new FileReader();
-                  reader.onload = (readerEvent) => form.setFieldValue('workerYaml', String(readerEvent.target?.result || ''));
+                  reader.onload = (readerEvent) => {
+                    form.setFieldValue('workerYaml', String(readerEvent.target?.result || ''));
+                    setPdYamlFileLabels((prev) => ({ ...prev, workerYaml: file.name }));
+                  };
                   reader.onerror = () => message.error('PD Worker YAML 文件读取失败');
                   reader.readAsText(file);
                   return false;
                 }}
               >
-                <p className="ant-upload-drag-icon"><UploadOutlined /></p>
-                <p className="ant-upload-text">PD Worker YAML</p>
-                <p className="ant-upload-hint">点击或拖拽文件上传</p>
-                <button className="ataas-pd-config-select-button" type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); openPdConfigPicker('workerYaml'); }}>从配置中心选择</button>
+                {watchedWorkerYaml ? (
+                  <div className="ataas-pd-yaml-current-file">
+                    <FileSearchOutlined />
+                    <strong>PD Worker YAML</strong>
+                    <span title={pdYamlFileLabels.workerYaml || '当前文件'}>{pdYamlFileLabels.workerYaml || '当前文件'}</span>
+                    <em>点击卡片重新上传</em>
+                  </div>
+                ) : (
+                  <>
+                    <p className="ant-upload-drag-icon"><UploadOutlined /></p>
+                    <p className="ant-upload-text">PD Worker YAML</p>
+                    <p className="ant-upload-hint">点击或拖拽文件上传</p>
+                  </>
+                )}
+                <button className="ataas-pd-config-select-button" type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); openPdConfigPicker('workerYaml'); }}>从资源文件选择</button>
               </Upload.Dragger>
             </div>
             <Form.Item name="routerYaml" rules={[{ required: true, message: '请上传或选择 Router YAML' }]} hidden><Input /></Form.Item>
@@ -7334,6 +7313,17 @@ const AtAasDesign = () => {
   ]);
   const [pdDecodeShellText, setPdDecodeShellText] = useState('--max_model_len 8192\n--gpu_memory_utilization 0.9');
   const [pdShellExpanded, setPdShellExpanded] = useState<Record<'router' | 'prefill' | 'decode', boolean>>({ router: false, prefill: false, decode: false });
+  type ConfigYamlPickerTarget = 'deploy-router' | 'deploy-worker' | 'startup-template' | 'custom';
+  const [configYamlPickerOpen, setConfigYamlPickerOpen] = useState(false);
+  const [configYamlPickerTarget, setConfigYamlPickerTarget] = useState<ConfigYamlPickerTarget>('deploy-router');
+  const [configYamlCustomSelect, setConfigYamlCustomSelect] = useState<((yaml: string, path: string) => void) | null>(null);
+  const [configYamlTree, setConfigYamlTree] = useState<ConfigTreeNode | null>(null);
+  const [configYamlSelectedPath, setConfigYamlSelectedPath] = useState('');
+  const [configYamlPreview, setConfigYamlPreview] = useState('');
+  const [configYamlLatest, setConfigYamlLatest] = useState('');
+  const [configYamlHistory, setConfigYamlHistory] = useState<ConfigCommitEntry[]>([]);
+  const [configYamlVersionKey, setConfigYamlVersionKey] = useState('latest');
+  const [configYamlPickerLoading, setConfigYamlPickerLoading] = useState(false);
 
   const [pdNodePickerOpen, setPdNodePickerOpen] = useState(false);
   const [pdNodePickerMode, setPdNodePickerMode] = useState<'router' | 'prefill' | 'decode'>('router');
@@ -7598,6 +7588,134 @@ const AtAasDesign = () => {
     setPdRouterShellText(formatDeployParamsShell(resolvedParams));
     setPdPrefillShellText(formatDeployParamsShell(resolvedParams));
     setPdDecodeShellText(formatDeployParamsShell(resolvedParams));
+  };
+
+  const openConfigYamlPicker = async (target: ConfigYamlPickerTarget, onSelect?: (yaml: string, path: string) => void) => {
+    setConfigYamlPickerTarget(target);
+    setConfigYamlCustomSelect(() => onSelect || null);
+    setConfigYamlPickerOpen(true);
+    setConfigYamlSelectedPath('');
+    setConfigYamlPreview('');
+    setConfigYamlLatest('');
+    setConfigYamlHistory([]);
+    setConfigYamlVersionKey('latest');
+    if (configYamlTree) return;
+    setConfigYamlPickerLoading(true);
+    try {
+      const res = await rpc('config.list_tree');
+      setConfigYamlTree(res.root);
+    } catch {
+      message.error('资源文件文件加载失败');
+    } finally {
+      setConfigYamlPickerLoading(false);
+    }
+  };
+
+  const selectConfigYamlFile = async (path: string) => {
+    setConfigYamlSelectedPath(path);
+    setConfigYamlVersionKey('latest');
+    setConfigYamlPickerLoading(true);
+    try {
+      const [fileRes, historyRes] = await Promise.all([
+        rpc('config.get', { path }),
+        rpc('config.history', { path }),
+      ]);
+      const latestYaml = fileRes.yaml || '';
+      setConfigYamlLatest(latestYaml);
+      setConfigYamlPreview(latestYaml);
+      setConfigYamlHistory(historyRes.commits || []);
+    } catch {
+      message.error('YAML 读取失败');
+    } finally {
+      setConfigYamlPickerLoading(false);
+    }
+  };
+
+  const previewConfigYamlVersion = async (versionKey: string) => {
+    if (!configYamlSelectedPath) return;
+    setConfigYamlVersionKey(versionKey);
+    if (versionKey === 'latest') {
+      setConfigYamlPreview(configYamlLatest);
+      return;
+    }
+    setConfigYamlPickerLoading(true);
+    try {
+      const res = await rpc('config.show_commit', { path: configYamlSelectedPath, hash: versionKey });
+      setConfigYamlPreview(res.yaml || '');
+    } catch {
+      message.error('历史版本读取失败');
+    } finally {
+      setConfigYamlPickerLoading(false);
+    }
+  };
+
+  const formatConfigYamlHistoryTime = (ts?: number) => {
+    if (!ts) return '';
+    const diffHours = Math.max(1, Math.round((Date.now() - ts) / 3600000));
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return `${Math.round(diffHours / 24)}d ago`;
+  };
+
+  const applyConfigYamlSelection = async () => {
+    const selectedYaml = configYamlLatest || configYamlPreview;
+    if (!configYamlSelectedPath || !selectedYaml.trim()) return;
+    if (configYamlLatest && selectedYaml.trim()) {
+      try {
+        await rpc('config.commit', {
+          writes: [{ path: configYamlSelectedPath, yaml: selectedYaml }],
+          message: 'update from selector',
+        });
+        try {
+          const drafts = JSON.parse(sessionStorage.getItem('b300.configs.drafts') || '{}');
+          drafts[configYamlSelectedPath] = { base: selectedYaml, draft: selectedYaml, deleted: false };
+          sessionStorage.setItem('b300.configs.drafts', JSON.stringify(drafts));
+        } catch {
+          // ignore session sync failures
+        }
+        const [treeRes, historyRes] = await Promise.all([
+          rpc('config.list_tree'),
+          rpc('config.history', { path: configYamlSelectedPath }),
+        ]);
+        setConfigYamlTree(treeRes.root);
+        setConfigYamlHistory(historyRes.commits || []);
+      } catch {
+        message.error('同步资源文件失败');
+        return;
+      }
+    }
+    if (configYamlPickerTarget === 'custom') {
+      configYamlCustomSelect?.(selectedYaml, configYamlSelectedPath);
+      setConfigYamlPickerOpen(false);
+      setConfigYamlCustomSelect(null);
+      message.success(`已从资源文件选择 ${configYamlSelectedPath}`);
+      return;
+    }
+    if (configYamlPickerTarget === 'deploy-router') {
+      setPdTemplateMode('upload');
+      setPdSelectedTemplateKey('');
+      setPdRouterTemplateKey('');
+      setPdRouterUploadedYaml(selectedYaml);
+      setPdRouterShellText(selectedYaml);
+      setPdRouterParams(parseShellParams(selectedYaml));
+      setPdShellExpanded((prev) => ({ ...prev, router: true }));
+    } else if (configYamlPickerTarget === 'deploy-worker') {
+      const nextParams = parseShellParams(selectedYaml);
+      setPdTemplateMode('upload');
+      setPdSelectedTemplateKey('');
+      setPdPrefillTemplateKey('');
+      setPdDecodeTemplateKey('');
+      setPdPrefillUploadedYaml(selectedYaml);
+      setPdPrefillShellText(selectedYaml);
+      setPdDecodeShellText(selectedYaml);
+      setPdPrefillParams(nextParams);
+      setPdDecodeParams(nextParams.map((param) => ({ ...param })));
+      setPdShellExpanded((prev) => ({ ...prev, prefill: true }));
+    } else {
+      setTemplateYamlContent(selectedYaml);
+    }
+    setConfigYamlPickerOpen(false);
+    setConfigYamlCustomSelect(null);
+    message.success(`已从资源文件选择 ${configYamlSelectedPath}`);
   };
 
   const applyPdRouterTemplate = (templateKey: string) => {
@@ -8741,20 +8859,123 @@ const AtAasDesign = () => {
     );
   };
 
-  const renderPdShellPanel = (role: 'router' | 'prefill' | 'decode', title: string, shellText: string, setShellText: (value: string) => void, onChange: (next: Array<{ key: string; value: string }>) => void) => {
+  const renderPdYamlEditor = (yamlText: string, setYamlText: (value: string) => void, onChange: (next: Array<{ key: string; value: string }>) => void) => (
+    <div className="ataas-pd-yaml-editor-wrap">
+      <MonacoEditor
+        value={yamlText}
+        language="yaml"
+        height={Math.min(320, Math.max(180, yamlText.split('\n').length * 18 + 28))}
+        className="ataas-pd-yaml-editor ataas-config-yaml-picker-editor"
+        onChange={(value) => {
+          setYamlText(value);
+          onChange(parseShellParams(value));
+        }}
+        options={{
+          fontSize: 11,
+          lineHeight: 18,
+          fontWeight: '400',
+          minimap: { enabled: false },
+          scrollbar: { verticalScrollbarSize: 8, horizontalScrollbarSize: 8 },
+          overviewRulerLanes: 0,
+          renderLineHighlight: 'line',
+          wordWrap: 'off',
+          scrollBeyondLastLine: false,
+        }}
+      />
+    </div>
+  );
+
+  const renderConfigYamlTree = (node: ConfigTreeNode, depth = 0): ReactNode => {
+    const renderConfigName = (name: string, isDir = false) => {
+      const parts = name.split(/(router|workers|worker|smg|glm|kimi|qwen)/gi);
+      return (
+        <span title={name}>
+          {parts.map((part, index) => {
+            const key = part.toLowerCase();
+            const cls = key === 'router'
+              ? 'part-router'
+              : key === 'workers' || key === 'worker'
+                ? 'part-workers'
+                : key === 'smg'
+                  ? 'part-smg'
+                  : key === 'glm' || key === 'kimi' || key === 'qwen'
+                    ? 'part-model'
+                    : '';
+            return cls ? <em key={`${part}-${index}`} className={cls}>{part}</em> : <span key={`${part}-${index}`}>{part}</span>;
+          })}
+          {isDir ? null : null}
+        </span>
+      );
+    };
+    const children = node.children || [];
+    return children.map((child) => {
+      if (child.is_dir) {
+        return (
+          <div key={child.path}>
+            <div className="ataas-config-yaml-picker-dir" style={{ paddingLeft: 12 + depth * 14 }}>
+              <DownOutlined />
+              {renderConfigName(child.name, true)}
+            </div>
+            {renderConfigYamlTree(child, depth + 1)}
+          </div>
+        );
+      }
+      return (
+        <button
+          key={child.path}
+          type="button"
+          className={'ataas-config-yaml-picker-file' + (configYamlSelectedPath === child.path ? ' selected' : '')}
+          style={{ paddingLeft: 24 + depth * 14 }}
+          onClick={() => selectConfigYamlFile(child.path)}
+        >
+          <FileSearchOutlined />
+          {renderConfigName(child.name)}
+        </button>
+      );
+    });
+  };
+
+  const renderPdShellPanel = (
+    role: 'router' | 'prefill' | 'decode',
+    title: string,
+    shellText: string,
+    setShellText: (value: string) => void,
+    onChange: (next: Array<{ key: string; value: string }>) => void,
+    options?: { locked?: boolean; pickerTarget?: ConfigYamlPickerTarget },
+  ) => {
     const paramLineCount = shellText.split('\n').filter((line) => line.trim().replace(/\\$/, '').trim().startsWith('--')).length;
     const expanded = pdShellExpanded[role];
+    const locked = Boolean(options?.locked);
     return (
-      <div className={`ataas-pd-shell-area ${expanded ? 'expanded' : ''}`}>
+      <div className={`ataas-pd-shell-area ${expanded ? 'expanded' : ''}${locked ? ' locked' : ''}`}>
         <button
           type="button"
           className="ataas-pd-shell-toggle"
-          onClick={() => setPdShellExpanded((prev) => ({ ...prev, [role]: !prev[role] }))}
+          onClick={() => {
+            if (locked) return;
+            setPdShellExpanded((prev) => ({ ...prev, [role]: !prev[role] }));
+          }}
         >
-          <span>{title}</span>
-          <em>{paramLineCount} 行 · {expanded ? '收起' : '展开'}</em>
+          <span className="ataas-pd-shell-title">
+            {title}
+            {!locked && options?.pickerTarget && (
+              <Tooltip title="从资源文件选择">
+                <Button
+                  className="ataas-pd-shell-config-button"
+                  type="text"
+                  size="small"
+                  icon={<FileSearchOutlined />}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    openConfigYamlPicker(options.pickerTarget!);
+                  }}
+                />
+              </Tooltip>
+            )}
+          </span>
+          <em>{locked ? '已由 PD 模板填充' : `${paramLineCount} 行 · ${expanded ? '收起' : '展开'}`}</em>
         </button>
-        {expanded && renderParamsShellEditor(shellText, setShellText, onChange)}
+        {expanded && renderPdYamlEditor(shellText, setShellText, onChange)}
       </div>
     );
   };
@@ -9650,7 +9871,7 @@ const AtAasDesign = () => {
     { key: 'modelRepo', icon: <SidebarIcon name="modelRepo" />, label: '模型仓库' },
     { key: 'startupTemplates', icon: <SidebarIcon name="template" />, label: '性能仓库' },
     { key: 'deploy', icon: <SidebarIcon name="deploy" />, label: '模型部署' },
-    { key: 'modelOps', icon: <SidebarIcon name="deploy" />, label: '模型运维' },
+    { key: 'modelOps', icon: <SidebarIcon name="deploy" />, label: '运营调度' },
     { key: 'images', icon: <SidebarIcon name="image" />, label: '镜像仓库' },
     { key: 'monitoring', icon: <SidebarIcon name="monitor" />, label: '模型监控' },
     { key: 'playgroundChat', icon: <SidebarIcon name="playground" />, label: '文本模型' },
@@ -9666,13 +9887,13 @@ const AtAasDesign = () => {
     { key: 'engines', icon: <SidebarIcon name="engine" />, label: '镜像管理' },
     { key: 'pods', icon: <SidebarIcon name="pod" />, label: '容器管理' },
     { key: 'services', icon: <SidebarIcon name="service" />, label: 'Service管理' },
-    { key: 'configCenter', icon: <SidebarIcon name="config" />, label: '配置中心' },
+    { key: 'configCenter', icon: <SidebarIcon name="config" />, label: '资源文件' },
     { key: 'se', icon: <SidebarIcon name="se" />, label: 'ServiceEntry' },
   ];
   const getSidebarItems = (keys: string[]) => keys.map((key) => SIDEBAR_ITEMS.find((item) => item.key === key)).filter(Boolean) as typeof SIDEBAR_ITEMS;
   const SIDEBAR_GROUPS = [
     { title: '概览', items: getSidebarItems(['overview']) },
-    { title: '资源管理', items: getSidebarItems(['clusters', 'nodes', 'engines', 'pods', 'services', 'se']) },
+    { title: '资源管理', items: getSidebarItems(['clusters', 'nodes', 'engines', 'pods', 'services', 'configCenter', 'se']) },
     { title: '模型管理', items: getSidebarItems(['modelRepo', 'startupTemplates', 'deploy', 'modelOps', 'monitoring']) },
     { title: '模型测试', items: getSidebarItems(['playgroundChat', 'playgroundVisual', 'playgroundEmbedding', 'playgroundRerank', 'benchmark']) },
     { title: '身份权限', items: getSidebarItems(['apiKeys', 'users']) },
@@ -10485,7 +10706,12 @@ const AtAasDesign = () => {
           }
       case 'startupTemplates': return (
             <div className="ataas-section-stack">
-              <StartupTemplateManager templates={startupTemplates} setTemplates={setStartupTemplates} onDeployTemplate={handleDeployStartupTemplate} />
+              <StartupTemplateManager
+                templates={startupTemplates}
+                setTemplates={setStartupTemplates}
+                onDeployTemplate={handleDeployStartupTemplate}
+                onPickConfigYaml={(onSelect) => openConfigYamlPicker('custom', onSelect)}
+              />
             </div>
           );
       case 'benchmark': return (
@@ -11879,15 +12105,8 @@ const AtAasDesign = () => {
         </div>
       );
       case 'configCenter': return (
-        <div className="ataas-section-stack">
-          <div className="ataas-panel">
-            <div className="ataas-panel-head">
-              <h2>配置中心</h2>
-            </div>
-            <div style={{ padding: '60px 0', textAlign: 'center', color: '#98A2B3', fontSize: 14 }}>
-              功能开发中
-            </div>
-          </div>
+        <div className="ataas-config-migrated">
+          <ConfigsPage />
         </div>
       );
       default: return null;
@@ -11951,7 +12170,7 @@ const AtAasDesign = () => {
             </Popover>
           </div>
         </div>
-        <div className="ataas-content" ref={contentRef}>
+        <div className={'ataas-content' + (activeTab === 'configCenter' ? ' ataas-content-config' : '')} ref={contentRef}>
           {renderTabContent()}
         </div>
       </div>
@@ -12463,7 +12682,7 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
             ]} />
           </Form.Item>
           <Form.Item label="YAML 配置" required>
-            <div style={{ marginBottom: 8 }}>
+            <div className="ataas-startup-template-yaml-actions">
               <Upload.Dragger
                 beforeUpload={(file) => {
                   if (!isYamlFile(file)) {
@@ -12486,6 +12705,9 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
                 <p className="ant-upload-drag-icon"><InboxOutlined /></p>
                 <p className="ant-upload-text">点击或拖拽 YAML 文件到此区域</p>
               </Upload.Dragger>
+              <Tooltip title="从资源文件选择 YAML">
+                <Button icon={<FileSearchOutlined />} onClick={() => openConfigYamlPicker('startup-template')}>从资源文件选择</Button>
+              </Tooltip>
             </div>
             <Input.TextArea
               rows={10}
@@ -12502,6 +12724,95 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
           </div>
         </Form>
       </Drawer>
+
+      <Modal
+        className="ataas-config-yaml-picker-modal"
+        title="从资源文件选择 YAML"
+        open={configYamlPickerOpen}
+        onCancel={() => setConfigYamlPickerOpen(false)}
+        width={1140}
+        footer={(
+          <div className="ataas-config-yaml-picker-footer">
+            <span className="ataas-config-yaml-picker-warning"><WarningOutlined /> 部署时始终使用文件的最新内容，历史版本仅供参考对比</span>
+            <div>
+              <Button onClick={() => setConfigYamlPickerOpen(false)}>取消</Button>
+              <Button type="primary" disabled={!configYamlSelectedPath || !(configYamlLatest || configYamlPreview).trim()} onClick={applyConfigYamlSelection}>确认选择</Button>
+            </div>
+          </div>
+        )}
+      >
+        <div className={'ataas-config-yaml-picker' + (configYamlSelectedPath ? ' has-history' : '')}>
+          <div className="ataas-config-yaml-picker-tree">
+            <div className="ataas-config-yaml-picker-title">文件</div>
+            <div className="ataas-config-yaml-picker-tree-body">
+              {configYamlPickerLoading && !configYamlTree ? (
+                <div className="ataas-config-yaml-picker-empty">加载中...</div>
+              ) : configYamlTree ? (
+                renderConfigYamlTree(configYamlTree)
+              ) : (
+                <div className="ataas-config-yaml-picker-empty">暂无配置文件</div>
+              )}
+            </div>
+          </div>
+          {configYamlSelectedPath && (
+            <div className="ataas-config-yaml-picker-history">
+              <div className="ataas-config-yaml-picker-title">历史版本</div>
+              <div className="ataas-config-yaml-picker-history-body">
+                <button
+                  type="button"
+                  className={'ataas-config-yaml-picker-version' + (configYamlVersionKey === 'latest' ? ' selected' : '')}
+                  onClick={() => previewConfigYamlVersion('latest')}
+                >
+                  <strong>latest（最新）</strong>
+                </button>
+                {configYamlHistory.map((item) => (
+                  <button
+                    type="button"
+                    key={item.hash}
+                    className={'ataas-config-yaml-picker-version' + (configYamlVersionKey === item.hash ? ' selected' : '')}
+                    onClick={() => previewConfigYamlVersion(item.hash)}
+                  >
+                    <span><em>{item.hash.slice(0, 6)}</em>{item.message}</span>
+                    <small>{formatConfigYamlHistoryTime(item.ts_ms)}</small>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="ataas-config-yaml-picker-preview">
+            <div className="ataas-config-yaml-picker-title">
+              {configYamlSelectedPath ? `${configYamlSelectedPath.toUpperCase()} ${configYamlVersionKey === 'latest' ? 'LATEST' : configYamlVersionKey.slice(0, 6)}` : 'YAML 预览'}
+            </div>
+            {configYamlSelectedPath ? (
+              <MonacoEditor
+                key={`${configYamlSelectedPath}-${configYamlVersionKey}`}
+                value={configYamlPreview}
+                language="yaml"
+                height="100%"
+                className="ataas-config-yaml-picker-editor"
+                onChange={configYamlVersionKey === 'latest' ? (value) => {
+                  setConfigYamlPreview(value);
+                  setConfigYamlLatest(value);
+                } : undefined}
+                options={{
+                  fontSize: 11,
+                  lineHeight: 18,
+                  fontWeight: '400',
+                  minimap: { enabled: true, side: 'right', size: 'proportional', showSlider: 'mouseover' },
+                  scrollbar: { verticalScrollbarSize: 9, horizontalScrollbarSize: 9 },
+                  overviewRulerLanes: 0,
+                  renderLineHighlight: 'line',
+                  wordWrap: 'off',
+                  readOnly: configYamlVersionKey !== 'latest',
+                  domReadOnly: configYamlVersionKey !== 'latest',
+                }}
+              />
+            ) : (
+              <div className="ataas-config-yaml-picker-empty-preview">从左侧文件树选择一个 YAML 文件</div>
+            )}
+          </div>
+        </div>
+      </Modal>
 
       <Modal title="镜像详情" open={imageDrawerOpen} onCancel={() => setImageDrawerOpen(false)} footer={null} width={640}>{imageDrawerRecord && <div className="ataas-single-config-summary"><div><span>镜像名称</span><strong>{imageDrawerRecord.name}</strong></div><div><span>标签</span><strong style={{ fontSize: 12 }}>{imageDrawerRecord.tag}</strong></div><div><span>大小</span><strong>{imageDrawerRecord.size}</strong></div><div><span>引擎</span><strong>{imageDrawerRecord.engine}</strong></div><div><span>GPU 类型</span><strong>{imageDrawerRecord.gpuType}</strong></div><div><span>运行时</span><strong style={{ fontSize: 12 }}>{imageDrawerRecord.runtime}</strong></div><div><span>硬件兼容</span><strong style={{ fontSize: 12 }}>{imageDrawerRecord.hardware}</strong></div><div><span>适用模型</span><strong style={{ fontSize: 12 }}>{imageDrawerRecord.models}</strong></div><div><span>导入方式</span><strong>{imageDrawerRecord.importMethod}</strong></div></div>}</Modal>
 
@@ -12817,7 +13128,10 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
                                 <div className="ataas-pd-form-control">{renderPdDeployNodePicker('router')}</div>
                               </div>
                             </div>
-                            {renderPdShellPanel('router', 'Router YAML', pdRouterShellText, setPdRouterShellText, setPdRouterParams)}
+                            {renderPdShellPanel('router', 'Router YAML', pdRouterShellText, setPdRouterShellText, setPdRouterParams, {
+                              locked: Boolean(pdSelectedTemplateKey),
+                              pickerTarget: 'deploy-router',
+                            })}
                           </div>
                         </div>
                         {/* PD Worker 配置 */}
@@ -12865,6 +13179,10 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
                               (next) => {
                                 setPdPrefillParams(next);
                                 setPdDecodeParams(next.map((param) => ({ ...param })));
+                              },
+                              {
+                                locked: Boolean(pdSelectedTemplateKey),
+                                pickerTarget: 'deploy-worker',
                               },
                             )}
                           </div>

@@ -21995,6 +21995,50 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   color: #6738E8;
 }
 
+.ataas-pd-yaml-current-file {
+  display: flex;
+  min-height: 104px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.ataas-pd-yaml-current-file .anticon {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgba(103, 56, 232, 0.08);
+  color: #6738E8;
+  font-size: 18px;
+}
+
+.ataas-pd-yaml-current-file strong {
+  color: #1D2129;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.ataas-pd-yaml-current-file span {
+  max-width: 92%;
+  color: #4E5969;
+  font-size: 12px;
+  line-height: 18px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ataas-pd-yaml-current-file em {
+  color: #86909C;
+  font-size: 12px;
+  font-style: normal;
+  line-height: 18px;
+}
+
 .ataas-pd-config-picker-modal .ant-modal-content {
   overflow: hidden;
   border-radius: 8px;
@@ -22178,5 +22222,828 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   color: #D48806;
   font-family: "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
   font-size: 13px;
+  font-weight: 400;
+}
+
+.ataas-content-config {
+  padding: 0 !important;
+  overflow: hidden !important;
+  background: #F7F9FC !important;
+}
+.ataas-config-migrated {
+  height: 100%;
+  min-height: 100vh;
+  margin: 0;
+  overflow: hidden;
+  background: var(--color-bg, #fafafa);
+}
+
+.ataas-config-migrated * {
+  box-sizing: border-box;
+}
+
+.ataas-config-migrated > .flex {
+  height: 100% !important;
+  min-height: 100vh;
+}
+
+.ataas-config-migrated {
+  --color-bg: #F7F9FC;
+  --color-surface: #FFFFFF;
+  --color-card: #FFFFFF;
+  --color-elevated: #F2F4FA;
+  --color-border: #E7EAF1;
+  --color-border-subtle: #F0F2F7;
+  --color-input-bg: #FFFFFF;
+  --color-input-border: #DDE3EE;
+  --color-muted: #8A94A6;
+  --color-secondary: #5F6B7D;
+  --color-text: #2F3A4A;
+  --color-text-heading: #202939;
+  --color-primary: #6951FF;
+  --color-ring: #6951FF;
+  --color-success: #16A34A;
+  --color-warning: #D98A00;
+  --color-cyan: #6EA8FF;
+  --color-info: #2563EB;
+  --color-purple: #6951FF;
+  font-family: PingFangSC, "PingFang SC", "Helvetica Neue", Helvetica, Arial, "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}
+
+.ataas-config-migrated .b300-config-root {
+  background: linear-gradient(180deg, #FBFCFF 0%, #F7F9FC 100%);
+  color: #202939;
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.ataas-config-migrated .b300-config-topbar {
+  height: 58px;
+  padding: 0 18px;
+  background: rgba(255, 255, 255, 0.98);
+  border-color: #E7EAF1 !important;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.03);
+}
+
+.ataas-config-migrated .b300-config-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  color: #202939;
+}
+
+.ataas-config-migrated .b300-config-title span {
+  flex: 0 0 auto;
+  color: #1d2129;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.ataas-config-migrated .b300-config-title em {
+  max-width: 52vw;
+  padding: 3px 8px;
+  border: 1px solid #EEF1F6;
+  border-radius: 999px;
+  background: #FAFBFE;
+  min-width: 0;
+  overflow: hidden;
+  color: #7A8495;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ataas-config-migrated .b300-config-topbar [data-slot="button"] {
+  height: 32px;
+  min-width: 32px;
+  padding: 0 12px;
+  border-radius: 6px;
+  border-color: #DDE3EE;
+  background: #FFFFFF;
+  color: #526073;
+  font-size: 13px;
+  font-weight: 400;
+  box-shadow: none;
+}
+
+.ataas-config-migrated .b300-config-topbar [data-slot="button"].w-6,
+.ataas-config-migrated .b300-config-topbar [data-slot="button"].h-6.w-6 {
+  width: 32px !important;
+  padding: 0 !important;
+}
+
+.ataas-config-migrated .b300-config-topbar [data-slot="button"] svg {
+  width: 14px !important;
+  height: 14px !important;
+}
+
+.ataas-config-migrated .b300-config-topbar [data-slot="button"]:hover {
+  border-color: #C9D0E0;
+  background: #F6F7FB;
+  color: #202939;
+}
+
+.ataas-config-migrated .b300-config-topbar [data-slot="button"][data-variant="default"] {
+  border-color: #6951FF;
+  background: #6951FF;
+  color: #FFFFFF;
+}
+
+.ataas-config-migrated .b300-config-topbar [data-slot="button"][data-variant="default"]:hover {
+  border-color: #5B46E8;
+  background: #5B46E8;
+  color: #FFFFFF;
+}
+
+.ataas-config-migrated .b300-config-topbar [title="删除文件"] {
+  color: #667085 !important;
+}
+
+.ataas-config-migrated .b300-config-topbar [title="删除文件"]:hover {
+  border-color: rgba(220, 38, 38, 0.28) !important;
+  background: rgba(220, 38, 38, 0.06) !important;
+  color: #DC2626 !important;
+}
+
+.ataas-config-migrated .b300-config-change-pill {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border-color: rgba(217, 138, 0, 0.32) !important;
+  background: rgba(217, 138, 0, 0.08);
+  color: #B56F00 !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+}
+
+.ataas-config-migrated .b300-config-rail {
+  background: #FBFCFE;
+  border-color: #E7EAF1 !important;
+}
+
+.ataas-config-migrated .b300-config-rail-head {
+  height: 40px;
+  padding: 0 10px;
+  background: #FAFBFD;
+  border-color: #E7EAF1 !important;
+}
+
+.ataas-config-migrated .b300-config-rail-head span {
+  color: #667085 !important;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+}
+
+.ataas-config-migrated .b300-config-rail-head [data-slot="button"] {
+  color: #596579;
+  border-radius: 5px;
+}
+
+.ataas-config-migrated .b300-history-description {
+  margin-top: 4px;
+  color: #5F6B7D !important;
+  font-size: 12px !important;
+  font-weight: 400 !important;
+  line-height: 20px;
+}
+
+.ataas-config-migrated .b300-config-search {
+  height: 38px;
+  padding: 0 10px;
+  background: #FFFFFF;
+  border-color: #EEF1F6 !important;
+}
+
+.ataas-config-migrated .b300-config-search input {
+  color: #263243 !important;
+  font-family: inherit !important;
+  font-size: 12px !important;
+  font-weight: 400;
+}
+
+.ataas-config-migrated .b300-config-search input::placeholder {
+  color: #98A2B3;
+}
+
+.ataas-config-migrated .b300-config-rail .overflow-auto {
+  padding: 8px 8px 14px;
+}
+
+.ataas-config-migrated .b300-config-rail .overflow-auto button {
+  min-height: 30px;
+  margin: 1px 0;
+  border-radius: 0;
+  color: #263243 !important;
+  font-size: 12px;
+  font-weight: 400;
+  position: relative;
+  transition:
+    background-color 0.14s ease,
+    color 0.14s ease,
+    opacity 0.14s ease;
+}
+
+.ataas-config-migrated .b300-config-rail .overflow-auto button:hover {
+  background: rgba(105, 81, 255, 0.028) !important;
+}
+
+.ataas-config-migrated .b300-config-rail .overflow-auto button.b300-tree-row-active {
+  background: rgba(105, 81, 255, 0.075) !important;
+  color: #3624A8 !important;
+}
+
+.ataas-config-migrated .b300-config-rail .overflow-auto button.b300-tree-row-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 7px;
+  bottom: 7px;
+  width: 3px;
+  border-radius: 999px;
+  background: #6951FF;
+}
+
+.ataas-config-migrated .b300-tree-state {
+  min-width: 18px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #FFF7E8;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+  font-family: PingFangSC, "PingFang SC", "Helvetica Neue", Helvetica, Arial, sans-serif !important;
+  font-weight: 400;
+}
+
+.ataas-config-migrated .b300-config-rail .font-mono,
+.ataas-config-migrated .b300-config-tabs .font-mono {
+  font-family: PingFangSC, "PingFang SC", "Helvetica Neue", Helvetica, Arial, sans-serif !important;
+  font-weight: 400;
+}
+
+.ataas-config-migrated .b300-config-editor {
+  background: #FFFFFF;
+  box-shadow: inset 1px 0 0 #F2F4F8;
+}
+
+.ataas-config-migrated .b300-config-tabs {
+  height: 40px;
+  align-items: stretch;
+  background: #F8FAFD;
+  border-color: #E7EAF1 !important;
+}
+
+.ataas-config-migrated .b300-config-tabs-scroll {
+  scrollbar-width: thin;
+}
+
+.ataas-config-migrated .b300-config-tabs button {
+  height: 40px;
+  padding: 0 12px 0 14px;
+  border-right-color: #E9EDF4 !important;
+  background: transparent !important;
+  color: #5F6B7D !important;
+  font-size: 12px !important;
+  font-weight: 400;
+}
+
+.ataas-config-migrated .b300-config-tabs button[style*="var(--color-card"] {
+  background: #FFFFFF !important;
+  color: #6951FF !important;
+  box-shadow: 0 -1px 0 #FFFFFF inset;
+}
+
+.ataas-config-migrated .b300-tab-state {
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-size: 10px;
+  line-height: 16px;
+  font-weight: 400;
+}
+
+.ataas-config-migrated .b300-tab-state[data-state="modified"] {
+  background: rgba(217, 138, 0, 0.10);
+  color: #B56F00;
+}
+
+.ataas-config-migrated .b300-tab-state[data-state="created"] {
+  background: rgba(22, 163, 74, 0.10);
+  color: #16A34A;
+}
+
+.ataas-config-migrated .b300-tab-state[data-state="deleted"] {
+  background: rgba(220, 38, 38, 0.10);
+  color: #DC2626;
+}
+
+.ataas-config-migrated .monaco-editor,
+.ataas-config-migrated .monaco-editor-background,
+.ataas-config-migrated .monaco-editor .margin {
+  background-color: #FFFFFF !important;
+}
+
+.ataas-config-migrated .monaco-editor .view-lines {
+  font-weight: 400 !important;
+}
+
+.ataas-config-migrated .monaco-editor .line-numbers {
+  color: #73839A !important;
+  font-weight: 400 !important;
+}
+
+.ataas-config-migrated .monaco-editor .minimap {
+  border-left: 1px solid #E2E7F0;
+  background: #F8FAFE !important;
+  box-shadow: -1px 0 0 rgba(15, 23, 42, 0.02);
+}
+
+.ataas-config-migrated .monaco-editor .minimap .minimap-slider {
+  background: rgba(105, 81, 255, 0.10) !important;
+}
+
+.ataas-config-migrated .monaco-editor .minimap .minimap-slider:hover {
+  background: rgba(105, 81, 255, 0.16) !important;
+}
+
+.ataas-config-migrated .monaco-editor .minimap-shadow-visible {
+  box-shadow: none !important;
+}
+
+.ataas-config-migrated .monaco-editor .current-line {
+  border-color: transparent !important;
+}
+
+[data-slot="dialog-overlay"] {
+  background: rgba(15, 23, 42, 0.42) !important;
+}
+
+[data-slot="dialog-content"] {
+  border-radius: 10px !important;
+  border-color: #E6EAF2 !important;
+  background: #FFFFFF !important;
+  color: #202939 !important;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.18) !important;
+  font-family: PingFangSC, "PingFang SC", "Helvetica Neue", Helvetica, Arial, sans-serif !important;
+}
+
+[data-slot="dialog-title"] {
+  color: #202939 !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+}
+
+[data-slot="dialog-description"] {
+  color: #7A8495 !important;
+  font-size: 12px !important;
+  font-weight: 300 !important;
+}
+
+[data-slot="dialog-content"] [data-slot="button"][data-variant="default"] {
+  min-width: 92px;
+  height: 36px;
+  padding: 0 18px;
+  border-radius: 6px;
+  background: #6951FF !important;
+  border-color: #6951FF !important;
+  color: #FFFFFF !important;
+  font-size: 13px;
+  font-weight: 400;
+  box-shadow: none;
+}
+
+[data-slot="dialog-content"] [data-slot="button"][data-variant="default"]:hover {
+  background: #5B46E8 !important;
+  border-color: #5B46E8 !important;
+}
+
+[data-slot="dialog-content"] [data-slot="button"][data-variant="outline"] {
+  min-width: 82px;
+  height: 36px;
+  padding: 0 18px;
+  border-radius: 6px;
+  border-color: #DDE3EE !important;
+  background: #FFFFFF !important;
+  color: #344054 !important;
+  font-size: 13px;
+  font-weight: 400;
+  box-shadow: none;
+}
+
+[data-slot="dialog-content"] [data-slot="button"][data-variant="outline"]:hover {
+  border-color: #C9D0E0 !important;
+  background: #F6F7FB !important;
+  color: #202939 !important;
+}
+
+.ataas-pd-shell-area {
+  position: relative;
+}
+
+.ataas-pd-shell-area.locked {
+  background: #FAFBFF;
+}
+
+.ataas-pd-shell-area.locked .ataas-pd-shell-toggle {
+  cursor: default;
+}
+
+.ataas-pd-shell-area.locked .ataas-pd-shell-toggle::before {
+  background: #C9D0E0;
+}
+
+.ataas-pd-shell-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ataas-pd-shell-config-button.ant-btn {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  color: #667085;
+  background: transparent;
+  box-shadow: none;
+}
+
+.ataas-pd-shell-config-button.ant-btn:hover {
+  color: #6951FF;
+  background: rgba(105, 81, 255, 0.08);
+}
+
+.ataas-startup-template-yaml-actions {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: stretch;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.ataas-startup-template-yaml-actions .ant-upload-wrapper {
+  min-width: 0;
+}
+
+.ataas-startup-template-yaml-actions .ant-upload-wrapper .ant-upload-drag {
+  margin-bottom: 0 !important;
+}
+
+.ataas-startup-template-yaml-actions > .ant-btn {
+  align-self: stretch;
+  height: auto;
+  min-width: 138px;
+  border-radius: 8px;
+  border-color: #DDE3EE;
+  color: #344054;
+  background: #FFFFFF;
+  box-shadow: none;
+}
+
+.ataas-startup-template-yaml-actions > .ant-btn:hover {
+  border-color: #6951FF;
+  color: #6951FF;
+  background: #F7F5FF;
+}
+
+.ataas-config-yaml-picker-modal .ant-modal-content {
+  border-radius: 8px;
+  overflow: hidden;
+  font-family: PingFangSC, "PingFang SC", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.ataas-config-yaml-picker-modal .ant-modal-body {
+  padding: 0;
+}
+
+.ataas-config-yaml-picker-modal .ant-modal-header {
+  height: 46px;
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 0 16px;
+  border-bottom: 1px solid #E6EAF2;
+}
+
+.ataas-config-yaml-picker-modal .ant-modal-title {
+  color: #202939;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.ataas-config-yaml-picker {
+  display: grid;
+  grid-template-columns: 232px 1fr;
+  height: min(500px, calc(100vh - 230px));
+  min-height: 360px;
+  border: 0;
+  border-radius: 0;
+  overflow: hidden;
+  background: #FFFFFF;
+}
+
+.ataas-config-yaml-picker.has-history {
+  grid-template-columns: 232px 145px minmax(0, 1fr);
+}
+
+.ataas-pd-yaml-editor-wrap {
+  border-top: 1px solid #EEF1F6;
+  background: #FFFFFF;
+}
+
+.ataas-pd-yaml-editor {
+  width: 100%;
+}
+
+.ataas-config-yaml-picker-tree,
+.ataas-config-yaml-picker-history,
+.ataas-config-yaml-picker-preview {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ataas-config-yaml-picker-tree {
+  border-right: 1px solid #E6EAF2;
+  background: #FBFCFE;
+}
+
+.ataas-config-yaml-picker-history {
+  border-right: 1px solid #E6EAF2;
+  background: #FFFFFF;
+}
+
+.ataas-config-yaml-picker-title {
+  height: 36px;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  border-bottom: 1px solid #E6EAF2;
+  color: #667085;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ataas-config-yaml-picker-tree-body,
+.ataas-config-yaml-picker-history-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.ataas-config-yaml-picker-tree-body {
+  padding: 6px 6px 12px;
+}
+
+.ataas-config-yaml-picker-dir,
+.ataas-config-yaml-picker-file {
+  width: 100%;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  color: #526073;
+  font-size: 12px;
+  font-weight: 400;
+  text-align: left;
+  border-radius: 0;
+}
+
+.ataas-config-yaml-picker-dir .anticon {
+  color: #98A2B3;
+  font-size: 10px;
+}
+
+.ataas-config-yaml-picker-file {
+  cursor: pointer;
+  transition: background 0.14s, color 0.14s;
+}
+
+.ataas-config-yaml-picker-file:hover {
+  background: rgba(105, 81, 255, 0.028);
+  color: #202939;
+}
+
+.ataas-config-yaml-picker-file.selected {
+  background: rgba(105, 81, 255, 0.075);
+  color: #3624A8;
+}
+
+.ataas-config-yaml-picker-file .anticon {
+  color: currentColor;
+}
+
+.ataas-config-yaml-picker-file span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ataas-config-yaml-picker-file em,
+.ataas-config-yaml-picker-dir em {
+  font-style: normal;
+  font-weight: 500;
+}
+
+.ataas-config-yaml-picker-file .part-router,
+.ataas-config-yaml-picker-dir .part-router {
+  color: #2D8CFF;
+}
+
+.ataas-config-yaml-picker-file .part-workers,
+.ataas-config-yaml-picker-dir .part-workers {
+  color: #C46AD9;
+}
+
+.ataas-config-yaml-picker-file .part-smg,
+.ataas-config-yaml-picker-dir .part-smg {
+  color: #18A9E6;
+}
+
+.ataas-config-yaml-picker-file .part-model,
+.ataas-config-yaml-picker-dir .part-model {
+  color: #D9B84A;
+}
+
+.ataas-config-yaml-picker-version {
+  width: 100%;
+  min-height: 50px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
+  padding: 7px 10px;
+  border: 0;
+  border-bottom: 1px solid #EEF1F6;
+  background: #FFFFFF;
+  color: #667085;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ataas-config-yaml-picker-version:hover {
+  background: #F7F9FC;
+}
+
+.ataas-config-yaml-picker-version.selected {
+  background: #EEF4FF;
+}
+
+.ataas-config-yaml-picker-version strong {
+  color: #16A34A;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.ataas-config-yaml-picker-version span {
+  display: flex;
+  gap: 8px;
+  max-width: 100%;
+  color: #344054;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ataas-config-yaml-picker-version span em {
+  flex: 0 0 auto;
+  color: #98A2B3;
+  font-style: normal;
+}
+
+.ataas-config-yaml-picker-version small {
+  color: #98A2B3;
+  font-size: 10px;
+  font-weight: 400;
+}
+
+.ataas-config-yaml-picker-preview {
+  background: #FFFFFF;
+}
+
+.ataas-config-yaml-picker-editor {
+  flex: 1;
+  min-height: 0;
+}
+
+.ataas-config-yaml-picker-editor .monaco-editor,
+.ataas-config-yaml-picker-editor .monaco-editor-background,
+.ataas-config-yaml-picker-editor .monaco-editor .inputarea.ime-input {
+  background: #FFFFFF !important;
+}
+
+.ataas-config-yaml-picker-editor .monaco-editor .margin {
+  background: #FFFFFF !important;
+}
+
+.ataas-config-yaml-picker-editor .monaco-editor .line-numbers {
+  color: #1F7A99 !important;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+}
+
+.ataas-config-yaml-picker-editor .monaco-editor .view-line {
+  font-size: 11px !important;
+  font-weight: 400 !important;
+}
+
+.ataas-config-yaml-picker-editor .monaco-editor .mtk1,
+.ataas-config-yaml-picker-editor .monaco-editor .mtk6,
+.ataas-config-yaml-picker-editor .monaco-editor .mtk7,
+.ataas-config-yaml-picker-editor .monaco-editor .mtk8 {
+  color: #0B8F92 !important;
+}
+
+.ataas-config-yaml-picker-editor .monaco-editor .mtk5,
+.ataas-config-yaml-picker-editor .monaco-editor .mtk9,
+.ataas-config-yaml-picker-editor .monaco-editor .mtk10 {
+  color: #155FB4 !important;
+}
+
+.ataas-config-yaml-picker-editor .monaco-editor .mtk4,
+.ataas-config-yaml-picker-editor .monaco-editor .mtk11 {
+  color: #16A34A !important;
+}
+
+.ataas-config-yaml-picker-editor .monaco-editor .minimap {
+  border-left: 1px solid #EEF1F6;
+  background: #FAFBFE !important;
+}
+
+.ataas-config-yaml-picker-editor .monaco-editor .current-line {
+  border-color: rgba(105, 81, 255, 0.12) !important;
+  background: rgba(105, 81, 255, 0.035) !important;
+}
+
+.ataas-config-yaml-picker-empty {
+  padding: 16px 10px;
+  color: #98A2B3;
+  font-size: 11px;
+  text-align: center;
+}
+
+.ataas-config-yaml-picker-empty-preview {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #98A2B3;
+  font-size: 12px;
+}
+
+.ataas-config-yaml-picker-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-top: 1px solid #E6EAF2;
+  background: #FFFFFF;
+}
+
+.ataas-config-yaml-picker-warning {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: #D98A00;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ataas-config-yaml-picker-footer > div {
+  display: flex;
+  gap: 8px;
+}
+
+.ataas-config-yaml-picker-footer .ant-btn {
+  height: 32px;
+  border-radius: 6px;
+  font-size: 12px;
   font-weight: 400;
 }
