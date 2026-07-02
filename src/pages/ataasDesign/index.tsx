@@ -60,9 +60,12 @@ import sglangLogo from './sglang-logo.png';
 import vllmLogo from './vllm-logo.png';
 import visionCatPreview from './vision-cat-preview.png';
 import ConfigsPage from '../Configs';
+import TasksPage from '../Tasks';
 import { MonacoEditor } from '../../components/shared/MonacoEditor';
 import { rpc } from '../../lib/bus/rpc';
 import type { ConfigCommitEntry, ConfigTreeNode } from '../../lib/types';
+import ContainerManagementPage from './components/containerManagementPage';
+import RouteWorkbenchPage from './components/routeWorkbenchPage';
 import './index.less';
 
 type ClusterRecord = {
@@ -80,7 +83,7 @@ type ClusterRecord = {
   authInfo: string;
 };
 
-const SidebarIcon = ({ name }: { name: 'dashboard' | 'cluster' | 'modelRepo' | 'deploy' | 'image' | 'imageModel' | 'visionModel' | 'embedding' | 'rerank' | 'monitor' | 'benchmark' | 'engine' | 'template' | 'alert' | 'logs' | 'playground' | 'apiKey' | 'user' | 'engineMgr' | 'pod' | 'service' | 'config' | 'se' }) => {
+const SidebarIcon = ({ name }: { name: 'dashboard' | 'cluster' | 'modelRepo' | 'deploy' | 'image' | 'imageModel' | 'visionModel' | 'embedding' | 'rerank' | 'monitor' | 'benchmark' | 'engine' | 'template' | 'alert' | 'logs' | 'playground' | 'apiKey' | 'user' | 'engineMgr' | 'pod' | 'service' | 'config' | 'se' | 'task' }) => {
   const white = '#fff';
   return (
     <svg className="ataas-sidebar-icon" viewBox="0 0 20 20" aria-hidden="true">
@@ -248,6 +251,13 @@ const SidebarIcon = ({ name }: { name: 'dashboard' | 'cluster' | 'modelRepo' | '
         <>
           <rect x="3" y="4" width="14" height="12" rx="2" fill="currentColor" opacity="0.6" />
           <path d="M6 4V2h8v2M7 10l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        </>
+      )}
+      {name === 'task' && (
+        <>
+          <rect x="3" y="2.5" width="14" height="15" rx="2" fill="currentColor" opacity="0.18" />
+          <path d="M6 6h8M6 10h8M6 14h5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          <path d="M5 6l1 1 2-2M5 10l1 1 2-2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
         </>
       )}
     </svg>
@@ -6476,6 +6486,9 @@ const LogBoardCard = ({ icon, label, detail, time, status }: { icon: React.React
 
 const AtAasDesign = () => {
   const [activeTab, setActiveTab] = useState(() => {
+    if (window.location.pathname.includes('/containers')) return 'containerManagement';
+    if (window.location.pathname.includes('/route-workbench')) return 'routeWorkbench';
+    if (window.location.pathname.includes('/task-flow')) return 'taskFlow';
     if (window.location.pathname.includes('/playground/chat')) return 'playgroundChat';
     if (window.location.pathname.includes('/playground/vision')) return 'playgroundChat';
     if (window.location.pathname.includes('/playground/visual')) return 'playgroundVisual';
@@ -9872,6 +9885,7 @@ const AtAasDesign = () => {
     { key: 'startupTemplates', icon: <SidebarIcon name="template" />, label: '性能仓库' },
     { key: 'deploy', icon: <SidebarIcon name="deploy" />, label: '模型部署' },
     { key: 'modelOps', icon: <SidebarIcon name="deploy" />, label: '运营调度' },
+    { key: 'taskFlow', icon: <SidebarIcon name="task" />, label: '任务流程' },
     { key: 'images', icon: <SidebarIcon name="image" />, label: '镜像仓库' },
     { key: 'monitoring', icon: <SidebarIcon name="monitor" />, label: '模型监控' },
     { key: 'playgroundChat', icon: <SidebarIcon name="playground" />, label: '文本模型' },
@@ -9885,16 +9899,15 @@ const AtAasDesign = () => {
     { key: 'apiKeys', icon: <SidebarIcon name="apiKey" />, label: 'API Key' },
     { key: 'users', icon: <SidebarIcon name="user" />, label: '用户管理' },
     { key: 'engines', icon: <SidebarIcon name="engine" />, label: '镜像管理' },
-    { key: 'pods', icon: <SidebarIcon name="pod" />, label: '容器管理' },
-    { key: 'services', icon: <SidebarIcon name="service" />, label: 'Service管理' },
+    { key: 'containerManagement', icon: <SidebarIcon name="pod" />, label: '容器管理' },
+    { key: 'routeWorkbench', icon: <SidebarIcon name="service" />, label: '链路编排' },
     { key: 'configCenter', icon: <SidebarIcon name="config" />, label: '资源文件' },
-    { key: 'se', icon: <SidebarIcon name="se" />, label: 'ServiceEntry' },
   ];
   const getSidebarItems = (keys: string[]) => keys.map((key) => SIDEBAR_ITEMS.find((item) => item.key === key)).filter(Boolean) as typeof SIDEBAR_ITEMS;
   const SIDEBAR_GROUPS = [
     { title: '概览', items: getSidebarItems(['overview']) },
-    { title: '资源管理', items: getSidebarItems(['clusters', 'nodes', 'engines', 'pods', 'services', 'configCenter', 'se']) },
-    { title: '模型管理', items: getSidebarItems(['modelRepo', 'startupTemplates', 'deploy', 'modelOps', 'monitoring']) },
+    { title: '资源管理', items: getSidebarItems(['clusters', 'nodes', 'engines', 'containerManagement', 'routeWorkbench', 'configCenter']) },
+    { title: '模型管理', items: getSidebarItems(['modelRepo', 'startupTemplates', 'deploy', 'modelOps', 'taskFlow', 'monitoring']) },
     { title: '模型测试', items: getSidebarItems(['playgroundChat', 'playgroundVisual', 'playgroundEmbedding', 'playgroundRerank', 'benchmark']) },
     { title: '身份权限', items: getSidebarItems(['apiKeys', 'users']) },
     { title: '系统监控', items: getSidebarItems(['alerts', 'logs']) },
@@ -9902,7 +9915,7 @@ const AtAasDesign = () => {
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'overview': return (
+	      case 'overview': return (
 			<div className="ataas-section-stack">
 	              <OverviewSummary alertList={alertList} />
 
@@ -11366,7 +11379,6 @@ const AtAasDesign = () => {
                     <div className="ataas-panel-head ataas-api-key-head">
                       <div>
                         <h2>引擎管理</h2>
-                        <span>统一管理集群引擎，实时监控运行情况</span>
                       </div>
                     </div>
                     <div className="ataas-engine-filter">
@@ -11730,381 +11742,16 @@ const AtAasDesign = () => {
                   </Modal>
                 </ConfigProvider>
               </div>
-            );
-          }
-      case 'pods': {
-        const filteredPods = podList.filter((p) => (podClusterFilter === 'all' || p.cluster === podClusterFilter) && (podNamespaceFilter === 'all' || p.namespace === podNamespaceFilter) && (!podSearch || p.name.includes(podSearch) || p.podIP.includes(podSearch) || p.node.includes(podSearch) || p.image.includes(podSearch) || p.namespace.includes(podSearch)));
-        const podColumns: ColumnsType<PodRecord> = [
-          { title: 'Name', dataIndex: 'name', key: 'name', width: 220, fixed: 'left', render: (v) => <strong style={{ fontSize: 13 }}>{v}</strong> },
-          { title: '集群', dataIndex: 'cluster', key: 'cluster', width: 130 },
-          { title: '角色', dataIndex: 'role', key: 'role', width: 80, render: (v) => {
-            const colors: Record<string, string> = { prefill: '#2B65D9', router: '#9F5BD9', decode: '#3CC27B', other: '#86909C' };
-            return <Tag color={colors[v] || '#86909C'} style={{ fontSize: 11, borderRadius: 4 }}>{v}</Tag>;
-          } },
-          { title: 'Ready', dataIndex: 'ready', key: 'ready', width: 70 },
-          { title: 'Status', dataIndex: 'status', key: 'status', width: 90, render: (v) => <Tag color={v === 'Running' ? 'green' : v === 'Pending' ? 'blue' : v === 'Failed' ? 'red' : 'default'}>{v}</Tag> },
-          { title: 'Restarts', dataIndex: 'restart', key: 'restart', width: 75, render: (v) => <span style={{ color: v > 5 ? '#E02D2D' : v > 2 ? '#FA8C16' : '#4E5969' }}>{v}</span> },
-          { title: '负载', dataIndex: 'load', key: 'load', width: 60, render: (v) => v > 0 ? <span style={{ fontSize: 13, fontWeight: 500, color: v > 80 ? '#E02D2D' : v > 60 ? '#FA8C16' : '#3CC27B' }}>{v}</span> : <span style={{ color: '#C9CDD4' }}>-</span> },
-          { title: '性能（60s）', dataIndex: 'performance', key: 'performance', width: 190, render: (v, record) => {
-            const isDecode = record.role === 'decode' && record.tpotHistory;
-            const hasTtft = (record.role === 'prefill' || record.role === 'router') && record.ttftHistory;
-            if (isDecode || hasTtft) {
-              const label = isDecode ? 'TPOT' : 'TTFT';
-              const hist = isDecode ? record.tpotHistory! : record.ttftHistory!;
-              const p50 = isDecode ? record.tpotP50! : record.ttftP50!;
-              const p99 = isDecode ? record.tpotP99! : record.ttftP99!;
-              const min = Math.min(...hist), max = Math.max(...hist), range = max - min || 1;
-              const gradId = 'sg' + record.key;
-              const ml = 38, mr = 12, mt = 8, mb = 22;
-              const cw = 230, ch = 130;
-              const pw = cw - ml - mr, ph = ch - mt - mb;
-              const pts = hist.map((val, i) => `${ml + (i / (hist.length - 1)) * pw},${mt + ph - ((val - min) / range) * ph}`).join(' ');
-              return (
-                <Tooltip
-                  title={
-                    <div style={{ background: '#fff', borderRadius: 8, padding: 0, fontSize: 12, color: '#1D2129' }}>
-                      <div style={{ padding: '10px 14px 4px', fontWeight: 600, fontSize: 13 }}>{label} · 60s p50 {p50} · p99 {p99} ms</div>
-                      <svg width={cw} height={ch} viewBox={`0 0 ${cw} ${ch}`}>
-                        <defs><linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#2B65D9" stopOpacity="0.12" /><stop offset="100%" stopColor="#2B65D9" stopOpacity="0.01" /></linearGradient></defs>
-                        <line x1={ml} y1={mt} x2={ml + pw} y2={mt} stroke="#E8E8E8" strokeWidth="1" />
-                        <line x1={ml} y1={mt + ph} x2={ml + pw} y2={mt + ph} stroke="#E8E8E8" strokeWidth="1" />
-                        <line x1={ml} y1={mt} x2={ml} y2={mt + ph} stroke="#E8E8E8" strokeWidth="1" />
-                        <line x1={ml + pw} y1={mt} x2={ml + pw} y2={mt + ph} stroke="#E8E8E8" strokeWidth="1" />
-                        <polygon points={`${ml},${mt + ph} ${pts} ${ml + pw},${mt + ph}`} fill={`url(#${gradId})`} />
-                        <polyline points={pts} fill="none" stroke="#2B65D9" strokeWidth="1.5" />
-                        <text x={ml} y={mt + ph + 16} fill="#86909C" fontSize={10}>{'-60s'}</text>
-                        <text x={ml + pw / 2} y={mt + ph + 16} fill="#86909C" fontSize={10} textAnchor="middle">{hist.length + ' samples'}</text>
-                        <text x={ml + pw} y={mt + ph + 16} fill="#86909C" fontSize={10} textAnchor="end">{'now'}</text>
-                        <text x={ml - 4} y={mt + 10} fill="#86909C" fontSize={10} textAnchor="end">{max + 'ms'}</text>
-                        <text x={ml - 4} y={mt + ph - 4} fill="#86909C" fontSize={10} textAnchor="end">{min + 'ms'}</text>
-                      </svg>
-                    </div>
-                  }
-                  styles={{ root: { padding: 0, background: '#fff', '--ant-color-bg-elevated': '#fff' } as any }}
-                >
-                  <span style={{ fontSize: 12, color: '#4E5969', cursor: 'pointer', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{label.toLowerCase()} p50 {p50}ms / p99 {p99}ms</span>
-                </Tooltip>
-              );
-            }
-            return v > 0 ? <span style={{ fontSize: 13, fontWeight: 500, color: v > 80 ? '#3CC27B' : v > 50 ? '#FA8C16' : '#E02D2D' }}>{v}</span> : <span style={{ color: '#C9CDD4' }}>-</span>;
-          } },
-          { title: '镜像', dataIndex: 'image', key: 'image', width: 200, render: (v) => <span style={{ fontSize: 12, color: '#86909C', fontFamily: 'monospace' }}>{v}</span> },
-          { title: 'IP', dataIndex: 'podIP', key: 'podIP', width: 120, render: (v) => <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{v}</span> },
-          { title: 'Node', dataIndex: 'node', key: 'node', width: 120 },
-          { title: 'Node GPU', dataIndex: 'nodeGPU', key: 'nodeGPU', width: 170, render: (_, r) => (
-            <div style={{ lineHeight: 1.4 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 3 }}>
-                <span style={{ fontSize: 11, color: '#86909C', whiteSpace: 'nowrap' }}>Util</span>
-                <div style={{ flex: 1, height: 4, background: '#F2F3F5', borderRadius: 2, overflow: 'hidden' }}>
-                  <div style={{ width: `${r.gpuUtil}%`, height: '100%', background: r.gpuUtil > 80 ? '#E02D2D' : r.gpuUtil > 60 ? '#FA8C16' : '#3CC27B', borderRadius: 2 }} />
-                </div>
-                <span style={{ fontSize: 11, color: '#4E5969', minWidth: 28, textAlign: 'right' }}>{r.gpuUtil}%</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ fontSize: 11, color: '#86909C', whiteSpace: 'nowrap' }}>VRAM</span>
-                <div style={{ flex: 1, height: 4, background: '#F2F3F5', borderRadius: 2, overflow: 'hidden' }}>
-                  <div style={{ width: `${r.gpuVram}%`, height: '100%', background: r.gpuVram > 80 ? '#E02D2D' : r.gpuVram > 60 ? '#FA8C16' : '#3CC27B', borderRadius: 2 }} />
-                </div>
-                <span style={{ fontSize: 11, color: '#4E5969', minWidth: 28, textAlign: 'right' }}>{r.gpuVram}%</span>
-              </div>
-            </div>
-          ) },
-          { title: 'Age', dataIndex: 'age', key: 'age', width: 80, render: (v) => <span style={{ color: '#86909C' }}>{v}</span> },
-          { title: '接流来源', dataIndex: 'trafficSource', key: 'trafficSource', width: 160, render: (v) => <span style={{ fontSize: 12, color: '#1D2129' }}>{v}</span> },
-          { title: '操作', key: 'action', width: 135, fixed: 'right', render: (_, record) => (
-            <Space size={0}>
-              <Tooltip title="控制台"><Button type="text" size="small" icon={<CodeOutlined />} onClick={() => { setPodConsoleTarget(record); setPodTerminalHistory(['[system] Connecting to ' + record.name + ' (' + record.podIP + ')...', '[system] Authenticating with cluster ' + record.cluster + '...', '[system] Opening shell on container main...', '', '$ Welcome to ' + record.name, '$ Type help for available commands']); }} /></Tooltip>
-              <Tooltip title="查看 YAML"><Button type="text" size="small" icon={<FileSearchOutlined />} onClick={() => { setPodActionTarget(record); setPodYamlOpen(true); }} /></Tooltip>
-              <Tooltip title="日志"><Button type="text" size="small" icon={<InboxOutlined />} onClick={() => { setPodActionTarget(record); setPodLogOpen(true); }} /></Tooltip>
-              <Tooltip title="删除"><Button type="text" size="small" icon={<DeleteOutlined />} onClick={() => { setPodDeleteStep1(record); }} /></Tooltip>
-            </Space>
-          ) },
-        ];
-        const podYaml = podActionTarget ? getPodYaml(podActionTarget) : '';
-        const podLogs = podActionTarget ? getPodLogs(podActionTarget) : '';
-        if (podConsoleTarget) {
-          const t2 = podConsoleTarget;
-          return (
-            <div className="ataas-section-stack">
-              <ConfigProvider theme={{ token: { colorPrimary: '#6738E8', colorPrimaryHover: '#5D30D8', colorPrimaryActive: '#5127C7', controlOutline: 'rgba(103, 56, 232, 0.12)' }, components: { Table: { headerBg: '#f7f8fa' } } }}>
-                <div className="ataas-panel ataas-api-key-page ataas-engine-page ataas-deploy-list">
-                  <div className="ataas-panel-head ataas-api-key-head">
-                    <div>
-                      <h2>容器管理 <span style={{ fontSize: 12, color: '#86909C', fontWeight: 400 }}>/ 控制台</span></h2>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Button type="link" size="small" icon={<ArrowLeftOutlined />} style={{ padding: 0, fontSize: 12 }} onClick={() => setPodConsoleTarget(null)}>返回 Pod 列表</Button>
-                        <span style={{ color: '#C9CDD4' }}>|</span>
-                        <span style={{ color: '#7DC67D' }}>●</span>
-                        <span>已连接 {t2.name} ({t2.podIP})</span>
-                        <span style={{ color: '#C9CDD4' }}>|</span>
-                        <span>{t2.cluster}/{t2.namespace}</span>
-                        <span style={{ color: '#C9CDD4' }}>|</span>
-                        <span>Node: {t2.node}</span>
-                      </span>
-                    </div>
-                  </div>
-                  <div style={{ background: '#0C0C0C', borderRadius: 8, overflow: 'hidden', border: '1px solid #2A2A2A', fontFamily: 'Menlo, Monaco, Consolas, monospace', fontSize: 13 }}>
-                    <div ref={podTerminalRef} style={{ height: 500, overflow: 'auto', padding: '14px 18px', lineHeight: 1.55, color: '#D0D0D0' }}>
-                      {podTerminalHistory.map((line, i) => {
-                        if (line.startsWith('[system] ')) return <div key={i} style={{ color: '#777', fontStyle: 'italic' }}>{line.slice(9)}</div>;
-                        if (line.startsWith('[error] ')) return <div key={i} style={{ color: '#F1707B' }}>{line.slice(8)}</div>;
-                        if (line.startsWith('$ ')) {
-                          const cmd = line.slice(2);
-                          return <div key={i}><span style={{ color: '#3CC27B' }}>root@{t2.name}:~$ </span><span style={{ color: '#F0F0F0' }}>{cmd}</span></div>;
-                        }
-                        return <div key={i} style={{ color: '#C0C0C0', paddingLeft: 14 }}>{line}</div>;
-                      })}
-                      {/* Inline prompt + input */}
-                      <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <span style={{ color: '#3CC27B', whiteSpace: 'pre', flexShrink: 0 }}>root@{t2.name}:~$ </span>
-                        <input
-                          ref={podTerminalInputRef}
-                          style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#F0F0F0', fontFamily: 'inherit', fontSize: 'inherit', padding: 0, caretColor: '#D0D0D0' }}
-                          autoFocus
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              const input = e.target as HTMLInputElement;
-                              const cmd = input.value.trim();
-                              input.value = '';
-                              if (!cmd) return;
-                              setPodTerminalHistory((h) => [...h, '$ ' + cmd]);
-                              if (cmd === 'exit' || cmd === 'logout') {
-                                setTimeout(() => setPodConsoleTarget(null), 300);
-                              } else if (cmd === 'clear') {
-                                setPodTerminalHistory([]);
-                              } else if (cmd.startsWith('kubectl ')) {
-                                setPodTerminalHistory((h) => [...h, 'Error from server (Forbidden): kubectl is not available in this container shell.']);
-                              } else if (cmd.startsWith('top') || cmd === 'htop') {
-                                setPodTerminalHistory((h) => [...h, 'top - ' + new Date().toLocaleTimeString(), 'Tasks: 1 total, 0 running, 1 sleeping', '%Cpu(s): ' + (30 + Math.round(Math.random() * 40)) + '.0 us, 12.0 sy, 0.0 ni, 58.0 id', 'MiB Mem : ' + (120000 + Math.round(Math.random() * 20000)) + ' total,  ' + (40000 + Math.round(Math.random() * 10000)) + ' free', 'MiB Swap: 0 total, 0 free']);
-                              } else if (cmd.startsWith('ls')) {
-                                setPodTerminalHistory((h) => [...h, 'app.py  requirements.txt  Dockerfile  config.yaml  models/  logs/  data/']);
-                              } else if (cmd.startsWith('cd ')) {
-                                setPodTerminalHistory((h) => [...h, '']);
-                              } else if (cmd === 'pwd') {
-                                setPodTerminalHistory((h) => [...h, '/app']);
-                              } else if (cmd === 'whoami') {
-                                setPodTerminalHistory((h) => [...h, 'root']);
-                              } else if (cmd.startsWith('cat ') || cmd.startsWith('head ') || cmd.startsWith('tail ')) {
-                                setPodTerminalHistory((h) => [...h, '# File content would be displayed here']);
-                              } else if (cmd === 'df -h') {
-                                setPodTerminalHistory((h) => [...h, 'Filesystem      Size  Used Avail Use% Mounted on', '/dev/sda1       500G  234G  266G  47% /', 'tmpfs            64G   12G   52G  19% /dev/shm']);
-                              } else if (cmd === 'free -h') {
-                                setPodTerminalHistory((h) => [...h, '              total        used        free', 'Mem:          125Gi       72Gi       53Gi', 'Swap:            0B         0B         0B']);
-                              } else if (cmd.startsWith('env') || cmd.startsWith('printenv')) {
-                                setPodTerminalHistory((h) => [...h, 'POD_IP=' + (t2?.podIP || ''), 'NODE_NAME=' + (t2?.node || ''), 'PATH=/usr/local/bin:/usr/bin:/bin', 'HOME=/root']);
-                              } else if (cmd === 'help') {
-                                setPodTerminalHistory((h) => [...h, 'Available commands: ls, cd, pwd, cat, top, df -h, free -h, env, whoami, clear, exit']);
-                              } else {
-                                setPodTerminalHistory((h) => [...h, 'bash: ' + cmd.split(' ')[0] + ': command not found']);
-                              }
-                            }
-                          }}
-                        />
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '5px 14px', background: '#1A1A1A', borderTop: '1px solid #2A2A2A', fontSize: 11, color: '#666' }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: '#3CC27B' }} /> Connected</span>
-                      <span style={{ color: '#555' }}>|</span>
-                      <span>SSH: root@{t2.name}</span>
-                      <span style={{ flex: 1 }} />
-                      <span>输入 <span style={{ color: '#888' }}>exit</span> 断开连接</span>
-                    </div>
-                  </div>
-                </div>
-              </ConfigProvider>
-            </div>
-          );
-        }
-        return (
-          <div className="ataas-section-stack">
-            <ConfigProvider theme={{ token: { colorPrimary: '#6738E8', colorPrimaryHover: '#5D30D8', colorPrimaryActive: '#5127C7', controlOutline: 'rgba(103, 56, 232, 0.12)' }, components: { Table: { headerBg: '#f7f8fa' } } }}>
-              <div className="ataas-panel ataas-api-key-page ataas-engine-page ataas-deploy-list">
-                <div className="ataas-panel-head ataas-api-key-head">
-                  <div>
-                    <h2>容器管理</h2>
-                    <span>查看集群中所有运行中的 Pod 实例</span>
-                  </div>
-                </div>
-                <div className="ataas-engine-filter">
-                  <div className="ataas-api-key-toolbar ataas-deploy-list-toolbar">
-                    <Select className="ataas-deploy-list-select" value={podClusterFilter} onChange={(v) => { setPodClusterFilter(v); setPodNamespaceFilter('all'); }} size="middle" style={{ width: 140, marginRight: 8 }} options={[{ value: 'all', label: '全部集群' }, ...Array.from(new Set(podList.map((p) => p.cluster))).map((c) => ({ value: c, label: c }))]} />
-                    <Select className="ataas-deploy-list-select" value={podNamespaceFilter} onChange={setPodNamespaceFilter} size="middle" style={{ width: 140, marginRight: 8 }} disabled={podClusterFilter === 'all'} options={[{ value: 'all', label: '全部命名空间' }, ...Array.from(new Set(podList.filter((p) => podClusterFilter === 'all' || p.cluster === podClusterFilter).map((p) => p.namespace))).map((c) => ({ value: c, label: c }))]} />
-                    <Input.Search className="ataas-deploy-list-search ataas-api-key-search" placeholder="搜索 Pod 名称 / IP / 节点..." value={podSearch} onChange={(e) => setPodSearch(e.target.value)} allowClear size="middle" />
-                    <div className="ataas-api-key-toolbar-spacer" />
-                    <Button className="ataas-deploy-create-button" type="primary" icon={<PlusOutlined />} onClick={() => setPodCreateOpen(true)}>创建容器</Button>
-                  </div>
-                </div>
-                <div className="ataas-deploy-table-wrap ataas-api-key-table-wrap ataas-engine-table-wrap">
-                  <Table dataSource={filteredPods} rowKey="key" columns={podColumns} scroll={{ x: 1950 }} pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (t) => `共 ${t} 个 Pod` }} />
-                </div>
-              </div>
-            </ConfigProvider>
-            <Modal title={`YAML - ${podActionTarget?.name || ''}`} open={podYamlOpen} onCancel={() => setPodYamlOpen(false)} footer={null} width={820} styles={{ body: { maxHeight: '70vh', overflow: 'auto' } }}>
-              <pre style={{ margin: 0, padding: '16px', background: '#F7F8FA', borderRadius: 6, fontSize: 12, fontFamily: 'Menlo, Monaco, Consolas, monospace', lineHeight: 1.6, whiteSpace: 'pre', overflow: 'auto' }}>{podYaml}</pre>
-            </Modal>
-            <Modal title={`日志 - ${podActionTarget?.name || ''}`} open={podLogOpen} onCancel={() => setPodLogOpen(false)} footer={null} width={900} styles={{ body: { maxHeight: '70vh', overflow: 'auto', padding: 0 } }}>
-              <pre style={{ margin: 0, padding: '16px', background: '#1E1E1E', borderRadius: 0, fontSize: 12, fontFamily: 'Menlo, Monaco, Consolas, monospace', lineHeight: 1.6, color: '#D4D4D4', whiteSpace: 'pre', overflow: 'auto' }}>{podLogs}</pre>
-            </Modal>
-            {/* Delete Step 1: First confirmation */}
-            <Modal title="确认删除 Pod" open={!!podDeleteStep1} onCancel={() => { setPodDeleteStep1(null); setPodDeleteConfirmText(''); }} footer={null} width={480}>
-              {podDeleteStep1 && (
-                <div>
-                  <div style={{ padding: '8px 0 16px', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                    <span style={{ fontSize: 20, color: '#FA8C16' }}>⚠️</span>
-                    <div>
-                      <div style={{ fontWeight: 600, marginBottom: 8, color: '#1D2129' }}>即将删除以下 Pod：</div>
-                      <div style={{ background: '#F7F8FA', borderRadius: 6, padding: '10px 14px', fontSize: 13, lineHeight: 1.8, color: '#4E5969', fontFamily: 'Menlo, monospace' }}>
-                        <div>名称：{podDeleteStep1.name}</div>
-                        <div>集群：{podDeleteStep1.cluster}</div>
-                        <div>IP：{podDeleteStep1.podIP}</div>
-                        <div>状态：{podDeleteStep1.status}</div>
-                      </div>
-                      <div style={{ marginTop: 12, color: '#86909C', fontSize: 12 }}>此操作将删除该 Pod 实例，请确认是否继续。</div>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 12, borderTop: '1px solid #E8E8E8' }}>
-                    <Button onClick={() => { setPodDeleteStep1(null); setPodDeleteConfirmText(''); }}>取消</Button>
-                    <Button type="primary" danger onClick={() => { setPodDeleteStep2(podDeleteStep1); setPodDeleteStep1(null); }}>确认删除</Button>
-                  </div>
-                </div>
-              )}
-            </Modal>
-            {/* Delete Step 2: Final confirmation with text input */}
-            <Modal title="再次确认删除" open={!!podDeleteStep2} onCancel={() => { setPodDeleteStep2(null); setPodDeleteConfirmText(''); }} footer={null} width={480}>
-              {podDeleteStep2 && (
-                <div>
-                  <div style={{ padding: '8px 0 16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, color: '#E02D2D' }}>
-                      <span style={{ fontSize: 18 }}>⛔</span>
-                      <span style={{ fontWeight: 600 }}>此操作不可恢复！</span>
-                    </div>
-                    <div style={{ marginBottom: 12, color: '#4E5969', fontSize: 13 }}>
-                      请输入 Pod 名称 <strong style={{ color: '#1D2129', fontFamily: 'Menlo, monospace' }}>{podDeleteStep2.name}</strong> 以确认删除：
-                    </div>
-                    <Input placeholder="输入 Pod 名称确认删除" value={podDeleteConfirmText} onChange={(e) => setPodDeleteConfirmText(e.target.value)} />
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, paddingTop: 12, borderTop: '1px solid #E8E8E8' }}>
-                    <Button onClick={() => { setPodDeleteStep2(null); setPodDeleteConfirmText(''); }}>取消</Button>
-                    <Button type="primary" danger disabled={podDeleteConfirmText !== podDeleteStep2.name} onClick={() => {
-                      if (podDeleteConfirmText === podDeleteStep2.name) {
-                        message.success(`Pod ${podDeleteStep2.name} 已删除`);
-                        setPodDeleteStep2(null);
-                        setPodDeleteConfirmText('');
-                      }
-                    }}>确认删除</Button>
-                  </div>
-                </div>
-              )}
-            </Modal>
-            <Drawer
-              title="创建容器"
-              open={podCreateOpen}
-              onClose={() => { setPodCreateOpen(false); setPodCreateCluster(null); setPodCreateNode(null); setPodCreateYaml(null); }}
-              width={600}
-              styles={{ body: { padding: '20px 24px' } }}
-            >
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                <div>
-                  <div style={{ fontWeight: 600, marginBottom: 8, color: '#1D2129', fontSize: 14 }}>① 选择集群</div>
-                  <Select
-                    style={{ width: '100%' }}
-                    placeholder="请选择集群"
-                    value={podCreateCluster}
-                    onChange={(v) => { setPodCreateCluster(v); setPodCreateNode(null); }}
-                    options={clusters.map((c) => ({ value: c.name, label: c.name + ' (' + c.region + ')' }))}
-                  />
-                </div>
-                <div>
-                  <div style={{ fontWeight: 600, marginBottom: 8, color: '#1D2129', fontSize: 14 }}>② 选择节点</div>
-                  <Select
-                    style={{ width: '100%' }}
-                    placeholder={podCreateCluster ? '请选择节点' : '请先选择集群'}
-                    value={podCreateNode}
-                    onChange={setPodCreateNode}
-                    disabled={!podCreateCluster}
-                    options={nodes
-                      .filter((n) => !podCreateCluster || clusters.find((c) => c.name === podCreateCluster)?.key === n.clusterKey)
-                      .map((n) => ({ value: n.name, label: `${n.name}  (${n.ip})  GPU:${n.gpu}  ${n.status === 'normal' ? '✅' : '⚠️'}` }))}
-                  />
-                </div>
-                <div>
-                  <div style={{ fontWeight: 600, marginBottom: 8, color: '#1D2129', fontSize: 14 }}>③ 选择 YAML 模板</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {podYamlTemplates.map((tpl) => (
-                      <div
-                        key={tpl.name}
-                        onClick={() => setPodCreateYaml(tpl.name)}
-                        style={{
-                          padding: '10px 14px', borderRadius: 6, cursor: 'pointer', border: '1px solid',
-                          borderColor: podCreateYaml === tpl.name ? '#6738E8' : '#E8E8E8',
-                          background: podCreateYaml === tpl.name ? '#F5F0FF' : '#FAFAFA',
-                          transition: 'all 0.15s',
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ fontFamily: 'Menlo, monospace', fontWeight: 600, fontSize: 13, color: podCreateYaml === tpl.name ? '#6738E8' : '#1D2129' }}>{tpl.name}</span>
-                          <span style={{ fontSize: 12, color: '#86909C' }}>{tpl.desc}</span>
-                        </div>
-                      </div>
-                    ))}
-                    <div
-                      onClick={() => setPodCreateYaml('custom')}
-                      style={{
-                        padding: '10px 14px', borderRadius: 6, cursor: 'pointer', border: '1px dashed',
-                        borderColor: podCreateYaml === 'custom' ? '#6738E8' : '#D9D9D9',
-                        background: podCreateYaml === 'custom' ? '#F5F0FF' : 'transparent',
-                        textAlign: 'center', color: '#86909C', fontSize: 13, transition: 'all 0.15s',
-                      }}
-                    >
-                      + 自定义 YAML（暂未开放）
-                    </div>
-                  </div>
-                </div>
-                {podCreateYaml && podCreateYaml !== 'custom' && (
-                  <div>
-                    <div style={{ fontWeight: 600, marginBottom: 8, color: '#1D2129', fontSize: 14 }}>YAML 预览</div>
-                    <pre style={{ margin: 0, padding: '12px 14px', background: '#F7F8FA', borderRadius: 6, fontSize: 12, fontFamily: 'Menlo, Monaco, Consolas, monospace', lineHeight: 1.5, maxHeight: 300, overflow: 'auto', whiteSpace: 'pre' }}>
-                      {podYamlTemplates.find((t) => t.name === podCreateYaml)?.content}
-                    </pre>
-                  </div>
-                )}
-                <div style={{ paddingTop: 8, borderTop: '1px solid #F0F0F0' }}>
-                  <Button
-                    type="primary"
-                    size="large"
-                    block
-                    disabled={!podCreateCluster || !podCreateNode || !podCreateYaml}
-                    onClick={() => {
-                      message.success(`容器创建请求已提交：集群=${podCreateCluster} 节点=${podCreateNode} 模板=${podCreateYaml}`);
-                      setPodCreateOpen(false);
-                      setPodCreateCluster(null);
-                      setPodCreateNode(null);
-                      setPodCreateYaml(null);
-                    }}
-                  >
-                    创建容器
-                  </Button>
-                </div>
-              </div>
-            </Drawer>
-          </div>
-        );
-      }
-      case 'services':
-      case 'se': return (
-        <div className="ataas-section-stack">
-          <div className="ataas-panel">
-            <div className="ataas-panel-head">
-              <h2>{activeTab === 'services' ? 'Service管理' : 'ServiceEntry'}</h2>
-            </div>
-            <div style={{ padding: '60px 0', textAlign: 'center', color: '#98A2B3', fontSize: 14 }}>
-              功能开发中
-            </div>
-          </div>
+	            );
+	          }
+      case 'containerManagement': return <ContainerManagementPage />;
+      case 'routeWorkbench': return <RouteWorkbenchPage />;
+      case 'taskFlow': return (
+        <div className="ataas-b300-task-page">
+          <TasksPage />
         </div>
       );
-      case 'configCenter': return (
+	      case 'configCenter': return (
         <div className="ataas-config-migrated">
           <ConfigsPage />
         </div>
@@ -12129,11 +11776,14 @@ const AtAasDesign = () => {
                 {expandedGroups.has(group.title || 'overview') && group.items.map((item) => (
                   <div key={item.key} className={'ataas-sidebar-item' + (activeTab === item.key ? ' active' : '')} onClick={() => {
                     setActiveTab(item.key);
-                    if (item.key === 'modelOps') setModelOpsSelectedServiceId(null);
-                    if (item.key === 'clusters') setClusterPanel('clusters');
-                    if (item.key === 'nodes') setClusterPanel('nodes');
-                    const pathMap: Record<string, string> = {
-                      benchmark: '/benchmark',
+	                    if (item.key === 'modelOps') setModelOpsSelectedServiceId(null);
+	                    if (item.key === 'clusters') setClusterPanel('clusters');
+	                    if (item.key === 'nodes') setClusterPanel('nodes');
+	                    const pathMap: Record<string, string> = {
+	                      containerManagement: '/containers',
+	                      routeWorkbench: '/route-workbench',
+	                      taskFlow: '/task-flow',
+	                      benchmark: '/benchmark',
                       playgroundChat: '/playground/chat',
                       playgroundVisual: '/playground/visual',
                       playgroundEmbedding: '/playground/embedding',

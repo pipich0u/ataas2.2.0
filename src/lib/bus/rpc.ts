@@ -1,4 +1,5 @@
 import type {
+  TaskSnapshot,
   ConfigCommitEntry,
   ConfigCommitResponse,
   ConfigGetResponse,
@@ -225,6 +226,135 @@ function saveRepo(repo: Record<string, ConfigFile>) {
 
 let repo = loadRepo();
 
+const taskStorageKey = 'ataas.mock.b300.tasks.v1';
+
+const defaultTasks = (): TaskSnapshot[] => [
+  {
+    id: 'wf-20260702-001',
+    type: 'workflow',
+    status: 'awaiting',
+    created_at: '2026-07-02T21:42:18+08:00',
+    cluster: 'beijing-prod',
+    exec_user: 'admin',
+    awaiting_step: 3,
+    awaiting_nonce: 'nonce-glm51-003',
+    meta: { name: 'GLM-5.1 新增模型服务', model: 'glm-5.1', group_index: '1', exec_user: 'admin' },
+    steps: [
+      { name: '生成 Router / Worker YAML', status: 'done', detail: '已从资源文件读取模板并注入变量' },
+      { name: '创建 RBG 与 Service', status: 'done', detail: 'router service: glm51-router-1' },
+      { name: '等待 Pods Ready', status: 'running', detail: 'prefill 3/4 · decode 1/1' },
+      { name: '确认接入 ServiceEntry', status: 'pending', preview: { description: '将 glm51-router-1 加入 glm51-service-entry endpoint 列表' } },
+      { name: 'Smoke test', status: 'pending' },
+    ],
+  },
+  {
+    id: 'wf-20260702-002',
+    type: 'workflow',
+    status: 'running',
+    created_at: '2026-07-02T20:58:44+08:00',
+    cluster: 'shanghai-online',
+    exec_user: 'ops',
+    meta: { name: 'h20-router-2 摘流降权', model: 'h20', group_index: '2', exec_user: 'ops' },
+    steps: [
+      { name: '读取当前 SE 权重', status: 'done', detail: '当前总和 100' },
+      { name: '分阶段降低权重', status: 'running', detail: '当前 40% -> 20%' },
+      { name: '等待请求排空', status: 'pending' },
+      { name: '移除 Endpoint', status: 'pending' },
+    ],
+  },
+  {
+    id: 'task-20260702-003',
+    type: 'sync-config',
+    status: 'failed',
+    created_at: '2026-07-02T19:21:02+08:00',
+    finished_at: '2026-07-02T19:23:40+08:00',
+    cluster: 'guangzhou-test',
+    exec_user: 'admin',
+    error: 'apply service entry timeout',
+    meta: { name: '同步资源文件到集群', file: 'glm/bx_config/router-glm51.yaml', exec_user: 'admin' },
+    steps: [
+      { name: '拉取最新资源文件', status: 'done' },
+      { name: '解析 YAML', status: 'done' },
+      { name: '提交到 apiserver', status: 'error', detail: 'context deadline exceeded' },
+    ],
+  },
+  {
+    id: 'wf-20260701-014',
+    type: 'workflow',
+    status: 'done',
+    created_at: '2026-07-01T23:16:31+08:00',
+    finished_at: '2026-07-01T23:31:12+08:00',
+    cluster: 'wuhan-kunpeng',
+    exec_user: 'wjh',
+    meta: { name: 'kp-router-1 扩容 Worker', model: 'kp', group_index: '1', exec_user: 'wjh' },
+    steps: [
+      { name: '选择节点', status: 'done', detail: '已选择 3 个节点' },
+      { name: '更新 RBG replicas', status: 'done' },
+      { name: '等待 Pods Ready', status: 'done' },
+      { name: '回写资源文件', status: 'done' },
+    ],
+  },
+  {
+    id: 'wf-20260701-009',
+    type: 'workflow',
+    status: 'interrupted',
+    created_at: '2026-07-01T18:04:09+08:00',
+    cluster: 'beijing-prod',
+    exec_user: 'system',
+    meta: { name: 'deepseek-r1 服务滚动迁移', model: 'deepseek-r1', group_index: '4', exec_user: 'system' },
+    steps: [
+      { name: '创建新实例', status: 'done' },
+      { name: '迁移 40% 权重', status: 'done' },
+      { name: '等待健康检查', status: 'running', detail: '控制台重启后等待恢复' },
+      { name: '继续迁移', status: 'pending' },
+    ],
+  },
+  {
+    id: 'task-20260701-006',
+    type: 'pod-offline',
+    status: 'aborted',
+    created_at: '2026-07-01T16:18:33+08:00',
+    finished_at: '2026-07-01T16:19:10+08:00',
+    cluster: 'shanghai-online',
+    exec_user: 'ops',
+    meta: { name: '业务 POD 下线', pod: 'business-api-pod-2', exec_user: 'ops' },
+    steps: [
+      { name: '校验 SVC 关联', status: 'done' },
+      { name: '排空请求', status: 'skipped', detail: '人工终止' },
+      { name: '删除 POD', status: 'pending' },
+    ],
+  },
+];
+
+function loadTasks(): TaskSnapshot[] {
+  try {
+    const raw = localStorage.getItem(taskStorageKey);
+    if (raw) return JSON.parse(raw) as TaskSnapshot[];
+  } catch {
+    // noop
+  }
+  return defaultTasks();
+}
+
+function saveTasks(tasks: TaskSnapshot[]) {
+  try {
+    localStorage.setItem(taskStorageKey, JSON.stringify(tasks));
+  } catch {
+    // noop
+  }
+}
+
+let mockTasks = loadTasks();
+
+export function getMockTaskSnapshot(taskId: string) {
+  return mockTasks.find((task) => task.id === taskId) ?? null;
+}
+
+function updateTask(taskId: string, updater: (task: TaskSnapshot) => TaskSnapshot) {
+  mockTasks = mockTasks.map((task) => task.id === taskId ? updater(task) : task);
+  saveTasks(mockTasks);
+}
+
 function buildTree(): ConfigTreeNode {
   const root: ConfigTreeNode = { name: '', path: '', is_dir: true, children: [] };
   for (const [path, file] of Object.entries(repo)) {
@@ -260,8 +390,100 @@ function unifiedDiff(parent: string, current: string) {
 ${parent === current ? ' unchanged' : current.split('\n').slice(0, 80).map((line) => `+${line}`).join('\n')}`;
 }
 
-export async function rpc(method: string, params?: any): Promise<any> {
+export async function rpc(method: string, params?: any, body?: any): Promise<any> {
   await new Promise((resolve) => window.setTimeout(resolve, 80));
+
+  if (method === 'task.list') {
+    const page = Number(params?.page || 1);
+    const pageSize = Number(params?.page_size || 10);
+    const sorted = [...mockTasks].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return {
+      tasks: sorted.slice((page - 1) * pageSize, page * pageSize),
+      total: sorted.length,
+    };
+  }
+
+  if (method === 'task.resume') {
+    const taskId = params?.id;
+    updateTask(taskId, (task) => ({
+      ...task,
+      status: 'running',
+      error: undefined,
+      finished_at: undefined,
+      steps: task.steps.map((step) => step.status === 'error' ? { ...step, status: 'running', detail: 'resumed' } : step),
+    }));
+    return { status: 'running' };
+  }
+
+  if (method === 'workflow.confirm') {
+    const request = body ?? params;
+    const taskId = request?.task_id;
+    const stepIndex = Number(request?.step ?? -1);
+    updateTask(taskId, (task) => ({
+      ...task,
+      status: 'running',
+      awaiting_step: undefined,
+      awaiting_nonce: undefined,
+      steps: task.steps.map((step, index) => index === stepIndex ? { ...step, status: 'running', detail: 'confirmed' } : step),
+    }));
+    return { status: 'running' };
+  }
+
+  if (method === 'workflow.abort') {
+    const request = body ?? params;
+    const taskId = request?.task_id;
+    updateTask(taskId, (task) => ({
+      ...task,
+      status: 'aborted',
+      finished_at: new Date().toISOString(),
+      steps: task.steps.map((step) => step.status === 'running' ? { ...step, status: 'skipped', detail: 'aborted' } : step),
+    }));
+    return { status: 'aborted' };
+  }
+
+  if (method === 'workflow.skip_step') {
+    const request = body ?? params;
+    const taskId = request?.task_id;
+    const stepIndex = Number(request?.step ?? -1);
+    updateTask(taskId, (task) => ({
+      ...task,
+      status: 'running',
+      awaiting_step: undefined,
+      awaiting_nonce: undefined,
+      steps: task.steps.map((step, index) => index === stepIndex ? { ...step, status: 'skipped', detail: 'skipped' } : step),
+    }));
+    return { status: 'running' };
+  }
+
+  if (method === 'workflow.execute') {
+    const request = body ?? params;
+    const taskId = `wf-${Date.now()}`;
+    const rawSteps = Array.isArray(request?.steps) ? request.steps : [];
+    const steps = rawSteps.length > 0
+      ? rawSteps.map((step: any, index: number) => ({
+        name: step?.name || step?.rpc || `step-${index + 1}`,
+        status: index === 0 ? 'running' : 'pending',
+        detail: step?.rpc,
+        preview: { description: step?.rpc ? `preview: ${step.rpc}` : undefined },
+      }))
+      : [{ name: 'Execute workflow', status: 'running', detail: 'mock workflow started' }];
+    const task: TaskSnapshot = {
+      id: taskId,
+      type: 'workflow',
+      status: request?.confirm_each_step ? 'awaiting' : 'running',
+      created_at: new Date().toISOString(),
+      cluster: String(params || 'beijing-prod'),
+      exec_user: 'admin',
+      awaiting_step: request?.confirm_each_step ? 0 : undefined,
+      awaiting_nonce: request?.confirm_each_step ? `nonce-${taskId}` : undefined,
+      meta: { name: request?.name || 'Workflow', exec_user: 'admin' },
+      params: request?.variables || {},
+      steps,
+    };
+    mockTasks = [task, ...mockTasks];
+    saveTasks(mockTasks);
+    return { task_id: taskId };
+  }
 
   if (method === 'config.list_tree') {
     return { root: buildTree() } satisfies ConfigListTreeResponse;

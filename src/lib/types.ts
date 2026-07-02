@@ -1,3 +1,55 @@
+export type TaskStepStatus = 'pending' | 'running' | 'done' | 'error' | 'skipped';
+export type PlanStatus = 'running' | 'awaiting' | 'done' | 'failed' | 'aborted' | 'interrupted';
+
+export interface StepPreview {
+  before_yaml?: string;
+  after_yaml?: string;
+  resource_version?: string;
+  description?: string;
+  resolved_params?: Record<string, unknown>;
+  extra?: Record<string, unknown>;
+  previewed_at?: string;
+}
+
+export interface TaskStep {
+  name: string;
+  status: TaskStepStatus;
+  detail?: string;
+  started_at?: string;
+  finished_at?: string;
+  preview?: StepPreview;
+  result?: unknown;
+  error?: string;
+  confirmed_by?: string;
+  confirmed_at?: string;
+  skipped_by?: string;
+  skipped_at?: string;
+}
+
+export interface TaskSnapshot {
+  id: string;
+  type: string;
+  status: PlanStatus;
+  steps: TaskStep[];
+  error?: string;
+  created_at: string;
+  finished_at?: string;
+  meta?: Record<string, string>;
+  params?: Record<string, unknown>;
+  awaiting_step?: number;
+  awaiting_nonce?: string;
+  exec_user?: string;
+  exec_readonly?: boolean;
+  confirm_each_step?: boolean;
+  aborted_by?: string;
+  aborted_at?: string;
+  cluster: string;
+}
+
+export interface TaskCreateResponse {
+  task_id: string;
+}
+
 export interface ConfigTreeNode {
   name: string;
   path: string;

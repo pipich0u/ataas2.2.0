@@ -1,0 +1,1216 @@
+.ataas-content:has(.ataas-route-workbench-page) {
+  padding: 0;
+  overflow: hidden;
+}
+
+.ataas-route-workbench-page {
+  display: flex;
+  height: 100vh;
+  min-height: 0;
+  flex-direction: column;
+  margin: 0;
+  overflow: hidden;
+  background: #F7F9FC;
+  color: #1D2129;
+}
+
+.ataas-route-workbench-topbar {
+  display: flex;
+  height: 58px;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  border-bottom: 1px solid #E8ECF3;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+
+  > div {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  strong {
+    color: #1D2129;
+    font-size: 16px;
+    font-weight: 500;
+  }
+
+  span {
+    color: #86909C;
+    font-size: 12px;
+    font-weight: 400;
+  }
+
+  .ant-btn {
+    height: 32px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 400;
+  }
+}
+
+.ataas-route-workbench-shell {
+  position: relative;
+  display: block;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.ataas-route-workbench-palette {
+  position: absolute;
+  top: 50%;
+  left: 18px;
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #E8ECF3;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.1);
+  transform: translateY(-50%);
+  backdrop-filter: blur(10px);
+
+  button {
+    display: flex;
+    width: 112px;
+    height: 36px;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    padding: 0 10px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: transparent;
+    color: #5F6B7D;
+    cursor: pointer;
+    transition: all 0.16s ease;
+
+    .ataas-route-workbench-palette-label {
+      display: inline;
+      color: inherit;
+      font-size: 12px;
+      font-weight: 400;
+      line-height: 18px;
+    }
+
+    .ataas-rf-node-icon {
+      flex: none;
+      width: 24px;
+      height: 24px;
+      border-radius: 7px;
+      font-size: 13px;
+    }
+
+    .ataas-rf-letter-icon {
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    &:hover {
+      border-color: #E0D8FF;
+      background: #F7F4FF;
+      color: #6738E8;
+    }
+  }
+}
+
+.ataas-route-workbench-canvas {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+  background-color: #F8FAFD;
+  background-image: radial-gradient(#DDE4EE 1px, transparent 1px);
+  background-size: 18px 18px;
+  cursor: grab;
+  user-select: none;
+
+  .react-flow__pane {
+    cursor: grab;
+  }
+
+  .react-flow__pane.dragging {
+    cursor: grabbing;
+  }
+
+  .react-flow__controls {
+    overflow: hidden;
+    border: 1px solid #E8ECF3;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+
+    button {
+      width: 34px;
+      height: 34px;
+      border-bottom-color: #EEF1F6;
+      background: rgba(255, 255, 255, 0.96);
+      color: #5F6B7D;
+
+      &:hover {
+        background: #F7F4FF;
+        color: #6738E8;
+      }
+    }
+  }
+}
+
+.ataas-route-workbench-canvas.dragging {
+  cursor: grabbing;
+}
+
+.ataas-route-workbench-stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1680px;
+  height: 720px;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.ataas-route-workbench-fit {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  z-index: 3;
+  width: fit-content;
+  padding: 6px 12px;
+  border: 1px solid #EEF1F6;
+  border-radius: 7px;
+  background: #FFFFFF;
+  color: #5F6B7D;
+  font-size: 12px;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+  transform: translateX(-50%);
+}
+
+.ataas-route-workbench-lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  min-width: 1680px;
+  min-height: 720px;
+  pointer-events: none;
+
+  path {
+    fill: none;
+    stroke: #CDD5E3;
+    stroke-width: 2;
+  }
+}
+
+.ataas-rf-node {
+  position: relative;
+  display: grid;
+  width: 260px;
+  min-height: 88px;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 13px 14px;
+  border: 1px solid #E8ECF3;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.07);
+  color: #1D2129;
+  font-family: PingFangSC, "PingFang SC", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+
+  &:hover {
+    border-color: #DAD4FF;
+    box-shadow: 0 10px 28px rgba(103, 56, 232, 0.12);
+    transform: translateY(-1px);
+  }
+
+  &.selected {
+    border-color: #377DFF;
+    box-shadow: 0 0 0 2px rgba(55, 125, 255, 0.12), 0 12px 30px rgba(15, 23, 42, 0.1);
+  }
+
+  &.warning {
+    .ataas-rf-node-status {
+      background: #F59E0B;
+    }
+  }
+
+  &.error {
+    .ataas-rf-node-status {
+      background: #D92D20;
+    }
+  }
+
+  &.idle {
+    .ataas-rf-node-status {
+      background: #A6B1C2;
+    }
+  }
+}
+
+.ataas-rf-node-icon {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: #2F6BFF;
+  color: #FFFFFF;
+  font-size: 16px;
+
+  &.domainNode {
+    background: #2F6BFF;
+    color: #FFFFFF;
+  }
+
+  &.ingressGroupNode {
+    background: #12A7C9;
+    color: #FFFFFF;
+  }
+
+  &.clusterNode {
+    background: #6842F5;
+    color: #FFFFFF;
+  }
+
+  &.serviceNode {
+    background: #18B76B;
+    color: #FFFFFF;
+  }
+
+  &.routerPodNode {
+    background: #F59E0B;
+    color: #FFFFFF;
+  }
+
+  &.pdWorkerNode {
+    background: #8B5CF6;
+    color: #FFFFFF;
+  }
+}
+
+.ataas-rf-letter-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.ataas-rf-node-body {
+  min-width: 0;
+}
+
+.ataas-rf-node-kind {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid #DED6FF;
+  background: #F4F0FF;
+  color: #6842F5;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 16px;
+  white-space: nowrap;
+
+  &.ingressGroupNode {
+    border-color: #DED6FF;
+    background: #F4F0FF;
+    color: #6842F5;
+  }
+
+  &.clusterNode {
+    border-color: #DED6FF;
+    background: #F4F0FF;
+    color: #6842F5;
+  }
+
+  &.serviceNode {
+    border-color: #DED6FF;
+    background: #F4F0FF;
+    color: #6842F5;
+  }
+
+  &.routerPodNode {
+    border-color: #DED6FF;
+    background: #F4F0FF;
+    color: #6842F5;
+  }
+
+  &.pdWorkerNode {
+    border-color: #DED6FF;
+    background: #F4F0FF;
+    color: #6842F5;
+  }
+}
+
+.ataas-rf-node-title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+
+  span {
+    min-width: 0;
+    overflow: hidden;
+    color: #1D2129;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 22px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  em {
+    flex: none;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: #F2F4F7;
+    color: #667085;
+    font-size: 10px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 16px;
+    white-space: nowrap;
+  }
+
+}
+
+.ataas-rf-node-subtitle {
+  overflow: hidden;
+  margin-top: 1px;
+  color: #5F6B7D;
+  font-size: 12px;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ataas-rf-node-metrics {
+  display: flex;
+  min-height: 18px;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 5px;
+
+  span {
+    color: #667085;
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 16px;
+
+    &.danger {
+      color: #D92D20;
+    }
+  }
+}
+
+.ataas-rf-node-status {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #12A150;
+  box-shadow: 0 0 0 3px rgba(18, 161, 80, 0.08);
+}
+
+.ataas-rf-handle {
+  width: 9px;
+  height: 9px;
+  border: 2px solid #FFFFFF;
+  background: #377DFF;
+  box-shadow: 0 0 0 1px rgba(55, 125, 255, 0.18);
+}
+
+.ataas-rf-node-add {
+  position: absolute;
+  top: 50%;
+  right: -15px;
+  z-index: 4;
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 2px solid #FFFFFF;
+  border-radius: 50%;
+  background: #2563EB;
+  color: #FFFFFF;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.22);
+  transform: translateY(-50%) scale(0.92);
+  opacity: 0;
+  transition: opacity 0.16s ease, transform 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+
+  .anticon {
+    font-size: 13px;
+  }
+
+  &:hover {
+    background: #1D4ED8;
+    box-shadow: 0 10px 22px rgba(37, 99, 235, 0.3);
+    transform: translateY(-50%) scale(1);
+  }
+}
+
+.ataas-rf-node:hover .ataas-rf-node-add,
+.ataas-rf-node.selected .ataas-rf-node-add {
+  opacity: 1;
+  transform: translateY(-50%) scale(1);
+}
+
+.ataas-rf-edge-label {
+  display: flex;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #E8ECF3;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #4E5969;
+  font-size: 11px;
+  line-height: 22px;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+}
+
+.ataas-route-workbench-rf-minimap {
+  overflow: hidden;
+  border: 1px solid #E8ECF3;
+  border-radius: 10px;
+  background: #FFFFFF;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+.ataas-route-workbench-context-menu {
+  position: fixed;
+  z-index: 30;
+  min-width: 132px;
+  overflow: hidden;
+  padding: 6px;
+  border: 1px solid #E8ECF3;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16);
+  backdrop-filter: blur(10px);
+
+  button {
+    display: flex;
+    width: 100%;
+    height: 32px;
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #1D2129;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 400;
+    text-align: left;
+
+    .anticon {
+      color: #5F6B7D;
+      font-size: 14px;
+    }
+
+    &:hover {
+      background: #F7F4FF;
+      color: #6738E8;
+
+      .anticon {
+        color: #6738E8;
+      }
+    }
+
+    &.danger {
+      color: #D92D20;
+
+      .anticon {
+        color: #D92D20;
+      }
+
+      &:hover {
+        background: #FFF1F0;
+        color: #D92D20;
+      }
+    }
+  }
+}
+
+.ataas-route-workbench-changes {
+  position: absolute;
+  right: 390px;
+  bottom: 18px;
+  left: 80px;
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border: 1px solid #E8ECF3;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.1);
+  backdrop-filter: blur(10px);
+
+  strong {
+    display: block;
+    color: #1D2129;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  span {
+    color: #86909C;
+    font-size: 12px;
+  }
+}
+
+.ataas-route-workbench-yaml-preview {
+  overflow: hidden;
+  border: 1px solid #EEF1F6;
+  border-radius: 8px;
+  background: #FAFBFD;
+  color: #1764B1;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 12px;
+  line-height: 20px;
+
+  div {
+    overflow: hidden;
+    padding: 0 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.ataas-route-workbench-history {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  button {
+    display: grid;
+    grid-template-columns: 68px minmax(0, 1fr);
+    gap: 2px 8px;
+    padding: 8px 10px;
+    border: 1px solid #EEF1F6;
+    border-radius: 8px;
+    background: #FFFFFF;
+    cursor: pointer;
+    text-align: left;
+
+    span {
+      color: #1D2129;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 12px;
+      font-weight: 400;
+    }
+
+    em {
+      overflow: hidden;
+      color: #86909C;
+      font-size: 12px;
+      font-style: normal;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    strong {
+      grid-column: 1 / -1;
+      overflow: hidden;
+      color: #4E5969;
+      font-size: 12px;
+      font-weight: 400;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    &:hover {
+      border-color: #DAD4FF;
+      background: #FBFAFF;
+    }
+  }
+}
+
+.ataas-route-workbench-relation {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  button {
+    display: grid;
+    grid-template-columns: 42px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border: 1px solid #EEF1F6;
+    border-radius: 8px;
+    background: #FFFFFF;
+    cursor: pointer;
+    text-align: left;
+
+    > span {
+      display: inline-flex;
+      height: 22px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      background: #F7F4FF;
+      color: #6738E8;
+      font-size: 12px;
+      font-weight: 400;
+    }
+
+    strong {
+      display: block;
+      overflow: hidden;
+      color: #1D2129;
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 20px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    em {
+      display: block;
+      overflow: hidden;
+      color: #86909C;
+      font-size: 12px;
+      font-style: normal;
+      line-height: 18px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    &:hover {
+      border-color: #DAD4FF;
+      background: #FBFAFF;
+    }
+  }
+}
+
+.ataas-route-workbench-yaml-full {
+  overflow: auto;
+  border: 1px solid #EEF1F6;
+  border-radius: 8px;
+  background: #FFFFFF;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 12px;
+  line-height: 22px;
+
+  div {
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr);
+
+    &:hover {
+      background: #F7F8FA;
+    }
+  }
+
+  span {
+    padding-right: 10px;
+    color: #8A94A6;
+    text-align: right;
+    user-select: none;
+  }
+
+  code {
+    overflow: visible;
+    color: #1764B1;
+    white-space: pre;
+  }
+}
+
+.ataas-route-workbench-history-full {
+  gap: 10px;
+}
+
+.ataas-route-workbench-empty {
+  display: flex;
+  min-height: 120px;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed #D8DEE8;
+  border-radius: 8px;
+  background: #FAFBFD;
+  color: #86909C;
+  font-size: 13px;
+}
+
+.ataas-route-workbench-preview {
+  max-height: 520px;
+  overflow: auto;
+  border: 1px solid #E8ECF3;
+  border-radius: 8px;
+  background: #FFFFFF;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 13px;
+  line-height: 22px;
+
+  div {
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr);
+
+    &:hover {
+      background: #F7F8FA;
+    }
+  }
+
+  span {
+    padding-right: 12px;
+    color: #7A8AA0;
+    text-align: right;
+    user-select: none;
+  }
+
+  code {
+    overflow: visible;
+    color: #1764B1;
+    white-space: pre;
+  }
+}
+
+.ataas-route-workbench-node {
+  position: absolute;
+  display: grid;
+  width: 248px;
+  min-height: 92px;
+  grid-template-columns: 32px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  align-items: center;
+  padding: 16px;
+  border: 1px solid #EEF1F6;
+  border-radius: 10px;
+  background: #FFFFFF;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  color: #1D2129;
+  cursor: pointer;
+  user-select: none;
+  text-align: left;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+
+  strong {
+    overflow: hidden;
+    color: #1D2129;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 22px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  em {
+    grid-column: 2;
+    overflow: hidden;
+    color: #5F6B7D;
+    font-size: 12px;
+    font-style: normal;
+    line-height: 20px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  > i {
+    position: absolute;
+    top: 50%;
+    right: -5px;
+    width: 10px;
+    height: 10px;
+    border: 2px solid #FFFFFF;
+    border-radius: 50%;
+    background: #CDD5E3;
+    transform: translateY(-50%);
+  }
+
+  &:hover {
+    border-color: #D8D3FF;
+    box-shadow: 0 10px 28px rgba(103, 56, 232, 0.1);
+    transform: translateY(-1px);
+  }
+
+  &.selected {
+    border-color: #377DFF;
+    box-shadow: 0 0 0 2px rgba(55, 125, 255, 0.1), 0 10px 28px rgba(15, 23, 42, 0.08);
+  }
+
+  &.warning > i {
+    background: #F59E0B;
+  }
+
+  &.normal > i {
+    background: #12A150;
+  }
+}
+
+.ataas-route-workbench-node-icon {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  grid-row: 1 / span 2;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: #F1F5FF;
+  color: #377DFF;
+
+  &.dc {
+    background: #F2F6FF;
+    color: #377DFF;
+  }
+
+  &.k8s {
+    background: #EFF8FF;
+    color: #0B7FAB;
+  }
+
+  &.se {
+    background: #F7F4FF;
+    color: #6738E8;
+  }
+
+  &.svc {
+    background: #F0FDF6;
+    color: #12A150;
+  }
+
+  &.pod {
+    background: #FFF7ED;
+    color: #D97706;
+  }
+}
+
+.ataas-route-workbench-minimap {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  z-index: 3;
+  width: 116px;
+  padding: 8px;
+  border: 1px solid #E8ECF3;
+  border-radius: 10px;
+  background: #FFFFFF;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+
+  div {
+    height: 62px;
+    border-radius: 4px;
+    background:
+      linear-gradient(90deg, #D9DEE8 22px, transparent 22px) 12px 16px / 38px 8px no-repeat,
+      linear-gradient(90deg, #D9DEE8 14px, transparent 14px) 54px 30px / 36px 8px no-repeat,
+      #F5F7FA;
+  }
+
+  span {
+    display: block;
+    margin-top: 6px;
+    color: #5F6B7D;
+    font-size: 12px;
+    text-align: center;
+  }
+}
+
+.ataas-route-workbench-panel {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  bottom: 18px;
+  z-index: 9;
+  display: flex;
+  width: 360px;
+  min-width: 0;
+  flex-direction: column;
+  border: 1px solid #E8ECF3;
+  border-radius: 18px 0 0 18px;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.14);
+  backdrop-filter: blur(12px);
+}
+
+.ataas-route-workbench-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 18px 14px;
+  border-bottom: 1px solid #EEF1F6;
+
+  > div {
+    min-width: 0;
+    flex: 1;
+  }
+
+  strong {
+    display: block;
+    overflow: hidden;
+    color: #1D2129;
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 24px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  span {
+    color: #86909C;
+    font-size: 12px;
+  }
+}
+
+.ataas-route-workbench-panel-tabs {
+  display: flex;
+  gap: 22px;
+  padding: 14px 18px 0;
+
+  button {
+    position: relative;
+    padding: 0 0 12px;
+    border: 0;
+    background: transparent;
+    color: #5F6B7D;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+
+    &.active {
+      color: #1D2129;
+    }
+
+    &.active::after {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      height: 2px;
+      border-radius: 2px;
+      background: #377DFF;
+      content: '';
+    }
+  }
+}
+
+.ataas-route-workbench-form {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 14px;
+  overflow: auto;
+  padding: 18px;
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    > span {
+      color: #4E5969;
+      font-size: 13px;
+      font-weight: 500;
+    }
+  }
+
+  .ant-input,
+  .ant-select-selector,
+  .ant-input-number,
+  .ant-input-number-group-addon {
+    border-color: #EEF1F6 !important;
+    border-radius: 8px !important;
+    background: #F7F8FA !important;
+    color: #1D2129 !important;
+    font-size: 13px !important;
+    box-shadow: none !important;
+  }
+
+  .ant-input-number {
+    width: 76px;
+  }
+}
+
+.ataas-route-workbench-edit-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #EEF1F6;
+  border-radius: 10px;
+  background: #FFFFFF;
+}
+
+.ataas-route-workbench-edit-title {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+
+  strong {
+    color: #1D2129;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 20px;
+  }
+
+  .ant-btn {
+    height: 28px;
+    padding: 0 8px;
+    color: #5F6B7D;
+    font-size: 12px;
+  }
+}
+
+.ataas-route-workbench-endpoint-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 76px 28px;
+  gap: 8px;
+  align-items: center;
+
+  .ant-btn {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+.ataas-route-workbench-binding-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 10px;
+  align-items: center;
+  padding: 8px 0;
+  border-top: 1px solid #F2F4F7;
+
+  &:first-of-type {
+    border-top: 0;
+  }
+
+  span {
+    overflow: hidden;
+    color: #1D2129;
+    font-size: 13px;
+    line-height: 20px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  em {
+    grid-column: 1 / 2;
+    overflow: hidden;
+    color: #86909C;
+    font-size: 12px;
+    font-style: normal;
+    line-height: 18px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ant-btn {
+    grid-row: 1 / span 2;
+    grid-column: 2 / 3;
+    height: 28px;
+    padding: 0 8px;
+    font-size: 12px;
+  }
+}
+
+.ataas-route-workbench-worker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ataas-route-workbench-worker-row {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr) 24px 28px;
+  gap: 8px;
+  align-items: center;
+
+  > span {
+    color: #5F6B7D;
+    font-size: 12px;
+    text-align: center;
+  }
+
+  .ant-btn {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+.ataas-route-workbench-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid #EEF1F6;
+
+  div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  span {
+    color: #86909C;
+    font-size: 12px;
+  }
+
+  strong {
+    color: #1D2129;
+    font-size: 12px;
+    font-weight: 500;
+  }
+}
+
+.ataas-route-workbench-next {
+  padding: 16px 18px 20px;
+  border-top: 1px solid #EEF1F6;
+
+  > span {
+    display: block;
+    margin-bottom: 10px;
+    color: #4E5969;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  button {
+    display: flex;
+    width: 100%;
+    height: 42px;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px dashed #D8DEE8;
+    border-radius: 8px;
+    background: #FAFBFD;
+    color: #5F6B7D;
+    cursor: pointer;
+    font-size: 13px;
+
+    &:hover {
+      border-color: #D8D3FF;
+      background: #F7F4FF;
+      color: #6738E8;
+    }
+  }
+}
+

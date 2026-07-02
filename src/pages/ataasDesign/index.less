@@ -23047,3 +23047,97 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   font-size: 12px;
   font-weight: 400;
 }
+
+
+.ataas-b300-task-page {
+  --color-bg: #F7F8FA;
+  --color-surface: #FFFFFF;
+  --color-elevated: #F5F7FB;
+  --color-border: #E8ECF3;
+  --color-border-subtle: #EEF1F6;
+  --color-muted: #86909C;
+  --color-secondary: #5F6B7D;
+  --color-text: #1D2129;
+  --color-text-heading: #1D2129;
+  --color-primary: #6D5DFB;
+  --color-primary-foreground: #FFFFFF;
+  --color-info: #377DFF;
+  --color-info-subtle: #EAF2FF;
+  --color-success: #12A150;
+  --color-warning: #D97706;
+  --color-error: #D92D20;
+  --color-input-bg: #FFFFFF;
+  --color-input-border: #DDE3EC;
+  height: calc(100vh - 0px);
+  min-height: 720px;
+  overflow: hidden;
+  background: #F7F8FA;
+  color: #1D2129;
+  font-family: PingFangSC, "PingFang SC", "Helvetica Neue", Helvetica, Arial, "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+
+  * {
+    font-family: inherit;
+    letter-spacing: 0;
+  }
+
+  .font-semibold {
+    font-weight: 500;
+  }
+
+  .font-medium {
+    font-weight: 400;
+  }
+
+  .font-mono {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+
+  .border {
+    border-color: #E8ECF3 !important;
+  }
+
+  .rounded-lg {
+    border-radius: 8px;
+  }
+
+  button[data-slot="button"],
+  [data-slot="button"] {
+    min-height: 30px;
+    border-radius: 7px;
+    font-weight: 400;
+    box-shadow: none;
+  }
+
+  button[data-slot="button"]:not(:disabled),
+  [data-slot="button"]:not(:disabled) {
+    transition: border-color 0.16s ease, background-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+  }
+
+  button[data-slot="button"]:hover,
+  [data-slot="button"]:hover {
+    box-shadow: 0 2px 8px rgba(29, 33, 41, 0.06);
+  }
+
+  [data-slot="badge"] {
+    border-radius: 4px;
+    font-weight: 400;
+  }
+
+  input,
+  select,
+  textarea {
+    border-color: #DDE3EC !important;
+    border-radius: 6px !important;
+    background: #FFFFFF !important;
+    color: #1D2129;
+    font-weight: 400;
+  }
+
+  input:focus,
+  select:focus,
+  textarea:focus {
+    border-color: #6D5DFB !important;
+    box-shadow: 0 0 0 2px rgba(109, 93, 251, 0.12) !important;
+    outline: none;
+  }
+}
