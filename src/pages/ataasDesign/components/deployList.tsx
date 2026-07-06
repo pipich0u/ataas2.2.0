@@ -2,7 +2,7 @@ import { Button, ConfigProvider, Dropdown, Image, Input, InputNumber, message, M
 import type { ThemeConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { AppstoreOutlined, BarChartOutlined, BarsOutlined, DisconnectOutlined, FileSearchOutlined, FileTextOutlined, InfoCircleOutlined, LinkOutlined, PlayCircleOutlined, PlusOutlined, PoweroffOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import deepseekLogo from '../deepseek-logo.svg';
 import glmLogo from '../glm-logo.svg';
@@ -10,6 +10,7 @@ import kimiLogo from '../kimi-logo.svg';
 import minimaxLogo from '../minimax-logo.svg';
 import minicpmLogo from '../minicpm-logo.svg';
 import qwenLogo from '../qwen-logo.svg';
+import { MODEL_OPS_RESOURCE_SPECS, getModelOpsRoleSummary as getModelOpsSpecRoleSummary, type ModelOpsResourceSpec } from './modelOpsResourceSpec';
 
 export type DeployStatus = 'running' | 'loading' | 'error' | 'ready' | 'updating' | 'updatable' | 'warning';
 export type DeployCategory = 'llm' | 'embedding' | 'rerank' | 'vlm';
@@ -154,9 +155,9 @@ export const getDeployModelLogo = (item: DeployServiceItem) => {
   return item.logo;
 };
 
-const createModelOpsMockService = (id: number, name: string, works: string, number: number): DeployServiceItem => ({
+const createModelOpsMockService = (id: number, spec: ModelOpsResourceSpec): DeployServiceItem => ({
   id,
-  name,
+  name: spec.name,
   description: '模型运维 mock 数据，用于检查多集群、多 PD 组、权重列和弹窗交互',
   logo: glmLogo,
   status: 'running',
@@ -166,12 +167,15 @@ const createModelOpsMockService = (id: number, name: string, works: string, numb
   updateTime: '2026-06-29 12:00',
   deployMode: 'PD 分离',
   serviceGroupKey: 'glm51',
-  serviceGroupName: name.split('-').slice(0, 2).join('-'),
+  serviceGroupName: spec.name.split('-').slice(0, 2).join('-'),
+  modelOpsInstanceKey: spec.name,
+  modelOpsCluster: spec.cluster,
+  modelOpsRoleSummary: getModelOpsSpecRoleSummary(spec),
   modelInfo: {
     name: 'glm-5.1',
     supplier: '智谱AI',
-    number,
-    works,
+    number: spec.instanceCount,
+    works: spec.workerNames.join(', '),
     size: '72B',
     tokens: `${(2.4 + id / 100).toFixed(2)}B`,
     point: 'BF16',
@@ -189,26 +193,13 @@ const createModelOpsMockService = (id: number, name: string, works: string, numb
     restartPage: [],
     concurrencyControllStatus: true,
     concurrencyControllCount: 300 + id,
-    logs: [{ id: id * 10 + 1, name: `${name} router 日志` }, { id: id * 10 + 2, name: `${name} worker 日志` }],
+    logs: [{ id: id * 10 + 1, name: `${spec.name} router 日志` }, { id: id * 10 + 2, name: `${spec.name} worker 日志` }],
     updateTime: '2026-06-29',
   },
 });
 
 export const MOCK_DEPLOY_DATA: DeployServiceItem[] = [
-  ...[
-    ['st-router-1', Array.from({ length: 10 }, (_, index) => `st-router-1-inst-${index + 1}`).join(', '), 10],
-    ['st-router-2', 'gz-l20-worker-003, gz-l20-worker-004', 2],
-    ['st-router-3', 'gz-l20-worker-005, gz-l20-worker-006', 2],
-    ['st-router-4', 'gz-l20-worker-007, gz-l20-worker-008', 2],
-    ['h20-router-1', 'nj-h20-worker-001, nj-h20-worker-002', 2],
-    ['h20-router-2', 'nj-h20-worker-003, nj-h20-worker-004', 2],
-    ['h20-router-3', 'nj-h20-worker-005, nj-h20-worker-006', 2],
-    ['kp-router-1', '910b-kunpeng-worker-001, 910b-kunpeng-worker-002', 2],
-    ['kp-router-2', '910b-kunpeng-worker-003, 910b-kunpeng-worker-004', 2],
-    ['bj-router-1', 'beijing-prod-worker-001, beijing-prod-worker-002', 2],
-    ['bj-router-2', 'beijing-prod-worker-003, beijing-prod-worker-004', 2],
-    ['bj-router-3', 'beijing-prod-worker-005, beijing-prod-worker-006', 2],
-  ].map(([name, works, number], index) => createModelOpsMockService(100 + index, String(name), String(works), Number(number))),
+  ...MODEL_OPS_RESOURCE_SPECS.map((spec, index) => createModelOpsMockService(100 + index, spec)),
   { id: 1, name: 'deepseek-r1-prod', description: '生产环境 DeepSeek-R1 模型服务，671B 参数规模', logo: 'https://api.dicebear.com/7.x/identicon/svg?seed=deepseek', status: 'running', category: 'llm', typeStr: 'DeepSeek-R1-671B', timeStr: '运行 12天', updateTime: '2026-05-28 10:30', deployMode: 'PD 分离', modelInfo: { name: 'DeepSeek-R1-671B', supplier: '深度求索', number: 2, works: 'qujing4, qujing7', size: '671B', tokens: '4.82B', point: 'BF16', memory: '128 GB', disk: '256 GB', vram: '320 GB', contextLength: '128K', attentionHeads: '96', layers: '64', engine: 'vLLM', engineVersion: '0.6.2', restartStatus: true, restartNumber: 0, restartCount: 3, restartPage: [], concurrencyControllStatus: true, concurrencyControllCount: 100, logs: [{ id: 1, name: '实例-1 运行日志' }, { id: 2, name: '实例-2 运行日志' }], updateTime: '2026-05-28' } },
   { id: 2, name: 'glm-4-air-prod', description: '生产环境 GLM-4-Air 模型服务，9B 参数规模', logo: glmLogo, status: 'running', category: 'llm', typeStr: 'GLM-4-Air', timeStr: '运行 15天', updateTime: '2026-05-27 08:00', deployMode: '单机部署', modelInfo: { name: 'GLM-4-Air', supplier: '智谱AI', number: 1, works: 'qujing4', size: '9B', tokens: '1.26B', point: 'BF16', memory: '48 GB', disk: '96 GB', vram: '48 GB', contextLength: '128K', attentionHeads: '64', layers: '40', engine: 'vLLM', engineVersion: '0.6.1', restartStatus: true, restartNumber: 0, restartCount: 3, restartPage: [], concurrencyControllStatus: true, concurrencyControllCount: 200, logs: [{ id: 6, name: '运行日志' }], updateTime: '2026-05-27' } },
   { id: 3, name: 'glm-4-air-dist-prod', description: '生产环境 GLM-4-Air 分布式模型服务，9B 参数规模', logo: glmLogo, status: 'running', category: 'llm', typeStr: 'GLM-4-Air', timeStr: '运行 8天', updateTime: '2026-05-29 09:20', deployMode: '分布式部署', modelInfo: { name: 'GLM-4-Air', supplier: '智谱AI', number: 2, works: 'gz-l20-worker-003, gz-l20-worker-005', size: '9B', tokens: '1.92B', point: 'BF16', memory: '96 GB', disk: '180 GB', vram: '96 GB', contextLength: '128K', attentionHeads: '64', layers: '40', engine: 'SGLang', engineVersion: '0.5.8', restartStatus: true, restartNumber: 0, restartCount: 3, restartPage: [], concurrencyControllStatus: true, concurrencyControllCount: 320, logs: [{ id: 7, name: '实例-1 运行日志' }, { id: 8, name: '实例-2 运行日志' }], updateTime: '2026-05-29' } },
@@ -228,6 +219,7 @@ interface DeployListProps {
   onScalePd?: (item: DeployServiceItem) => void;
   onNodeFilter?: (item: DeployServiceItem) => void;
   onScheduleDetail?: (item: DeployServiceItem) => void;
+  onModelOpsYamlPreview?: (item: DeployServiceItem, kind: 'router' | 'worker', path: string) => void;
   viewModeValue?: ViewMode;
   onViewModeChange?: (mode: ViewMode) => void;
   clusterFilterValue?: string;
@@ -236,7 +228,7 @@ interface DeployListProps {
   mode?: 'deploy' | 'modelOps';
 }
 
-export default function DeployList({ data, onDetail, onStop, onMonitor, onExperience, onLog, onDeleteInstance, onAddInstance, onAllocateWeight, onOpenCreate, onScalePd, onNodeFilter, onScheduleDetail, viewModeValue, onViewModeChange, clusterFilterValue, onClusterFilterChange, getModelOpsRowWeight, mode = 'deploy' }: DeployListProps) {
+export default function DeployList({ data, onDetail, onStop, onMonitor, onExperience, onLog, onDeleteInstance, onAddInstance, onAllocateWeight, onOpenCreate, onScalePd, onNodeFilter, onScheduleDetail, onModelOpsYamlPreview, viewModeValue, onViewModeChange, clusterFilterValue, onClusterFilterChange, getModelOpsRowWeight, mode = 'deploy' }: DeployListProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('card');
   const [statusFilter, setStatusFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -247,6 +239,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
   const [nowTick, setNowTick] = useState(() => Date.now());
   const [modelInfoPopup, setModelInfoPopup] = useState<{ item: DeployServiceItem; left: number; top: number } | null>(null);
   const [expandedServiceIds, setExpandedServiceIds] = useState<number[]>([]);
+  const [expandedMooncakeKeys, setExpandedMooncakeKeys] = useState<string[]>([]);
   const [inlineGatewayConfigs, setInlineGatewayConfigs] = useState<Record<number, InlineGatewayConfig>>({});
   const [routerLinkModal, setRouterLinkModal] = useState<{ item: DeployServiceItem; row: any; selected: string[] } | null>(null);
   const [drainWeightModal, setDrainWeightModal] = useState<{
@@ -597,6 +590,144 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
         </span>
       );
     };
+    const mooncakeKey = `${item.id}-mooncake`;
+    const mooncakeExpanded = expandedMooncakeKeys.includes(mooncakeKey);
+    const toggleMooncakeExpanded = () => {
+      setExpandedMooncakeKeys((prev) => (
+        prev.includes(mooncakeKey)
+          ? prev.filter((key) => key !== mooncakeKey)
+          : [...prev, mooncakeKey]
+      ));
+    };
+    const mooncakePrefix = `${item.modelInfo.name || item.name}`.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'glm51';
+    const mooncakeRows = [
+      ...Array.from({ length: 5 }, (_, index) => ({
+        key: `${mooncakeKey}-store-${index}`,
+        role: 'S',
+        podName: `${mooncakePrefix}-mooncake-2-store-1600gb-${index}`,
+        ready: '2/2',
+        statusText: 'Running',
+        restarts: 1,
+        performance: null,
+        image: 'sglang-main-4153af44c',
+        ip: ['10.12.11.48', '10.12.11.45', '10.12.11.46', '10.12.11.44', '10.12.11.47'][index],
+        nodeName: ['st2-048', 'st2-045', 'st2-046', 'st2-044', 'st2-047'][index],
+        gpuText: '',
+        age: '3d',
+        trafficSources: [`${getDeployClusterName(item)}.${item.name}-router-0`],
+        util: [93, 90, 72, 39, 73][index],
+        vram: [99, 96, 97, 96, 96][index],
+        logId: 10 + index,
+      })),
+      ...Array.from({ length: 3 }, (_, index) => ({
+        key: `${mooncakeKey}-etcd-${index}`,
+        role: 'E',
+        podName: `${mooncakePrefix}-mooncake-2-etcd-${index}`,
+        ready: '1/1',
+        statusText: 'Running',
+        restarts: 0,
+        performance: null,
+        image: 'mirrored-coreos-etcd:v3.5.10',
+        ip: ['10.42.2.12', '10.42.1.150', '10.42.0.186'][index],
+        nodeName: ['st2-007', 'st2-008', 'st2-009'][index],
+        gpuText: '无 GPU 数据',
+        age: '3d',
+        trafficSources: ['未注册'],
+        util: null,
+        vram: null,
+        logId: 4 + index,
+      })),
+      ...Array.from({ length: 3 }, (_, index) => ({
+        key: `${mooncakeKey}-master-${index}`,
+        role: 'M',
+        podName: `${mooncakePrefix}-mooncake-2-master-${index}`,
+        ready: '1/1',
+        statusText: 'Running',
+        restarts: 0,
+        performance: null,
+        image: 'sglang-main-4153af44c',
+        ip: ['10.42.2.13', '10.42.0.185', '10.42.1.149'][index],
+        nodeName: ['st2-007', 'st2-009', 'st2-008'][index],
+        gpuText: '无 GPU 数据',
+        age: '3d',
+        trafficSources: ['未注册'],
+        util: null,
+        vram: null,
+        logId: 7 + index,
+      })),
+    ];
+    const renderMooncakeSummaryRow = () => (
+      <tr key={`${mooncakeKey}-summary`} className="ataas-model-ops-mooncake-summary-row">
+        <td colSpan={12}>
+          <button type="button" className="ataas-model-ops-mooncake-summary" onClick={toggleMooncakeExpanded}>
+            <strong>mooncake</strong>
+            <em>·</em>
+            <span><i className="etcd" />etcd <b>3/3</b></span>
+            <em>·</em>
+            <span><i className="master" />master <b>3/3</b></span>
+            <em>·</em>
+            <span><i className="store" />store <b>5/5</b></span>
+            <small>{mooncakeExpanded ? '收起明细' : '展开明细'}</small>
+          </button>
+        </td>
+      </tr>
+    );
+    const renderMooncakeDetailRow = (row: any) => (
+      <tr key={row.key} className="ataas-model-ops-mooncake-detail-row">
+        <td>
+          <div className="ataas-model-ops-role-name">
+            <span className={'ataas-model-ops-role-badge role-mooncake-' + row.role.toLowerCase()}>{row.role}</span>
+            <Tooltip title={row.podName}>
+              <span className="ataas-deploy-inline-pod-name">{row.podName}</span>
+            </Tooltip>
+          </div>
+        </td>
+        <td><span className="ataas-model-ops-ready-text">{row.ready}</span> <span className="ataas-deploy-inline-status-running">{row.statusText}</span></td>
+        <td className={row.restarts > 0 ? 'ataas-model-ops-restart-warning' : ''}>{row.restarts}</td>
+        <td>-</td>
+        <td>{renderRolePerformance(row.performance)}</td>
+        <td><Tooltip title={row.image}><span className="ataas-deploy-inline-pod-name">{row.image}</span></Tooltip></td>
+        <td>{row.ip}</td>
+        <td>{row.nodeName}</td>
+        <td>
+          {row.gpuText ? (
+            <span className="ataas-model-ops-gpu-empty">{row.gpuText}</span>
+          ) : (
+            <div className="ataas-model-ops-gpu-metrics">
+              {[
+                { label: 'util', value: row.util, color: row.util > 80 ? '#E02D2D' : row.util > 70 ? '#D48806' : '#18A957' },
+                { label: 'vram', value: row.vram, color: row.vram > 90 ? '#E02D2D' : '#18A957' },
+              ].map((metric) => (
+                <div key={metric.label} className="ataas-model-ops-gpu-row">
+                  <span>{metric.label}</span>
+                  <i>
+                    <b style={{ width: `${metric.value}%`, background: metric.color }} />
+                  </i>
+                  <span style={{ color: metric.color }}>{metric.value}%</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </td>
+        <td>{row.age}</td>
+        <td>
+          <div className="ataas-model-ops-source-list">
+            {row.trafficSources.map((source: string) => (
+              <span key={source} className={source === '未注册' ? 'ataas-model-ops-unregistered-source' : 'ataas-model-ops-source-tag'}>
+                <Tooltip title={source}><span>{source}</span></Tooltip>
+              </span>
+            ))}
+          </div>
+        </td>
+        <td>
+          <div className="ataas-model-ops-row-actions">
+            <Tooltip title="日志">
+              <Button className="ataas-model-ops-row-action-button" type="text" shape="circle" size="small" icon={<FileSearchOutlined />} onClick={() => onLog(item, row.logId, row.podName)} />
+            </Tooltip>
+          </div>
+        </td>
+      </tr>
+    );
     const baseColumns = [
       { title: '实例', dataIndex: 'instance', key: 'instance', width: 90 },
       { title: '集群', dataIndex: 'cluster', key: 'cluster', width: 140 },
@@ -783,6 +914,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
                 </thead>
                 <tbody>
                   {opsRoleRows.map((row) => (
+                    <Fragment key={row.key}>
                     <tr key={row.key}>
                       <td>
                         <div className="ataas-model-ops-role-name">
@@ -848,6 +980,9 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
                         </div>
                       </td>
                     </tr>
+                    {row.role === 'D' && renderMooncakeSummaryRow()}
+                    {row.role === 'D' && mooncakeExpanded && mooncakeRows.map(renderMooncakeDetailRow)}
+                    </Fragment>
                   ))}
                 </tbody>
               </table>
@@ -976,12 +1111,12 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
     );
   };
 
-  const renderModelOpsYamlFile = (fileName: string) => (
+  const renderModelOpsYamlFile = (fileName: string, item: DeployServiceItem, kind: 'router' | 'worker') => (
     <Tooltip title={fileName}>
-      <span className="ataas-model-ops-yaml-file">
+      <button type="button" className="ataas-model-ops-yaml-file" onClick={() => onModelOpsYamlPreview?.(item, kind, fileName)}>
         <FileTextOutlined />
         <span>{fileName}</span>
-      </span>
+      </button>
     </Tooltip>
   );
 
@@ -1133,8 +1268,8 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
     { title: '状态', key: 'status', width: 86, render: (_, r) => <TableStatus item={r} /> },
     { title: '集群', key: 'cluster', width: 120, render: (_, r) => <span className="ataas-deploy-table-cluster">{getDeployClusterName(r)}</span> },
     { title: 'Role', key: 'role', width: 180, render: (_, r) => renderModelOpsRoleSummary(r) },
-    { title: 'Routher', key: 'routerYaml', width: 130, render: (_, r) => renderModelOpsYamlFile(`${r.modelInfo.name}/router.yaml`) },
-    { title: 'Worker', key: 'workerYaml', width: 130, render: (_, r) => renderModelOpsYamlFile(`${r.modelInfo.name}/worker.yaml`) },
+    { title: 'Routher', key: 'routerYaml', width: 130, render: (_, r) => renderModelOpsYamlFile(`${r.modelInfo.name}/router.yaml`, r, 'router') },
+    { title: 'Worker', key: 'workerYaml', width: 130, render: (_, r) => renderModelOpsYamlFile(`${r.modelInfo.name}/worker.yaml`, r, 'worker') },
     { title: 'TTFT', key: 'ttft', width: 76, render: (_, r) => renderModelOpsPerfValue(r, 'ttft') },
     { title: 'TPOT', key: 'tpot', width: 76, render: (_, r) => renderModelOpsPerfValue(r, 'tpot') },
     { title: '操作', key: 'action', width: 96, fixed: 'right' as const, className: 'ataas-deploy-fixed-action-cell', render: (_, r) => (

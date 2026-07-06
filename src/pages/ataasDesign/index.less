@@ -7067,8 +7067,12 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   max-width: 118px;
   align-items: center;
   gap: 8px;
+  border: 0;
+  background: transparent;
+  padding: 0;
   color: #4E5969;
   cursor: pointer;
+  font-family: inherit;
   font-size: 13px;
   line-height: 20px;
   vertical-align: middle;
@@ -7340,6 +7344,118 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   &.role-i {
     border-color: #D9DEE8;
     color: #4E5969;
+  }
+
+  &.role-mooncake-e,
+  &.role-mooncake-m,
+  &.role-mooncake-s {
+    border-color: #E5E6EB;
+    background: #F7F8FA;
+    color: #4E5969;
+  }
+}
+
+.ataas-model-ops-mooncake-summary-row td {
+  height: 38px;
+  padding: 4px 8px !important;
+  background: #FAFBFF;
+}
+
+.ataas-model-ops-mooncake-summary {
+  display: flex;
+  width: 100%;
+  height: 30px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: #1D2129;
+  cursor: pointer;
+  font-size: 12.5px;
+  text-align: left;
+  transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+
+  &:hover {
+    background: #F4F7FF;
+    box-shadow: none;
+  }
+
+  strong {
+    font-weight: 600;
+  }
+
+  em {
+    color: #A8ABB2;
+    font-style: normal;
+  }
+
+  span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: #4E5969;
+  }
+
+  i {
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+  }
+
+  i.etcd {
+    background: #8FA29A;
+  }
+
+  i.master {
+    background: #B6A5A1;
+  }
+
+  i.store {
+    background: #12A6C8;
+  }
+
+  b {
+    color: #18A957;
+    font-weight: 500;
+  }
+
+  small {
+    margin-left: auto;
+    color: #6B7280;
+    font-size: 12px;
+    font-weight: 400;
+  }
+}
+
+.ataas-model-ops-mooncake-detail-row td {
+  background: #FCFCFD;
+}
+
+.ataas-model-ops-ready-text {
+  margin-right: 16px;
+  color: #18A957;
+}
+
+.ataas-model-ops-restart-warning {
+  color: #D48806 !important;
+}
+
+.ataas-model-ops-gpu-empty {
+  color: #4E5969;
+}
+
+.ataas-model-ops-unregistered-source {
+  display: inline-flex;
+  max-width: 210px;
+  align-items: center;
+  color: #1D2129;
+
+  span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 

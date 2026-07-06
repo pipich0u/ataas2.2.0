@@ -35,6 +35,13 @@ import {
   useNodesState,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import {
+  buildServiceEntryYaml as buildStoreServiceEntryYaml,
+  createManualService,
+  createManualServiceEntry,
+  useK8sResourceStore,
+  type K8sResourceState,
+} from './k8sResourceStore';
 import './routeWorkbenchPage.less';
 
 type PodRecord = {
@@ -42,6 +49,7 @@ type PodRecord = {
   name: string;
   cluster: string;
   role: string;
+  serviceId?: string;
   namespace: string;
   ready: string;
   status: string;
@@ -188,6 +196,8 @@ type RouteWorkbenchNodeData = {
   title: string;
   subtitle?: string;
   meta?: string;
+  role?: string;
+  roleCount?: number;
   cluster?: string;
   namespace?: string;
   qps?: number;
@@ -233,6 +243,14 @@ const routeWorkbenchKindIcon: Record<RouteWorkbenchKind, ReactNode> = {
   pdWorkerNode: <span className="ataas-rf-letter-icon">W</span>,
 };
 
+const getRouteWorkbenchNodeIcon = (data: RouteWorkbenchNodeData) => {
+  if (data.kind !== 'pdWorkerNode') return routeWorkbenchKindIcon[data.kind];
+  const role = String(data.role || data.title || '').toLowerCase();
+  if (role.includes('prefill')) return <span className="ataas-rf-letter-icon">P</span>;
+  if (role.includes('decode')) return <span className="ataas-rf-letter-icon">D</span>;
+  return <span className="ataas-rf-letter-icon">W</span>;
+};
+
 const getRouteWorkbenchHeatColor = (value = 0) => {
   if (value <= 0) return '#CBD5E1';
   if (value < 0.25) return '#4F8EF7';
@@ -246,17 +264,17 @@ const RouteWorkbenchNode = ({ id, data, selected }: NodeProps) => {
   const health = d.health || 'healthy';
   const canTarget = d.kind !== 'domainNode';
   const canSource = d.kind !== 'pdWorkerNode';
-  const canQuickAdd = d.kind === 'clusterNode' || d.kind === 'serviceNode';
-  const quickAddTitle = d.kind === 'clusterNode' ? '新增 SVC' : '新增 POD';
+  const canQuickAdd = d.kind === 'ingressGroupNode' || d.kind === 'clusterNode';
+  const quickAddTitle = d.kind === 'ingressGroupNode' ? '新增 SE' : '新增 SVC';
   return (
     <div className={`ataas-rf-node ${d.kind} ${health} ${selected ? 'selected' : ''}`}>
       {canTarget && <Handle type="target" position={Position.Left} className="ataas-rf-handle" />}
-      <div className={`ataas-rf-node-icon ${d.kind}`}>{routeWorkbenchKindIcon[d.kind]}</div>
+      <div className={`ataas-rf-node-icon ${d.kind} role-${String(d.role || '').toLowerCase()}`}>{getRouteWorkbenchNodeIcon(d)}</div>
       <div className="ataas-rf-node-body">
         <div className="ataas-rf-node-title">
           <span>{d.title}</span>
           <strong className={`ataas-rf-node-kind ${d.kind}`}>{routeWorkbenchKindLabel[d.kind]}</strong>
-          {d.cluster && <em>{d.cluster}</em>}
+          {d.cluster && d.kind !== 'routerPodNode' && d.kind !== 'pdWorkerNode' && <em>{d.cluster}</em>}
         </div>
         {d.subtitle && <div className="ataas-rf-node-subtitle">{d.subtitle}</div>}
         <div className="ataas-rf-node-metrics">
@@ -292,8 +310,8 @@ const RouteWorkbenchEdge = (props: EdgeProps) => {
   const d = (data || {}) as RouteWorkbenchEdgeData;
   const [path, labelX, labelY] = getSmoothStepPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, borderRadius: 18 });
   const heat = d.qps ? Math.min(d.qps / 100, 1) : d.active ? Math.min(d.active / 50, 1) : d.load ? Math.min(d.load / 50, 1) : 0;
-  const stroke = d.healthy === false ? '#D92D20' : d.pending ? '#F59E0B' : getRouteWorkbenchHeatColor(heat);
-  const width = d.type === 'structure' ? 1.2 : Math.max(1.4, 1.4 + heat * 4);
+  const stroke = d.type === 'pair' ? '#E9A23B' : d.healthy === false ? '#D92D20' : d.pending ? '#F59E0B' : getRouteWorkbenchHeatColor(heat);
+  const width = d.type === 'pair' ? Math.max(2, 2 + heat * 3) : d.type === 'structure' ? 1.2 : Math.max(1.4, 1.4 + heat * 4);
   const label = d.label || (d.weight ? `w:${d.weight}` : d.qps ? `${d.qps} qps` : d.active ? String(d.active) : d.load ? String(d.load) : '');
   return (
     <>
@@ -397,13 +415,13 @@ const routeWorkbenchInitialNodes: Node[] = [
     id: 'w-prefill-1',
     type: 'pdWorkerNode',
     position: { x: 1790, y: 126 },
-    data: { kind: 'pdWorkerNode', title: 'glm51-prefill-0', subtitle: 'Prefill · 3/4 Running', cluster: 'st', namespace: 'default', load: 8, health: 'warning', meta: 'TTFT 31234', yaml: routeWorkbenchYaml('Pod', 'glm51-prefill-0'), history: routeWorkbenchHistory },
+    data: { kind: 'pdWorkerNode', title: 'glm51-prefill-0', subtitle: 'Prefill · 3/4 Running', role: 'prefill', cluster: 'st', namespace: 'default', load: 8, health: 'warning', meta: 'P 1 · TTFT 31234', yaml: routeWorkbenchYaml('Pod', 'glm51-prefill-0'), history: routeWorkbenchHistory },
   },
   {
     id: 'w-decode-1',
     type: 'pdWorkerNode',
     position: { x: 1790, y: 310 },
-    data: { kind: 'pdWorkerNode', title: 'glm51-decode-0', subtitle: 'Decode · 1/1 Running', cluster: 'st', namespace: 'default', load: 18, health: 'healthy', meta: 'TPOT 28.1', yaml: routeWorkbenchYaml('Pod', 'glm51-decode-0'), history: routeWorkbenchHistory },
+    data: { kind: 'pdWorkerNode', title: 'glm51-decode-0', subtitle: 'Decode · 1/1 Running', role: 'decode', cluster: 'st', namespace: 'default', load: 18, health: 'healthy', meta: 'D 1 · TPOT 28.1', yaml: routeWorkbenchYaml('Pod', 'glm51-decode-0'), history: routeWorkbenchHistory },
   },
 ];
 
@@ -560,10 +578,13 @@ ${route.endpoints.map((endpoint) => `    - address: ${endpoint.address}
 const getPodsForService = (route: RouteEntry, service: ServiceRecord, podRows: PodRecord[]) => {
   const selectorName = service.selector?.['rolebasedgroup.workloads.x-k8s.io/name'];
   const selectorRole = service.selector?.['rolebasedgroup.workloads.x-k8s.io/role'];
+  const selectorApp = service.selector?.app;
   const routeGroup = getRouteResourceGroup(route.name);
   const strictMatches = podRows.filter((pod) => {
     if (pod.cluster !== route.cluster) return false;
+    if (pod.serviceId === service.key) return true;
     if (selectorRole && pod.role !== selectorRole) return false;
+    if (selectorApp && (pod.name === selectorApp || pod.group === selectorApp || pod.name.startsWith(`${selectorApp}-`))) return true;
     if (selectorName && (pod.name === selectorName || pod.name.startsWith(`${selectorName}-`))) return true;
     if (pod.name === service.name || pod.name.startsWith(`${service.name}-`)) return true;
     if (service.name.startsWith(pod.name) && pod.role === 'router') return true;
@@ -581,31 +602,40 @@ const buildRouteWorkbenchFromResources = (routes: RouteEntry[], podRows: PodReco
   const nodes: Node[] = [];
   const edges: Edge[] = [];
   let routeStartY = 120;
+  const clusterIngress = new Map<string, { domainId: string; ingressId: string; y: number }>();
 
   routes.forEach((route, routeIndex) => {
     const routeGroup = getRouteResourceGroup(route.name);
     const routePods = podRows.filter((pod) => pod.cluster === route.cluster && (pod.trafficSource === route.name || pod.group === routeGroup));
     const routeHealth = getRouteResourceHealth(routePods);
-    const domainId = getRouteResourceId('domain', route.key);
-    const ingressId = getRouteResourceId('ingress', route.cluster, route.namespace, route.key);
     const seId = getRouteResourceId('se', route.key);
     const baseY = routeStartY;
-    const host = route.hosts[0] || `${route.name}.local`;
+    const clusterKey = route.cluster || 'default';
+    let ingress = clusterIngress.get(clusterKey);
+    if (!ingress) {
+      const domainId = getRouteResourceId('domain', clusterKey);
+      const ingressId = getRouteResourceId('ingress', clusterKey);
+      ingress = { domainId, ingressId, y: baseY };
+      clusterIngress.set(clusterKey, ingress);
+      nodes.push(
+        {
+          id: domainId,
+          type: 'domainNode',
+          position: { x: routeWorkbenchLayerX.domainNode, y: baseY },
+          data: { kind: 'domainNode', title: `${clusterKey}-domain`, subtitle: '入口域名 · 自动同步', qps: 80 - routeIndex * 6, errRate: routeHealth === 'healthy' ? 0.004 : 0.018, health: routeHealth, yaml: routeWorkbenchYaml('VirtualService', `${clusterKey}-domain`), history: routeWorkbenchHistory },
+        },
+        {
+          id: ingressId,
+          type: 'ingressGroupNode',
+          position: { x: routeWorkbenchLayerX.ingressGroupNode, y: baseY },
+          data: { kind: 'ingressGroupNode', title: `${clusterKey}-ingress`, subtitle: `Gateway · ${clusterKey}`, cluster: clusterKey, qps: 78 - routeIndex * 5, health: routeHealth, yaml: routeWorkbenchYaml('Gateway', `${clusterKey}-ingress`), history: routeWorkbenchHistory },
+        },
+      );
+      edges.push({ id: `e-${domainId}-${ingressId}`, source: domainId, target: ingressId, type: 'trafficEdge', markerEnd: { type: MarkerType.ArrowClosed }, data: { type: 'gateway', qps: 80 - routeIndex * 6 } });
+    }
     const isExpanded = expandedRouteKeys.has(route.key);
 
     nodes.push(
-      {
-        id: domainId,
-        type: 'domainNode',
-        position: { x: routeWorkbenchLayerX.domainNode, y: baseY },
-        data: { kind: 'domainNode', title: host, subtitle: '入口域名 · 自动同步', qps: 80 - routeIndex * 6, errRate: routeHealth === 'healthy' ? 0.004 : 0.018, health: routeHealth, yaml: routeWorkbenchYaml('VirtualService', `${route.name}-domain`), history: routeWorkbenchHistory },
-      },
-      {
-        id: ingressId,
-        type: 'ingressGroupNode',
-        position: { x: routeWorkbenchLayerX.ingressGroupNode, y: baseY },
-        data: { kind: 'ingressGroupNode', title: route.namespace, subtitle: `Gateway · ${route.cluster}`, cluster: route.cluster, qps: 78 - routeIndex * 5, health: routeHealth, yaml: routeWorkbenchYaml('Gateway', route.namespace), history: routeWorkbenchHistory },
-      },
       {
         id: seId,
         type: 'clusterNode',
@@ -629,8 +659,7 @@ const buildRouteWorkbenchFromResources = (routes: RouteEntry[], podRows: PodReco
       },
     );
     edges.push(
-      { id: `e-${domainId}-${ingressId}`, source: domainId, target: ingressId, type: 'trafficEdge', markerEnd: { type: MarkerType.ArrowClosed }, data: { type: 'gateway', qps: 80 - routeIndex * 6 } },
-      { id: `e-${ingressId}-${seId}`, source: ingressId, target: seId, type: 'trafficEdge', markerEnd: { type: MarkerType.ArrowClosed }, data: { type: 'gateway', qps: 78 - routeIndex * 5 } },
+      { id: `e-${ingress.ingressId}-${seId}`, source: ingress.ingressId, target: seId, type: 'trafficEdge', markerEnd: { type: MarkerType.ArrowClosed }, data: { type: 'gateway', qps: 78 - routeIndex * 5 } },
     );
 
     let branchY = baseY;
@@ -668,16 +697,22 @@ const buildRouteWorkbenchFromResources = (routes: RouteEntry[], podRows: PodReco
       });
 
       const servicePods = linkedPods.length ? linkedPods : [];
+      const routerPods = servicePods.filter((pod) => pod.role === 'router');
       const routeWorkers = podRows.filter((pod) =>
         pod.cluster === route.cluster &&
-        pod.group === routeGroup &&
+        (pod.serviceId === service.key || (!pod.serviceId && pod.group === routeGroup)) &&
         (pod.role === 'prefill' || pod.role === 'decode')
       );
-      const representativeWorkers = ['prefill', 'decode']
-        .map((role) => routeWorkers.find((pod) => pod.role === role))
-        .filter((pod): pod is PodRecord => Boolean(pod));
-      const rowHeight = representativeWorkers.length > 0 && servicePods.some((pod) => pod.role === 'router') ? 220 : 140;
-      servicePods.forEach((pod, podIndex) => {
+      const workerRoleCounts = routeWorkers.reduce<Record<string, number>>((acc, worker) => ({
+        ...acc,
+        [worker.role]: (acc[worker.role] || 0) + 1,
+      }), {});
+      const displayPods = routerPods.length ? routerPods : servicePods;
+      const workerRowGap = 132;
+      const rowHeight = routeWorkers.length > 0 && routerPods.length > 0
+        ? Math.max(170, routeWorkers.length * workerRowGap + 24)
+        : 140;
+      displayPods.forEach((pod, podIndex) => {
         const podKind: RouteWorkbenchKind = pod.role === 'prefill' || pod.role === 'decode' ? 'pdWorkerNode' : 'routerPodNode';
         const podId = getRouteResourceId(podKind === 'pdWorkerNode' ? 'worker' : 'pod', route.key, service.key || service.name, pod.key);
         const podY = serviceY + podIndex * rowHeight;
@@ -689,6 +724,7 @@ const buildRouteWorkbenchFromResources = (routes: RouteEntry[], podRows: PodReco
             kind: podKind,
             title: pod.name,
             subtitle: `${getRouteResourceRoleLabel(pod.role)} · ${pod.status}`,
+            role: pod.role,
             cluster: pod.cluster,
             namespace: pod.namespace,
             qps: pod.role === 'router' ? Math.max(0, Math.round(pod.load * 0.9)) : undefined,
@@ -708,9 +744,15 @@ const buildRouteWorkbenchFromResources = (routes: RouteEntry[], podRows: PodReco
           data: { type: 'service', active: pod.load, healthy: pod.status === 'Running' && pod.ready === '1/1' },
         });
         if (pod.role === 'router') {
-          representativeWorkers.forEach((worker, workerIndex) => {
-            const workerId = getRouteResourceId('worker', route.key, service.key || service.name, pod.key, worker.role);
-            const workerY = podY + workerIndex * 92;
+          const workerNodeIds: Record<'prefill' | 'decode', string[]> = { prefill: [], decode: [] };
+          const orderedWorkers = [
+            ...routeWorkers.filter((worker) => worker.role === 'prefill'),
+            ...routeWorkers.filter((worker) => worker.role === 'decode'),
+          ];
+          orderedWorkers.forEach((worker, workerIndex) => {
+            const workerId = getRouteResourceId('worker', route.key, service.key || service.name, pod.key, worker.key);
+            const workerY = podY + workerIndex * workerRowGap;
+            if (worker.role === 'prefill' || worker.role === 'decode') workerNodeIds[worker.role].push(workerId);
             nodes.push({
               id: workerId,
               type: 'pdWorkerNode',
@@ -719,10 +761,12 @@ const buildRouteWorkbenchFromResources = (routes: RouteEntry[], podRows: PodReco
                 kind: 'pdWorkerNode',
                 title: worker.name,
                 subtitle: `${getRouteResourceRoleLabel(worker.role)} Pod · ${worker.status}`,
+                role: worker.role,
+                roleCount: workerRoleCounts[worker.role] || 1,
                 cluster: worker.cluster,
                 namespace: worker.namespace,
                 load: worker.load,
-                meta: worker.role === 'prefill' ? `TTFT ${worker.ttftP99 || '-'}` : `TPOT ${worker.tpotP99 || '-'}`,
+                meta: `${worker.role === 'prefill' ? 'P' : 'D'} ${workerRoleCounts[worker.role] || 1} · ${worker.role === 'prefill' ? `TTFT ${worker.ttftP99 || '-'}` : `TPOT ${worker.tpotP99 || '-'}`}`,
                 health: getRouteResourceHealth([worker]),
                 yaml: buildPodYaml(worker),
                 history: routeWorkbenchHistory,
@@ -737,9 +781,22 @@ const buildRouteWorkbenchFromResources = (routes: RouteEntry[], podRows: PodReco
               data: { type: 'worker', load: worker.load, healthy: worker.status === 'Running' && worker.ready === '1/1', label: worker.role },
             });
           });
+          workerNodeIds.prefill.forEach((prefillId, prefillIndex) => {
+            const decodeId = workerNodeIds.decode[prefillIndex % workerNodeIds.decode.length];
+            if (!decodeId) return;
+            const pairLoad = 72 + ((routeIndex + serviceIndex + podIndex + prefillIndex) % 5) * 11;
+            edges.push({
+              id: `e-pair-${prefillId}-${decodeId}`,
+              source: prefillId,
+              target: decodeId,
+              type: 'trafficEdge',
+              markerEnd: { type: MarkerType.ArrowClosed },
+              data: { type: 'pair', load: pairLoad, label: String(pairLoad), healthy: true },
+            });
+          });
         }
       });
-      branchY += Math.max(1, servicePods.length) * rowHeight;
+      branchY += Math.max(1, displayPods.length) * rowHeight;
     });
 
     routeStartY = Math.max(routeStartY + 220, branchY + 120);
@@ -751,9 +808,70 @@ const buildRouteWorkbenchFromResources = (routes: RouteEntry[], podRows: PodReco
   };
 };
 
+const toRouteWorkbenchResources = (state: K8sResourceState) => {
+  const services: ServiceRecord[] = state.services.map((service) => ({
+    key: service.id,
+    name: service.name,
+    namespace: service.namespace,
+    clusterIP: service.clusterIP,
+    type: service.type,
+    ports: service.ports,
+    selector: service.selector,
+    labels: service.labels,
+    externalTrafficPolicy: 'Cluster',
+    sessionAffinity: 'None',
+    createdAt: service.createdAt,
+  }));
+  const serviceMap = new Map(services.map((service) => [service.key, service]));
+  const podsForRoute: PodRecord[] = state.pods.map((pod) => ({
+    key: pod.id,
+    name: pod.name,
+    cluster: pod.cluster,
+    role: pod.role,
+    serviceId: pod.serviceId,
+    namespace: pod.namespace,
+    ready: pod.ready,
+    status: pod.status === 'Draft' ? 'Pending' : pod.status,
+    restart: pod.restart,
+    load: pod.load,
+    performance: Math.max(0, 100 - pod.restart * 6),
+    image: pod.image,
+    podIP: pod.podIP,
+    node: pod.node,
+    nodeGPU: pod.nodeGPU,
+    gpuUtil: pod.gpuUtil,
+    gpuVram: pod.gpuVram,
+    age: pod.age,
+    trafficSource: pod.trafficSource || '',
+    group: pod.group,
+    tpotP50: pod.tpotP50,
+    tpotP99: pod.tpotP99,
+    ttftP50: pod.ttftP50,
+    ttftP99: pod.ttftP99,
+  }));
+  const routes: RouteEntry[] = state.serviceEntries.map((entry) => {
+    const linkedServices = entry.serviceIds
+      .map((serviceId) => serviceMap.get(serviceId))
+      .filter((service): service is ServiceRecord => Boolean(service));
+    return {
+      key: entry.id,
+      name: entry.name,
+      cluster: entry.cluster,
+      namespace: entry.namespace,
+      hosts: entry.hosts,
+      endpoints: entry.endpoints.map((endpoint) => ({ address: endpoint.address, weight: endpoint.weight })),
+      services: linkedServices,
+      yaml: entry.yaml || buildStoreServiceEntryYaml(entry),
+      createdAt: entry.createdAt,
+      updatedAt: entry.updatedAt,
+    };
+  });
+  return { routes, pods: podsForRoute };
+};
+
 const RouteWorkbenchPage = () => {
-        const routeList = useMemo(() => routeData, []);
-  const podList = useMemo(() => pods, []);
+  const resourceStore = useK8sResourceStore();
+  const { routes: routeList, pods: podList } = useMemo(() => toRouteWorkbenchResources(resourceStore.state), [resourceStore.state]);
   const [routeWorkbenchExpandedRouteKeys, setRouteWorkbenchExpandedRouteKeys] = useState<string[]>([]);
   const initialRouteWorkbenchGraph = useMemo(() => buildRouteWorkbenchFromResources(routeList, podList, new Set(routeWorkbenchExpandedRouteKeys)), [routeList, podList, routeWorkbenchExpandedRouteKeys]);
   const [routeWorkbenchSelected, setRouteWorkbenchSelected] = useState('');
@@ -769,6 +887,28 @@ const RouteWorkbenchPage = () => {
   const [routeWorkbenchChanges, setRouteWorkbenchChanges] = useState<Array<{ type: string; desc: string }>>([]);
   const [routeWorkbenchPreviewOpen, setRouteWorkbenchPreviewOpen] = useState(false);
   const [routeWorkbenchServiceFilter, setRouteWorkbenchServiceFilter] = useState('');
+  const [routeWorkbenchCreateKind, setRouteWorkbenchCreateKind] = useState<'se' | 'svc' | ''>('');
+  const [routeWorkbenchCreateDraft, setRouteWorkbenchCreateDraft] = useState({
+    name: '',
+    cluster: 'beijing-prod',
+    namespace: 'default',
+    serviceEntryId: '',
+    serviceType: 'ClusterIP',
+    portName: 'http',
+    port: 8000,
+    targetPort: 8000,
+    protocol: 'TCP',
+    selectorKey: 'app',
+    selectorValue: '',
+    podIds: [] as string[],
+    yaml: '',
+  });
+  useEffect(() => {
+    if (routeWorkbenchEditMode || routeWorkbenchChanges.length > 0) return;
+    const nextGraph = buildRouteWorkbenchFromResources(routeList, podList, new Set(routeWorkbenchExpandedRouteKeys));
+    setRouteWorkbenchNodes(nextGraph.nodes);
+    setRouteWorkbenchEdges(nextGraph.edges);
+  }, [podList, routeList, routeWorkbenchChanges.length, routeWorkbenchEditMode, routeWorkbenchExpandedRouteKeys, setRouteWorkbenchEdges, setRouteWorkbenchNodes]);
   const cloneRouteWorkbenchSnapshot = useCallback((snapshot: { nodes: Node[]; edges: Edge[] }) => ({
     nodes: snapshot.nodes.map((node) => ({ ...node, position: { ...node.position }, data: { ...node.data } })),
     edges: snapshot.edges.map((edge) => ({ ...edge, data: edge.data ? { ...edge.data } : edge.data })),
@@ -817,6 +957,83 @@ const RouteWorkbenchPage = () => {
         );
         const visibleNodes = routeWorkbenchNodes.filter((node) => !hiddenServiceIds.has(node.id));
         const visibleEdges = routeWorkbenchEdges.filter((edge) => !hiddenServiceIds.has(edge.source) && !hiddenServiceIds.has(edge.target));
+        const clusterOptions = Array.from(new Set([
+          ...resourceStore.state.serviceEntries.map((item) => item.cluster),
+          ...resourceStore.state.services.map((item) => item.cluster),
+          ...resourceStore.state.pods.map((item) => item.cluster),
+        ])).filter(Boolean);
+        const openWorkbenchCreate = (kind: 'se' | 'svc', preset?: Partial<typeof routeWorkbenchCreateDraft>) => {
+          const nextCluster = preset?.cluster || clusterOptions[0] || 'beijing-prod';
+          const nextSeId = preset?.serviceEntryId || resourceStore.state.serviceEntries.find((item) => item.cluster === nextCluster)?.id || '';
+          const nextName = preset?.name || '';
+          setRouteWorkbenchCreateKind(kind);
+          setRouteWorkbenchCreateDraft({
+            name: nextName,
+            cluster: nextCluster,
+            namespace: preset?.namespace || (kind === 'se' ? 'higress-system' : 'default'),
+            serviceEntryId: kind === 'svc' ? nextSeId : '',
+            serviceType: preset?.serviceType || 'ClusterIP',
+            portName: preset?.portName || 'http',
+            port: preset?.port || 8000,
+            targetPort: preset?.targetPort || preset?.port || 8000,
+            protocol: preset?.protocol || 'TCP',
+            selectorKey: preset?.selectorKey || 'app',
+            selectorValue: preset?.selectorValue || nextName,
+            podIds: preset?.podIds || [],
+            yaml: preset?.yaml || '',
+          });
+        };
+        const submitWorkbenchCreate = () => {
+          const name = routeWorkbenchCreateDraft.name.trim();
+          if (!routeWorkbenchCreateKind || !name) {
+            message.warning('请输入资源名称');
+            return;
+          }
+          if (routeWorkbenchCreateKind === 'se') {
+            const entry = createManualServiceEntry({
+              name,
+              cluster: routeWorkbenchCreateDraft.cluster,
+              namespace: routeWorkbenchCreateDraft.namespace || 'higress-system',
+              hosts: [`${name}.cluster.local`],
+              yaml: routeWorkbenchCreateDraft.yaml.trim() || undefined,
+            });
+            resourceStore.addServiceEntry(entry);
+            message.success(`SE ${entry.name} 已创建`);
+          } else {
+            if (!routeWorkbenchCreateDraft.serviceEntryId) {
+              message.warning('创建 SVC 需要选择 SE');
+              return;
+            }
+            const service = createManualService({
+              name,
+              cluster: routeWorkbenchCreateDraft.cluster,
+              namespace: routeWorkbenchCreateDraft.namespace || 'default',
+              type: routeWorkbenchCreateDraft.serviceType as 'ClusterIP' | 'NodePort' | 'LoadBalancer',
+              serviceEntryId: routeWorkbenchCreateDraft.serviceEntryId,
+              podIds: routeWorkbenchCreateDraft.podIds,
+              port: routeWorkbenchCreateDraft.port,
+            });
+            const nextService = {
+              ...service,
+              ports: [{
+                name: routeWorkbenchCreateDraft.portName || 'http',
+                port: Number(routeWorkbenchCreateDraft.port) || 8000,
+                targetPort: Number(routeWorkbenchCreateDraft.targetPort) || Number(routeWorkbenchCreateDraft.port) || 8000,
+                protocol: routeWorkbenchCreateDraft.protocol as 'TCP' | 'UDP',
+              }],
+              selector: routeWorkbenchCreateDraft.selectorKey.trim()
+                ? { [routeWorkbenchCreateDraft.selectorKey.trim()]: routeWorkbenchCreateDraft.selectorValue.trim() || name }
+                : {},
+              labels: { app: name },
+              podIds: routeWorkbenchCreateDraft.podIds,
+              ...(routeWorkbenchCreateDraft.yaml.trim() ? { yaml: routeWorkbenchCreateDraft.yaml.trim(), source: 'imported-yaml' as const } : {}),
+            };
+            resourceStore.addService(nextService);
+            message.success(`SVC ${service.name} 已创建`);
+          }
+          setRouteWorkbenchCreateKind('');
+          setRouteWorkbenchChanges((changes) => [...changes, { type: '新增', desc: `创建 ${routeWorkbenchCreateKind.toUpperCase()} ${name}` }]);
+        };
         const openWorkbenchRename = (nodeId: string) => {
           const node = routeWorkbenchNodes.find((item) => item.id === nodeId);
           const data = node?.data as RouteWorkbenchNodeData | undefined;
@@ -852,8 +1069,17 @@ const RouteWorkbenchPage = () => {
           setRouteWorkbenchRenameValue('');
         };
         const addWorkbenchNode = (kind: RouteWorkbenchKind) => {
+          if (kind === 'clusterNode') {
+            openWorkbenchCreate('se');
+            return;
+          }
+          if (kind === 'serviceNode') {
+            openWorkbenchCreate('svc');
+            return;
+          }
           const label = routeWorkbenchKindLabel[kind];
           const id = `${kind}-${Date.now()}`;
+          const title = `new-${label.toLowerCase()}`;
           pushRouteWorkbenchUndo();
           setRouteWorkbenchNodes((nodes) => [
             ...nodes,
@@ -863,11 +1089,11 @@ const RouteWorkbenchPage = () => {
               position: getRouteWorkbenchFreePosition(kind, nodes, getRouteWorkbenchNewNodePosition(kind, nodes).y),
               data: {
                 kind,
-                title: `new-${label.toLowerCase()}`,
+                title,
                 subtitle: '未关联资源',
                 cluster: kind === 'domainNode' ? undefined : 'st',
                 health: 'idle',
-                yaml: routeWorkbenchYaml(label, `new-${label.toLowerCase()}`),
+                yaml: routeWorkbenchYaml(label, title),
                 history: [],
               },
             },
@@ -914,184 +1140,21 @@ const RouteWorkbenchPage = () => {
           const parent = routeWorkbenchNodes.find((node) => node.id === parentId);
           const parentData = parent?.data as RouteWorkbenchNodeData | undefined;
           if (!parent || !parentData) return;
-          if (parentKind === 'clusterNode' && parentData.sourceRouteKey) {
-            const routeKey = parentData.sourceRouteKey;
-            const expandedKeys = routeWorkbenchExpandedRouteKeys.includes(routeKey)
-              ? routeWorkbenchExpandedRouteKeys
-              : [...routeWorkbenchExpandedRouteKeys, routeKey];
-            const nextGraph = buildRouteWorkbenchFromResources(routeList, podList, new Set(expandedKeys));
-            const nextParent = nextGraph.nodes.find((node) => node.id === parentId)
-              || nextGraph.nodes.find((node) => (node.data as RouteWorkbenchNodeData | undefined)?.sourceRouteKey === routeKey && (node.data as RouteWorkbenchNodeData | undefined)?.kind === 'clusterNode');
-            const nextParentData = nextParent?.data as RouteWorkbenchNodeData | undefined;
-            if (!nextParent || !nextParentData) return;
-            const childKind: RouteWorkbenchKind = 'serviceNode';
-            const childIndex = nextGraph.edges.filter((edge) => edge.source === nextParent.id && nextGraph.nodes.find((node) => node.id === edge.target)?.type === 'serviceNode').length + 1;
-            const id = `${childKind}-${Date.now()}`;
-            const childTitle = `${nextParentData.title.replace(/-service-entry$/, '')}-svc-new`;
-            const childNode: Node = {
-              id,
-              type: childKind,
-              position: { x: routeWorkbenchLayerX[childKind], y: nextParent.position.y },
-              data: {
-                kind: childKind,
-                title: childTitle,
-                subtitle: 'ClusterIP · 待配置',
-                cluster: nextParentData.cluster || 'st',
-                namespace: 'default',
-                health: 'idle',
-                yaml: routeWorkbenchYaml(routeWorkbenchKindLabel[childKind], childTitle),
-                history: [],
-                pods: 0,
-                weight: 0,
-              },
-            };
-            const edge: Edge = {
-              id: `e-${nextParent.id}-${id}`,
-              source: nextParent.id,
-              target: id,
-              type: 'trafficEdge',
-              markerEnd: { type: MarkerType.ArrowClosed },
-              data: { type: 'endpoint', pending: true, label: 'new svc' },
-            };
-            const parentLayerOrder = getRouteWorkbenchLayerOrder('clusterNode');
-            const shiftedNodes = nextGraph.nodes.map((node) => {
-              const nodeKind = getRouteWorkbenchNodeKind(node);
-              if (node.id !== nextParent.id && getRouteWorkbenchLayerOrder(nodeKind) > parentLayerOrder && node.position.y >= nextParent.position.y - 1) {
-                return { ...node, position: { ...node.position, y: node.position.y + 140 } };
-              }
-              if (node.id !== nextParent.id) return node;
-              return {
-                ...node,
-                data: {
-                  ...nextParentData,
-                  endpoints: (nextParentData.endpoints || 0) + 1,
-                  subtitle: `${nextParentData.expanded ? '已展开' : '概览'} · ${childIndex} SVC · ${nextParentData.pods || 0} POD`,
-                },
-              };
+          if (parentKind === 'ingressGroupNode') {
+            openWorkbenchCreate('se', {
+              cluster: parentData.cluster || 'beijing-prod',
+              namespace: 'higress-system',
             });
-            pushRouteWorkbenchUndo();
-            setRouteWorkbenchExpandedRouteKeys(expandedKeys);
-            setRouteWorkbenchNodes([childNode, ...shiftedNodes]);
-            setRouteWorkbenchEdges([edge, ...nextGraph.edges]);
-            setRouteWorkbenchSelected(id);
-            setRouteWorkbenchPanelTab('detail');
-            setRouteWorkbenchContextMenu(null);
-            setRouteWorkbenchChanges((changes) => [...changes, { type: '新增', desc: `${nextParentData.title} 下新增 SVC ${childTitle}` }]);
             return;
           }
-          const childKind: RouteWorkbenchKind | null = parentKind === 'clusterNode'
-            ? 'serviceNode'
-            : parentKind === 'serviceNode'
-              ? 'routerPodNode'
-              : null;
-          if (!childKind) return;
-          const label = routeWorkbenchKindLabel[childKind];
-          const childIndex = routeWorkbenchEdges.filter((edge) => edge.source === parentId).length + 1;
-          const id = `${childKind}-${Date.now()}`;
-          const childTitle = parentKind === 'clusterNode'
-            ? `${parentData.title.replace(/-service-entry$/, '')}-svc-${childIndex}`
-            : `${parentData.title}-pod-${childIndex}`;
-          const childNode: Node = {
-            id,
-            type: childKind,
-            position: { x: routeWorkbenchLayerX[childKind], y: parent.position.y },
-            data: {
-              kind: childKind,
-              title: childTitle,
-              subtitle: childKind === 'serviceNode' ? 'ClusterIP · 待配置' : 'Router Pod · 待调度',
-              cluster: parentData.cluster || 'st',
+          if (parentKind === 'clusterNode') {
+            openWorkbenchCreate('svc', {
+              cluster: parentData.cluster || 'beijing-prod',
               namespace: 'default',
-              health: 'idle',
-              yaml: routeWorkbenchYaml(label, childTitle),
-              history: [],
-              ...(childKind === 'serviceNode' ? { pods: 0, weight: 0 } : { qps: 0 }),
-            },
-          };
-          const edge: Edge = {
-            id: `e-${parentId}-${id}`,
-            source: parentId,
-            target: id,
-            type: 'trafficEdge',
-            markerEnd: { type: MarkerType.ArrowClosed },
-            data: {
-              type: parentKind === 'clusterNode' ? 'endpoint' : 'service',
-              pending: true,
-              label: parentKind === 'clusterNode' ? 'new svc' : 'new pod',
-            },
-          };
-          pushRouteWorkbenchUndo();
-          setRouteWorkbenchNodes((nodes) => {
-            const directChildren = routeWorkbenchEdges
-              .filter((item) => item.source === parentId)
-              .map((item) => nodes.find((node) => node.id === item.target))
-              .filter((node): node is Node => {
-                if (!node) return false;
-                return getRouteWorkbenchNodeKind(node) === childKind;
-              })
-              .sort((a, b) => a.position.y - b.position.y);
-            const insertY = parent.position.y + directChildren.length * 140;
-            const shiftLayerOrder = getRouteWorkbenchLayerOrder(parentKind);
-            const allEdges = [...routeWorkbenchEdges, edge];
-            const nextDirectChildren = [...directChildren.map((node) => node.id), id];
-            const directSubtreeIds = new Set<string>();
-            const collectDescendants = (nodeId: string) => {
-              if (directSubtreeIds.has(nodeId)) return;
-              directSubtreeIds.add(nodeId);
-              allEdges
-                .filter((item) => item.source === nodeId)
-                .forEach((item) => collectDescendants(item.target));
-            };
-            nextDirectChildren.forEach(collectDescendants);
-            const baseNodes = nodes.map((node) => {
-              const nodeKind = getRouteWorkbenchNodeKind(node);
-              const shouldShift = node.id !== parentId
-                && getRouteWorkbenchLayerOrder(nodeKind) >= shiftLayerOrder
-                && node.position.y >= insertY - 1
-                && !directSubtreeIds.has(node.id);
-              const shiftedNode = shouldShift
-                ? { ...node, position: { ...node.position, y: node.position.y + 140 } }
-                : node;
-              if (shiftedNode.id !== parentId) return shiftedNode;
-              const data = shiftedNode.data as RouteWorkbenchNodeData;
-              return {
-                ...shiftedNode,
-                data: {
-                  ...data,
-                  endpoints: parentKind === 'clusterNode' ? (data.endpoints || 0) + 1 : data.endpoints,
-                  pods: parentKind === 'serviceNode' ? (data.pods || 0) + 1 : data.pods,
-                },
-              };
-            })
-              .concat({ ...childNode, position: { x: routeWorkbenchLayerX[childKind], y: insertY } });
-            const baseNodeMap = new Map(baseNodes.map((node) => [node.id, node]));
-            const deltaByNode = new Map<string, number>();
-            const addBranchDelta = (nodeId: string, delta: number, visited = new Set<string>()) => {
-              if (visited.has(nodeId)) return;
-              visited.add(nodeId);
-              const currentDelta = deltaByNode.get(nodeId);
-              deltaByNode.set(nodeId, currentDelta == null ? delta : Math.max(currentDelta, delta));
-              allEdges
-                .filter((item) => item.source === nodeId)
-                .forEach((item) => addBranchDelta(item.target, delta, visited));
-            };
-            nextDirectChildren.forEach((nodeId, index) => {
-              const node = baseNodeMap.get(nodeId);
-              if (!node) return;
-              const nextY = parent.position.y + index * 140;
-              const delta = nextY - node.position.y;
-              if (delta !== 0) addBranchDelta(nodeId, delta);
+              serviceEntryId: parentData.sourceRouteKey || '',
             });
-            return baseNodes.map((node) => {
-              const delta = deltaByNode.get(node.id) || 0;
-              if (!delta) return node;
-              return { ...node, position: { ...node.position, y: node.position.y + delta } };
-            });
-          });
-          setRouteWorkbenchEdges((edges) => [...edges, edge]);
-          setRouteWorkbenchSelected(id);
-          setRouteWorkbenchPanelTab('detail');
-          setRouteWorkbenchContextMenu(null);
-          setRouteWorkbenchChanges((changes) => [...changes, { type: '新增', desc: `${parentData.title} 下新增 ${label} ${childTitle}` }]);
+            return;
+          }
         };
         const onWorkbenchConnect = (connection: Connection) => {
           if (!routeWorkbenchEditMode || !connection.source || !connection.target) {
@@ -1372,11 +1435,8 @@ const RouteWorkbenchPage = () => {
             <div className="ataas-route-workbench-shell">
               <aside className="ataas-route-workbench-palette">
                 {([
-                  ['domainNode', 'Domain'],
-                  ['ingressGroupNode', 'Ingress'],
                   ['clusterNode', 'SE'],
                   ['serviceNode', 'SVC'],
-                  ['routerPodNode', 'POD'],
                 ] as Array<[RouteWorkbenchKind, string]>).map(([type, label]) => (
                   <button key={String(type)} onClick={() => addWorkbenchNode(type)}>
                     <span className={`ataas-rf-node-icon ${type}`}>{routeWorkbenchKindIcon[type]}</span>
@@ -1461,6 +1521,149 @@ const RouteWorkbenchPage = () => {
                 {renderWorkbenchPanel()}
               </main>
             </div>
+            <Modal
+              open={!!routeWorkbenchCreateKind}
+              title={routeWorkbenchCreateKind === 'se' ? '创建 SE' : '创建 SVC'}
+              width={routeWorkbenchCreateKind === 'svc' ? 660 : 560}
+              okText="创建"
+              cancelText="取消"
+              onOk={submitWorkbenchCreate}
+              onCancel={() => setRouteWorkbenchCreateKind('')}
+            >
+              <div className="ataas-route-workbench-create-form">
+                <label>
+                  <span>{routeWorkbenchCreateKind === 'se' ? 'SE 名称' : 'SVC 名称'}</span>
+                  <Input
+                    value={routeWorkbenchCreateDraft.name}
+                    onChange={(event) => setRouteWorkbenchCreateDraft((prev) => ({
+                      ...prev,
+                      name: event.target.value,
+                      selectorValue: prev.selectorValue || event.target.value,
+                    }))}
+                    placeholder={routeWorkbenchCreateKind === 'se' ? '例如 glm-5.1' : '例如 glm51-router-01'}
+                  />
+                </label>
+                <label>
+                  <span>集群</span>
+                  <Select
+                    value={routeWorkbenchCreateDraft.cluster}
+                    options={clusterOptions.map((item) => ({ value: item, label: item }))}
+                    onChange={(value) => {
+                      const serviceEntryId = resourceStore.state.serviceEntries.find((item) => item.cluster === value)?.id || '';
+                      setRouteWorkbenchCreateDraft((prev) => ({ ...prev, cluster: value, serviceEntryId: routeWorkbenchCreateKind === 'svc' ? serviceEntryId : '', podIds: [] }));
+                    }}
+                  />
+                </label>
+                <label>
+                  <span>命名空间</span>
+                  <Input
+                    value={routeWorkbenchCreateDraft.namespace}
+                    onChange={(event) => setRouteWorkbenchCreateDraft((prev) => ({ ...prev, namespace: event.target.value }))}
+                  />
+                </label>
+                {routeWorkbenchCreateKind === 'svc' && (
+                  <label>
+                    <span>绑定 SE</span>
+                    <Select
+                      value={routeWorkbenchCreateDraft.serviceEntryId || undefined}
+                      placeholder="请选择当前集群下的 SE"
+                      options={resourceStore.state.serviceEntries
+                        .filter((item) => item.cluster === routeWorkbenchCreateDraft.cluster)
+                        .map((item) => ({ value: item.id, label: `${item.name} / ${item.namespace}` }))}
+                      onChange={(value) => setRouteWorkbenchCreateDraft((prev) => ({ ...prev, serviceEntryId: value }))}
+                    />
+                  </label>
+                )}
+                {routeWorkbenchCreateKind === 'svc' && (
+                  <>
+                    <label>
+                      <span>Service 类型</span>
+                      <Select
+                        value={routeWorkbenchCreateDraft.serviceType}
+                        options={['ClusterIP', 'NodePort', 'LoadBalancer'].map((value) => ({ value, label: value }))}
+                        onChange={(value) => setRouteWorkbenchCreateDraft((prev) => ({ ...prev, serviceType: value }))}
+                      />
+                    </label>
+                    <label>
+                      <span>端口名称</span>
+                      <Input
+                        value={routeWorkbenchCreateDraft.portName}
+                        onChange={(event) => setRouteWorkbenchCreateDraft((prev) => ({ ...prev, portName: event.target.value }))}
+                        placeholder="http"
+                      />
+                    </label>
+                    <div className="ataas-route-workbench-create-grid">
+                      <label>
+                        <span>Service Port</span>
+                        <InputNumber
+                          min={1}
+                          max={65535}
+                          value={routeWorkbenchCreateDraft.port}
+                          onChange={(value) => setRouteWorkbenchCreateDraft((prev) => ({ ...prev, port: Number(value) || 8000 }))}
+                        />
+                      </label>
+                      <label>
+                        <span>Target Port</span>
+                        <InputNumber
+                          min={1}
+                          max={65535}
+                          value={routeWorkbenchCreateDraft.targetPort}
+                          onChange={(value) => setRouteWorkbenchCreateDraft((prev) => ({ ...prev, targetPort: Number(value) || prev.port }))}
+                        />
+                      </label>
+                    </div>
+                    <label>
+                      <span>协议</span>
+                      <Select
+                        value={routeWorkbenchCreateDraft.protocol}
+                        options={['TCP', 'UDP'].map((value) => ({ value, label: value }))}
+                        onChange={(value) => setRouteWorkbenchCreateDraft((prev) => ({ ...prev, protocol: value }))}
+                      />
+                    </label>
+                    <div className="ataas-route-workbench-create-grid">
+                      <label>
+                        <span>Selector Key</span>
+                        <Input
+                          value={routeWorkbenchCreateDraft.selectorKey}
+                          onChange={(event) => setRouteWorkbenchCreateDraft((prev) => ({ ...prev, selectorKey: event.target.value }))}
+                          placeholder="app"
+                        />
+                      </label>
+                      <label>
+                        <span>Selector Value</span>
+                        <Input
+                          value={routeWorkbenchCreateDraft.selectorValue}
+                          onChange={(event) => setRouteWorkbenchCreateDraft((prev) => ({ ...prev, selectorValue: event.target.value }))}
+                          placeholder={routeWorkbenchCreateDraft.name || 'svc-name'}
+                        />
+                      </label>
+                    </div>
+                    <label>
+                      <span>关联 POD</span>
+                      <Select
+                        mode="multiple"
+                        allowClear
+                        value={routeWorkbenchCreateDraft.podIds}
+                        placeholder="可为空，模型部署同步后再关联"
+                        options={resourceStore.state.pods
+                          .filter((pod) => pod.cluster === routeWorkbenchCreateDraft.cluster)
+                          .map((pod) => ({ value: pod.id, label: `${pod.name} / ${pod.role} / ${pod.status}` }))}
+                        onChange={(value) => setRouteWorkbenchCreateDraft((prev) => ({ ...prev, podIds: value }))}
+                      />
+                    </label>
+                  </>
+                )}
+                <label>
+                  <span>YAML</span>
+                  <Input.TextArea
+                    rows={6}
+                    value={routeWorkbenchCreateDraft.yaml}
+                    onChange={(event) => setRouteWorkbenchCreateDraft((prev) => ({ ...prev, yaml: event.target.value }))}
+                    placeholder={routeWorkbenchCreateKind === 'se' ? '可选：粘贴 ServiceEntry YAML' : '可选：粘贴 Service YAML'}
+                  />
+                </label>
+              </div>
+            </Modal>
             <Modal
               open={routeWorkbenchPreviewOpen}
               width={980}

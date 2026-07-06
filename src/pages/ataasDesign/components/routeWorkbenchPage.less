@@ -293,6 +293,14 @@
   &.pdWorkerNode {
     background: #8B5CF6;
     color: #FFFFFF;
+
+    &.role-prefill {
+      background: #2563EB;
+    }
+
+    &.role-decode {
+      background: #8B5CF6;
+    }
   }
 }
 
@@ -1214,3 +1222,33 @@
   }
 }
 
+.ataas-route-workbench-create-form {
+  display: grid;
+  gap: 14px;
+}
+
+.ataas-route-workbench-create-form label {
+  display: grid;
+  gap: 6px;
+  color: #1f2937;
+  font-size: 13px;
+}
+
+.ataas-route-workbench-create-form label > span {
+  color: #5f6b7a;
+  font-size: 12px;
+}
+
+.ataas-route-workbench-create-form .ant-select {
+  width: 100%;
+}
+
+.ataas-route-workbench-create-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.ataas-route-workbench-create-grid .ant-input-number {
+  width: 100%;
+}

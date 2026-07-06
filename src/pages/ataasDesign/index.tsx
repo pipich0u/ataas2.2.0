@@ -83,7 +83,7 @@ type ClusterRecord = {
   authInfo: string;
 };
 
-const SidebarIcon = ({ name }: { name: 'dashboard' | 'cluster' | 'modelRepo' | 'deploy' | 'image' | 'imageModel' | 'visionModel' | 'embedding' | 'rerank' | 'monitor' | 'benchmark' | 'engine' | 'template' | 'alert' | 'logs' | 'playground' | 'apiKey' | 'user' | 'engineMgr' | 'pod' | 'service' | 'config' | 'se' | 'task' }) => {
+const SidebarIcon = ({ name }: { name: 'dashboard' | 'cluster' | 'modelRepo' | 'deploy' | 'ops' | 'image' | 'imageModel' | 'visionModel' | 'embedding' | 'rerank' | 'monitor' | 'benchmark' | 'engine' | 'template' | 'alert' | 'logs' | 'playground' | 'apiKey' | 'user' | 'engineMgr' | 'pod' | 'service' | 'config' | 'se' | 'task' }) => {
   const white = '#fff';
   return (
     <svg className="ataas-sidebar-icon" viewBox="0 0 20 20" aria-hidden="true">
@@ -108,6 +108,16 @@ const SidebarIcon = ({ name }: { name: 'dashboard' | 'cluster' | 'modelRepo' | '
         <>
           <path d="M10 1c-2 2-5 6-5 11h10c0-5-3-9-5-11z" fill="currentColor" />
           <path d="M7 12v3.5L10 18l3-2.5V12H7z" fill="currentColor" opacity="0.6" />
+        </>
+      )}
+      {name === 'ops' && (
+        <>
+          <rect x="3" y="3" width="5.2" height="5.2" rx="1.4" fill="currentColor" />
+          <rect x="11.8" y="3" width="5.2" height="5.2" rx="1.4" fill="currentColor" opacity="0.82" />
+          <rect x="3" y="11.8" width="5.2" height="5.2" rx="1.4" fill="currentColor" opacity="0.82" />
+          <rect x="11.8" y="11.8" width="5.2" height="5.2" rx="1.4" fill="currentColor" />
+          <path d="M8.3 5.6h2.2M14.4 8.3v2.2M11.7 14.4H9.5M5.6 11.7V9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          <path d="M6.9 6.9l6.2 6.2M13.1 6.9l-6.2 6.2" stroke={white} strokeWidth="1.15" strokeLinecap="round" opacity="0.82" />
         </>
       )}
       {name === 'modelRepo' && (
@@ -7329,6 +7339,7 @@ const AtAasDesign = () => {
   type ConfigYamlPickerTarget = 'deploy-router' | 'deploy-worker' | 'startup-template' | 'custom';
   const [configYamlPickerOpen, setConfigYamlPickerOpen] = useState(false);
   const [configYamlPickerTarget, setConfigYamlPickerTarget] = useState<ConfigYamlPickerTarget>('deploy-router');
+  const [configYamlPickerReadonly, setConfigYamlPickerReadonly] = useState(false);
   const [configYamlCustomSelect, setConfigYamlCustomSelect] = useState<((yaml: string, path: string) => void) | null>(null);
   const [configYamlTree, setConfigYamlTree] = useState<ConfigTreeNode | null>(null);
   const [configYamlSelectedPath, setConfigYamlSelectedPath] = useState('');
@@ -7605,11 +7616,68 @@ const AtAasDesign = () => {
 
   const openConfigYamlPicker = async (target: ConfigYamlPickerTarget, onSelect?: (yaml: string, path: string) => void) => {
     setConfigYamlPickerTarget(target);
+    setConfigYamlPickerReadonly(false);
     setConfigYamlCustomSelect(() => onSelect || null);
     setConfigYamlPickerOpen(true);
     setConfigYamlSelectedPath('');
     setConfigYamlPreview('');
     setConfigYamlLatest('');
+    setConfigYamlHistory([]);
+    setConfigYamlVersionKey('latest');
+    if (configYamlTree) return;
+    setConfigYamlPickerLoading(true);
+    try {
+      const res = await rpc('config.list_tree');
+      setConfigYamlTree(res.root);
+    } catch {
+      message.error('资源文件文件加载失败');
+    } finally {
+      setConfigYamlPickerLoading(false);
+    }
+  };
+
+  const openModelOpsYamlPreview = async (item: DeployServiceItem, kind: 'router' | 'worker', path: string) => {
+    const cluster = getDeployClusterName(item);
+    const resourceName = kind === 'router' ? `${item.name}-router` : `${item.name}-worker`;
+    const yaml = [
+      'apiVersion: apps/v1',
+      'kind: Deployment',
+      'metadata:',
+      `  name: ${resourceName}`,
+      '  namespace: default',
+      '  labels:',
+      `    app.kubernetes.io/name: ${item.name}`,
+      `    app.kubernetes.io/component: ${kind}`,
+      `    ataas.io/cluster: ${cluster}`,
+      'spec:',
+      `  replicas: ${kind === 'router' ? 1 : Math.max(1, item.modelInfo.number)}`,
+      '  selector:',
+      '    matchLabels:',
+      `      app: ${resourceName}`,
+      '  template:',
+      '    metadata:',
+      '      labels:',
+      `        app: ${resourceName}`,
+      `        ataas.io/model: ${item.modelInfo.name}`,
+      '    spec:',
+      '      containers:',
+      `        - name: ${kind}`,
+      `          image: registry.internal/${item.modelInfo.engine.toLowerCase() || 'sglang'}:latest`,
+      '          imagePullPolicy: IfNotPresent',
+      '          ports:',
+      '            - containerPort: 8000',
+      '              name: http',
+      '          resources:',
+      '            limits:',
+      '              nvidia.com/gpu: "1"',
+    ].join('\n');
+    setConfigYamlPickerTarget('custom');
+    setConfigYamlPickerReadonly(true);
+    setConfigYamlCustomSelect(null);
+    setConfigYamlPickerOpen(true);
+    setConfigYamlSelectedPath(path);
+    setConfigYamlLatest(yaml);
+    setConfigYamlPreview(yaml);
     setConfigYamlHistory([]);
     setConfigYamlVersionKey('latest');
     if (configYamlTree) return;
@@ -7672,6 +7740,11 @@ const AtAasDesign = () => {
   const applyConfigYamlSelection = async () => {
     const selectedYaml = configYamlLatest || configYamlPreview;
     if (!configYamlSelectedPath || !selectedYaml.trim()) return;
+    if (configYamlPickerReadonly) {
+      setConfigYamlPickerOpen(false);
+      setConfigYamlPickerReadonly(false);
+      return;
+    }
     if (configYamlLatest && selectedYaml.trim()) {
       try {
         await rpc('config.commit', {
@@ -9884,7 +9957,7 @@ const AtAasDesign = () => {
     { key: 'modelRepo', icon: <SidebarIcon name="modelRepo" />, label: '模型仓库' },
     { key: 'startupTemplates', icon: <SidebarIcon name="template" />, label: '性能仓库' },
     { key: 'deploy', icon: <SidebarIcon name="deploy" />, label: '模型部署' },
-    { key: 'modelOps', icon: <SidebarIcon name="deploy" />, label: '运营调度' },
+    { key: 'modelOps', icon: <SidebarIcon name="ops" />, label: '运营调度' },
     { key: 'taskFlow', icon: <SidebarIcon name="task" />, label: '任务流程' },
     { key: 'images', icon: <SidebarIcon name="image" />, label: '镜像仓库' },
     { key: 'monitoring', icon: <SidebarIcon name="monitor" />, label: '模型监控' },
@@ -10664,6 +10737,7 @@ const AtAasDesign = () => {
                       clusterFilterValue={modelOpsClusterFilter}
                       onClusterFilterChange={setModelOpsClusterFilter}
                       getModelOpsRowWeight={getServiceWeight}
+                      onModelOpsYamlPreview={openModelOpsYamlPreview}
                     />
                     <Modal
                         className="ataas-model-ops-weight-modal-shell ataas-model-ops-task-modal ataas-model-ops-allocate-modal-shell"
@@ -12379,14 +12453,14 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
         className="ataas-config-yaml-picker-modal"
         title="从资源文件选择 YAML"
         open={configYamlPickerOpen}
-        onCancel={() => setConfigYamlPickerOpen(false)}
+        onCancel={() => { setConfigYamlPickerOpen(false); setConfigYamlPickerReadonly(false); }}
         width={1140}
         footer={(
           <div className="ataas-config-yaml-picker-footer">
             <span className="ataas-config-yaml-picker-warning"><WarningOutlined /> 部署时始终使用文件的最新内容，历史版本仅供参考对比</span>
             <div>
-              <Button onClick={() => setConfigYamlPickerOpen(false)}>取消</Button>
-              <Button type="primary" disabled={!configYamlSelectedPath || !(configYamlLatest || configYamlPreview).trim()} onClick={applyConfigYamlSelection}>确认选择</Button>
+              {!configYamlPickerReadonly && <Button onClick={() => setConfigYamlPickerOpen(false)}>取消</Button>}
+              <Button type="primary" disabled={!configYamlSelectedPath || !(configYamlLatest || configYamlPreview).trim()} onClick={applyConfigYamlSelection}>{configYamlPickerReadonly ? '关闭' : '确认选择'}</Button>
             </div>
           </div>
         )}
@@ -12453,8 +12527,8 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
                   overviewRulerLanes: 0,
                   renderLineHighlight: 'line',
                   wordWrap: 'off',
-                  readOnly: configYamlVersionKey !== 'latest',
-                  domReadOnly: configYamlVersionKey !== 'latest',
+                  readOnly: configYamlPickerReadonly || configYamlVersionKey !== 'latest',
+                  domReadOnly: configYamlPickerReadonly || configYamlVersionKey !== 'latest',
                 }}
               />
             ) : (
