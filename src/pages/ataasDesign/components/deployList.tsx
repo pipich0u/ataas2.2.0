@@ -1,7 +1,8 @@
-import { Button, ConfigProvider, Dropdown, Image, Input, InputNumber, Modal, Popconfirm, Select, Switch, Table, Tag, Tooltip } from 'antd';
+import { Button, ConfigProvider, Dropdown, Image, Input, InputNumber, message, Modal, Popconfirm, Select, Slider, Table, Tag, Tooltip } from 'antd';
 import type { ThemeConfig } from 'antd';
-import { AppstoreOutlined, BarChartOutlined, BarsOutlined, CodeOutlined, InfoCircleOutlined, PlayCircleOutlined, PlusOutlined, PoweroffOutlined } from '@ant-design/icons';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import type { ColumnsType } from 'antd/es/table';
+import { AppstoreOutlined, BarChartOutlined, BarsOutlined, DisconnectOutlined, FileSearchOutlined, FileTextOutlined, InfoCircleOutlined, LinkOutlined, PlayCircleOutlined, PlusOutlined, PoweroffOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import deepseekLogo from '../deepseek-logo.svg';
 import glmLogo from '../glm-logo.svg';
@@ -9,6 +10,7 @@ import kimiLogo from '../kimi-logo.svg';
 import minimaxLogo from '../minimax-logo.svg';
 import minicpmLogo from '../minicpm-logo.svg';
 import qwenLogo from '../qwen-logo.svg';
+import { MODEL_OPS_RESOURCE_SPECS, getModelOpsRoleSummary as getModelOpsSpecRoleSummary, type ModelOpsResourceSpec } from './modelOpsResourceSpec';
 
 export type DeployStatus = 'running' | 'loading' | 'error' | 'ready' | 'updating' | 'updatable' | 'warning';
 export type DeployCategory = 'llm' | 'embedding' | 'rerank' | 'vlm';
@@ -16,7 +18,7 @@ export type ViewMode = 'card' | 'table';
 
 type DeployLogItem = { id: number; name: string };
 type RestartRecord = { id: number; name: string; works: string; createTime: string; restartTime: string; reasonConsuming: string };
-type InlineGatewayConfig = { port: string; session: boolean; traffic: Array<{ key: string; label: string; percent: number }> };
+type InlineGatewayConfig = { enabled: boolean; traffic: Array<{ key: string; label: string; percent: number }> };
 
 export type DeployServiceItem = {
   id: number;
@@ -36,6 +38,14 @@ export type DeployServiceItem = {
   scheduleAlertWebhook?: string;
   serviceGroupKey?: string;
   serviceGroupName?: string;
+  modelOpsSourceServiceId?: number;
+  modelOpsInstanceKey?: string;
+  modelOpsCluster?: string;
+  modelOpsRoleSummary?: {
+    router: string;
+    prefill: string;
+    decode: string;
+  };
   modelInfo: {
     name: string;
     supplier: string;
@@ -68,7 +78,6 @@ const SERVICE_STATUS_OPTIONS = [
   { value: 'running', label: '服务中' },
   { value: 'loading', label: '启动中' },
   { value: 'error', label: '异常' },
-  { value: 'scheduled', label: '定时中' },
 ];
 
 const CATEGORY_OPTIONS = [
@@ -87,7 +96,8 @@ const CLUSTER_OPTIONS = [
   { value: 'wuhan-kunpeng', label: 'wuhan-kunpeng' },
 ];
 
-const getDeployClusterName = (item: DeployServiceItem) => {
+export const getDeployClusterName = (item: DeployServiceItem) => {
+  if (item.modelOpsCluster) return item.modelOpsCluster;
   const text = `${item.name} ${item.modelInfo.works} ${item.typeStr}`.toLowerCase();
   if (text.includes('nj-') || text.includes('h20') || text.includes('qwen')) return 'shanghai-online';
   if (text.includes('gz-') || text.includes('l20') || text.includes('glm')) return 'guangzhou-test';
@@ -145,7 +155,51 @@ export const getDeployModelLogo = (item: DeployServiceItem) => {
   return item.logo;
 };
 
+const createModelOpsMockService = (id: number, spec: ModelOpsResourceSpec): DeployServiceItem => ({
+  id,
+  name: spec.name,
+  description: '模型运维 mock 数据，用于检查多集群、多 PD 组、权重列和弹窗交互',
+  logo: glmLogo,
+  status: 'running',
+  category: 'llm',
+  typeStr: '5.1',
+  timeStr: `运行 ${6 + (id % 9)}天`,
+  updateTime: '2026-06-29 12:00',
+  deployMode: 'PD 分离',
+  serviceGroupKey: 'glm51',
+  serviceGroupName: spec.name.split('-').slice(0, 2).join('-'),
+  modelOpsInstanceKey: spec.name,
+  modelOpsCluster: spec.cluster,
+  modelOpsRoleSummary: getModelOpsSpecRoleSummary(spec),
+  modelInfo: {
+    name: 'glm-5.1',
+    supplier: '智谱AI',
+    number: spec.instanceCount,
+    works: spec.workerNames.join(', '),
+    size: '72B',
+    tokens: `${(2.4 + id / 100).toFixed(2)}B`,
+    point: 'BF16',
+    memory: '192 GB',
+    disk: '480 GB',
+    vram: '320 GB',
+    contextLength: '128K',
+    attentionHeads: '64',
+    layers: '80',
+    engine: 'SGLang',
+    engineVersion: '0.5.9',
+    restartStatus: true,
+    restartNumber: 0,
+    restartCount: 2,
+    restartPage: [],
+    concurrencyControllStatus: true,
+    concurrencyControllCount: 300 + id,
+    logs: [{ id: id * 10 + 1, name: `${spec.name} router 日志` }, { id: id * 10 + 2, name: `${spec.name} worker 日志` }],
+    updateTime: '2026-06-29',
+  },
+});
+
 export const MOCK_DEPLOY_DATA: DeployServiceItem[] = [
+  ...MODEL_OPS_RESOURCE_SPECS.map((spec, index) => createModelOpsMockService(100 + index, spec)),
   { id: 1, name: 'deepseek-r1-prod', description: '生产环境 DeepSeek-R1 模型服务，671B 参数规模', logo: 'https://api.dicebear.com/7.x/identicon/svg?seed=deepseek', status: 'running', category: 'llm', typeStr: 'DeepSeek-R1-671B', timeStr: '运行 12天', updateTime: '2026-05-28 10:30', deployMode: 'PD 分离', modelInfo: { name: 'DeepSeek-R1-671B', supplier: '深度求索', number: 2, works: 'qujing4, qujing7', size: '671B', tokens: '4.82B', point: 'BF16', memory: '128 GB', disk: '256 GB', vram: '320 GB', contextLength: '128K', attentionHeads: '96', layers: '64', engine: 'vLLM', engineVersion: '0.6.2', restartStatus: true, restartNumber: 0, restartCount: 3, restartPage: [], concurrencyControllStatus: true, concurrencyControllCount: 100, logs: [{ id: 1, name: '实例-1 运行日志' }, { id: 2, name: '实例-2 运行日志' }], updateTime: '2026-05-28' } },
   { id: 2, name: 'glm-4-air-prod', description: '生产环境 GLM-4-Air 模型服务，9B 参数规模', logo: glmLogo, status: 'running', category: 'llm', typeStr: 'GLM-4-Air', timeStr: '运行 15天', updateTime: '2026-05-27 08:00', deployMode: '单机部署', modelInfo: { name: 'GLM-4-Air', supplier: '智谱AI', number: 1, works: 'qujing4', size: '9B', tokens: '1.26B', point: 'BF16', memory: '48 GB', disk: '96 GB', vram: '48 GB', contextLength: '128K', attentionHeads: '64', layers: '40', engine: 'vLLM', engineVersion: '0.6.1', restartStatus: true, restartNumber: 0, restartCount: 3, restartPage: [], concurrencyControllStatus: true, concurrencyControllCount: 200, logs: [{ id: 6, name: '运行日志' }], updateTime: '2026-05-27' } },
   { id: 3, name: 'glm-4-air-dist-prod', description: '生产环境 GLM-4-Air 分布式模型服务，9B 参数规模', logo: glmLogo, status: 'running', category: 'llm', typeStr: 'GLM-4-Air', timeStr: '运行 8天', updateTime: '2026-05-29 09:20', deployMode: '分布式部署', modelInfo: { name: 'GLM-4-Air', supplier: '智谱AI', number: 2, works: 'gz-l20-worker-003, gz-l20-worker-005', size: '9B', tokens: '1.92B', point: 'BF16', memory: '96 GB', disk: '180 GB', vram: '96 GB', contextLength: '128K', attentionHeads: '64', layers: '40', engine: 'SGLang', engineVersion: '0.5.8', restartStatus: true, restartNumber: 0, restartCount: 3, restartPage: [], concurrencyControllStatus: true, concurrencyControllCount: 320, logs: [{ id: 7, name: '实例-1 运行日志' }, { id: 8, name: '实例-2 运行日志' }], updateTime: '2026-05-29' } },
@@ -157,32 +211,43 @@ interface DeployListProps {
   onStop: (item: DeployServiceItem) => void;
   onMonitor: (item: DeployServiceItem) => void;
   onExperience: (item: DeployServiceItem) => void;
-  onLog: (item: DeployServiceItem, logId: number) => void;
-  onRestartToggle: (item: DeployServiceItem) => void;
-  onConcurrencyToggle: (item: DeployServiceItem) => void;
+  onLog: (item: DeployServiceItem, logId: number, podName?: string) => void;
+  onDeleteInstance?: (item: DeployServiceItem, instanceIndex: number) => void;
+  onAddInstance?: (item: DeployServiceItem) => void;
+  onAllocateWeight?: (item: DeployServiceItem) => void;
   onOpenCreate: () => void;
   onScalePd?: (item: DeployServiceItem) => void;
   onNodeFilter?: (item: DeployServiceItem) => void;
   onScheduleDetail?: (item: DeployServiceItem) => void;
+  onModelOpsYamlPreview?: (item: DeployServiceItem, kind: 'router' | 'worker', path: string) => void;
   viewModeValue?: ViewMode;
   onViewModeChange?: (mode: ViewMode) => void;
   clusterFilterValue?: string;
   onClusterFilterChange?: (value: string) => void;
+  getModelOpsRowWeight?: (item: DeployServiceItem) => number;
+  mode?: 'deploy' | 'modelOps';
 }
 
-export default function DeployList({ data, onDetail, onStop, onMonitor, onExperience, onLog, onRestartToggle, onConcurrencyToggle, onOpenCreate, onScalePd, onNodeFilter, onScheduleDetail, viewModeValue, onViewModeChange, clusterFilterValue, onClusterFilterChange }: DeployListProps) {
+export default function DeployList({ data, onDetail, onStop, onMonitor, onExperience, onLog, onDeleteInstance, onAddInstance, onAllocateWeight, onOpenCreate, onScalePd, onNodeFilter, onScheduleDetail, onModelOpsYamlPreview, viewModeValue, onViewModeChange, clusterFilterValue, onClusterFilterChange, getModelOpsRowWeight, mode = 'deploy' }: DeployListProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('card');
   const [statusFilter, setStatusFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [clusterFilter, setClusterFilter] = useState('');
-  const [serviceGroupFilter, setServiceGroupFilter] = useState('');
   const [searchText, setSearchText] = useState('');
   const [pageSize, setPageSize] = useState(6);
   const [page, setPage] = useState(1);
   const [nowTick, setNowTick] = useState(() => Date.now());
   const [modelInfoPopup, setModelInfoPopup] = useState<{ item: DeployServiceItem; left: number; top: number } | null>(null);
   const [expandedServiceIds, setExpandedServiceIds] = useState<number[]>([]);
+  const [expandedMooncakeKeys, setExpandedMooncakeKeys] = useState<string[]>([]);
   const [inlineGatewayConfigs, setInlineGatewayConfigs] = useState<Record<number, InlineGatewayConfig>>({});
+  const [routerLinkModal, setRouterLinkModal] = useState<{ item: DeployServiceItem; row: any; selected: string[] } | null>(null);
+  const [drainWeightModal, setDrainWeightModal] = useState<{
+    item: DeployServiceItem;
+    row: any;
+    routers: Array<{ key: string; routerName: string; groupName: string; cluster: string }>;
+    weights: Record<string, number>;
+  } | null>(null);
   const runtimeBaseRef = useRef(Date.now());
   const modelInfoHoveringRef = useRef(false);
 
@@ -213,29 +278,27 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
       if (statusFilter && statusFilter !== 'scheduled' && item.status !== statusFilter) return false;
       if (categoryFilter && item.category !== categoryFilter) return false;
       if (clusterFilter && getDeployClusterName(item) !== clusterFilter) return false;
-      if (serviceGroupFilter && item.serviceGroupKey !== serviceGroupFilter) return false;
       if (searchText && !item.name.toLowerCase().includes(searchText.toLowerCase())) return false;
       return true;
     });
-  }, [data, statusFilter, categoryFilter, clusterFilter, serviceGroupFilter, searchText]);
+  }, [data, statusFilter, categoryFilter, clusterFilter, searchText]);
+  const clusterOptions = useMemo(() => {
+    if (mode !== 'modelOps') return CLUSTER_OPTIONS;
+    const clusters = [...new Set(data.map((item) => getDeployClusterName(item)).filter(Boolean))];
+    return [
+      { value: '', label: '全部集群' },
+      ...clusters.map((cluster) => ({ value: cluster, label: cluster })),
+    ];
+  }, [data, mode]);
+
+  const effectiveViewMode = mode === 'modelOps' ? 'table' : viewMode;
 
   const paginated = useMemo(() => {
-    if (viewMode === 'table') return filtered;
+    if (effectiveViewMode === 'table') return filtered;
     return filtered.slice(0, page * pageSize);
-  }, [filtered, viewMode, page, pageSize]);
+  }, [filtered, effectiveViewMode, page, pageSize]);
 
   const hasMore = filtered.length > page * pageSize;
-
-  const serviceGroupOptions = useMemo(() => {
-    const groupMap = new Map<string, string>();
-    data.forEach((item) => {
-      if (item.serviceGroupKey && item.serviceGroupName) groupMap.set(item.serviceGroupKey, item.serviceGroupName);
-    });
-    return [
-      { value: '', label: '全部服务组' },
-      ...Array.from(groupMap.entries()).map(([value, label]) => ({ value, label })),
-    ];
-  }, [data]);
 
   const getCountdownText = (item: DeployServiceItem) => {
     if (!item.scheduleCountdownAt) return item.scheduleCountdown;
@@ -341,7 +404,8 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
     const worksList = item.modelInfo.works?.split(',').map((work) => work.trim()).filter(Boolean) || [];
     const instanceCount = item.modelInfo.number || 1;
     const nodeList = worksList.length > 0 ? worksList : Array.from({ length: instanceCount }, (_, index) => `节点 ${index + 1}`);
-    return nodeList.map((node, index) => ({ key: `${item.id}-${index}`, instance: `实例 ${index + 1}`, node }));
+    const cluster = getDeployClusterName(item);
+    return nodeList.map((node, index) => ({ key: `${item.id}-${index}`, instance: `实例 ${index + 1}`, cluster, node, instanceIndex: index }));
   };
 
   const getInstanceGpuCountText = (item: DeployServiceItem) => {
@@ -362,19 +426,51 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
   const getInlineGatewayConfig = (item: DeployServiceItem): InlineGatewayConfig => {
     const saved = inlineGatewayConfigs[item.id];
     const defaults = getDefaultInlineTraffic(item);
-    if (!saved) return { port: '30000', session: false, traffic: defaults };
+    if (!saved) return { enabled: false, traffic: defaults };
     const traffic = defaults.map((row) => saved.traffic.find((item) => item.key === row.key) || row);
     return { ...saved, traffic };
   };
 
   const updateInlineGatewayConfig = (item: DeployServiceItem, updater: (config: InlineGatewayConfig) => InlineGatewayConfig) => {
     setInlineGatewayConfigs((prev) => {
-      const current = prev[item.id] || { port: '30000', session: false, traffic: getDefaultInlineTraffic(item) };
+      const current = prev[item.id] || { enabled: false, traffic: getDefaultInlineTraffic(item) };
       return { ...prev, [item.id]: updater(current) };
     });
   };
 
+  const enableInlineTraffic = (item: DeployServiceItem) => {
+    Modal.confirm({
+      title: '启用按实例分配流量？',
+      content: '启用后才可以调整各实例权重。调整权重会影响线上流量分配，请确认后再操作。',
+      okText: '确认启用',
+      cancelText: '取消',
+      onOk: () => updateInlineGatewayConfig(item, (config) => ({ ...config, enabled: true })),
+    });
+  };
+
+  const saveInlineTraffic = (item: DeployServiceItem) => {
+    updateInlineGatewayConfig(item, (config) => ({ ...config, enabled: false }));
+    message.success('流量权重已保存');
+  };
+
   const DetailStatus = () => <span className="ataas-deploy-inline-status-running">运行中</span>;
+
+  const renderInstanceCell = (item: DeployServiceItem, record: any) => (
+    <div className="ataas-deploy-inline-instance-cell">
+      <span>{record.instance}</span>
+      {onDeleteInstance && (
+        <Popconfirm
+          title="删除实例？"
+          description={`确认删除 ${record.instance} 吗？`}
+          okText="删除"
+          cancelText="取消"
+          onConfirm={() => onDeleteInstance(item, record.instanceIndex)}
+        >
+          <button type="button" className="ataas-deploy-inline-instance-delete">删除实例</button>
+        </Popconfirm>
+      )}
+    </div>
+  );
 
   const renderDeployInlineDetail = (item: DeployServiceItem) => {
     const detailInstances = getDetailInstances(item);
@@ -383,42 +479,318 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
     const trafficRows = isSingleTrafficGroup
       ? gatewayConfig.traffic.map((row) => ({ ...row, percent: 100 }))
       : gatewayConfig.traffic;
+    const trafficEditable = gatewayConfig.enabled && !isSingleTrafficGroup;
     const podSuffix = (node: string) => node.toLowerCase().replace(/[^a-z0-9]/g, '-');
     const pdMode = item.deployMode === 'PD 分离';
-    const pdFlatRows = pdMode
-      ? detailInstances.flatMap((record) => [
-        { key: `${record.key}-router`, instance: record.instance, podName: `router-${podSuffix(record.node)}-0`, comp: 'Router', machine: record.node, gpu: '-', logId: 1 },
-        { key: `${record.key}-prefill`, instance: record.instance, podName: `prefill-${podSuffix(record.node)}-0`, comp: 'Prefill', machine: record.node, gpu: '8 卡', logId: 2 },
-        { key: `${record.key}-decode`, instance: record.instance, podName: `decode-${podSuffix(record.node)}-0`, comp: 'Decode', machine: record.node, gpu: '8 卡', logId: 3 },
-      ])
+    const parseReadyTotal = (value?: string) => {
+      const total = Number(String(value || '').split('/')[1]);
+      return Number.isFinite(total) && total > 0 ? total : 1;
+    };
+    const pdInstanceGroups = pdMode
+      ? detailInstances.map((record) => {
+        const suffix = podSuffix(record.node);
+        const routerCount = item.modelOpsRoleSummary ? parseReadyTotal(item.modelOpsRoleSummary.router) : 1;
+        const prefillCount = item.modelOpsRoleSummary ? parseReadyTotal(item.modelOpsRoleSummary.prefill) : 1;
+        const decodeCount = item.modelOpsRoleSummary ? parseReadyTotal(item.modelOpsRoleSummary.decode) : 1;
+        const routerRows = Array.from({ length: routerCount }, (_, index) => ({
+          key: `${record.key}-router-${index}`,
+          podName: `router-${suffix}-${index}`,
+          comp: 'Router',
+          cluster: record.cluster,
+          machine: record.node,
+          gpu: '-',
+          logId: 1,
+        }));
+        const prefillRows = Array.from({ length: prefillCount }, (_, index) => ({
+          key: `${record.key}-prefill-${index}`,
+          podName: `prefill-${suffix}-${index}`,
+          comp: 'Prefill',
+          cluster: record.cluster,
+          machine: record.node,
+          gpu: '8 卡',
+          logId: 2,
+        }));
+        const decodeRows = Array.from({ length: decodeCount }, (_, index) => ({
+          key: `${record.key}-decode-${index}`,
+          podName: `decode-${suffix}-${index}`,
+          comp: 'Decode',
+          cluster: record.cluster,
+          machine: record.node,
+          gpu: '8 卡',
+          logId: 3,
+        }));
+        return {
+          record,
+          rows: [...routerRows, ...prefillRows, ...decodeRows],
+        };
+      })
       : [];
+    const pdRows = pdInstanceGroups.flatMap((group) => group.rows.map((row, rowIndex) => ({
+      ...row,
+      instanceRecord: group.record,
+      instanceRowSpan: rowIndex === 0 ? group.rows.length : 0,
+    })));
+    const inlineRows = detailInstances.map((record, index) => ({
+      ...record,
+      podName: `pod-${podSuffix(record.node)}-0`,
+      comp: '推理',
+      gpu: getInstanceGpuCountText(item),
+      logId: item.modelInfo.logs[index]?.id || item.modelInfo.logs[0]?.id || index + 1,
+    }));
+    const opsRoleRows = (pdMode ? pdRows : inlineRows).map((row: any, index: number) => {
+      const compText = String(row.comp || 'Router').toLowerCase();
+      const role = compText.includes('prefill') ? 'P' : compText.includes('decode') ? 'D' : compText.includes('router') ? 'R' : 'I';
+      const image = compText.includes('router') ? 'sgl-model-gateway:default-fc-pa...' : 'sglang-main-fe5b30fe4';
+      const ipLast = 24 + ((item.id * 7 + index * 3) % 18);
+      const nodeIndex = 24 + ((item.id * 5 + index * 3) % 18);
+      const instanceName = row.instanceRecord?.instance || row.instance || `实例 ${index + 1}`;
+      const util = compText.includes('router') ? 20 : 0;
+      const vram = compText.includes('router') ? 99 : 95 + ((item.id + index) % 5);
+      const age = compText.includes('prefill') && index % 2 === 0 ? '6h' : '12h';
+      const roleMetricPhase = Math.floor(nowTick / 1000) + item.id + index;
+      const roleMetricWave = (offset: number, amplitude: number) => Math.sin((roleMetricPhase + offset) / 2.7) * amplitude;
+      const avgTtft = Math.max(0, Math.round(1800 + ((item.id * 19 + index * 257) % 2200) + roleMetricWave(0, 180)));
+      const p99Ttft = Math.max(0, Math.round(avgTtft + 3600 + ((item.id + index) % 6) * 260 + roleMetricWave(3, 260)));
+      const avgTpot = Number(Math.max(0, 16 + ((item.id + index) % 9) * 1.4 + roleMetricWave(1, 1.2)).toFixed(1));
+      const p99Tpot = Number(Math.max(0, avgTpot + 8 + ((item.id + index) % 5) * 0.7 + roleMetricWave(4, 1.6)).toFixed(1));
+      const trafficSources = compText.includes('router')
+        ? [item.modelInfo.name]
+        : [`${item.serviceGroupName || getDeployClusterName(item)}-${item.name}-ha-1`, `${item.serviceGroupName || getDeployClusterName(item)}-${item.name}-router-0`];
+      return {
+        ...row,
+        role,
+        instanceName,
+        ready: '1/1',
+        statusText: 'Running',
+        restarts: 0,
+        load: 0,
+        performance: compText.includes('router')
+          ? null
+          : compText.includes('prefill')
+            ? { label: 'TTFT', avg: avgTtft, p99: p99Ttft }
+            : { label: 'TPOT', avg: avgTpot, p99: p99Tpot },
+        image,
+        ip: `10.25.110.${ipLast}`,
+        nodeName: `pod11-b300gpu${nodeIndex}`,
+        util,
+        vram,
+        age,
+        trafficSources,
+      };
+    }).sort((a: any, b: any) => {
+      const roleOrder: Record<string, number> = { R: 0, P: 1, D: 2, I: 3 };
+      return (roleOrder[a.role] ?? 9) - (roleOrder[b.role] ?? 9);
+    });
+    const renderRolePerformance = (performance: any) => {
+      if (!performance) return <span className="ataas-model-ops-performance-empty">-</span>;
+      return (
+        <span className={'ataas-model-ops-performance-cell' + (performance.label === 'TTFT' ? ' ttft' : '')}>
+          <span><em>{performance.label}</em><strong>{performance.avg}</strong></span>
+          <span><em>P99</em><strong>{performance.p99}</strong></span>
+        </span>
+      );
+    };
+    const mooncakeKey = `${item.id}-mooncake`;
+    const mooncakeExpanded = expandedMooncakeKeys.includes(mooncakeKey);
+    const toggleMooncakeExpanded = () => {
+      setExpandedMooncakeKeys((prev) => (
+        prev.includes(mooncakeKey)
+          ? prev.filter((key) => key !== mooncakeKey)
+          : [...prev, mooncakeKey]
+      ));
+    };
+    const mooncakePrefix = `${item.modelInfo.name || item.name}`.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'glm51';
+    const mooncakeRows = [
+      ...Array.from({ length: 5 }, (_, index) => ({
+        key: `${mooncakeKey}-store-${index}`,
+        role: 'S',
+        podName: `${mooncakePrefix}-mooncake-2-store-1600gb-${index}`,
+        ready: '2/2',
+        statusText: 'Running',
+        restarts: 1,
+        performance: null,
+        image: 'sglang-main-4153af44c',
+        ip: ['10.12.11.48', '10.12.11.45', '10.12.11.46', '10.12.11.44', '10.12.11.47'][index],
+        nodeName: ['st2-048', 'st2-045', 'st2-046', 'st2-044', 'st2-047'][index],
+        gpuText: '',
+        age: '3d',
+        trafficSources: [`${getDeployClusterName(item)}.${item.name}-router-0`],
+        util: [93, 90, 72, 39, 73][index],
+        vram: [99, 96, 97, 96, 96][index],
+        logId: 10 + index,
+      })),
+      ...Array.from({ length: 3 }, (_, index) => ({
+        key: `${mooncakeKey}-etcd-${index}`,
+        role: 'E',
+        podName: `${mooncakePrefix}-mooncake-2-etcd-${index}`,
+        ready: '1/1',
+        statusText: 'Running',
+        restarts: 0,
+        performance: null,
+        image: 'mirrored-coreos-etcd:v3.5.10',
+        ip: ['10.42.2.12', '10.42.1.150', '10.42.0.186'][index],
+        nodeName: ['st2-007', 'st2-008', 'st2-009'][index],
+        gpuText: '无 GPU 数据',
+        age: '3d',
+        trafficSources: ['未注册'],
+        util: null,
+        vram: null,
+        logId: 4 + index,
+      })),
+      ...Array.from({ length: 3 }, (_, index) => ({
+        key: `${mooncakeKey}-master-${index}`,
+        role: 'M',
+        podName: `${mooncakePrefix}-mooncake-2-master-${index}`,
+        ready: '1/1',
+        statusText: 'Running',
+        restarts: 0,
+        performance: null,
+        image: 'sglang-main-4153af44c',
+        ip: ['10.42.2.13', '10.42.0.185', '10.42.1.149'][index],
+        nodeName: ['st2-007', 'st2-009', 'st2-008'][index],
+        gpuText: '无 GPU 数据',
+        age: '3d',
+        trafficSources: ['未注册'],
+        util: null,
+        vram: null,
+        logId: 7 + index,
+      })),
+    ];
+    const renderMooncakeSummaryRow = () => (
+      <tr key={`${mooncakeKey}-summary`} className="ataas-model-ops-mooncake-summary-row">
+        <td colSpan={12}>
+          <button type="button" className="ataas-model-ops-mooncake-summary" onClick={toggleMooncakeExpanded}>
+            <strong>mooncake</strong>
+            <em>·</em>
+            <span><i className="etcd" />etcd <b>3/3</b></span>
+            <em>·</em>
+            <span><i className="master" />master <b>3/3</b></span>
+            <em>·</em>
+            <span><i className="store" />store <b>5/5</b></span>
+            <small>{mooncakeExpanded ? '收起明细' : '展开明细'}</small>
+          </button>
+        </td>
+      </tr>
+    );
+    const renderMooncakeDetailRow = (row: any) => (
+      <tr key={row.key} className="ataas-model-ops-mooncake-detail-row">
+        <td>
+          <div className="ataas-model-ops-role-name">
+            <span className={'ataas-model-ops-role-badge role-mooncake-' + row.role.toLowerCase()}>{row.role}</span>
+            <Tooltip title={row.podName}>
+              <span className="ataas-deploy-inline-pod-name">{row.podName}</span>
+            </Tooltip>
+          </div>
+        </td>
+        <td><span className="ataas-model-ops-ready-text">{row.ready}</span> <span className="ataas-deploy-inline-status-running">{row.statusText}</span></td>
+        <td className={row.restarts > 0 ? 'ataas-model-ops-restart-warning' : ''}>{row.restarts}</td>
+        <td>-</td>
+        <td>{renderRolePerformance(row.performance)}</td>
+        <td><Tooltip title={row.image}><span className="ataas-deploy-inline-pod-name">{row.image}</span></Tooltip></td>
+        <td>{row.ip}</td>
+        <td>{row.nodeName}</td>
+        <td>
+          {row.gpuText ? (
+            <span className="ataas-model-ops-gpu-empty">{row.gpuText}</span>
+          ) : (
+            <div className="ataas-model-ops-gpu-metrics">
+              {[
+                { label: 'util', value: row.util, color: row.util > 80 ? '#E02D2D' : row.util > 70 ? '#D48806' : '#18A957' },
+                { label: 'vram', value: row.vram, color: row.vram > 90 ? '#E02D2D' : '#18A957' },
+              ].map((metric) => (
+                <div key={metric.label} className="ataas-model-ops-gpu-row">
+                  <span>{metric.label}</span>
+                  <i>
+                    <b style={{ width: `${metric.value}%`, background: metric.color }} />
+                  </i>
+                  <span style={{ color: metric.color }}>{metric.value}%</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </td>
+        <td>{row.age}</td>
+        <td>
+          <div className="ataas-model-ops-source-list">
+            {row.trafficSources.map((source: string) => (
+              <span key={source} className={source === '未注册' ? 'ataas-model-ops-unregistered-source' : 'ataas-model-ops-source-tag'}>
+                <Tooltip title={source}><span>{source}</span></Tooltip>
+              </span>
+            ))}
+          </div>
+        </td>
+        <td>
+          <div className="ataas-model-ops-row-actions">
+            <Tooltip title="日志">
+              <Button className="ataas-model-ops-row-action-button" type="text" shape="circle" size="small" icon={<FileSearchOutlined />} onClick={() => onLog(item, row.logId, row.podName)} />
+            </Tooltip>
+          </div>
+        </td>
+      </tr>
+    );
     const baseColumns = [
       { title: '实例', dataIndex: 'instance', key: 'instance', width: 90 },
+      { title: '集群', dataIndex: 'cluster', key: 'cluster', width: 140 },
       { title: '节点', dataIndex: 'node', key: 'node', width: 160 },
       { title: '状态', dataIndex: 'status', key: 'status', width: 100, render: () => <DetailStatus /> },
     ];
+    const liveGroupReportCount = Math.max(1, opsRoleRows.length);
+    const liveMetricPhase = Math.floor(nowTick / 1000) + item.id;
+    const liveMetricWave = (offset: number, amplitude: number) => Math.sin((liveMetricPhase + offset) / 3) * amplitude;
+    const liveGroupMetrics = {
+      podsTotal: liveGroupReportCount,
+      reporting: liveGroupReportCount,
+      window: '60s',
+      tpsP: Math.max(0, Math.round(43998 + liveMetricWave(0, 620) + (item.id % 5) * 71)),
+      tpsPAvg: Math.max(0, Math.round(60640 + liveMetricWave(4, 420))),
+      tpsD: Math.max(0, Math.round(955 + liveMetricWave(1, 34) + (item.id % 4) * 7)),
+      tpsDAvg: Math.max(0, Math.round(834 + liveMetricWave(6, 18))),
+      inflightP: Number(Math.max(0, 7 + liveMetricWave(2, 0.42)).toFixed(2)),
+      inflightPAvg: Number(Math.max(0, 10.6 + liveMetricWave(7, 0.18)).toFixed(1)),
+      inflightD: Number(Math.max(0, 5 + liveMetricWave(3, 0.32)).toFixed(2)),
+      inflightDAvg: Number(Math.max(0, 2.85 + liveMetricWave(8, 0.12)).toFixed(2)),
+      routerRps: Number(Math.max(0, 8.45 + liveMetricWave(4, 0.28)).toFixed(2)),
+      routerRpsAvg: Number(Math.max(0, 8.45 + liveMetricWave(9, 0.16)).toFixed(2)),
+      ttft: Math.max(0, Math.round(1511 + liveMetricWave(5, 86))),
+      ttftAvg: Math.max(0, Math.round(2548 + liveMetricWave(10, 94))),
+      cacheHit: Number(Math.max(0, 74.4 + liveMetricWave(6, 1.6)).toFixed(1)),
+      cacheHitAvg: Number(Math.max(0, 84 + liveMetricWave(11, 0.8)).toFixed(1)),
+      runningReq: Number(Math.max(0, 19 + liveMetricWave(7, 1.8)).toFixed(1)),
+      runningReqAvg: Number(Math.max(0, 15.8 + liveMetricWave(12, 0.7)).toFixed(1)),
+      queueReq: Number(Math.max(0, 35 + liveMetricWave(8, 2.7)).toFixed(1)),
+      queueReqAvg: Number(Math.max(0, 3.44 + liveMetricWave(13, 0.22)).toFixed(2)),
+      gpuPower: 17836 + item.id * 13,
+      gpuUtil: Number((47 + (item.id % 7) * 0.8).toFixed(1)),
+      tempAvg: Number((46 + (item.id % 6) * 0.3).toFixed(1)),
+      hbmUsed: 10318 + item.id * 9,
+    };
     return (
       <div className="ataas-deploy-inline-detail">
+        {mode !== 'modelOps' && (
         <div className="ataas-deploy-inline-section">
-          <div className="ataas-deploy-inline-section-head">网关配置</div>
+          <div className="ataas-deploy-inline-section-head">服务信息</div>
+          <div className="ataas-deploy-inline-summary">
+            <div><span>部署方式</span><strong>{item.deployMode || '-'}</strong></div>
+            <div><span>部署集群</span><strong>{getDeployClusterName(item)}</strong></div>
+            <div><span>推理引擎</span><strong>{item.modelInfo.engine || '-'}</strong></div>
+            <div><span>引擎版本</span><strong>{item.modelInfo.engineVersion || '-'}</strong></div>
+          </div>
+        </div>
+        )}
+        {mode !== 'modelOps' && (
+        <div className="ataas-deploy-inline-section">
+          <div className="ataas-deploy-inline-section-head ataas-deploy-inline-section-head-action">
+            <span>网关配置</span>
+            <Button
+              className="ataas-traffic-enable-button"
+              size="small"
+              disabled={isSingleTrafficGroup}
+              onClick={() => gatewayConfig.enabled ? saveInlineTraffic(item) : enableInlineTraffic(item)}
+            >
+              {gatewayConfig.enabled ? '保存' : '启用分配'}
+            </Button>
+          </div>
           <div className="ataas-deploy-inline-gateway">
-            <div>
-              <span>端口号</span>
-              <Input
-                className="ataas-deploy-inline-port-input"
-                value={gatewayConfig.port}
-                onChange={(event) => updateInlineGatewayConfig(item, (config) => ({ ...config, port: event.target.value }))}
-                size="small"
-              />
-            </div>
-            <div>
-              <span>Session 模式</span>
-              <Switch
-                checked={gatewayConfig.session}
-                onChange={(checked) => updateInlineGatewayConfig(item, (config) => ({ ...config, session: checked }))}
-                size="small"
-              />
-            </div>
             <div className="ataas-deploy-inline-traffic">
               <span>按实例分配流量</span>
               <div>
@@ -430,13 +802,13 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
                       min={0}
                       max={100}
                       value={row.percent}
-                      disabled={isSingleTrafficGroup}
+                      disabled={!trafficEditable}
                       size="small"
                       className="ataas-deploy-inline-traffic-input"
                       formatter={(value) => (value !== undefined ? `${value}%` : '')}
                       parser={(value) => Number(value?.replace('%', '') || 0)}
                       onChange={(value) => {
-                        if (value === null || isSingleTrafficGroup) return;
+                        if (value === null || !trafficEditable) return;
                         updateInlineGatewayConfig(item, (config) => {
                           const nextTraffic = [...config.traffic];
                           nextTraffic[rowIndex] = { ...nextTraffic[rowIndex], percent: Number(value) };
@@ -450,85 +822,524 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
             </div>
           </div>
         </div>
+        )}
         <div className="ataas-deploy-inline-section">
-          <div className="ataas-deploy-inline-section-head">实例信息</div>
-          {pdMode ? (
-            <Table
-              className="ataas-deploy-inline-table"
-              dataSource={pdFlatRows}
-              pagination={false}
-              size="small"
-              columns={[
-                {
-                  title: '实例',
-                  dataIndex: 'instance',
-                  key: 'instance',
-                  width: 90,
-                  render: (value: string, _row: any, index: number) => ({
-                    children: <span className="ataas-deploy-inline-instance-cell">{value}</span>,
-                    props: index % 3 === 0 ? { rowSpan: 3 } : { rowSpan: 0 },
-                  }),
-                },
-                { title: 'Pod 名称', dataIndex: 'podName', key: 'podName' },
-                { title: '组件', dataIndex: 'comp', key: 'comp', width: 90 },
-                { title: '所选机器', dataIndex: 'machine', key: 'machine' },
-                { title: '显卡数量', dataIndex: 'gpu', key: 'gpu', width: 90 },
-                { title: '状态', dataIndex: 'status', key: 'status', width: 100, render: () => <DetailStatus /> },
-                { title: '操作', key: 'action', width: 80, render: (_: unknown, row: any) => <Button type="link" size="small" onClick={() => onLog(item, row.logId)}>日志</Button> },
-              ]}
-            />
+          {mode !== 'modelOps' && (
+            <div className="ataas-deploy-inline-section-head ataas-deploy-inline-section-head-action">
+              <span>实例信息</span>
+              {onAddInstance && <Button className="ataas-traffic-enable-button" size="small" onClick={() => onAddInstance(item)}>添加实例</Button>}
+            </div>
+          )}
+          {mode === 'modelOps' ? (
+            <div className="ataas-deploy-inline-monitoring">
+              <div className="ataas-model-ops-live-metrics">
+                <div className="ataas-model-ops-live-metrics-grid top">
+                  {[
+                    {
+                      title: 'TPS',
+                      rows: [
+                        { label: 'P', value: String(liveGroupMetrics.tpsP), avg: `avg ${liveGroupMetrics.tpsPAvg}`, color: '#8B48FF' },
+                        { label: 'D', value: String(liveGroupMetrics.tpsD), avg: `avg ${liveGroupMetrics.tpsDAvg}`, color: '#14A0C7' },
+                      ],
+                    },
+                    {
+                      title: 'INFLIGHT / XFER',
+                      rows: [
+                        { label: 'P', value: liveGroupMetrics.inflightP.toFixed(2), avg: `avg ${liveGroupMetrics.inflightPAvg}`, color: '#8B48FF' },
+                        { label: 'D', value: liveGroupMetrics.inflightD.toFixed(2), avg: `avg ${liveGroupMetrics.inflightDAvg}`, color: '#14A0C7' },
+                      ],
+                    },
+                    { title: 'ROUTER RPS', value: liveGroupMetrics.routerRps.toFixed(2), suffix: 'req/s', avg: `avg ${liveGroupMetrics.routerRpsAvg.toFixed(2)}`, color: '#18A957' },
+                    { title: 'TTFT', value: String(liveGroupMetrics.ttft), suffix: 'ms', avg: `avg ${liveGroupMetrics.ttftAvg}`, color: '#18A957' },
+                    { title: 'CACHE HIT', value: liveGroupMetrics.cacheHit.toFixed(1), suffix: '%', avg: `avg ${liveGroupMetrics.cacheHitAvg.toFixed(1)}`, color: '#8B48FF' },
+                    { title: 'RUNNING REQ', value: liveGroupMetrics.runningReq.toFixed(1), suffix: '', avg: `avg ${liveGroupMetrics.runningReqAvg.toFixed(1)}`, color: '#14A0C7' },
+                    { title: 'QUEUE REQ', value: liveGroupMetrics.queueReq.toFixed(1), suffix: '', avg: `avg ${liveGroupMetrics.queueReqAvg.toFixed(2)}`, color: '#8B48FF' },
+                  ].map((card) => (
+                    <div key={card.title} className="ataas-model-ops-live-metric-card">
+                      <div className="ataas-model-ops-live-metric-title">{card.title}</div>
+                      {'rows' in card ? (
+                        <div className="ataas-model-ops-live-metric-pair">
+                          {card.rows?.map((row) => (
+                            <div key={row.label} className="ataas-model-ops-live-metric-row">
+                              <span className="ataas-model-ops-live-metric-role">{row.label}</span>
+                              <strong style={{ color: row.color }}>{row.value}</strong>
+                              <em>{row.avg}</em>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <>
+                          <div className="ataas-model-ops-live-metric-row single">
+                            <strong style={{ color: card.color }}>{card.value}</strong>
+                            {card.suffix ? <span className="ataas-model-ops-live-metric-suffix">{card.suffix}</span> : null}
+                          </div>
+                          {card.avg ? <div className="ataas-model-ops-live-metric-avg">{card.avg}</div> : null}
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="ataas-deploy-inline-table">
+              <table className="ataas-deploy-inline-native-table">
+                <colgroup>
+                  <col style={{ width: 190 }} />
+                  <col style={{ width: 112 }} />
+                  <col style={{ width: 64 }} />
+                  <col style={{ width: 78 }} />
+                  <col style={{ width: 138 }} />
+                  <col style={{ width: 140 }} />
+                  <col style={{ width: 132 }} />
+                  <col style={{ width: 148 }} />
+                  <col style={{ width: 180 }} />
+                  <col style={{ width: 80 }} />
+                  <col style={{ width: 320 }} />
+                  <col style={{ width: 132 }} />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>POD</th>
+                    <th>状态</th>
+                    <th>重启</th>
+                    <th>负载</th>
+                    <th>性能</th>
+                    <th>镜像</th>
+                    <th>IP</th>
+                    <th>NODE</th>
+                    <th>NODE GPU</th>
+                    <th>运行时间</th>
+                    <th>接流来源</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {opsRoleRows.map((row) => (
+                    <Fragment key={row.key}>
+                    <tr key={row.key}>
+                      <td>
+                        <div className="ataas-model-ops-role-name">
+                          <span className={'ataas-model-ops-role-badge role-' + row.role.toLowerCase()}>{row.role}</span>
+                          <Tooltip title={`${row.instanceName} / ${row.podName}`}>
+                            <span className="ataas-deploy-inline-pod-name">{row.podName}</span>
+                          </Tooltip>
+                        </div>
+                      </td>
+                      <td><span className="ataas-deploy-inline-status-running">{row.statusText}</span></td>
+                      <td>{row.restarts}</td>
+                      <td><span className="ataas-model-ops-load-pill">{row.load}</span></td>
+                      <td>{renderRolePerformance(row.performance)}</td>
+                      <td><Tooltip title={row.image}><span className="ataas-deploy-inline-pod-name">{row.image}</span></Tooltip></td>
+                      <td>{row.ip}</td>
+                      <td>{row.nodeName}</td>
+                      <td>
+                        <div className="ataas-model-ops-gpu-metrics">
+                          {[
+                            { label: 'util', value: row.util, color: row.util > 80 ? '#E02D2D' : '#1D2129' },
+                            { label: 'vram', value: row.vram, color: row.vram > 90 ? '#E02D2D' : '#18A957' },
+                          ].map((metric) => (
+                            <div key={metric.label} className="ataas-model-ops-gpu-row">
+                              <span>{metric.label}</span>
+                              <i>
+                                <b style={{ width: `${metric.value}%`, background: metric.label === 'vram' ? '#E02D2D' : '#1D2129' }} />
+                              </i>
+                              <span style={{ color: metric.color }}>{metric.value}%</span>
+                            </div>
+                          ))}
+                        </div>
+                      </td>
+                      <td>{row.age}</td>
+                      <td>
+                        <div className="ataas-model-ops-source-list">
+                          {row.trafficSources.map((source: string) => (
+                            <span key={source} className="ataas-model-ops-source-tag">
+                              <em />
+                              <Tooltip title={source}><span>{source}</span></Tooltip>
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="ataas-model-ops-row-actions">
+                          <Tooltip title="日志">
+                            <Button className="ataas-model-ops-row-action-button" type="text" shape="circle" size="small" icon={<FileSearchOutlined />} onClick={() => onLog(item, row.logId, row.podName)} />
+                          </Tooltip>
+                          {row.role === 'R' ? (
+                            <Tooltip title="摘流">
+                              <Button className="ataas-model-ops-row-action-button warning" type="text" shape="circle" size="small" icon={<DisconnectOutlined />} onClick={() => openDrainWeightModal(item, row)} />
+                            </Tooltip>
+                          ) : (
+                            <>
+                              <Tooltip title="下线">
+                                <Button className="ataas-model-ops-row-action-button warning" type="text" shape="circle" size="small" icon={<PoweroffOutlined />} />
+                              </Tooltip>
+                              <Tooltip title="关联">
+                                <Button className="ataas-model-ops-row-action-button link" type="text" shape="circle" size="small" icon={<LinkOutlined />} onClick={() => openRouterLinkModal(item, row)} />
+                              </Tooltip>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                    {row.role === 'D' && renderMooncakeSummaryRow()}
+                    {row.role === 'D' && mooncakeExpanded && mooncakeRows.map(renderMooncakeDetailRow)}
+                    </Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            </div>
+          ) : pdMode ? (
+            <div className="ataas-deploy-inline-table">
+              <table className="ataas-deploy-inline-native-table">
+                <colgroup>
+                  <col style={{ width: 116 }} />
+                  <col style={{ width: 92 }} />
+                  <col style={{ width: 150 }} />
+                  <col style={{ width: 92 }} />
+                  <col style={{ width: 128 }} />
+                  <col style={{ width: 128 }} />
+                  <col style={{ width: 92 }} />
+                  <col style={{ width: 64 }} />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>实例</th>
+                    <th>状态</th>
+                    <th>Pod 名称</th>
+                    <th>组件</th>
+                    <th>集群</th>
+                    <th>所选机器</th>
+                    <th>显卡数量</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pdRows.map((row) => (
+                    <tr key={row.key}>
+                      {row.instanceRowSpan > 0 && <td rowSpan={row.instanceRowSpan}>{renderInstanceCell(item, row.instanceRecord)}</td>}
+                      <td><DetailStatus /></td>
+                      <td><Tooltip title={row.podName}><span className="ataas-deploy-inline-pod-name">{row.podName}</span></Tooltip></td>
+                      <td>{row.comp}</td>
+                      <td>{row.cluster}</td>
+                      <td>{row.machine}</td>
+                      <td>{row.gpu}</td>
+                      <td>
+                        <span className="ataas-deploy-inline-table-actions">
+                          <Tooltip title="运行日志">
+                            <Button className="ataas-deploy-inline-log-button" type="text" size="small" icon={<FileSearchOutlined />} onClick={() => onLog(item, row.logId)} />
+                          </Tooltip>
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : (
-            <Table
-              className="ataas-deploy-inline-table"
-              dataSource={detailInstances.map((record, index) => ({
-                ...record,
-                podName: `pod-${podSuffix(record.node)}-0`,
-                comp: '推理',
-                gpu: getInstanceGpuCountText(item),
-                logId: item.modelInfo.logs[index]?.id || item.modelInfo.logs[0]?.id || index + 1,
-              }))}
-              pagination={false}
-              size="small"
-              columns={[
-                { title: '实例', dataIndex: 'instance', key: 'instance', width: 90 },
-                { title: 'Pod 名称', dataIndex: 'podName', key: 'podName' },
-                { title: '组件', dataIndex: 'comp', key: 'comp', width: 90 },
-                { title: '所选机器', dataIndex: 'node', key: 'node' },
-                { title: '显卡数量', dataIndex: 'gpu', key: 'gpu', width: 90 },
-                { title: '状态', dataIndex: 'status', key: 'status', width: 100, render: () => <DetailStatus /> },
-                { title: '操作', key: 'action', width: 80, render: (_: unknown, row: any) => <Button type="link" size="small" onClick={() => onLog(item, row.logId)}>日志</Button> },
-              ]}
-            />
+            <div className="ataas-deploy-inline-table">
+              <table className="ataas-deploy-inline-native-table">
+                <colgroup>
+                  <col style={{ width: 116 }} />
+                  <col style={{ width: 92 }} />
+                  <col style={{ width: 150 }} />
+                  <col style={{ width: 128 }} />
+                  <col style={{ width: 128 }} />
+                  <col style={{ width: 92 }} />
+                  <col style={{ width: 64 }} />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>实例</th>
+                    <th>状态</th>
+                    <th>Pod 名称</th>
+                    <th>集群</th>
+                    <th>所选机器</th>
+                    <th>显卡数量</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {inlineRows.map((row) => (
+                    <tr key={row.key}>
+                      <td>{renderInstanceCell(item, row)}</td>
+                      <td><DetailStatus /></td>
+                      <td><Tooltip title={row.podName}><span className="ataas-deploy-inline-pod-name">{row.podName}</span></Tooltip></td>
+                      <td>{row.cluster}</td>
+                      <td>{row.node}</td>
+                      <td>{row.gpu}</td>
+                      <td>
+                        <span className="ataas-deploy-inline-table-actions">
+                          <Tooltip title="运行日志">
+                            <Button className="ataas-deploy-inline-log-button" type="text" size="small" icon={<FileSearchOutlined />} onClick={() => onLog(item, row.logId)} />
+                          </Tooltip>
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </div>
     );
   };
 
+  const getModelOpsRoleSummary = (item: DeployServiceItem) => {
+    if (item.modelOpsRoleSummary) return item.modelOpsRoleSummary;
+    const detailCount = Math.max(1, getDetailInstances(item).length || item.modelInfo.number || 1);
+    const prefillCount = item.deployMode === 'PD 分离' ? Math.max(1, detailCount * 2) : detailCount;
+    return {
+      router: '1/1',
+      prefill: `${prefillCount}/${prefillCount}`,
+      decode: '1/1',
+    };
+  };
+
+  const renderModelOpsRoleSummary = (item: DeployServiceItem) => {
+    const summary = getModelOpsRoleSummary(item);
+    const roleState = (value: string) => {
+      const [ready, total] = value.split('/').map((part) => Number(part));
+      return Number.isFinite(ready) && Number.isFinite(total) && ready < total ? ' warning' : ' ready';
+    };
+    return (
+      <span className="ataas-model-ops-role-summary">
+        <span className={roleState(summary.router)}><b>R</b>{summary.router}</span>
+        <span className={roleState(summary.prefill)}><b>P</b>{summary.prefill}</span>
+        <span className={roleState(summary.decode)}><b>D</b>{summary.decode}</span>
+      </span>
+    );
+  };
+
+  const renderModelOpsYamlFile = (fileName: string, item: DeployServiceItem, kind: 'router' | 'worker') => (
+    <Tooltip title={fileName}>
+      <button type="button" className="ataas-model-ops-yaml-file" onClick={() => onModelOpsYamlPreview?.(item, kind, fileName)}>
+        <FileTextOutlined />
+        <span>{fileName}</span>
+      </button>
+    </Tooltip>
+  );
+
+  const getModelOpsPerfSummary = (item: DeployServiceItem) => {
+    const phase = Math.floor(nowTick / 60000) + item.id;
+    const wave = (offset: number, amplitude: number) => Math.sin((phase + offset) / 3) * amplitude;
+    return {
+      ttft: Math.max(0, Math.round(31234 + (item.id % 9) * 137 + wave(0, 220))),
+      tpot: Math.max(0, 18 + (item.id % 7) * 1.6 + wave(2, 0.8)).toFixed(1),
+      prefillTps: 680 + (item.id % 9) * 37,
+      decodeTps: 420 + (item.id % 8) * 29,
+      routherRps: 1300 + (item.id % 11) * 86,
+      hitRate: `${(92 + (item.id % 7) * 0.8).toFixed(1)}%`,
+    };
+  };
+  const renderModelOpsPerfValue = (item: DeployServiceItem, type: 'ttft' | 'tpot') => {
+    const perf = getModelOpsPerfSummary(item);
+    const title = type === 'ttft' ? '全组 60s prefill pods 的 TTFT 合并 P99' : '60s 全组 decode pods 的 TPOT 合并 P99';
+    return (
+      <Tooltip title={title}>
+        <span className="ataas-model-ops-perf-value dynamic">{perf[type]}</span>
+      </Tooltip>
+    );
+  };
+
+  const getModelOpsRouterCandidates = (item: DeployServiceItem) => {
+    const cluster = getDeployClusterName(item);
+    const modelName = item.modelInfo.name;
+    return data
+      .filter((service) => service.modelInfo.name === modelName && getDeployClusterName(service) === cluster)
+      .map((service) => ({
+        key: `${service.id}-router-0`,
+        podName: `${service.name}-router-0`,
+        groupName: service.name,
+        cluster: getDeployClusterName(service),
+      }));
+  };
+
+  const getModelOpsDrainRouters = (item: DeployServiceItem) => {
+    const cluster = getDeployClusterName(item);
+    const modelName = item.modelInfo.name;
+    return data
+      .filter((service) => service.modelInfo.name === modelName && getDeployClusterName(service) === cluster)
+      .map((service) => ({
+        key: `${service.id}-router-0`,
+        routerName: `${service.name}-router-0`,
+        groupName: service.name,
+        cluster: getDeployClusterName(service),
+        service,
+      }));
+  };
+
+  const getDefaultDrainWeights = (routers: ReturnType<typeof getModelOpsDrainRouters>) => {
+    if (routers.length <= 1) {
+      return routers.reduce<Record<string, number>>((acc, router) => ({ ...acc, [router.key]: 100 }), {});
+    }
+    const base = Math.floor(100 / routers.length);
+    return routers.reduce<Record<string, number>>((acc, router, index) => ({
+      ...acc,
+      [router.key]: getModelOpsRowWeight?.(router.service) ?? (index === routers.length - 1 ? 100 - base * (routers.length - 1) : base),
+    }), {});
+  };
+
+  const openDrainWeightModal = (item: DeployServiceItem, row: any) => {
+    const routers = getModelOpsDrainRouters(item);
+    setDrainWeightModal({
+      item,
+      row,
+      routers,
+      weights: getDefaultDrainWeights(routers),
+    });
+  };
+
+  const updateDrainWeight = (routerKey: string, value: number) => {
+    setDrainWeightModal((prev) => prev ? {
+      ...prev,
+      weights: { ...prev.weights, [routerKey]: Math.max(0, Math.min(100, Math.round(value))) },
+    } : prev);
+  };
+
+  const normalizeDrainWeights = () => {
+    setDrainWeightModal((prev) => {
+      if (!prev) return prev;
+      const total = prev.routers.reduce((sum, router) => sum + (prev.weights[router.key] ?? 0), 0);
+      if (total <= 0) return prev;
+      const next = prev.routers.map((router) => Math.floor(((prev.weights[router.key] ?? 0) / total) * 100));
+      const rest = 100 - next.reduce((sum, value) => sum + value, 0);
+      if (next.length > 0) next[next.length - 1] += rest;
+      return {
+        ...prev,
+        weights: prev.routers.reduce<Record<string, number>>((acc, router, index) => ({ ...acc, [router.key]: next[index] }), {}),
+      };
+    });
+  };
+
+  const averageDrainWeights = () => {
+    setDrainWeightModal((prev) => {
+      if (!prev || prev.routers.length === 0) return prev;
+      const base = Math.floor(100 / prev.routers.length);
+      return {
+        ...prev,
+        weights: prev.routers.reduce<Record<string, number>>((acc, router, index) => ({
+          ...acc,
+          [router.key]: index === prev.routers.length - 1 ? 100 - base * (prev.routers.length - 1) : base,
+        }), {}),
+      };
+    });
+  };
+
+  const openRouterLinkModal = (item: DeployServiceItem, row: any) => {
+    const ownRouterKey = `${item.id}-router-0`;
+    setRouterLinkModal({
+      item,
+      row,
+      selected: getModelOpsRouterCandidates(item).some((router) => router.key === ownRouterKey) ? [ownRouterKey] : [],
+    });
+  };
+
+  const toggleRouterLink = (routerKey: string) => {
+    setRouterLinkModal((prev) => {
+      if (!prev) return prev;
+      return { ...prev, selected: prev.selected.includes(routerKey) ? [] : [routerKey] };
+    });
+  };
+
+  const deployTableColumns: ColumnsType<DeployServiceItem> = [
+    { title: '服务名称', dataIndex: 'name', key: 'name', width: 180, render: (v, r) => <><span className="ataas-deploy-table-main">{v}</span><div className="ataas-deploy-table-sub">{r.typeStr}</div></> },
+    { title: '类别', key: 'category', width: 90, render: (_, r) => <CategoryTag category={r.category} table /> },
+    { title: '状态', key: 'status', width: 120, render: (_, r) => <TableStatus item={r} /> },
+    { title: '部署方式', key: 'deployMode', width: 100, render: (_, r) => <span>{r.deployMode || '-'}</span> },
+    { title: '运行时长', dataIndex: 'timeStr', key: 'time', width: 100 },
+    { title: '实例数', key: 'instances', width: 70, render: (_, r) => r.modelInfo.number },
+    { title: '部署节点', key: 'works', width: 100, render: (_, r) => <button type="button" className="ataas-deploy-node-count-link" onClick={() => onNodeFilter?.(r)}>{r.modelInfo.works?.split(',').filter(Boolean).length || 0}</button> },
+    { title: '集群', key: 'cluster', width: 140, render: (_, r) => <span className="ataas-deploy-table-cluster">{getDeployClusterName(r)}</span> },
+    { title: '模型参数', key: 'size', width: 100, render: (_, r) => r.modelInfo.size },
+    { title: '显存占用', key: 'vram', width: 100, render: (_, r) => r.modelInfo.vram },
+    { title: '操作', key: 'action', width: 180, fixed: 'right' as const, className: 'ataas-deploy-fixed-action-cell', render: (_, r) => (
+      <div className="ataas-deploy-table-actions ataas-deploy-table-service-actions">
+        <IconActionButton title="停止" icon={<PoweroffOutlined />} onClick={() => onStop(r)} />
+        <IconActionButton title="监控" icon={<BarChartOutlined />} disabled={r.status !== 'running'} onClick={() => onMonitor(r)} />
+        <IconActionButton title="去体验" icon={<PlayCircleOutlined />} disabled={r.status !== 'running'} onClick={() => onExperience(r)} />
+      </div>
+    ) },
+  ];
+
+  const modelOpsTableColumns: ColumnsType<DeployServiceItem> = [
+    { title: '模型实例', dataIndex: 'name', key: 'name', width: 130, render: (v) => <span className="ataas-deploy-table-main">{v}</span> },
+    { title: '当前权重', key: 'weight', width: 86, render: (_, r) => <span className="ataas-model-ops-weight-pill">{getModelOpsRowWeight?.(r) ?? 100}%</span> },
+    { title: '状态', key: 'status', width: 86, render: (_, r) => <TableStatus item={r} /> },
+    { title: '集群', key: 'cluster', width: 120, render: (_, r) => <span className="ataas-deploy-table-cluster">{getDeployClusterName(r)}</span> },
+    { title: 'Role', key: 'role', width: 180, render: (_, r) => renderModelOpsRoleSummary(r) },
+    { title: 'Routher', key: 'routerYaml', width: 130, render: (_, r) => renderModelOpsYamlFile(`${r.modelInfo.name}/router.yaml`, r, 'router') },
+    { title: 'Worker', key: 'workerYaml', width: 130, render: (_, r) => renderModelOpsYamlFile(`${r.modelInfo.name}/worker.yaml`, r, 'worker') },
+    { title: 'TTFT', key: 'ttft', width: 76, render: (_, r) => renderModelOpsPerfValue(r, 'ttft') },
+    { title: 'TPOT', key: 'tpot', width: 76, render: (_, r) => renderModelOpsPerfValue(r, 'tpot') },
+    { title: '操作', key: 'action', width: 96, fixed: 'right' as const, className: 'ataas-deploy-fixed-action-cell', render: (_, r) => (
+      <div className="ataas-model-ops-table-actions">
+        <Tooltip title="重建">
+          <button type="button" className="ataas-model-ops-icon-action"><ReloadOutlined /></button>
+        </Tooltip>
+        <Tooltip title="整组下线">
+          <button type="button" className="ataas-model-ops-icon-action danger" onClick={() => onStop(r)}><PoweroffOutlined /></button>
+        </Tooltip>
+        <Tooltip title="扩缩容">
+          <button type="button" className="ataas-model-ops-icon-action" onClick={() => onScalePd?.(r)}><SettingOutlined /></button>
+        </Tooltip>
+      </div>
+    ) },
+  ];
+
   return (
     <ConfigProvider theme={DEPLOY_THEME}>
     <div className="ataas-deploy-list">
       {/* 搜索栏 */}
       <div className="ataas-deploy-list-toolbar">
-        <Select className="ataas-deploy-list-select" value={statusFilter} onChange={setStatusFilter} options={SERVICE_STATUS_OPTIONS} placeholder="服务状态" size="middle" />
-        <Select className="ataas-deploy-list-select" value={categoryFilter} onChange={setCategoryFilter} options={CATEGORY_OPTIONS} placeholder="模型类型" size="middle" />
-        <Select className="ataas-deploy-list-select" value={clusterFilter} onChange={(value) => { setClusterFilter(value); onClusterFilterChange?.(value); setPage(1); }} options={CLUSTER_OPTIONS} placeholder="集群名称" size="middle" />
-        <Select className="ataas-deploy-list-select" value={serviceGroupFilter} onChange={(value) => { setServiceGroupFilter(value); setPage(1); }} options={serviceGroupOptions} placeholder="服务组" size="middle" />
-        <Input.Search className="ataas-deploy-list-search" placeholder="搜索服务名称..." value={searchText} onChange={(e) => setSearchText(e.target.value)} allowClear size="middle" />
+        {mode !== 'modelOps' && (
+          <>
+            <Select className="ataas-deploy-list-select" value={statusFilter} onChange={setStatusFilter} options={SERVICE_STATUS_OPTIONS} placeholder="服务状态" size="middle" />
+            <Select className="ataas-deploy-list-select" value={categoryFilter} onChange={setCategoryFilter} options={CATEGORY_OPTIONS} placeholder="模型类型" size="middle" />
+          </>
+        )}
+        <Select className="ataas-deploy-list-select" value={clusterFilter} onChange={(value) => { setClusterFilter(value); onClusterFilterChange?.(value); setPage(1); }} options={clusterOptions} placeholder="集群名称" size="middle" />
+        <Input.Search className="ataas-deploy-list-search" placeholder={mode === 'modelOps' ? '搜索模型实例...' : '搜索服务名称...'} value={searchText} onChange={(e) => setSearchText(e.target.value)} allowClear size="middle" />
         <div style={{ flex: 1 }} />
-        <div className="ataas-deploy-list-view-toggle" role="group" aria-label="视图切换">
-          <button className={viewMode === 'card' ? 'active' : ''} type="button" onClick={() => { setViewMode('card'); onViewModeChange?.('card'); setPage(1); }}>
-            <AppstoreOutlined />卡片
-          </button>
-          <span className="ataas-deploy-view-divider" aria-hidden="true" />
-          <button className={viewMode === 'table' ? 'active' : ''} type="button" onClick={() => { setViewMode('table'); onViewModeChange?.('table'); setPage(1); }}>
-            <BarsOutlined />列表
-          </button>
-        </div>
-        <Button className="ataas-deploy-create-button" type="primary" icon={<PlusOutlined />} onClick={onOpenCreate}>创建模型服务</Button>
+        {mode === 'modelOps' && onAllocateWeight && (
+          <Button
+            className="ataas-deploy-create-button"
+            type="primary"
+            icon={<SettingOutlined />}
+            disabled={filtered.length === 0}
+            onClick={() => filtered[0] && onAllocateWeight(filtered[0])}
+          >
+            分配权重
+          </Button>
+        )}
+        {mode === 'modelOps' && onAddInstance && (
+          <Button
+            className="ataas-deploy-create-button"
+            type="primary"
+            icon={<PlusOutlined />}
+            disabled={filtered.length === 0}
+            onClick={() => filtered[0] && onAddInstance(filtered[0])}
+          >
+            添加实例
+          </Button>
+        )}
+        {mode !== 'modelOps' && (
+          <>
+            <div className="ataas-deploy-list-view-toggle" role="group" aria-label="视图切换">
+              <button className={viewMode === 'card' ? 'active' : ''} type="button" onClick={() => { setViewMode('card'); onViewModeChange?.('card'); setPage(1); }}>
+                <AppstoreOutlined />卡片
+              </button>
+              <span className="ataas-deploy-view-divider" aria-hidden="true" />
+              <button className={viewMode === 'table' ? 'active' : ''} type="button" onClick={() => { setViewMode('table'); onViewModeChange?.('table'); setPage(1); }}>
+                <BarsOutlined />列表
+              </button>
+            </div>
+            <Button className="ataas-deploy-create-button" type="primary" icon={<PlusOutlined />} onClick={onOpenCreate}>创建模型服务</Button>
+          </>
+        )}
       </div>
 
-      {viewMode === 'card' ? (
+      {effectiveViewMode === 'card' ? (
         <div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 14 }}>
             {paginated.map((item) => {
@@ -548,15 +1359,9 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
                         </Tooltip>
                         <div className="ataas-deploy-service-subline">
                           <CategoryTag category={item.category} />
-                          {item.serviceGroupName ? (
-                            <Tooltip title={`Group: ${item.serviceGroupName}`}>
-                              <span className="ataas-deploy-service-group-badge">Group: {item.serviceGroupName}</span>
-                            </Tooltip>
-                          ) : (
-                            <Tooltip title={item.typeStr}>
-                              <span className="ataas-deploy-service-type-text">{item.typeStr}</span>
-                            </Tooltip>
-                          )}
+                          <Tooltip title={item.modelInfo.name || item.typeStr || item.name}>
+                            <span className="ataas-deploy-service-type-text">{item.modelInfo.name || item.typeStr || item.name}</span>
+                          </Tooltip>
                           <ModelInfoPopover item={item} />
                         </div>
                       </div>
@@ -576,8 +1381,6 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
                     <div>运行时间 <MetaValue title={getRuntimeText(item)}>{getRuntimeText(item)}</MetaValue></div>
                     <div>显存占用 <MetaValue title={item.modelInfo.vram}>{item.modelInfo.vram}</MetaValue></div>
                     <div>精度 <MetaValue title={item.modelInfo.point}>{item.modelInfo.point}</MetaValue></div>
-                    <div>自动重启 <MetaValue title={`${item.modelInfo.restartCount} / ${item.modelInfo.restartNumber || item.modelInfo.restartCount}`}><em>{item.modelInfo.restartCount}</em> / {item.modelInfo.restartNumber || item.modelInfo.restartCount}</MetaValue></div>
-                    <div>并发控制 <MetaValue title={String(item.modelInfo.concurrencyControllCount)}>{item.modelInfo.concurrencyControllCount}</MetaValue></div>
                   </div>
 
                   {/* 操作栏 */}
@@ -604,56 +1407,161 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
           )}
         </div>
       ) : (
-          <div className="ataas-deploy-table-wrap">
-            <Table dataSource={paginated} rowKey="id" pagination={{ pageSize: 10, showTotal: (t) => `共 ${t} 条`, showSizeChanger: true }} scroll={{ x: 1420 }}
-            expandable={{
-              expandedRowKeys: expandedServiceIds,
-              onExpand: (expanded, record) => {
-                setExpandedServiceIds((prev) => (expanded ? [...new Set([...prev, record.id])] : prev.filter((id) => id !== record.id)));
-              },
-              expandedRowRender: (record) => renderDeployInlineDetail(record),
-              rowExpandable: () => true,
-            }}
-            columns={[
-              { title: '服务名称', dataIndex: 'name', key: 'name', width: 180, render: (v, r) => <><span className="ataas-deploy-table-main">{v}</span><div className="ataas-deploy-table-sub">{r.typeStr}</div></> },
-              { title: '服务组', key: 'serviceGroup', width: 150, render: (_, r) => r.serviceGroupName ? <span className="ataas-deploy-table-group">{r.serviceGroupName}</span> : <span className="ataas-deploy-table-sub">-</span> },
-              { title: '类别', key: 'category', width: 90, render: (_, r) => <CategoryTag category={r.category} table /> },
-              { title: '状态', key: 'status', width: 120, render: (_, r) => <TableStatus item={r} /> },
-              { title: '部署方式', key: 'deployMode', width: 100, render: (_, r) => <span>{r.deployMode || '-'}</span> },
-              { title: '运行时长', dataIndex: 'timeStr', key: 'time', width: 100 },
-              { title: '实例数', key: 'instances', width: 70, render: (_, r) => r.modelInfo.number },
-              { title: '部署节点', key: 'works', width: 100, render: (_, r) => <button type="button" className="ataas-deploy-node-count-link" onClick={() => onNodeFilter?.(r)}>{r.modelInfo.works?.split(',').filter(Boolean).length || 0}</button> },
-              { title: '集群', key: 'cluster', width: 140, render: (_, r) => <span className="ataas-deploy-table-cluster">{getDeployClusterName(r)}</span> },
-              { title: '模型参数', key: 'size', width: 100, render: (_, r) => r.modelInfo.size },
-              { title: '显存占用', key: 'vram', width: 100, render: (_, r) => r.modelInfo.vram },
-              { title: '自动重启', key: 'restart', width: 80, render: (_, r) => <Switch size="small" checked={r.modelInfo.restartStatus} disabled={r.status !== 'running'} onChange={() => onRestartToggle(r)} /> },
-              { title: '并发控制', key: 'concurrency', width: 80, render: (_, r) => <Switch size="small" checked={r.modelInfo.concurrencyControllStatus} disabled={r.status !== 'running'} onChange={() => onConcurrencyToggle(r)} /> },
-              { title: '操作', key: 'action', width: 180, fixed: 'right', className: 'ataas-deploy-fixed-action-cell', render: (_, r) => {
-                return (
-                  <div className="ataas-deploy-table-actions ataas-deploy-table-service-actions">
-                    <IconActionButton title="停止" icon={<PoweroffOutlined />} onClick={() => onStop(r)} />
-                    <IconActionButton title="监控" icon={<BarChartOutlined />} disabled={r.status !== 'running'} onClick={() => onMonitor(r)} />
-                    <IconActionButton title="去体验" icon={<PlayCircleOutlined />} disabled={r.status !== 'running'} onClick={() => onExperience(r)} />
-                  </div>
-                );
-              }},
-            ]}
-          />
+          <div className={`ataas-deploy-table-wrap${mode === 'modelOps' ? ' ataas-model-ops-detail-table-wrap' : ''}`}>
+            <Table
+              dataSource={paginated}
+              rowKey="id"
+              pagination={{ pageSize: 10, showTotal: (t) => `共 ${t} 条`, showSizeChanger: true }}
+              scroll={{ x: mode === 'modelOps' ? 'max-content' : 1180 }}
+              expandable={mode === 'modelOps' ? {
+                columnWidth: 40,
+                expandedRowKeys: expandedServiceIds,
+                onExpand: (expanded, record) => {
+                  setExpandedServiceIds((prev) => (expanded ? [...new Set([...prev, record.id])] : prev.filter((id) => id !== record.id)));
+                },
+                expandedRowRender: (record) => renderDeployInlineDetail(record),
+                rowExpandable: () => true,
+              } : undefined}
+              columns={mode === 'modelOps' ? modelOpsTableColumns : deployTableColumns}
+            />
           </div>
       )}
     </div>
+    <Modal
+      className="ataas-model-ops-router-link-modal"
+      title={routerLinkModal ? (
+        <div className="ataas-model-ops-router-link-title">
+          <LinkOutlined />
+          <strong>编辑 Router 关联</strong>
+          <em>{routerLinkModal.row.podName}</em>
+        </div>
+      ) : '编辑 Router 关联'}
+      open={!!routerLinkModal}
+      width={640}
+      onCancel={() => setRouterLinkModal(null)}
+      footer={[
+        <Button key="cancel" onClick={() => setRouterLinkModal(null)}>取消</Button>,
+        <Button
+          key="submit"
+          type="primary"
+          disabled={!routerLinkModal?.selected.length}
+          onClick={() => {
+            message.success('Router 关联变更已提交为 task');
+            setRouterLinkModal(null);
+          }}
+        >
+          提交为 task ({routerLinkModal?.selected.length || 0})
+        </Button>,
+      ]}
+    >
+      {routerLinkModal && (() => {
+        const candidates = getModelOpsRouterCandidates(routerLinkModal.item);
+        return (
+          <div className="ataas-model-ops-router-link">
+            <div className="ataas-model-ops-router-link-sub">
+              {routerLinkModal.row.role === 'P' ? 'prefill' : 'decode'} · {routerLinkModal.row.ip} · 同集群同模型 Router POD
+            </div>
+            <div className="ataas-model-ops-router-link-tip">
+              {routerLinkModal.row.role} 一般只关联一个 router；勾选第二个会被禁止。
+            </div>
+            <div className="ataas-model-ops-router-link-list">
+              {candidates.map((candidate) => {
+                const checked = routerLinkModal.selected.includes(candidate.key);
+                const disabled = !checked && routerLinkModal.selected.length >= 1;
+                return (
+                  <label key={candidate.key} className={'ataas-model-ops-router-link-option' + (disabled ? ' disabled' : '')}>
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={disabled}
+                      onChange={() => toggleRouterLink(candidate.key)}
+                    />
+                    <span>{candidate.podName}</span>
+                    <em>{candidate.groupName}</em>
+                    <i />
+                  </label>
+                );
+              })}
+              {candidates.length === 0 && <div className="ataas-model-ops-router-link-empty">暂无可关联 Router POD</div>}
+            </div>
+          </div>
+        );
+      })()}
+    </Modal>
+    <Modal
+      className="ataas-model-ops-weight-modal-shell ataas-model-ops-task-modal ataas-model-ops-drain-modal-shell"
+      title={drainWeightModal ? (
+        <div className="ataas-model-ops-router-link-title">
+          <DisconnectOutlined />
+          <strong>摘流 · 降权</strong>
+          <em>{drainWeightModal.item.modelInfo.name}</em>
+        </div>
+      ) : '摘流 · 降权'}
+      open={!!drainWeightModal}
+      width={600}
+      onCancel={() => setDrainWeightModal(null)}
+      footer={[
+        <Button key="cancel" onClick={() => setDrainWeightModal(null)}>取消</Button>,
+        <Button
+          key="save"
+          type="primary"
+          onClick={() => {
+            message.success('摘流权重调整已提交为 task');
+            setDrainWeightModal(null);
+          }}
+        >
+          确定
+        </Button>,
+      ]}
+    >
+      {drainWeightModal && (() => {
+        const activeKey = `${drainWeightModal.item.id}-router-0`;
+        const total = drainWeightModal.routers.reduce((sum, router) => sum + (drainWeightModal.weights[router.key] ?? 0), 0);
+        return (
+          <div className="ataas-model-ops-weight-modal ataas-model-ops-drain-modal">
+            <div className="ataas-model-ops-weight-modal-subtitle">
+              higress-system · host {getDeployClusterName(drainWeightModal.item)}.cluster.local · 占比超过 3%，先降权再摘除
+            </div>
+            <div className="ataas-model-ops-weight-modal-toolbar">
+              <span>当前总和 <strong>{total}</strong></span>
+              <div>
+                <Button onClick={normalizeDrainWeights}>归一化到 100</Button>
+              </div>
+            </div>
+            <div className="ataas-model-ops-weight-modal-list">
+              {drainWeightModal.routers.map((router) => {
+                const value = drainWeightModal.weights[router.key] ?? 0;
+                const active = router.key === activeKey;
+                return (
+                  <div key={router.key} className={'ataas-model-ops-weight-modal-row' + (active ? ' drain-target' : '')}>
+                    <Tooltip title={router.routerName}>
+                      <strong>
+                        {active && <span className="ataas-model-ops-drain-mark">降</span>}
+                        {router.routerName}
+                      </strong>
+                    </Tooltip>
+                    <Slider min={0} max={100} value={value} tooltip={{ formatter: null }} onChange={(nextValue) => updateDrainWeight(router.key, Number(nextValue))} />
+                    <div className="ataas-model-ops-weight-modal-input">
+                      <InputNumber min={0} max={100} value={value} size="middle" onChange={(nextValue) => { if (nextValue !== null) updateDrainWeight(router.key, Number(nextValue)); }} />
+                      <span>%</span>
+                    </div>
+                  </div>
+                );
+              })}
+              {drainWeightModal.routers.length === 0 && <div className="ataas-model-ops-router-link-empty">暂无可调整 Router</div>}
+            </div>
+          </div>
+        );
+      })()}
+    </Modal>
     {modelInfoPopup && typeof document !== 'undefined' && createPortal(
       <div className="ataas-deploy-model-info-card" style={{ left: modelInfoPopup.left, top: modelInfoPopup.top }}>
         <h3>模型信息</h3>
         <div className="ataas-deploy-model-info-grid">
           <div><span>模型名称</span><strong>{modelInfoPopup.item.modelInfo.name}</strong></div>
-          <div><span>推理引擎</span><strong>{modelInfoPopup.item.modelInfo.engine} / {modelInfoPopup.item.modelInfo.engineVersion}</strong></div>
-          <div><span>模型ID</span><strong>#{modelInfoPopup.item.id}</strong></div>
           <div><span>模型参数</span><strong>{modelInfoPopup.item.modelInfo.size}</strong></div>
           <div><span>上下文长度</span><strong>{modelInfoPopup.item.modelInfo.contextLength}</strong></div>
           <div><span>注意力头数</span><strong>{modelInfoPopup.item.modelInfo.attentionHeads}</strong></div>
-          <div><span>模型精度</span><strong>{modelInfoPopup.item.modelInfo.point}</strong></div>
-          <div><span>占用显存</span><strong>{modelInfoPopup.item.modelInfo.vram}</strong></div>
           <div><span>层数</span><strong>{modelInfoPopup.item.modelInfo.layers}</strong></div>
         </div>
       </div>,
@@ -676,19 +1584,19 @@ function IconActionButton({ title, icon, disabled, onClick, className }: { title
 function LogButton({ item, onLog, iconOnly }: { item: DeployServiceItem; onLog: (item: DeployServiceItem, logId: number) => void; iconOnly?: boolean }) {
   if (item.modelInfo.logs.length === 0) {
     return <div style={{ flex: iconOnly ? undefined : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#d9d9d9', cursor: 'not-allowed', userSelect: 'none' }}>
-      {iconOnly ? <Button className="ataas-deploy-action-icon" type="text" size="small" disabled icon={<CodeOutlined />} /> : '日志'}
+      {iconOnly ? <Button className="ataas-deploy-action-icon" type="text" size="small" disabled icon={<FileSearchOutlined />} /> : '日志'}
     </div>;
   }
   if (item.modelInfo.logs.length === 1) {
     return <div className={iconOnly ? '' : 'ataas-deploy-service-action'} style={iconOnly ? { display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' } : undefined}
       onClick={() => onLog(item, item.modelInfo.logs[0].id)}>
-      {iconOnly ? <Tooltip title="运行日志"><Button className="ataas-deploy-action-icon" type="text" size="small" icon={<CodeOutlined />} /></Tooltip> : <span style={{ fontSize: 12, color: '#666' }}>日志</span>}
+      {iconOnly ? <Tooltip title="运行日志"><Button className="ataas-deploy-action-icon" type="text" size="small" icon={<FileSearchOutlined />} /></Tooltip> : <span style={{ fontSize: 12, color: '#666' }}>日志</span>}
     </div>;
   }
   return (
     <Dropdown menu={{ items: item.modelInfo.logs.map((log) => ({ label: log.name, key: log.id })), onClick: ({ key }) => onLog(item, Number(key)) }}>
       <div className={iconOnly ? '' : 'ataas-deploy-service-action'} style={iconOnly ? { display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' } : undefined}>
-        {iconOnly ? <Button className="ataas-deploy-action-icon" type="text" size="small" icon={<CodeOutlined />} /> : <span style={{ fontSize: 12, color: '#666' }}>日志</span>}
+        {iconOnly ? <Button className="ataas-deploy-action-icon" type="text" size="small" icon={<FileSearchOutlined />} /> : <span style={{ fontSize: 12, color: '#666' }}>日志</span>}
       </div>
     </Dropdown>
   );

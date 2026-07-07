@@ -1,0 +1,105 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "./theme.css";
+
+@theme inline {
+  /* Map Tailwind color tokens to theme CSS variables */
+  --color-background: var(--color-bg);
+  --color-foreground: var(--color-text);
+  --color-card: var(--color-surface);
+  --color-card-foreground: var(--color-text);
+  --color-popover: var(--color-elevated);
+  --color-popover-foreground: var(--color-text);
+  --color-primary: var(--color-success);
+  --color-primary-foreground: var(--color-bg);
+  --color-secondary: var(--color-surface);
+  --color-secondary-foreground: var(--color-secondary);
+  --color-muted: var(--color-elevated);
+  --color-muted-foreground: var(--color-muted);
+  --color-accent: var(--color-elevated);
+  --color-accent-foreground: var(--color-text);
+  --color-destructive: var(--color-error);
+  --color-destructive-foreground: #fafafa;
+  --color-border: var(--color-border);
+  --color-input: var(--color-surface);
+  --color-ring: var(--color-success);
+  --color-chart-1: var(--color-success);
+  --color-chart-2: var(--color-warning);
+  --color-chart-3: var(--color-info);
+  --color-chart-4: var(--color-purple);
+  --color-chart-5: var(--color-error);
+  --radius: 0.375rem;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  /* 全平台让浏览器走系统 mono：macOS = SF Mono，Windows = Consolas，
+     Linux = DejaVu Sans Mono / Liberation Mono。不再 fetch JetBrains
+     Mono webfont，少一次网络请求 + 各平台保持原生观感。 */
+  --font-mono: ui-monospace, monospace;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+    font-size: 13px;
+    line-height: 1.6;
+    font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  code, pre, .font-mono {
+    font-family: var(--font-mono);
+  }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted);
+}
+
+::selection {
+  background: var(--color-info-bg);
+  color: var(--color-text-heading);
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.animate-pulse-dot {
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Monaco decorations for template-substituted lines in the deployment
+   preview. The background tint + gutter bar make the replaced line pop
+   without fighting the syntax colors. */
+.b300-replaced-line {
+  background: color-mix(in srgb, var(--color-warning) 18%, transparent);
+}
+.b300-replaced-gutter {
+  background: var(--color-warning);
+  width: 3px !important;
+  margin-left: 3px;
+}

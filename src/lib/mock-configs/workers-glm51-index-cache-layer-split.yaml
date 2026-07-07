@@ -1,0 +1,452 @@
+apiVersion: workloads.x-k8s.io/v1alpha1
+kind: RoleBasedGroup
+metadata:
+  name: glm51-workers-${INDEX}
+  namespace: default
+spec:
+  roles:
+    - minReadySeconds: 0
+      name: prefill
+      replicas: ${PREFILL_REPLICAS}
+      template:
+        metadata:
+          labels:
+            app: sglang-worker
+            rolebasedgroup.workloads.x-k8s.io/name: glm51-workers-${INDEX}
+            rolebasedgroup.workloads.x-k8s.io/role: prefill
+        spec:
+          containers:
+            - command:
+                - bash
+                - '-c'
+                - |
+                  set -e
+                  ulimit -n 1048576
+                  ulimit -l unlimited
+                  export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+                  # Extract rank from pod name (format: {rbg-name}-decode-{index})
+                  RANK=$(echo $POD_NAME | grep -oP '\d+$')
+                  echo "Current RANK: $RANK"
+                  export MOONCAKE_LOCAL_HOSTNAME=$POD_NAME
+
+
+                  # Get the base name for decode pods
+                  BASE_NAME=$(echo $POD_NAME | sed 's/-[0-9]*$//')
+
+                  # Construct rank 0 pod name and resolve its IP
+                  RANK0_POD="${BASE_NAME}-0"
+
+                  # Set dist-init-addr to rank 0's address
+                  DIST_INIT_ADDR="${RANK0_POD}.s-glm51-workers-prefill.default.svc.cluster.local:20102"
+                  echo "Using dist-init-addr: $DIST_INIT_ADDR"
+
+                  TOKENIZER_PATH="${MODEL_PATH}"
+
+                  # Start SGLang server
+
+                  python3 -m sglang.launch_server \
+                    --model-path $MODEL_PATH \
+                    --host 0.0.0.0 \
+                    --port 8000 \
+                    --served-model-name GLM-5.1 \
+                    --chunked-prefill-size 65536 \
+                    --max-prefill-tokens 131072 \
+                    --disaggregation-ib-device "$IB_DEVICE_LIST" \
+                    --trust-remote-code \
+                    --disaggregation-mode prefill \
+                    --context-length 202744 \
+                    --mem-fraction-static 0.76 \
+                    --moe-dense-tp-size 1 \
+                    --page-size 64 \
+                    --enable-metrics \
+                    --collect-tokens-histogram \
+                    --enable-cache-report \
+                    --tp 8 \
+                    --tokenizer-worker-num 8 \
+                    --enable-nsa-prefill-context-parallel \
+                    --attn-cp-size 8 \
+                    --nsa-decode-backend trtllm \
+                    --nsa-prefill-backend trtllm \
+                    --kv-cache-dtype fp8_e4m3 \
+                    --speculative-algorithm EAGLE \
+                    --speculative-num-steps 4 \
+                    --speculative-eagle-topk 1 \
+                    --speculative-num-draft-tokens 5 \
+                    --nsa-prefill-cp-mode round-robin-split \
+                    --allow-auto-truncate \
+                    --max-running-requests 512 \
+                    --enable-nsa-cache-layer-split \
+                    --enable-prefill-forward-thread \
+                    --cache-backend mooncache-l1 \
+                    --json-model-override-args '{"index_topk_pattern": "FFSFSSSFSSFFFSSSFFFSFSSSSSSFFSFFSFFSSFFFFFFSFFFFFSFFSSSSSSFSFFFSFSSSFSFFSFFSSS"}' \
+                    --enable-request-time-stats-logging &
+
+                  SGLANG_PID=$!
+                  echo "SGLang Prefill started with PID: $SGLANG_PID"
+
+                  # Wait for checkpoint loader to complete
+                  echo "Checkpoint loader completed, keeping SGLang server running..."
+
+                  # Keep SGLang server running
+                  echo "Waiting for SGLang server to finish..."
+                  wait $SGLANG_PID
+                  echo "SGLang server finished, shutting down..."
+              env:
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: POD_IP
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: status.podIP
+                - name: MOONCAKE_LOCAL_HOSTNAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: status.podIP
+                - name: SGLANG_HOST_IP
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: status.podIP
+                - name: http_proxy
+                  value: ''
+                - name: https_proxy
+                  value: ''
+                - name: MODEL_PATH
+                  value: /models
+                - name: IB_DEVICE_LIST
+                  value: >-
+                    roce_vf_rail0,roce_vf_rail1,roce_vf_rail2,roce_vf_rail3,roce_vf_rail4,roce_vf_rail5,roce_vf_rail6,roce_vf_rail7
+                - name: NCCL_IB_HCA
+                  value: >-
+                    roce_vf_rail0,roce_vf_rail1,roce_vf_rail2,roce_vf_rail3,roce_vf_rail4,roce_vf_rail5,roce_vf_rail6,roce_vf_rail7
+                - name: NCCL_IB_ROCE_VERSION_NUM
+                  value: '2'
+                - name: NCCL_IB_DISABLE
+                  value: '0'
+                - name: NCCL_SOCKET_IFNAME
+                  value: bond0
+                - name: NCCL_IB_RETRY_CNT
+                  value: '7'
+                - name: NCCL_IB_TIMEOUT
+                  value: '23'
+                - name: SGLANG_ENABLE_SPEC_V2
+                  value: '1'
+                - name: SGLANG_NCCL_ALL_GATHER_IN_OVERLAP_SCHEDULER_SYNC_BATCH
+                  value: '1'
+                - name: MC_TE_METRIC
+                  value: 'true'
+                - name: SGLANG_TEST_REQUEST_TIME_STATS
+                  value: '0'
+                - name: SGLANG_DISAGGREGATION_HEARTBEAT_INTERVAL
+                  value: '10'
+                - name: SGLANG_DISAGGREGATION_HEARTBEAT_MAX_FAILURE
+                  value: '6'
+                - name: SGLANG_DISAGGREGATION_WAITING_TIMEOUT
+                  value: '90'
+                - name: SGLANG_DISAGGREGATION_BOOTSTRAP_TIMEOUT
+                  value: '90'
+                - name: SGLANG_TIMEOUT_KEEP_ALIVE
+                  value: '90'
+                - name: SGLANG_HEALTH_CHECK_TIMEOUT
+                  value: '90'
+                - name: REQUEST_TOTAL_TIMEOUT
+                  value: '20'
+                - name: SGLANG_ENABLE_HEALTH_ENDPOINT_GENERATION
+                  value: 'true'
+                - name: SGLANG_EXPERIMENTAL_SHARE_CUDA_MLA_HICACHE_L2
+                  value: '1'
+                - name: MC_SLOW_SLICE_US
+                  value: '100000000'
+                - name: MC_SLOW_TASK_US
+                  value: '100000000'  
+                - name: MC_MIN_PRC_PORT
+                  value: '15000'
+                - name: MC_MAX_PRC_PORT
+                  value: '16000'
+                - name: SGLANG_AUTO_EMPTY_CACHE
+                  value: '1'
+                - name: SGLANG_AUTO_EMPTY_CACHE_THRESHOLD_GB
+                  value: '260'                # 260 GiB ≈ 266 240 MiB
+                - name: SGLANG_AUTO_EMPTY_CACHE_COOLDOWN_S
+                  value: '60'
+                - name: SGLANG_MEM_AUDIT_INTERVAL
+                  value: '300'
+                - name: SGLANG_SET_CPU_AFFINITY
+                  value: '1'
+              image: 10.25.110.224:30007/sglang:v0.5.10_layer_split_glm52-sync-nccl
+              imagePullPolicy: IfNotPresent
+              name: sglang-prefill
+              ports:
+                - containerPort: 8000
+                  name: http
+                  protocol: TCP
+                - containerPort: 8998
+                  name: bootstrap
+                  protocol: TCP
+              readinessProbe:
+                initialDelaySeconds: 30
+                periodSeconds: 10
+                tcpSocket:
+                  port: 8000
+              resources:
+                limits:
+                  nvidia.com/gpu: '8'
+                requests:
+                  nvidia.com/gpu: '8'
+              securityContext:
+                capabilities:
+                  add:
+                    - IPC_LOCK
+                    - SYS_RESOURCE
+                privileged: true
+              volumeMounts:
+                - mountPath: /models
+                  name: model
+                - mountPath: /dev/shm
+                  name: dshm
+                - mountPath: /dev/infiniband
+                  name: ib
+                - mountPath: /logs
+                  name: request-log
+          dnsPolicy: ClusterFirstWithHostNet
+          hostNetwork: true
+          nodeSelector:
+            deployment: glm51_${INDEX}_prefill
+          volumes:
+            - hostPath:
+                path: /data/models/GLM-5.1-FP8
+                type: DirectoryOrCreate
+              name: model
+            - emptyDir:
+                medium: Memory
+                sizeLimit: 1000Gi
+              name: dshm
+            - hostPath:
+                path: /dev/infiniband
+                type: DirectoryOrCreate
+              name: ib
+            - hostPath:
+                path: /share/request_logs
+                type: DirectoryOrCreate
+              name: request-log
+      workload:
+        apiVersion: apps/v1
+        kind: StatefulSet
+    - minReadySeconds: 0
+      name: decode
+      replicas: ${DECODE_REPLICAS}
+      template:
+        metadata:
+          labels:
+            app: sglang-worker
+            rolebasedgroup.workloads.x-k8s.io/name: glm51-workers-${INDEX}
+            rolebasedgroup.workloads.x-k8s.io/role: decode
+        spec:
+          containers:
+            - command:
+                - bash
+                - '-c'
+                - |
+                  set -e
+                  ulimit -n 1048576
+                  ulimit -l unlimited
+                  export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+                  RANK=$(echo $POD_NAME | grep -oP '\d+$')
+                  echo "Current RANK: $RANK"
+
+                  # Get the base name for decode pods
+                  BASE_NAME=$(echo $POD_NAME | sed 's/-[0-9]*$//')
+                  export MOONCAKE_LOCAL_HOSTNAME=$POD_NAME
+
+                  # Construct rank 0 pod name and resolve its IP
+                  RANK0_POD="${BASE_NAME}-0"
+
+                  # Set dist-init-addr to rank 0's address
+                  DIST_INIT_ADDR="${RANK0_POD}.s-glm51-workers-prefill.default.svc.cluster.local:20102"
+                  echo "Using dist-init-addr: $DIST_INIT_ADDR"
+
+                  # Start SGLang server
+                  echo "=== Starting SGLang Decode ==="
+
+                  python3 -m sglang.launch_server  \
+                    --model-path $MODEL_PATH \
+                    --chunked-prefill-size 65536 \
+                    --host 0.0.0.0 \
+                    --port 8000 \
+                    --served-model-name GLM-5.1 \
+                    --tp 8 \
+                    --dp 8 \
+                    --ep 8 \
+                    --enable-dp-lm-head \
+                    --enable-dp-attention \
+                    --page-size 64 \
+                    --prefill-round-robin-balance \
+                    --disaggregation-ib-device "$IB_DEVICE_LIST" \
+                    --trust-remote-code \
+                    --disaggregation-mode decode \
+                    --mem-fraction-static 0.9 \
+                    --speculative-algorithm EAGLE \
+                    --speculative-num-steps 4 \
+                    --speculative-eagle-topk 1 \
+                    --speculative-num-draft-tokens 5 \
+                    --cuda-graph-max-bs 256 \
+                    --reasoning-parser glm45 \
+                    --tool-call-parser glm47 \
+                    --enable-metrics \
+                    --enable-cache-report \
+                    --context-len 202744 \
+                    --decode-log-interval 50 \
+                    --tokenizer-worker-num 8 \
+                    --moe-dense-tp-size 1 \
+                    --deepep-mode low_latency \
+                    --max-running-requests 1024 \
+                    --nsa-decode-backend trtllm \
+                    --nsa-prefill-backend trtllm \
+                    --kv-cache-dtype fp8_e4m3 \
+                    --allow-auto-truncate \
+                    --json-model-override-args '{"index_topk_pattern": "FFSFSSSFSSFFFSSSFFFSFSSSSSSFFSFFSFFSSFFFFFFSFFFFFSFFSSSSSSFSFFFSFSSSFSFFSFFSSS"}' \
+                    --enable-request-time-stats-logging \
+                    --log-requests \
+                    --log-requests-level 1 \
+                    --log-requests-target /logs/$POD_NAME &
+
+
+                  SGLANG_PID=$!
+                  echo "SGLang Decode started with PID: $SGLANG_PID"
+
+                  # Wait for checkpoint loader to complete
+                  echo "Checkpoint loader completed, keeping SGLang server running..."
+
+                  # Keep SGLang server running
+                  echo "Waiting for SGLang server to finish..."
+                  wait $SGLANG_PID
+                  echo "SGLang server finished, shutting down..."
+              env:
+                - name: MOONCAKE_LOCAL_HOSTNAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: status.podIP
+                - name: POD_NAME
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: metadata.name
+                - name: POD_IP
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: status.podIP
+                - name: SGLANG_HOST_IP
+                  valueFrom:
+                    fieldRef:
+                      fieldPath: status.podIP
+                - name: http_proxy
+                  value: ''
+                - name: https_proxy
+                  value: ''
+                - name: IB_DEVICE_LIST
+                  value: >-
+                    roce_vf_rail0,roce_vf_rail1,roce_vf_rail2,roce_vf_rail3,roce_vf_rail4,roce_vf_rail5,roce_vf_rail6,roce_vf_rail7
+                - name: NCCL_IB_HCA
+                  value: >-
+                    roce_vf_rail0,roce_vf_rail1,roce_vf_rail2,roce_vf_rail3,roce_vf_rail4,roce_vf_rail5,roce_vf_rail6,roce_vf_rail7
+                - name: NCCL_IB_ROCE_VERSION_NUM
+                  value: '2'
+                - name: NCCL_IB_DISABLE
+                  value: '0'
+                - name: NCCL_SOCKET_IFNAME
+                  value: bond0
+                - name: NCCL_IB_RETRY_CNT
+                  value: '7'
+                - name: NCCL_IB_TIMEOUT
+                  value: '23'
+                - name: MODEL_PATH
+                  value: /models
+                - name: SGLANG_ENABLE_SPEC_V2
+                  value: '1'
+                - name: SGLANG_NCCL_ALL_GATHER_IN_OVERLAP_SCHEDULER_SYNC_BATCH
+                  value: '1'
+                - name: SGLANG_TEST_REQUEST_TIME_STATS
+                  value: '0'
+                - name: SGLANG_DISAGGREGATION_HEARTBEAT_INTERVAL
+                  value: '10'
+                - name: SGLANG_DISAGGREGATION_HEARTBEAT_MAX_FAILURE
+                  value: '6'
+                - name: SGLANG_DISAGGREGATION_WAITING_TIMEOUT
+                  value: '90'
+                - name: SGLANG_DISAGGREGATION_BOOTSTRAP_TIMEOUT
+                  value: '90'
+                - name: SGLANG_TIMEOUT_KEEP_ALIVE
+                  value: '90'
+                - name: SGLANG_HEALTH_CHECK_TIMEOUT
+                  value: '90'
+                - name: REQUEST_TOTAL_TIMEOUT
+                  value: '20'
+                - name: SGLANG_ENABLE_HEALTH_ENDPOINT_GENERATION
+                  value: 'true'
+                - name: MC_SLOW_SLICE_US
+                  value: '100000000'
+                - name: MC_SLOW_TASK_US
+                  value: '100000000'  
+                - name: MC_MIN_PRC_PORT
+                  value: '15000'
+                - name: MC_MAX_PRC_PORT
+                  value: '16000'
+              image: 10.25.110.224:30007/sglang:v0.5.10_layer_split_glm52-sync-nccl
+              imagePullPolicy: IfNotPresent
+              name: sglang-decode
+              ports:
+                - containerPort: 8000
+                  name: http
+                  protocol: TCP
+                - containerPort: 8998
+                  name: bootstrap
+                  protocol: TCP
+              readinessProbe:
+                initialDelaySeconds: 30
+                periodSeconds: 10
+                tcpSocket:
+                  port: 8000
+              resources:
+                limits:
+                  nvidia.com/gpu: '8'
+                requests:
+                  nvidia.com/gpu: '8'
+              securityContext:
+                capabilities:
+                  add:
+                    - IPC_LOCK
+                    - SYS_RESOURCE
+                privileged: true
+              volumeMounts:
+                - mountPath: /models
+                  name: model
+                - mountPath: /dev/shm
+                  name: dshm
+                - mountPath: /dev/infiniband
+                  name: ib
+                - mountPath: /logs
+                  name: request-log
+          dnsPolicy: ClusterFirstWithHostNet
+          hostNetwork: true
+          nodeSelector:
+            deployment: glm51_${INDEX}_decode
+          volumes:
+            - hostPath:
+                path: /data/models/GLM-5.1-FP8
+                type: DirectoryOrCreate
+              name: model
+            - emptyDir:
+                medium: Memory
+                sizeLimit: 15Gi
+              name: dshm
+            - hostPath:
+                path: /dev/infiniband
+                type: DirectoryOrCreate
+              name: ib
+            - hostPath:
+                path: /share/request_logs
+                type: DirectoryOrCreate
+              name: request-log
+      workload:
+        apiVersion: apps/v1
+        kind: StatefulSet

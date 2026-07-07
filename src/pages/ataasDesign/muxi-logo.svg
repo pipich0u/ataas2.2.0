@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 72" role="img" aria-label="MetaX">
+  <g fill="#050000">
+    <path d="M4 64 24 8h28l4 33L79 8h29v56H88V27L67 64H48l-5-37-19 37z"/>
+    <path d="M117 8h53v14h-35v8h31v13h-31v8h36v13h-54z"/>
+    <path d="M176 8h58v15h-19v41h-20V23h-19z"/>
+    <path d="M224 64 246 8h21l22 56h-21l-4-11h-20l-4 11zm24-24h12l-6-18z" transform="translate(-20)"/>
+  </g>
+  <path d="M211 13h18l23 22-23 22h-18l23-22z" fill="#35B335"/>
+  <path d="M248 13h14l-30 44h-14z" fill="#5F277A"/>
+  <path d="M232 13h14l30 44h-14z" fill="#050000"/>
+</svg>

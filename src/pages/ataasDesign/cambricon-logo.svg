@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 150 72" role="img" aria-label="Cambricon">
+  <g fill="#075DC6">
+    <path d="M1 7 18 1h96v8H18v38L1 39z"/>
+    <path d="M1 43h18l11 8H1z"/>
+    <path d="M40 19h28l11 7H46l-6-7z"/>
+    <path d="M38 30h36l-8 9H45v11h21l13-10v11l-12 9H36V38z"/>
+    <path d="M82 22 97 31v29L82 69z"/>
+    <path d="M101 7h15v45h28v8h-43z"/>
+    <path d="M119 26h31v34h-31V48h19V36h-19z"/>
+    <path d="M5 61h28v-5H8v-8h58v8H43v5h29v8H5z"/>
+    <path d="M86 62h31v-6H91v-8h26v-6h10v6h17v8h-17v6h21v8H86z"/>
+  </g>
+</svg>
