@@ -7260,6 +7260,7 @@ const AtAasDesign = () => {
   const [deployServiceName, setDeployServiceName] = useState('');
   const [deployDescription, setDeployDescription] = useState('');
   const [deployCluster, setDeployCluster] = useState<string | undefined>(undefined);
+  const [deployServiceEntry, setDeployServiceEntry] = useState<string | undefined>(undefined);
   const [deployEngine, setDeployEngine] = useState<string | undefined>(undefined);
   const [deployModel, setDeployModel] = useState<string | undefined>(undefined);
   const [strictTemplateDeploy, setStrictTemplateDeploy] = useState(false);
@@ -7300,11 +7301,39 @@ const AtAasDesign = () => {
         label: `${engine.version} / ${engine.name}`,
       }));
   }, [deployEngineRecords, selectedDeployEngineType]);
+  const deployServiceEntryOptions = useMemo(() => {
+    const clusterName = clusters.find((cluster) => cluster.key === deployCluster)?.name || deployCluster;
+    const systemOption = deployCluster
+      ? [{
+        value: `${deployCluster}-system-se`,
+        label: `系统 SE / ${clusterName}`,
+      }]
+      : [];
+    const commonOptions = [
+      { value: 'glm-5.1-se', label: 'glm-5.1 生产链路' },
+      { value: 'deepseek-r1-se', label: 'deepseek-r1 生产链路' },
+      { value: 'custom-business-se', label: '业务自定义 SE' },
+    ];
+    return [...systemOption, ...commonOptions];
+  }, [deployCluster]);
+  const selectDeployCluster = (value?: string) => {
+    setDeployCluster(value);
+    setDeployServiceEntry(value ? `${value}-system-se` : undefined);
+  };
   useEffect(() => {
     if (deployEngine && !deployEngineRecords.some((engine) => engine.key === deployEngine)) {
       setDeployEngine(undefined);
     }
   }, [deployEngine, deployEngineRecords]);
+  useEffect(() => {
+    if (!deployCluster) {
+      if (deployServiceEntry) setDeployServiceEntry(undefined);
+      return;
+    }
+    if (!deployServiceEntry || !deployServiceEntryOptions.some((option) => option.value === deployServiceEntry)) {
+      setDeployServiceEntry(`${deployCluster}-system-se`);
+    }
+  }, [deployCluster, deployServiceEntry, deployServiceEntryOptions]);
   const [pdTemplateMode, setPdTemplateMode] = useState<'select' | 'upload'>('select');
   const [pdSelectedTemplateKey, setPdSelectedTemplateKey] = useState<string>('');
   const [pdRouterParamMode, setPdRouterParamMode] = useState<'template' | 'manual'>('template');
@@ -7513,7 +7542,7 @@ const AtAasDesign = () => {
       setAdvancedShellText(shellText);
       setExpandedSections((prev) => ({ ...prev, advanced: true }));
       if (selectedNode) {
-        setDeployCluster(selectedNode.clusterKey);
+        selectDeployCluster(selectedNode.clusterKey);
         setSelectedSingleNode(selectedNode.key);
         setSingleCardCount(Math.min(requestedCards, selectedNode.availableCards));
       } else {
@@ -8133,6 +8162,7 @@ const AtAasDesign = () => {
     setDeployServiceName('');
     setDeployDescription('');
     setDeployCluster(undefined);
+    setDeployServiceEntry(undefined);
     setDeployEngine(undefined);
     setDeployModel(undefined);
     setStrictTemplateDeploy(false);
@@ -8261,7 +8291,7 @@ const AtAasDesign = () => {
     setDeployDescription(template.description || template.scenario || '');
     setDeployModel(resolvedModel);
     setDeployEngine(resolveTemplateEngineKey(template));
-    setDeployCluster(selectedNode?.clusterKey || clusters[0]?.key);
+    selectDeployCluster(selectedNode?.clusterKey || clusters[0]?.key);
     setSelectedSingleNode(isPdTemplate ? null : selectedNode?.key || null);
     setSingleCardCount(isPdTemplate ? 0 : nextCardCount);
     setSelectedDeployNodes([]);
@@ -8399,8 +8429,8 @@ const AtAasDesign = () => {
     };
   };
   const handleSubmitDeploy = () => {
-    if (!(deployCluster && deployEngine && deployModel && deployServiceName.trim())) {
-      message.warning('请先填写服务名称、模型、推理引擎和部署集群');
+    if (!(deployCluster && deployServiceEntry && deployEngine && deployModel && deployServiceName.trim())) {
+      message.warning('请先填写服务名称、模型、推理引擎、部署集群和 SE');
       return;
     }
     if (!isDeployNodeSelectionReady) {
@@ -12810,10 +12840,37 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
                           </div>
                         </Form.Item>
                         <Form.Item label="部署集群" required>
-                          <Select className="ataas-deploy-primary-select" popupClassName="ataas-deploy-primary-select-dropdown" placeholder="选择部署集群" value={deployCluster} onChange={setDeployCluster} optionRender={(o) => {
-                            const c = clusters.find((x) => x.key === o.value);
-                            return c ? <span style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}><span>{c.name}</span><span style={{ color: '#86909c', fontSize: 12 }}>{c.gpuTypes.map(g => g.name).join(' / ')}</span></span> : o.label;
-                          }} options={clusters.map((c) => ({ value: c.key, label: c.name }))} />
+                          <div className="ataas-deploy-engine-combo ataas-deploy-cluster-se-combo">
+                            <Select
+                              className="ataas-deploy-primary-select ataas-deploy-cluster-select"
+                              popupClassName="ataas-deploy-primary-select-dropdown"
+                              variant="borderless"
+                              placeholder="选择集群"
+                              value={deployCluster}
+                              onChange={selectDeployCluster}
+                              optionRender={(o) => {
+                                const c = clusters.find((x) => x.key === o.value);
+                                return c ? <span style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}><span>{c.name}</span><span style={{ color: '#86909c', fontSize: 12 }}>{c.gpuTypes.map(g => g.name).join(' / ')}</span></span> : o.label;
+                              }}
+                              options={clusters.map((c) => ({ value: c.key, label: c.name }))}
+                              allowClear
+                              showSearch
+                              optionFilterProp="label"
+                            />
+                            <Select
+                              className="ataas-deploy-primary-select ataas-deploy-service-entry-select"
+                              popupClassName="ataas-deploy-primary-select-dropdown"
+                              variant="borderless"
+                              placeholder="选择 SE"
+                              value={deployServiceEntry}
+                              onChange={setDeployServiceEntry}
+                              options={deployServiceEntryOptions}
+                              disabled={!deployCluster}
+                              allowClear
+                              showSearch
+                              optionFilterProp="label"
+                            />
+                          </div>
                         </Form.Item>
                         <Form.Item label="部署方式">
                           {renderDeployModeSelector()}

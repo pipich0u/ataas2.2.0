@@ -45,10 +45,25 @@
   }
 
   .ant-btn {
-    height: 32px;
+    height: 36px;
     border-radius: 6px;
     font-size: 13px;
     font-weight: 400;
+  }
+
+  .ant-select,
+  .ant-input-affix-wrapper {
+    height: 36px;
+  }
+
+  .ant-select-selector {
+    height: 36px !important;
+    align-items: center;
+  }
+
+  .ant-btn-primary,
+  .ant-btn-primary span {
+    color: #FFFFFF;
   }
 }
 
@@ -231,8 +246,8 @@
   }
 
   &.selected {
-    border-color: #377DFF;
-    box-shadow: 0 0 0 2px rgba(55, 125, 255, 0.12), 0 12px 30px rgba(15, 23, 42, 0.1);
+    border-color: #6738E8;
+    box-shadow: 0 0 0 2px rgba(103, 56, 232, 0.14), 0 12px 30px rgba(15, 23, 42, 0.1);
   }
 
   &.warning {
@@ -252,6 +267,10 @@
       background: #A6B1C2;
     }
   }
+
+  &.modelNode {
+    grid-template-columns: 46px minmax(0, 1fr);
+  }
 }
 
 .ataas-rf-node-icon {
@@ -264,6 +283,25 @@
   background: #2F6BFF;
   color: #FFFFFF;
   font-size: 16px;
+
+  img {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+  }
+
+  &.modelNode {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    background: #F7F8FC;
+    color: #FFFFFF;
+
+    img {
+      width: 38px;
+      height: 38px;
+    }
+  }
 
   &.domainNode {
     background: #2F6BFF;
@@ -439,8 +477,13 @@
   width: 9px;
   height: 9px;
   border: 2px solid #FFFFFF;
-  background: #377DFF;
-  box-shadow: 0 0 0 1px rgba(55, 125, 255, 0.18);
+  background: #6738E8;
+  box-shadow: 0 0 0 1px rgba(103, 56, 232, 0.2);
+}
+
+.ataas-rf-pair-handle {
+  background: #E9A23B !important;
+  box-shadow: 0 0 0 1px rgba(233, 162, 59, 0.22);
 }
 
 .ataas-rf-node-add {
@@ -482,17 +525,26 @@
 }
 
 .ataas-rf-edge-label {
-  display: flex;
-  height: 22px;
+  display: inline-flex;
+  width: max-content;
+  max-width: 100%;
+  height: 20px;
   align-items: center;
   justify-content: center;
+  padding: 0 6px;
   border: 1px solid #E8ECF3;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.94);
   color: #4E5969;
   font-size: 11px;
-  line-height: 22px;
+  line-height: 20px;
+  white-space: nowrap;
   box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+
+  &.pair {
+    border-color: rgba(233, 162, 59, 0.28);
+    color: #B66A00;
+  }
 }
 
 .ataas-route-workbench-rf-minimap {

@@ -1,15 +1,12 @@
 import {
   ApartmentOutlined,
   CloseCircleOutlined,
-  CompressOutlined,
+  CloudServerOutlined,
   DatabaseOutlined,
   DeleteOutlined,
   DeploymentUnitOutlined,
   EditOutlined,
-  FilterOutlined,
-  LoginOutlined,
   PlusOutlined,
-  ReloadOutlined,
   SaveOutlined,
 } from '@ant-design/icons';
 import { Button, Input, InputNumber, message, Modal, Select, Space } from 'antd';
@@ -34,6 +31,9 @@ import {
   useEdgesState,
   useNodesState,
 } from '@xyflow/react';
+import deepseekLogo from '../deepseek-logo.svg';
+import glmLogo from '../glm-logo.svg';
+import kimiLogo from '../kimi-logo.svg';
 import '@xyflow/react/dist/style.css';
 import {
   buildServiceEntryYaml as buildStoreServiceEntryYaml,
@@ -130,6 +130,19 @@ const routeData: RouteEntry[] = [
     createdAt: '2026-06-01 10:00', yaml: '', updatedAt: '2026-06-28 14:30',
   },
   {
+    key: 'route-2', name: 'glm-5.1-canary', cluster: 'st', namespace: 'higress-system',
+    hosts: ['glm-5.1-canary.cluster.local'],
+    endpoints: [{ address: 'glm51-canary-router.default.svc.cluster.local', weight: 100 }],
+    services: [{
+      key: 'svc-2-1', name: 'glm51-canary-router', namespace: 'default', clusterIP: '10.43.71.11', type: 'NodePort',
+      ports: [{ name: 'http', port: 30002, targetPort: 30002, nodePort: 30211, protocol: 'TCP' }],
+      selector: { 'rolebasedgroup.workloads.x-k8s.io/name': 'glm51-canary-router', 'rolebasedgroup.workloads.x-k8s.io/role': 'router' },
+      labels: { 'rolebasedgroup.workloads.x-k8s.io/name': 'glm51-canary-router', 'rolebasedgroup.workloads.x-k8s.io/role': 'router' },
+      externalTrafficPolicy: 'Cluster', sessionAffinity: 'None', createdAt: '2026-06-18 10:30',
+    }],
+    createdAt: '2026-06-18 10:30', yaml: '', updatedAt: '2026-06-28 15:20',
+  },
+  {
     key: 'route-3', name: 'deepseek-r1', cluster: 'st', namespace: 'higress-system',
     hosts: ['deepseek-r1-cluster.local'],
     endpoints: [{ address: 'deepseek-router.default.svc.cluster.local', weight: 100 }],
@@ -184,12 +197,13 @@ const pods: PodRecord[] = [
   }),
   { key: 'p31', name: 'glm51-pd-prefill', cluster: 'st', role: 'prefill', group: 'glm51', namespace: 'production', ready: '1/1', status: 'Running', restart: 0, load: 83, performance: 92, image: 'sglang/sglang:latest', podIP: '10.0.2.20', node: 'b300-16', nodeGPU: 'B300 192G x 8', gpuUtil: 80, gpuVram: 68, age: '3d', trafficSource: 'glm-5.1', ttftP50: 295, ttftP99: 550 },
   { key: 'p32', name: 'glm51-pd-decode', cluster: 'st', role: 'decode', group: 'glm51', namespace: 'production', ready: '1/1', status: 'Running', restart: 0, load: 73, performance: 88, image: 'vllm/vllm-openai:latest', podIP: '10.0.2.21', node: 'b300-16', nodeGPU: 'B300 192G x 8', gpuUtil: 71, gpuVram: 64, age: '3d', trafficSource: 'glm-5.1', tpotP50: 67, tpotP99: 90 },
+  { key: 'p-glm51-canary-router', name: 'glm51-canary-router-0', cluster: 'st', role: 'router', serviceId: 'svc-2-1', group: 'glm51', namespace: 'default', ready: '1/1', status: 'Running', restart: 0, load: 18, performance: 71, image: 'envoy/envoy:latest', podIP: '10.0.8.21', node: 'b300-22', nodeGPU: 'B300 192G x 8', gpuUtil: 26, gpuVram: 18, age: '8d', trafficSource: 'glm-5.1-canary' },
   { key: 'p-deepseek-router', name: 'deepseek-router-0', cluster: 'st', role: 'router', group: 'deepseek', namespace: 'default', ready: '1/1', status: 'Running', restart: 0, load: 35, performance: 78, image: 'envoy/envoy:latest', podIP: '10.0.1.10', node: 'b300-01', nodeGPU: 'B300 192G x 8', gpuUtil: 32, gpuVram: 28, age: '12d', trafficSource: 'deepseek-r1' },
   { key: 'p-kimi-router', name: 'kimi-router-0', cluster: 'bx', role: 'router', group: 'kimi', namespace: 'default', ready: '1/1', status: 'Running', restart: 0, load: 52, performance: 74, image: 'mindie/mindie:latest', podIP: '10.0.4.5', node: 'b300-09', nodeGPU: 'B300 192G x 8', gpuUtil: 61, gpuVram: 52, age: '5d', trafficSource: 'kimi-k2' },
   { key: 'p-bx-router', name: 'glm51-pd-bx-router-0', cluster: 'bx', role: 'router', group: 'glm51', namespace: 'default', ready: '1/1', status: 'Running', restart: 0, load: 22, performance: 62, image: 'envoy/envoy:latest', podIP: '10.0.6.1', node: 'b300-17', nodeGPU: 'B300 192G x 8', gpuUtil: 28, gpuVram: 22, age: '1d', trafficSource: 'glm-5.1-se' },
 ];
 
-type RouteWorkbenchKind = 'domainNode' | 'ingressGroupNode' | 'clusterNode' | 'serviceNode' | 'routerPodNode' | 'pdWorkerNode';
+type RouteWorkbenchKind = 'modelNode' | 'domainNode' | 'ingressGroupNode' | 'clusterNode' | 'serviceNode' | 'routerPodNode' | 'pdWorkerNode';
 
 type RouteWorkbenchNodeData = {
   kind: RouteWorkbenchKind;
@@ -206,6 +220,8 @@ type RouteWorkbenchNodeData = {
   weight?: number;
   endpoints?: number;
   pods?: number;
+  nodeCount?: number;
+  logo?: string;
   health?: 'healthy' | 'warning' | 'error' | 'idle';
   yaml?: string;
   history?: Array<{ hash: string; time: string; author: string; message: string }>;
@@ -223,11 +239,14 @@ type RouteWorkbenchEdgeData = {
   healthy?: boolean;
   pending?: boolean;
   label?: string;
+  parallelIndex?: number;
+  parallelTotal?: number;
 };
 
 const routeWorkbenchKindLabel: Record<RouteWorkbenchKind, string> = {
+  modelNode: 'Model',
   domainNode: 'Domain',
-  ingressGroupNode: 'Ingress',
+  ingressGroupNode: 'Cluster',
   clusterNode: 'SE',
   serviceNode: 'SVC',
   routerPodNode: 'Router',
@@ -235,15 +254,25 @@ const routeWorkbenchKindLabel: Record<RouteWorkbenchKind, string> = {
 };
 
 const routeWorkbenchKindIcon: Record<RouteWorkbenchKind, ReactNode> = {
+  modelNode: <DatabaseOutlined />,
   domainNode: <DatabaseOutlined />,
-  ingressGroupNode: <DeploymentUnitOutlined />,
-  clusterNode: <LoginOutlined />,
+  ingressGroupNode: <CloudServerOutlined />,
+  clusterNode: <span className="ataas-rf-letter-icon">S</span>,
   serviceNode: <ApartmentOutlined />,
   routerPodNode: <span className="ataas-rf-letter-icon">R</span>,
   pdWorkerNode: <span className="ataas-rf-letter-icon">W</span>,
 };
 
+const getRouteModelLogo = (modelName: string) => {
+  const normalized = modelName.toLowerCase();
+  if (normalized.includes('glm')) return glmLogo;
+  if (normalized.includes('kimi')) return kimiLogo;
+  if (normalized.includes('deepseek')) return deepseekLogo;
+  return glmLogo;
+};
+
 const getRouteWorkbenchNodeIcon = (data: RouteWorkbenchNodeData) => {
+  if (data.kind === 'modelNode' && data.logo) return <img src={data.logo} alt="" />;
   if (data.kind !== 'pdWorkerNode') return routeWorkbenchKindIcon[data.kind];
   const role = String(data.role || data.title || '').toLowerCase();
   if (role.includes('prefill')) return <span className="ataas-rf-letter-icon">P</span>;
@@ -259,11 +288,23 @@ const getRouteWorkbenchHeatColor = (value = 0) => {
   return '#D92D20';
 };
 
+const getRouteWorkbenchPairColor = (value = 0) => {
+  if (value <= 0) return '#CBD5E1';
+  if (value < 0.25) return '#6AA3E8';
+  if (value < 0.5) return '#44AA99';
+  if (value < 0.75) return '#FACC15';
+  return '#E85D42';
+};
+
 const RouteWorkbenchNode = ({ id, data, selected }: NodeProps) => {
   const d = data as RouteWorkbenchNodeData;
   const health = d.health || 'healthy';
-  const canTarget = d.kind !== 'domainNode';
+  const role = String(d.role || '').toLowerCase();
+  const canTarget = d.kind !== 'modelNode';
   const canSource = d.kind !== 'pdWorkerNode';
+  const isPrefillWorker = d.kind === 'pdWorkerNode' && role === 'prefill';
+  const isDecodeWorker = d.kind === 'pdWorkerNode' && role === 'decode';
+  const canShowStatus = d.kind === 'routerPodNode' || d.kind === 'pdWorkerNode';
   const canQuickAdd = d.kind === 'ingressGroupNode' || d.kind === 'clusterNode';
   const quickAddTitle = d.kind === 'ingressGroupNode' ? '新增 SE' : '新增 SVC';
   return (
@@ -274,7 +315,7 @@ const RouteWorkbenchNode = ({ id, data, selected }: NodeProps) => {
         <div className="ataas-rf-node-title">
           <span>{d.title}</span>
           <strong className={`ataas-rf-node-kind ${d.kind}`}>{routeWorkbenchKindLabel[d.kind]}</strong>
-          {d.cluster && d.kind !== 'routerPodNode' && d.kind !== 'pdWorkerNode' && <em>{d.cluster}</em>}
+          {d.cluster && d.kind !== 'ingressGroupNode' && d.kind !== 'routerPodNode' && d.kind !== 'pdWorkerNode' && <em>{d.cluster}</em>}
         </div>
         {d.subtitle && <div className="ataas-rf-node-subtitle">{d.subtitle}</div>}
         <div className="ataas-rf-node-metrics">
@@ -282,11 +323,12 @@ const RouteWorkbenchNode = ({ id, data, selected }: NodeProps) => {
           {d.weight != null && <span>w:{d.weight}</span>}
           {d.endpoints != null && <span>{d.endpoints} ep</span>}
           {d.pods != null && <span>{d.pods} pods</span>}
+          {d.nodeCount != null && <span>{d.nodeCount} nodes</span>}
           {d.errRate != null && d.errRate > 0 && <span className="danger">{(d.errRate * 100).toFixed(1)}% err</span>}
           {d.meta && <span>{d.meta}</span>}
         </div>
       </div>
-      <i className="ataas-rf-node-status" />
+      {canShowStatus && <i className="ataas-rf-node-status" />}
       {canQuickAdd && (
         <button
           type="button"
@@ -301,6 +343,8 @@ const RouteWorkbenchNode = ({ id, data, selected }: NodeProps) => {
         </button>
       )}
       {canSource && <Handle type="source" position={Position.Right} className="ataas-rf-handle" />}
+      {isPrefillWorker && <Handle type="source" id="pair-source" position={Position.Right} className="ataas-rf-handle ataas-rf-pair-handle" style={{ top: '72%' }} />}
+      {isDecodeWorker && <Handle type="target" id="pair-target" position={Position.Right} className="ataas-rf-handle ataas-rf-pair-handle" style={{ top: '72%' }} />}
     </div>
   );
 };
@@ -308,17 +352,49 @@ const RouteWorkbenchNode = ({ id, data, selected }: NodeProps) => {
 const RouteWorkbenchEdge = (props: EdgeProps) => {
   const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, markerEnd } = props;
   const d = (data || {}) as RouteWorkbenchEdgeData;
-  const [path, labelX, labelY] = getSmoothStepPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, borderRadius: 18 });
   const heat = d.qps ? Math.min(d.qps / 100, 1) : d.active ? Math.min(d.active / 50, 1) : d.load ? Math.min(d.load / 50, 1) : 0;
-  const stroke = d.type === 'pair' ? '#E9A23B' : d.healthy === false ? '#D92D20' : d.pending ? '#F59E0B' : getRouteWorkbenchHeatColor(heat);
-  const width = d.type === 'pair' ? Math.max(2, 2 + heat * 3) : d.type === 'structure' ? 1.2 : Math.max(1.4, 1.4 + heat * 4);
+  const isPair = d.type === 'pair';
+  const isGateway = d.type === 'gateway';
+  const [smoothPath, smoothLabelX, smoothLabelY] = getSmoothStepPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, borderRadius: 18 });
+  const pairIndex = d.parallelIndex || 0;
+  const pairTotal = d.parallelTotal || 1;
+  const pairBend = 64 + pairIndex * 24;
+  const pairTargetY = targetY + (pairIndex - (pairTotal - 1) / 2) * 10;
+  const pairTrunkX = Math.max(sourceX, targetX) + pairBend;
+  const pairRadius = 8;
+  const pairStepDir = sourceY < pairTargetY ? 1 : -1;
+  const pairPath = [
+    `M ${sourceX} ${sourceY}`,
+    `L ${pairTrunkX - pairRadius} ${sourceY}`,
+    `Q ${pairTrunkX} ${sourceY} ${pairTrunkX} ${sourceY + pairRadius * pairStepDir}`,
+    `L ${pairTrunkX} ${pairTargetY - pairRadius * pairStepDir}`,
+    `Q ${pairTrunkX} ${pairTargetY} ${pairTrunkX - pairRadius} ${pairTargetY}`,
+    `L ${targetX} ${pairTargetY}`,
+  ].join(' ');
+  const gatewayIndex = d.parallelIndex || 0;
+  const gatewayTotal = d.parallelTotal || 1;
+  const gatewayTrunkX = sourceX + 36 + gatewayIndex * 28;
+  const gatewayTargetY = targetY + (gatewayIndex - (gatewayTotal - 1) / 2) * 8;
+  const gatewayPath = [
+    `M ${sourceX} ${sourceY}`,
+    `L ${gatewayTrunkX} ${sourceY}`,
+    `L ${gatewayTrunkX} ${gatewayTargetY}`,
+    `L ${targetX} ${gatewayTargetY}`,
+  ].join(' ');
+  const path = isPair ? pairPath : isGateway ? gatewayPath : smoothPath;
+  const labelX = isPair ? pairTrunkX : isGateway ? gatewayTrunkX : smoothLabelX;
+  const labelY = isPair ? (sourceY + pairTargetY) / 2 : isGateway ? (sourceY + gatewayTargetY) / 2 : smoothLabelY;
+  const pairHeat = d.load ? Math.min(d.load / 140, 1) : 0;
+  const stroke = isPair ? getRouteWorkbenchPairColor(pairHeat) : d.healthy === false ? '#D92D20' : d.pending ? '#F59E0B' : d.type === 'worker' ? '#8EA4C0' : getRouteWorkbenchHeatColor(heat);
+  const width = d.type === 'structure' ? 1.6 : 2;
   const label = d.label || (d.weight ? `w:${d.weight}` : d.qps ? `${d.qps} qps` : d.active ? String(d.active) : d.load ? String(d.load) : '');
+  const labelWidth = Math.max(isPair ? 28 : 30, Math.min(58, String(label).length * 7 + 14));
   return (
     <>
       <BaseEdge path={path} markerEnd={markerEnd} style={{ stroke, strokeWidth: width, opacity: d.type === 'structure' ? 0.55 : 0.82 }} />
       {label && (
-        <foreignObject width={92} height={24} x={labelX - 46} y={labelY - 12} requiredExtensions="http://www.w3.org/1999/xhtml">
-          <div className="ataas-rf-edge-label">{label}</div>
+        <foreignObject width={labelWidth} height={24} x={labelX - labelWidth / 2} y={labelY - 12} requiredExtensions="http://www.w3.org/1999/xhtml">
+          <div className={`ataas-rf-edge-label ${isPair ? 'pair' : ''}`} style={isPair ? { color: stroke, borderColor: `${stroke}55` } : undefined}>{label}</div>
         </foreignObject>
       )}
     </>
@@ -326,6 +402,7 @@ const RouteWorkbenchEdge = (props: EdgeProps) => {
 };
 
 const routeWorkbenchNodeTypes: NodeTypes = {
+  modelNode: RouteWorkbenchNode,
   domainNode: RouteWorkbenchNode,
   ingressGroupNode: RouteWorkbenchNode,
   clusterNode: RouteWorkbenchNode,
@@ -337,6 +414,8 @@ const routeWorkbenchNodeTypes: NodeTypes = {
 const routeWorkbenchEdgeTypes = {
   trafficEdge: RouteWorkbenchEdge,
 };
+
+const routeWorkbenchMarkerEnd = { type: MarkerType.ArrowClosed, width: 14, height: 14 };
 
 const routeWorkbenchHistory = [
   { hash: 'a8bbd13', time: '2026/07/02 21:45:18', author: '当前账户', message: 'update routing endpoint weights' },
@@ -358,16 +437,16 @@ spec:
 
 const routeWorkbenchInitialNodes: Node[] = [
   {
-    id: 'domain-glm51',
-    type: 'domainNode',
-    position: { x: 120, y: 210 },
-    data: { kind: 'domainNode', title: 'glm-5.1-cluster.local', subtitle: '入口域名 · 全局访问', qps: 86, errRate: 0.004, health: 'healthy', yaml: routeWorkbenchYaml('VirtualService', 'glm51-domain'), history: routeWorkbenchHistory },
+    id: 'model-glm51',
+    type: 'modelNode',
+    position: { x: 80, y: 210 },
+    data: { kind: 'modelNode', title: 'GLM-5.1', subtitle: '模型服务 · 2 个集群', qps: 86, pods: 34, nodeCount: 14, logo: glmLogo, health: 'healthy', yaml: routeWorkbenchYaml('ModelService', 'glm51'), history: routeWorkbenchHistory },
   },
   {
-    id: 'ingress-higress',
+    id: 'cluster-st',
     type: 'ingressGroupNode',
     position: { x: 430, y: 210 },
-    data: { kind: 'ingressGroupNode', title: 'higress-system', subtitle: 'Gateway · 2 replicas', cluster: 'st', qps: 84, health: 'healthy', yaml: routeWorkbenchYaml('Gateway', 'higress-system'), history: routeWorkbenchHistory },
+    data: { kind: 'ingressGroupNode', title: 'st 集群', subtitle: '2 SE · 33 实例', cluster: 'st', qps: 84, pods: 33, nodeCount: 12, health: 'healthy', yaml: routeWorkbenchYaml('Gateway', 'st-ingress'), history: routeWorkbenchHistory },
   },
   {
     id: 'se-glm51',
@@ -426,22 +505,23 @@ const routeWorkbenchInitialNodes: Node[] = [
 ];
 
 const routeWorkbenchInitialEdges: Edge[] = [
-  { id: 'e-domain-ingress', source: 'domain-glm51', target: 'ingress-higress', type: 'trafficEdge', markerEnd: { type: MarkerType.ArrowClosed }, data: { type: 'gateway', qps: 86 } },
-  { id: 'e-ingress-se', source: 'ingress-higress', target: 'se-glm51', type: 'trafficEdge', markerEnd: { type: MarkerType.ArrowClosed }, data: { type: 'gateway', qps: 84 } },
-  { id: 'e-se-svc-1', source: 'se-glm51', target: 'svc-router-1', type: 'trafficEdge', markerEnd: { type: MarkerType.ArrowClosed }, data: { type: 'endpoint', qps: 31, weight: 33 } },
-  { id: 'e-se-svc-2', source: 'se-glm51', target: 'svc-router-2', type: 'trafficEdge', markerEnd: { type: MarkerType.ArrowClosed }, data: { type: 'endpoint', qps: 25, weight: 33, healthy: false } },
-  { id: 'e-se-svc-3', source: 'se-glm51', target: 'svc-router-3', type: 'trafficEdge', markerEnd: { type: MarkerType.ArrowClosed }, data: { type: 'endpoint', qps: 28, weight: 34 } },
-  { id: 'e-svc-rp-1', source: 'svc-router-1', target: 'rp-router-1', type: 'trafficEdge', markerEnd: { type: MarkerType.ArrowClosed }, data: { type: 'service', active: 18 } },
-  { id: 'e-svc-rp-2', source: 'svc-router-2', target: 'rp-router-2', type: 'trafficEdge', markerEnd: { type: MarkerType.ArrowClosed }, data: { type: 'service', active: 9, healthy: false } },
-  { id: 'e-svc-rp-3', source: 'svc-router-3', target: 'rp-router-3', type: 'trafficEdge', markerEnd: { type: MarkerType.ArrowClosed }, data: { type: 'service', active: 14 } },
-  { id: 'e-rp1-pf', source: 'rp-router-1', target: 'w-prefill-1', type: 'trafficEdge', markerEnd: { type: MarkerType.ArrowClosed }, data: { type: 'worker', load: 8 } },
-  { id: 'e-rp2-pf', source: 'rp-router-2', target: 'w-prefill-1', type: 'trafficEdge', markerEnd: { type: MarkerType.ArrowClosed }, data: { type: 'worker', load: 12, healthy: false } },
-  { id: 'e-rp3-dc', source: 'rp-router-3', target: 'w-decode-1', type: 'trafficEdge', markerEnd: { type: MarkerType.ArrowClosed }, data: { type: 'worker', load: 18 } },
-  { id: 'e-pair', source: 'w-prefill-1', target: 'w-decode-1', type: 'trafficEdge', markerEnd: { type: MarkerType.ArrowClosed }, data: { type: 'pair', load: 6, label: 'pair 6' } },
+  { id: 'e-model-cluster', source: 'model-glm51', target: 'cluster-st', type: 'trafficEdge', markerEnd: routeWorkbenchMarkerEnd, data: { type: 'structure' } },
+  { id: 'e-cluster-se', source: 'cluster-st', target: 'se-glm51', type: 'trafficEdge', markerEnd: routeWorkbenchMarkerEnd, data: { type: 'gateway', qps: 84 } },
+  { id: 'e-se-svc-1', source: 'se-glm51', target: 'svc-router-1', type: 'trafficEdge', markerEnd: routeWorkbenchMarkerEnd, data: { type: 'endpoint', qps: 31, weight: 33 } },
+  { id: 'e-se-svc-2', source: 'se-glm51', target: 'svc-router-2', type: 'trafficEdge', markerEnd: routeWorkbenchMarkerEnd, data: { type: 'endpoint', qps: 25, weight: 33, healthy: false } },
+  { id: 'e-se-svc-3', source: 'se-glm51', target: 'svc-router-3', type: 'trafficEdge', markerEnd: routeWorkbenchMarkerEnd, data: { type: 'endpoint', qps: 28, weight: 34 } },
+  { id: 'e-svc-rp-1', source: 'svc-router-1', target: 'rp-router-1', type: 'trafficEdge', markerEnd: routeWorkbenchMarkerEnd, data: { type: 'service', active: 18 } },
+  { id: 'e-svc-rp-2', source: 'svc-router-2', target: 'rp-router-2', type: 'trafficEdge', markerEnd: routeWorkbenchMarkerEnd, data: { type: 'service', active: 9, healthy: false } },
+  { id: 'e-svc-rp-3', source: 'svc-router-3', target: 'rp-router-3', type: 'trafficEdge', markerEnd: routeWorkbenchMarkerEnd, data: { type: 'service', active: 14 } },
+  { id: 'e-rp1-pf', source: 'rp-router-1', target: 'w-prefill-1', type: 'trafficEdge', markerEnd: routeWorkbenchMarkerEnd, data: { type: 'worker', load: 8 } },
+  { id: 'e-rp2-pf', source: 'rp-router-2', target: 'w-prefill-1', type: 'trafficEdge', markerEnd: routeWorkbenchMarkerEnd, data: { type: 'worker', load: 12, healthy: false } },
+  { id: 'e-rp3-dc', source: 'rp-router-3', target: 'w-decode-1', type: 'trafficEdge', markerEnd: routeWorkbenchMarkerEnd, data: { type: 'worker', load: 18 } },
+  { id: 'e-pair', source: 'w-prefill-1', target: 'w-decode-1', type: 'trafficEdge', markerEnd: routeWorkbenchMarkerEnd, data: { type: 'pair', load: 6, label: 'pair 6' } },
 ];
 
 const routeWorkbenchLayerX: Record<RouteWorkbenchKind, number> = {
-  domainNode: 120,
+  modelNode: 80,
+  domainNode: 360,
   ingressGroupNode: 430,
   clusterNode: 760,
   serviceNode: 1100,
@@ -509,6 +589,22 @@ const getRouteResourceGroup = (name: string) => {
   if (normalized.startsWith('deepseek')) return 'deepseek';
   if (normalized.startsWith('kimi')) return 'kimi';
   return normalized.replace(/-(service-entry|se|router|svc)$/g, '');
+};
+
+const getRouteModelName = (routeName: string) => {
+  const normalized = routeName.toLowerCase();
+  if (normalized.startsWith('glm-5.1')) return 'glm-5.1';
+  if (normalized.startsWith('deepseek')) return 'deepseek-r1';
+  if (normalized.startsWith('kimi')) return 'kimi-k2';
+  return routeName.replace(/-se$/i, '');
+};
+
+const getRouteModelDisplayName = (modelName: string) => {
+  const normalized = modelName.toLowerCase();
+  if (normalized === 'glm-5.1') return 'GLM-5.1';
+  if (normalized === 'deepseek-r1') return 'DeepSeek-R1';
+  if (normalized === 'kimi-k2') return 'Kimi-K2';
+  return modelName;
 };
 
 const getRouteResourceId = (...parts: Array<string | number | undefined>) => parts
@@ -598,40 +694,112 @@ const getPodsForService = (route: RouteEntry, service: ServiceRecord, podRows: P
   );
 };
 
+const getPodsForRoute = (route: RouteEntry, podRows: PodRecord[]) => {
+  const serviceIds = new Set(route.services.map((service) => service.key));
+  if (serviceIds.size > 0) {
+    return podRows.filter((pod) => pod.cluster === route.cluster && !!pod.serviceId && serviceIds.has(pod.serviceId));
+  }
+  const routeGroup = getRouteResourceGroup(route.name);
+  return podRows.filter((pod) => pod.cluster === route.cluster && (pod.trafficSource === route.name || pod.group === routeGroup));
+};
+
 const buildRouteWorkbenchFromResources = (routes: RouteEntry[], podRows: PodRecord[], expandedRouteKeys = new Set<string>()) => {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
   let routeStartY = 120;
-  const clusterIngress = new Map<string, { domainId: string; ingressId: string; y: number }>();
+  const modelNodes = new Map<string, { id: string; y: number; routeCount: number; clusterCount: number; podCount: number; nodeCount: number; health: RouteWorkbenchNodeData['health'] }>();
+  const clusterIngress = new Map<string, { ingressId: string; y: number }>();
+  const orderedRoutes = [...routes].sort((a, b) => {
+    const modelCompare = getRouteModelName(a.name).localeCompare(getRouteModelName(b.name));
+    if (modelCompare !== 0) return modelCompare;
+    const clusterCompare = (a.cluster || 'default').localeCompare(b.cluster || 'default');
+    if (clusterCompare !== 0) return clusterCompare;
+    return a.name.localeCompare(b.name);
+  });
 
-  routes.forEach((route, routeIndex) => {
+  const modelStats = new Map<string, { routeCount: number; clusterSet: Set<string>; podCount: number; nodeSet: Set<string>; health: RouteWorkbenchNodeData['health'] }>();
+  orderedRoutes.forEach((route) => {
+    const modelName = getRouteModelName(route.name);
+    const routePods = getPodsForRoute(route, podRows);
+    const routeHealth = getRouteResourceHealth(routePods);
+    const previous = modelStats.get(modelName) || { routeCount: 0, clusterSet: new Set<string>(), podCount: 0, nodeSet: new Set<string>(), health: 'healthy' as const };
+    const nextHealth = previous.health === 'error' || routeHealth === 'error'
+      ? 'error'
+      : previous.health === 'warning' || routeHealth === 'warning'
+        ? 'warning'
+        : previous.health === 'idle' && routeHealth !== 'healthy'
+          ? routeHealth
+          : previous.health;
+    modelStats.set(modelName, {
+      routeCount: previous.routeCount + 1,
+      clusterSet: new Set([...previous.clusterSet, route.cluster || 'default']),
+      podCount: previous.podCount + routePods.length,
+      nodeSet: new Set([...previous.nodeSet, ...routePods.map((pod) => pod.node).filter(Boolean)]),
+      health: nextHealth,
+    });
+  });
+
+  orderedRoutes.forEach((route, routeIndex) => {
+    const modelName = getRouteModelName(route.name);
+    const modelId = getRouteResourceId('model', modelName);
     const routeGroup = getRouteResourceGroup(route.name);
-    const routePods = podRows.filter((pod) => pod.cluster === route.cluster && (pod.trafficSource === route.name || pod.group === routeGroup));
+    const routePods = getPodsForRoute(route, podRows);
     const routeHealth = getRouteResourceHealth(routePods);
     const seId = getRouteResourceId('se', route.key);
     const baseY = routeStartY;
     const clusterKey = route.cluster || 'default';
-    let ingress = clusterIngress.get(clusterKey);
-    if (!ingress) {
-      const domainId = getRouteResourceId('domain', clusterKey);
-      const ingressId = getRouteResourceId('ingress', clusterKey);
-      ingress = { domainId, ingressId, y: baseY };
-      clusterIngress.set(clusterKey, ingress);
-      nodes.push(
-        {
-          id: domainId,
-          type: 'domainNode',
-          position: { x: routeWorkbenchLayerX.domainNode, y: baseY },
-          data: { kind: 'domainNode', title: `${clusterKey}-domain`, subtitle: '入口域名 · 自动同步', qps: 80 - routeIndex * 6, errRate: routeHealth === 'healthy' ? 0.004 : 0.018, health: routeHealth, yaml: routeWorkbenchYaml('VirtualService', `${clusterKey}-domain`), history: routeWorkbenchHistory },
+    const modelClusterKey = `${modelName}-${clusterKey}`;
+    if (!modelNodes.has(modelName)) {
+      const rawStats = modelStats.get(modelName) || { routeCount: 1, clusterSet: new Set([route.cluster || 'default']), podCount: routePods.length, nodeSet: new Set(routePods.map((pod) => pod.node).filter(Boolean)), health: routeHealth };
+      const stats = { ...rawStats, clusterCount: rawStats.clusterSet.size, nodeCount: rawStats.nodeSet.size };
+      modelNodes.set(modelName, { id: modelId, y: baseY, routeCount: stats.routeCount, clusterCount: stats.clusterCount, podCount: stats.podCount, nodeCount: stats.nodeCount, health: stats.health });
+      nodes.push({
+        id: modelId,
+        type: 'modelNode',
+        position: { x: routeWorkbenchLayerX.modelNode, y: baseY },
+        data: {
+          kind: 'modelNode',
+          title: getRouteModelDisplayName(modelName),
+          subtitle: `模型服务 · ${stats.clusterCount} 个集群`,
+          qps: 86 - routeIndex * 4,
+          pods: stats.podCount,
+          nodeCount: stats.nodeCount,
+          logo: getRouteModelLogo(modelName),
+          health: stats.health,
+          yaml: routeWorkbenchYaml('ModelService', modelName),
+          history: routeWorkbenchHistory,
         },
+      });
+    }
+    let ingress = clusterIngress.get(modelClusterKey);
+    if (!ingress) {
+      const ingressId = getRouteResourceId('cluster', modelName, clusterKey);
+      ingress = { ingressId, y: baseY };
+      clusterIngress.set(modelClusterKey, ingress);
+      const clusterRoutes = orderedRoutes.filter((item) => getRouteModelName(item.name) === modelName && (item.cluster || 'default') === clusterKey);
+      const clusterServiceIds = new Set(clusterRoutes.flatMap((item) => item.services.map((service) => service.key)));
+      const clusterPods = podRows.filter((pod) => pod.cluster === route.cluster && !!pod.serviceId && clusterServiceIds.has(pod.serviceId));
+      const clusterNodeCount = new Set(clusterPods.map((pod) => pod.node).filter(Boolean)).size;
+      nodes.push(
         {
           id: ingressId,
           type: 'ingressGroupNode',
           position: { x: routeWorkbenchLayerX.ingressGroupNode, y: baseY },
-          data: { kind: 'ingressGroupNode', title: `${clusterKey}-ingress`, subtitle: `Gateway · ${clusterKey}`, cluster: clusterKey, qps: 78 - routeIndex * 5, health: routeHealth, yaml: routeWorkbenchYaml('Gateway', `${clusterKey}-ingress`), history: routeWorkbenchHistory },
+          data: {
+            kind: 'ingressGroupNode',
+            title: `${clusterKey} 集群`,
+            subtitle: `${clusterRoutes.length} SE · ${clusterPods.length} 实例`,
+            cluster: clusterKey,
+            qps: 78 - routeIndex * 5,
+            pods: clusterPods.length,
+            nodeCount: clusterNodeCount,
+            health: getRouteResourceHealth(clusterPods),
+            yaml: routeWorkbenchYaml('Gateway', `${clusterKey}-ingress`),
+            history: routeWorkbenchHistory,
+          },
         },
       );
-      edges.push({ id: `e-${domainId}-${ingressId}`, source: domainId, target: ingressId, type: 'trafficEdge', markerEnd: { type: MarkerType.ArrowClosed }, data: { type: 'gateway', qps: 80 - routeIndex * 6 } });
+      edges.push({ id: `e-${modelId}-${ingressId}`, source: modelId, target: ingressId, type: 'trafficEdge', markerEnd: routeWorkbenchMarkerEnd, data: { type: 'structure' } });
     }
     const isExpanded = expandedRouteKeys.has(route.key);
 
@@ -658,8 +826,17 @@ const buildRouteWorkbenchFromResources = (routes: RouteEntry[], podRows: PodReco
         },
       },
     );
+    const siblingRoutes = orderedRoutes.filter((item) => getRouteModelName(item.name) === modelName && (item.cluster || 'default') === clusterKey);
+    const siblingIndex = Math.max(0, siblingRoutes.findIndex((item) => item.key === route.key));
     edges.push(
-      { id: `e-${ingress.ingressId}-${seId}`, source: ingress.ingressId, target: seId, type: 'trafficEdge', markerEnd: { type: MarkerType.ArrowClosed }, data: { type: 'gateway', qps: 78 - routeIndex * 5 } },
+      {
+        id: `e-${ingress.ingressId}-${seId}`,
+        source: ingress.ingressId,
+        target: seId,
+        type: 'trafficEdge',
+        markerEnd: routeWorkbenchMarkerEnd,
+        data: { type: 'gateway', qps: 78 - routeIndex * 5, parallelIndex: siblingIndex, parallelTotal: siblingRoutes.length },
+      },
     );
 
     let branchY = baseY;
@@ -692,7 +869,7 @@ const buildRouteWorkbenchFromResources = (routes: RouteEntry[], podRows: PodReco
         source: seId,
         target: serviceId,
         type: 'trafficEdge',
-        markerEnd: { type: MarkerType.ArrowClosed },
+        markerEnd: routeWorkbenchMarkerEnd,
         data: { type: 'endpoint', qps: 28 + (serviceIndex % 12) * 3, weight: endpoint?.weight, healthy: serviceHealth !== 'error' },
       });
 
@@ -740,7 +917,7 @@ const buildRouteWorkbenchFromResources = (routes: RouteEntry[], podRows: PodReco
           source: serviceId,
           target: podId,
           type: 'trafficEdge',
-          markerEnd: { type: MarkerType.ArrowClosed },
+          markerEnd: routeWorkbenchMarkerEnd,
           data: { type: 'service', active: pod.load, healthy: pod.status === 'Running' && pod.ready === '1/1' },
         });
         if (pod.role === 'router') {
@@ -777,8 +954,8 @@ const buildRouteWorkbenchFromResources = (routes: RouteEntry[], podRows: PodReco
               source: podId,
               target: workerId,
               type: 'trafficEdge',
-              markerEnd: { type: MarkerType.ArrowClosed },
-              data: { type: 'worker', load: worker.load, healthy: worker.status === 'Running' && worker.ready === '1/1', label: worker.role },
+              markerEnd: routeWorkbenchMarkerEnd,
+              data: { type: 'worker', load: worker.load, healthy: worker.status === 'Running' && worker.ready === '1/1' },
             });
           });
           workerNodeIds.prefill.forEach((prefillId, prefillIndex) => {
@@ -789,9 +966,11 @@ const buildRouteWorkbenchFromResources = (routes: RouteEntry[], podRows: PodReco
               id: `e-pair-${prefillId}-${decodeId}`,
               source: prefillId,
               target: decodeId,
+              sourceHandle: 'pair-source',
+              targetHandle: 'pair-target',
               type: 'trafficEdge',
-              markerEnd: { type: MarkerType.ArrowClosed },
-              data: { type: 'pair', load: pairLoad, label: String(pairLoad), healthy: true },
+              markerEnd: routeWorkbenchMarkerEnd,
+              data: { type: 'pair', load: pairLoad, label: String(pairLoad), healthy: true, parallelIndex: prefillIndex, parallelTotal: workerNodeIds.prefill.length },
             });
           });
         }
@@ -872,7 +1051,7 @@ const toRouteWorkbenchResources = (state: K8sResourceState) => {
 const RouteWorkbenchPage = () => {
   const resourceStore = useK8sResourceStore();
   const { routes: routeList, pods: podList } = useMemo(() => toRouteWorkbenchResources(resourceStore.state), [resourceStore.state]);
-  const [routeWorkbenchExpandedRouteKeys, setRouteWorkbenchExpandedRouteKeys] = useState<string[]>([]);
+  const [routeWorkbenchExpandedRouteKeys, setRouteWorkbenchExpandedRouteKeys] = useState<string[]>(() => routeList.map((route) => route.key));
   const initialRouteWorkbenchGraph = useMemo(() => buildRouteWorkbenchFromResources(routeList, podList, new Set(routeWorkbenchExpandedRouteKeys)), [routeList, podList, routeWorkbenchExpandedRouteKeys]);
   const [routeWorkbenchSelected, setRouteWorkbenchSelected] = useState('');
   const [routeWorkbenchPanelTab, setRouteWorkbenchPanelTab] = useState<'detail' | 'relation' | 'yaml' | 'history'>('detail');
@@ -886,6 +1065,7 @@ const RouteWorkbenchPage = () => {
   const [routeWorkbenchEditMode, setRouteWorkbenchEditMode] = useState(false);
   const [routeWorkbenchChanges, setRouteWorkbenchChanges] = useState<Array<{ type: string; desc: string }>>([]);
   const [routeWorkbenchPreviewOpen, setRouteWorkbenchPreviewOpen] = useState(false);
+  const [routeWorkbenchModelFilter, setRouteWorkbenchModelFilter] = useState<string>('all');
   const [routeWorkbenchServiceFilter, setRouteWorkbenchServiceFilter] = useState('');
   const [routeWorkbenchCreateKind, setRouteWorkbenchCreateKind] = useState<'se' | 'svc' | ''>('');
   const [routeWorkbenchCreateDraft, setRouteWorkbenchCreateDraft] = useState({
@@ -948,15 +1128,56 @@ const RouteWorkbenchPage = () => {
 
   const selectedNode = routeWorkbenchNodes.find((node) => node.id === routeWorkbenchSelected) || null;
         const selectedData = selectedNode?.data as RouteWorkbenchNodeData | undefined;
-        const hiddenServiceIds = new Set(
-          routeWorkbenchServiceFilter
-            ? routeWorkbenchNodes
-              .filter((node) => node.type === 'serviceNode' && !(node.data as RouteWorkbenchNodeData).title.includes(routeWorkbenchServiceFilter))
-              .map((node) => node.id)
-            : []
-        );
-        const visibleNodes = routeWorkbenchNodes.filter((node) => !hiddenServiceIds.has(node.id));
-        const visibleEdges = routeWorkbenchEdges.filter((edge) => !hiddenServiceIds.has(edge.source) && !hiddenServiceIds.has(edge.target));
+        const routeWorkbenchModelOptions = routeWorkbenchNodes
+          .filter((node) => (node.data as RouteWorkbenchNodeData).kind === 'modelNode')
+          .map((node) => ({ value: node.id, label: (node.data as RouteWorkbenchNodeData).title }));
+        const collectRouteWorkbenchDownstream = (seedIds: string[]) => {
+          const collected = new Set(seedIds);
+          let changed = true;
+          while (changed) {
+            changed = false;
+            routeWorkbenchEdges.forEach((edge) => {
+              if (!collected.has(edge.source) || collected.has(edge.target)) return;
+              collected.add(edge.target);
+              changed = true;
+            });
+          }
+          return collected;
+        };
+        const collectRouteWorkbenchUpstream = (seedIds: string[]) => {
+          const collected = new Set(seedIds);
+          let changed = true;
+          while (changed) {
+            changed = false;
+            routeWorkbenchEdges.forEach((edge) => {
+              if (!collected.has(edge.target) || collected.has(edge.source)) return;
+              collected.add(edge.source);
+              changed = true;
+            });
+          }
+          return collected;
+        };
+        const modelVisibleIds = routeWorkbenchModelFilter === 'all'
+          ? new Set(routeWorkbenchNodes.map((node) => node.id))
+          : collectRouteWorkbenchDownstream([routeWorkbenchModelFilter]);
+        const serviceKeyword = routeWorkbenchServiceFilter.trim().toLowerCase();
+        const serviceMatchedIds = serviceKeyword
+          ? routeWorkbenchNodes
+            .filter((node) => {
+              const data = node.data as RouteWorkbenchNodeData;
+              return data.kind === 'serviceNode' && modelVisibleIds.has(node.id) && data.title.toLowerCase().includes(serviceKeyword);
+            })
+            .map((node) => node.id)
+          : [];
+        const serviceVisibleIds = serviceKeyword
+          ? new Set([
+            ...collectRouteWorkbenchUpstream(serviceMatchedIds),
+            ...collectRouteWorkbenchDownstream(serviceMatchedIds),
+          ])
+          : modelVisibleIds;
+        const visibleNodes = routeWorkbenchNodes.filter((node) => modelVisibleIds.has(node.id) && serviceVisibleIds.has(node.id));
+        const visibleNodeIds = new Set(visibleNodes.map((node) => node.id));
+        const visibleEdges = routeWorkbenchEdges.filter((edge) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target));
         const clusterOptions = Array.from(new Set([
           ...resourceStore.state.serviceEntries.map((item) => item.cluster),
           ...resourceStore.state.services.map((item) => item.cluster),
@@ -1171,7 +1392,7 @@ const RouteWorkbenchPage = () => {
               source: connection.source!,
               target: connection.target!,
               type: 'trafficEdge',
-              markerEnd: { type: MarkerType.ArrowClosed },
+              markerEnd: routeWorkbenchMarkerEnd,
               data: { type: 'endpoint', pending: true, label: 'pending' },
           };
           pushRouteWorkbenchUndo();
@@ -1344,15 +1565,24 @@ const RouteWorkbenchPage = () => {
                 )}
                 {selectedData.kind === 'ingressGroupNode' && (
                   <>
-                    <label><span>命名空间</span><Input value="higress-system / default" readOnly /></label>
-                    <label><span>资源状态</span><Input value="186 Pods · 12 SVC · 4 SE" readOnly /></label>
+                    <label><span>集群名称</span><Input value={selectedData.title} readOnly /></label>
+                    <label><span>资源状态</span><Input value={`${selectedData.subtitle || '0 SE · 0 实例'}`} readOnly /></label>
+                    <label><span>部署节点</span><Input value={`${selectedData.nodeCount || 0} 个节点`} readOnly /></label>
                     <div className="ataas-route-workbench-edit-card">
                       <div className="ataas-route-workbench-edit-title">
-                        <strong>Ingress 目标</strong>
-                        <Button size="small" type="text" icon={<EditOutlined />} onClick={() => pushWorkbenchChange('修改', `${selectedData.title} 修改 destination`)}>修改</Button>
+                        <strong>集群下游</strong>
+                        <Button size="small" type="text" icon={<EditOutlined />} onClick={() => pushWorkbenchChange('修改', `${selectedData.title} 调整 SE 绑定`)}>修改</Button>
                       </div>
-                      <label><span>Destination</span><Input defaultValue="glm51-service-entry" onBlur={(event) => pushWorkbenchChange('修改', `${selectedData.title} destination 改为 ${event.target.value}`)} /></label>
+                      <label><span>SE</span><Input defaultValue="glm-5.1 / glm-5.1-canary" onBlur={(event) => pushWorkbenchChange('修改', `${selectedData.title} SE 改为 ${event.target.value}`)} /></label>
                     </div>
+                  </>
+                )}
+                {selectedData.kind === 'modelNode' && (
+                  <>
+                    <label><span>模型名称</span><Input defaultValue={selectedData.title} onBlur={(event) => pushWorkbenchChange('修改', `模型名称改为 ${event.target.value}`)} /></label>
+                    <label><span>集群</span><Input value={`${selectedData.subtitle || '模型服务'}`} readOnly /></label>
+                    <label><span>实例数</span><Input value={`${selectedData.pods || 0} 个实例`} readOnly /></label>
+                    <label><span>部署节点</span><Input value={`${selectedData.nodeCount || 0} 个节点`} readOnly /></label>
                   </>
                 )}
                 {selectedData.kind === 'domainNode' && (
@@ -1406,17 +1636,27 @@ const RouteWorkbenchPage = () => {
             <header className="ataas-route-workbench-topbar">
               <div>
                 <strong>链路编排</strong>
-                <span>复刻 B300 Routing Canvas：Domain / Ingress / SE / SVC / Router / Worker 访问拓扑</span>
               </div>
               <Space>
+                <Select
+                  value={routeWorkbenchModelFilter}
+                  onChange={(value) => {
+                    setRouteWorkbenchModelFilter(value);
+                    setRouteWorkbenchServiceFilter('');
+                  }}
+                  options={[
+                    { value: 'all', label: '全部模型服务' },
+                    ...routeWorkbenchModelOptions,
+                  ]}
+                  style={{ width: 160 }}
+                />
                 <Input
                   allowClear
                   value={routeWorkbenchServiceFilter}
                   onChange={(event) => setRouteWorkbenchServiceFilter(event.target.value)}
-                  placeholder="过滤 Service"
+                  placeholder="搜索 Service"
                   style={{ width: 180 }}
                 />
-                <Button icon={<FilterOutlined />}>孤儿资源</Button>
                 <Button
                   icon={<EditOutlined />}
                   type={routeWorkbenchEditMode ? 'primary' : 'default'}
@@ -1427,14 +1667,12 @@ const RouteWorkbenchPage = () => {
                 >
                   {routeWorkbenchEditMode ? '退出编辑' : '编辑模式'}
                 </Button>
-                <Button icon={<DeploymentUnitOutlined />} onClick={() => setRouteWorkbenchNodes((nodes) => layoutRouteWorkbenchNodes(nodes))}>自动对齐</Button>
-                <Button icon={<ReloadOutlined />} onClick={syncWorkbenchFromContainerResources}>数据同步</Button>
-                <Button icon={<CompressOutlined />} onClick={collapseAllWorkbenchRoutes}>全部收回</Button>
               </Space>
             </header>
             <div className="ataas-route-workbench-shell">
               <aside className="ataas-route-workbench-palette">
                 {([
+                  ['ingressGroupNode', 'Cluster'],
                   ['clusterNode', 'SE'],
                   ['serviceNode', 'SVC'],
                 ] as Array<[RouteWorkbenchKind, string]>).map(([type, label]) => (

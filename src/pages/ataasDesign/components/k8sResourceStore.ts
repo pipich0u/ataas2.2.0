@@ -81,7 +81,7 @@ const STORE_EVENT = 'ataas-k8s-resources-change';
 const nowLabel = () => '2026-07-06 10:00';
 const MODEL_OPS_SEED = MODEL_OPS_RESOURCE_SPECS
   .map((spec) => `${spec.name}:${spec.cluster}:${spec.routerReady}/${spec.routerTotal}:${spec.prefillReady}/${spec.prefillTotal}:${spec.decodeReady}/${spec.decodeTotal}:${spec.weight}`)
-  .join('|');
+  .join('|') + '|multi-se-v2';
 
 export const buildServiceYaml = (service: K8sServiceResource) => `apiVersion: v1
 kind: Service
@@ -128,10 +128,27 @@ ${entry.hosts.map((host) => `    - ${host}`).join('\n')}
 ${entry.endpoints.map((endpoint) => `    - address: ${endpoint.address}
       weight: ${endpoint.weight}`).join('\n')}`;
 
+const getMockServiceEntryId = (name: string, cluster: string, index: number) => {
+  if (cluster === 'beijing-prod') return name.startsWith('bj-') ? 'se-glm-51-beijing-prod-main' : 'se-glm-51-beijing-prod-system';
+  if (cluster === 'guangzhou-test') return index % 3 === 0 ? 'se-glm-51-guangzhou-test-canary' : 'se-glm-51-guangzhou-test-main';
+  if (cluster === 'shanghai-online') return name.endsWith('-3') ? 'se-glm-51-shanghai-online-backup' : 'se-glm-51-shanghai-online-main';
+  if (cluster === 'wuhan-kunpeng') return name.endsWith('-2') ? 'se-glm-51-wuhan-kunpeng-canary' : 'se-glm-51-wuhan-kunpeng-main';
+  return `se-glm-51-${cluster}-main`;
+};
+
+const getMockServiceEntryName = (id: string, cluster: string) => {
+  if (id.endsWith('-system')) return `glm-5.1-${cluster}-system`;
+  if (id.endsWith('-main')) return `glm-5.1-${cluster}-main`;
+  if (id.endsWith('-canary')) return `glm-5.1-${cluster}-canary`;
+  if (id.endsWith('-backup')) return `glm-5.1-${cluster}-backup`;
+  return `glm-5.1-${cluster}`;
+};
+
 const makeService = (index: number): K8sServiceResource => {
   const spec = MODEL_OPS_RESOURCE_SPECS[index];
   const name = spec.name;
   const cluster = spec.cluster;
+  const serviceEntryId = getMockServiceEntryId(spec.name, spec.cluster, index);
   const service: K8sServiceResource = {
     id: `svc-${name}`,
     kind: 'Service',
@@ -148,7 +165,7 @@ const makeService = (index: number): K8sServiceResource => {
       ...Array.from({ length: spec.prefillTotal }, (_, podIndex) => `pod-${name}-prefill-${podIndex}`),
       ...Array.from({ length: spec.decodeTotal }, (_, podIndex) => `pod-${name}-decode-${podIndex}`),
     ],
-    serviceEntryId: `se-glm-51-${cluster}`,
+    serviceEntryId,
     source: 'model-deploy',
     status: 'Running',
     yaml: '',
@@ -236,15 +253,20 @@ const makePodsForService = (service: K8sServiceResource, index: number): K8sPodR
 export const createInitialK8sResourceState = (): K8sResourceState => {
   const services = MODEL_OPS_RESOURCE_SPECS.map((_, index) => makeService(index));
   const pods = services.flatMap((service, index) => makePodsForService(service, index));
-  const serviceEntries = Array.from(new Set(MODEL_OPS_RESOURCE_SPECS.map((spec) => spec.cluster))).map((cluster) => {
-    const clusterServices = services.filter((service) => service.cluster === cluster);
+  const serviceEntryGroups = services.reduce<Record<string, K8sServiceResource[]>>((acc, service) => {
+    const serviceEntryId = service.serviceEntryId || `se-glm-51-${service.cluster}-main`;
+    acc[serviceEntryId] = [...(acc[serviceEntryId] || []), service];
+    return acc;
+  }, {});
+  const serviceEntries = Object.entries(serviceEntryGroups).map(([serviceEntryId, clusterServices]) => {
+    const cluster = clusterServices[0]?.cluster || 'default';
     const serviceEntry: K8sServiceEntryResource = {
-      id: `se-glm-51-${cluster}`,
+      id: serviceEntryId,
       kind: 'ServiceEntry',
-      name: `glm-5.1-${cluster}`,
+      name: getMockServiceEntryName(serviceEntryId, cluster),
       cluster,
       namespace: 'higress-system',
-      hosts: [`glm-5.1.${cluster}.cluster.local`],
+      hosts: [`${getMockServiceEntryName(serviceEntryId, cluster)}.cluster.local`],
       serviceIds: clusterServices.map((service) => service.id),
       endpoints: clusterServices.map((service) => {
         const spec = MODEL_OPS_RESOURCE_SPECS.find((item) => item.name === service.name);
