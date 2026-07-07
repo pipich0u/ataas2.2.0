@@ -1,7 +1,7 @@
 import { Button, ConfigProvider, Dropdown, Image, Input, InputNumber, message, Modal, Popconfirm, Select, Slider, Table, Tag, Tooltip } from 'antd';
 import type { ThemeConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { AppstoreOutlined, BarChartOutlined, BarsOutlined, DisconnectOutlined, FileSearchOutlined, FileTextOutlined, InfoCircleOutlined, LinkOutlined, PlayCircleOutlined, PlusOutlined, PoweroffOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
+import { AppstoreOutlined, BarChartOutlined, DisconnectOutlined, FileSearchOutlined, FileTextOutlined, InfoCircleOutlined, LinkOutlined, PlayCircleOutlined, PlusOutlined, PoweroffOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import deepseekLogo from '../deepseek-logo.svg';
@@ -10,11 +10,12 @@ import kimiLogo from '../kimi-logo.svg';
 import minimaxLogo from '../minimax-logo.svg';
 import minicpmLogo from '../minicpm-logo.svg';
 import qwenLogo from '../qwen-logo.svg';
+import mooncakeLogo from '../mooncake-logo.png';
 import { MODEL_OPS_RESOURCE_SPECS, getModelOpsRoleSummary as getModelOpsSpecRoleSummary, type ModelOpsResourceSpec } from './modelOpsResourceSpec';
 
 export type DeployStatus = 'running' | 'loading' | 'error' | 'ready' | 'updating' | 'updatable' | 'warning';
 export type DeployCategory = 'llm' | 'embedding' | 'rerank' | 'vlm';
-export type ViewMode = 'card' | 'table';
+export type ViewMode = 'card' | 'mooncake' | 'table';
 
 type DeployLogItem = { id: number; name: string };
 type RestartRecord = { id: number; name: string; works: string; createTime: string; restartTime: string; reasonConsuming: string };
@@ -421,6 +422,22 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
       const percent = isSingleTrafficGroup ? 100 : (index === detailInstances.length - 1 ? 100 - basePercent * (detailInstances.length - 1) : basePercent);
       return { key: record.key, label: record.instance, percent };
     });
+  };
+
+  const getMooncakeCardMeta = (item: DeployServiceItem) => {
+    const cluster = getDeployClusterName(item);
+    const works = item.modelInfo.works?.split(',').map((work) => work.trim()).filter(Boolean) || [];
+    const nodeCount = Math.max(works.length, item.modelInfo.number || 1);
+    const storeCount = Math.max(3, Math.min(8, nodeCount + 3));
+    return {
+      cluster,
+      nodeCount,
+      storeReady: `${storeCount}/${storeCount}`,
+      etcdReady: '3/3',
+      masterReady: '3/3',
+      cache: `${Math.max(1, nodeCount * 1600)} GB`,
+      namespace: `${cluster}.mooncake`,
+    };
   };
 
   const getInlineGatewayConfig = (item: DeployServiceItem): InlineGatewayConfig => {
@@ -1327,11 +1344,11 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
           <>
             <div className="ataas-deploy-list-view-toggle" role="group" aria-label="视图切换">
               <button className={viewMode === 'card' ? 'active' : ''} type="button" onClick={() => { setViewMode('card'); onViewModeChange?.('card'); setPage(1); }}>
-                <AppstoreOutlined />卡片
+                <AppstoreOutlined />模型卡片
               </button>
               <span className="ataas-deploy-view-divider" aria-hidden="true" />
-              <button className={viewMode === 'table' ? 'active' : ''} type="button" onClick={() => { setViewMode('table'); onViewModeChange?.('table'); setPage(1); }}>
-                <BarsOutlined />列表
+              <button className={viewMode === 'mooncake' ? 'active' : ''} type="button" onClick={() => { setViewMode('mooncake'); onViewModeChange?.('mooncake'); setPage(1); }}>
+                <img className="ataas-deploy-view-mooncake-icon" src={mooncakeLogo} alt="" />Mooncake 卡片
               </button>
             </div>
             <Button className="ataas-deploy-create-button" type="primary" icon={<PlusOutlined />} onClick={onOpenCreate}>创建模型服务</Button>
@@ -1403,6 +1420,79 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
             <div style={{ textAlign: 'center', padding: '60px 0', color: '#86909c' }}>
               <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.3 }}>◻</div>
               <div>暂无部署服务</div>
+            </div>
+          )}
+        </div>
+      ) : effectiveViewMode === 'mooncake' ? (
+        <div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 14 }}>
+            {paginated.map((item) => {
+              const meta = getMooncakeCardMeta(item);
+              return (
+                <div key={item.id} className="ataas-deploy-service-card ataas-deploy-mooncake-card">
+                  <div className="ataas-deploy-service-card-glow" />
+                  <div className="ataas-deploy-service-card-head">
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'center', minWidth: 0 }}>
+                      <div className="ataas-deploy-service-logo ataas-deploy-mooncake-logo">
+                        <img src={mooncakeLogo} alt="" />
+                      </div>
+                      <div className="ataas-deploy-service-title-block">
+                        <Tooltip title={`${item.name} Mooncake`}>
+                          <div className="ataas-deploy-service-name">{item.name}</div>
+                        </Tooltip>
+                        <div className="ataas-deploy-service-subline">
+                          <span className="ataas-deploy-service-category ataas-deploy-mooncake-category">Mooncake</span>
+                          <Tooltip title={meta.namespace}>
+                            <span className="ataas-deploy-service-type-text">{meta.namespace}</span>
+                          </Tooltip>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="ataas-deploy-service-head-right">
+                      <StatusTag item={item} />
+                    </div>
+                  </div>
+
+                  <div className="ataas-deploy-mooncake-metric-row">
+                    <div>
+                      <span>Store</span>
+                      <strong>{meta.storeReady}</strong>
+                    </div>
+                    <div>
+                      <span>Master</span>
+                      <strong>{meta.masterReady}</strong>
+                    </div>
+                    <div>
+                      <span>Etcd</span>
+                      <strong>{meta.etcdReady}</strong>
+                    </div>
+                  </div>
+
+                  <div className="ataas-deploy-service-meta-grid ataas-deploy-mooncake-meta-grid">
+                    <div>部署集群 <MetaValue title={meta.cluster}>{meta.cluster}</MetaValue></div>
+                    <div>复用节点 <MetaValue title={`${meta.nodeCount} 个`}>{meta.nodeCount}</MetaValue></div>
+                    <div>缓存容量 <MetaValue title={meta.cache}>{meta.cache}</MetaValue></div>
+                    <div>运行时间 <MetaValue title={getRuntimeText(item)}>{getRuntimeText(item)}</MetaValue></div>
+                  </div>
+
+                  <div className="ataas-deploy-service-actions ataas-deploy-mooncake-actions">
+                    <IconActionButton title="查看模型部署" icon={<InfoCircleOutlined />} disabled={item.status === 'loading'} onClick={() => onDetail(item)} />
+                    <IconActionButton title="监控" icon={<BarChartOutlined />} disabled={item.status !== 'running'} onClick={() => onMonitor(item)} />
+                    <IconActionButton title="日志" icon={<FileSearchOutlined />} disabled={!item.modelInfo.logs.length} onClick={() => onLog(item, item.modelInfo.logs[0]?.id || item.id, `${item.name}-mooncake-store-0`)} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {hasMore && (
+            <div style={{ textAlign: 'center', marginTop: 20 }}>
+              <Button type="text" onClick={() => setPage((p) => p + 1)}>加载更多</Button>
+            </div>
+          )}
+          {paginated.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '60px 0', color: '#86909c' }}>
+              <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.3 }}>◻</div>
+              <div>暂无 Mooncake 资源</div>
             </div>
           )}
         </div>

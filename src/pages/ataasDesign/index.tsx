@@ -58,6 +58,7 @@ import tianshuLogo from './tianshu-logo.png';
 import hygonLogo from './hygon-logo.png';
 import sglangLogo from './sglang-logo.png';
 import vllmLogo from './vllm-logo.png';
+import ktransformersLogo from './ktransformers-logo.png';
 import visionCatPreview from './vision-cat-preview.png';
 import ConfigsPage from '../Configs';
 import TasksPage from '../Tasks';
@@ -319,6 +320,7 @@ type StartupTemplateRecord = {
   yamlContent?: string;
   routerYaml?: string;
   workerYaml?: string;
+  mooncakeYaml?: string;
   engine: string;
   modelFamily: string;
   deployMode: string;
@@ -3492,7 +3494,8 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate, onP
   const [form] = Form.useForm();
   const watchedRouterYaml = Form.useWatch('routerYaml', form);
   const watchedWorkerYaml = Form.useWatch('workerYaml', form);
-  const [pdYamlFileLabels, setPdYamlFileLabels] = useState<{ routerYaml: string; workerYaml: string }>({ routerYaml: '', workerYaml: '' });
+  const watchedMooncakeYaml = Form.useWatch('mooncakeYaml', form);
+  const [pdYamlFileLabels, setPdYamlFileLabels] = useState<{ routerYaml: string; workerYaml: string; mooncakeYaml: string }>({ routerYaml: '', workerYaml: '', mooncakeYaml: '' });
   const [sceneTags, setSceneTags] = useState<string[]>([]);
   const [customSceneTags, setCustomSceneTags] = useState<string[]>([]);
   const [deletedSceneTags, setDeletedSceneTags] = useState<string[]>([]);
@@ -3508,6 +3511,8 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate, onP
   const [importedBenchmarkSource, setImportedBenchmarkSource] = useState<StartupTemplateRecord['benchmarkSource']>();
   const importedBenchmarkSourceRef = useRef<StartupTemplateRecord['benchmarkSource']>(undefined);
   const editorType = Form.useWatch('type', form) || (activeType === 'scene' ? 'single' : activeType);
+  const editorEngine = Form.useWatch('engine', form);
+  const isEditorKTransformers = editorType === 'kt' || (editorType === 'single' && editorEngine === 'KTransformers');
   const requiredTemplateLabel = (label: string) => (
     <span className="ataas-template-required-label"><span>*</span>{label}</span>
   );
@@ -3523,7 +3528,11 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate, onP
   }, [deletedTemplateKeys, templates]);
 
   const scenePool = useMemo(() => [...new Set([...defaultStartupSceneTags, ...customSceneTags, ...richTemplates.flatMap((item) => item.sceneTags || [])])].filter((tag) => !deletedSceneTags.includes(tag)), [customSceneTags, deletedSceneTags, richTemplates]);
-  const baseTemplates = useMemo(() => activeType === 'scene' ? richTemplates.filter((item) => item.sceneTags?.length) : richTemplates.filter((item) => item.type === activeType), [activeType, richTemplates]);
+  const baseTemplates = useMemo(() => {
+    if (activeType === 'scene') return richTemplates.filter((item) => item.sceneTags?.length);
+    if (activeType === 'single') return richTemplates.filter((item) => item.type === 'single' || item.type === 'kt');
+    return richTemplates.filter((item) => item.type === activeType);
+  }, [activeType, richTemplates]);
   const chipFilteredTemplates = useMemo(() => {
     if (activeType === 'kt' || activeType === 'scene') return baseTemplates;
     return baseTemplates.filter((item) => {
@@ -3542,19 +3551,26 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate, onP
     if (keyword && !`${item.name} ${item.model} ${item.description}`.toLowerCase().includes(keyword.toLowerCase())) return false;
     if (vendor && inferChipVendor(item.gpu || item.hardware) !== vendor) return false;
     if (gpu && (item.gpu || item.hardware) !== gpu) return false;
-    if (quant && item.quantization !== quant) return false;
     if (engine && item.engine !== engine) return false;
+    if (engine === 'KTransformers') {
+      if (ktModel && item.model !== ktModel) return false;
+      if (ktGpuCount && String(item.gpuCount) !== ktGpuCount) return false;
+    } else if (quant && item.quantization !== quant) {
+      return false;
+    }
     return true;
   }), [activeType, baseTemplates, engine, gpu, keyword, ktGpuCount, ktModel, quant, scene, vendor]);
 
   const countByType = (type: 'single' | 'pd' | 'kt') => richTemplates.filter((item) => item.type === type).length;
+  const singleTemplateCount = richTemplates.filter((item) => item.type === 'single' || item.type === 'kt').length;
   const vendorCounts = chipVendorOptions.map((value) => ({ value, count: baseTemplates.filter((item) => inferChipVendor(item.gpu || item.hardware) === value).length }));
-  const ktModelOptions = [...new Set(baseTemplates.map((item) => item.model).filter((value): value is string => Boolean(value)))].sort();
-  const ktGpuCountOptions = [...new Set(baseTemplates.map((item) => String(item.gpuCount)))].sort((a, b) => Number(a) - Number(b));
+  const ktFilterTemplates = baseTemplates.filter((item) => item.engine === 'KTransformers');
+  const ktModelOptions = [...new Set(ktFilterTemplates.map((item) => item.model).filter((value): value is string => Boolean(value)))].sort();
+  const ktGpuCountOptions = [...new Set(ktFilterTemplates.map((item) => item.gpuCount).filter((value): value is number => typeof value === 'number').map(String))].sort((a, b) => Number(a) - Number(b));
   const gpuOptions = [...new Set(baseTemplates.filter((item) => !vendor || inferChipVendor(item.gpu || item.hardware) === vendor).map((item) => item.gpu || item.hardware).filter((value): value is string => Boolean(value)))];
-  const quantOptions = [...new Set(chipFilteredTemplates.map((item) => item.quantization).filter((value): value is string => Boolean(value)))].sort();
+  const quantOptions = [...new Set(chipFilteredTemplates.filter((item) => item.engine !== 'KTransformers').map((item) => item.quantization).filter((value): value is string => Boolean(value)))].sort();
   const engineOptions = (activeType === 'single' || activeType === 'pd')
-    ? ['SGLang', 'vLLM']
+    ? ['SGLang', 'vLLM', ...(activeType === 'single' ? ['KTransformers'] : [])]
     : [...new Set(chipFilteredTemplates.map((item) => item.engine).filter((value): value is string => Boolean(value)))].sort();
   const sceneCounts = scenePool.map((value) => ({ value, count: baseTemplates.filter((item) => item.sceneTags?.includes(value)).length }));
   const runningModelServices = useMemo(() => MOCK_DEPLOY_DATA.filter((service) => service.status === 'running'), []);
@@ -3568,11 +3584,11 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate, onP
     if (!keywordText) return benchmarkImportRecords;
     return benchmarkImportRecords.filter((record) => `#${record.id} ${record.taskName} ${record.mode} ${record.serviceName} ${record.modelName} ${record.createdBy} ${record.createdAt}`.toLowerCase().includes(keywordText));
   }, [benchmarkKeyword]);
-  const openPdConfigPicker = (target: 'routerYaml' | 'workerYaml') => {
+  const openPdConfigPicker = (target: 'routerYaml' | 'workerYaml' | 'mooncakeYaml') => {
     onPickConfigYaml((yaml, path) => {
       form.setFieldValue(target, yaml);
       setPdYamlFileLabels((prev) => ({ ...prev, [target]: path }));
-      message.success(`${target === 'routerYaml' ? 'Router' : 'Worker'} YAML 已选择：${path}`);
+      message.success(`${target === 'routerYaml' ? 'Router' : target === 'workerYaml' ? 'Worker' : 'Mooncake'} YAML 已选择：${path}`);
     });
   };
 
@@ -3630,15 +3646,17 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate, onP
 
   const openEditor = (template?: StartupTemplateRecord) => {
     const next = template ? normalizeStartupTemplate(template) : undefined;
-    const initialType: 'single' | 'pd' | 'kt' = next?.type || (activeType === 'scene' ? 'single' : activeType as 'single' | 'pd' | 'kt');
-    const typedNext = next as (StartupTemplateRecord & { routerYaml?: string; workerYaml?: string }) | undefined;
+    const initialType: 'single' | 'pd' | 'kt' = next?.type || ((activeType === 'scene' || activeType === 'kt') ? 'single' : activeType as 'single' | 'pd' | 'kt');
+    const typedNext = next as (StartupTemplateRecord & { routerYaml?: string; workerYaml?: string; mooncakeYaml?: string }) | undefined;
     const nextRouterYaml = typedNext?.routerYaml;
     const nextWorkerYaml = typedNext?.workerYaml;
+    const nextMooncakeYaml = typedNext?.mooncakeYaml;
     form.resetFields();
     setEditing(next || null);
     setPdYamlFileLabels({
       routerYaml: nextRouterYaml ? '当前模板 Router YAML' : '',
       workerYaml: nextWorkerYaml ? '当前模板 PD Worker YAML' : '',
+      mooncakeYaml: nextMooncakeYaml ? '当前模板 Mooncake YAML' : '',
     });
     setSceneTags(next?.sceneTags || []);
     setImportedBenchmarkSource(next?.benchmarkSource);
@@ -3673,6 +3691,7 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate, onP
       command: next.command,
       routerYaml: nextRouterYaml,
       workerYaml: nextWorkerYaml,
+      mooncakeYaml: nextMooncakeYaml,
       driverVersion: (next.env as (StartupTemplateRecord['env'] & { driver?: string }) | undefined)?.driver,
       cpuModel: next.cpu,
       ktMem: next.env?.mem,
@@ -3695,7 +3714,7 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate, onP
     setBenchmarkRows([{ label: '', len: 0, prefill: 0, decode: 0 }]);
     setSingleBenchmarkRows([{ inputLen: 0, outputLen: 0, concurrency: 0, ttft: 0, tpot: 0, tps: 0 }]);
     if (type === 'pd') form.setFieldsValue({ engine: 'SGLang' });
-    if (type !== 'pd') setPdYamlFileLabels({ routerYaml: '', workerYaml: '' });
+    if (type !== 'pd') setPdYamlFileLabels({ routerYaml: '', workerYaml: '', mooncakeYaml: '' });
     if (type === 'kt') form.setFieldsValue({ engine: 'KTransformers' });
   };
 
@@ -3793,7 +3812,8 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate, onP
       message.warning('请补充模型、GPU 类型和启动参数');
       return;
     }
-    if (type === 'kt' && (!values.cpuModel || !values.ktMem)) {
+    const isKTransformersTemplate = type === 'kt' || (type === 'single' && values.engine === 'KTransformers');
+    if (isKTransformersTemplate && (!values.cpuModel || !values.ktMem)) {
       message.warning('请补充 CPU 型号和内存');
       return;
     }
@@ -3824,9 +3844,11 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate, onP
       cardCount: Number(values.gpuCount || 1),
       topology: type === 'pd' ? 'PD 分离' : values.topology || `TP${values.gpuCount || 1} / PP1`,
       command: type === 'pd' ? '' : values.command,
-      yamlContent: type === 'pd' ? `# Router YAML\n${values.routerYaml}\n\n# PD Worker YAML\n${values.workerYaml}` : values.yamlContent,
+      yamlContent: type === 'pd'
+        ? `# Router YAML\n${values.routerYaml}\n\n# PD Worker YAML\n${values.workerYaml}${values.mooncakeYaml ? `\n\n# Mooncake YAML\n${values.mooncakeYaml}` : ''}`
+        : values.yamlContent,
       params: String(values.command).split(/\s+/).filter((item) => item.startsWith('--')).map((item) => ({ key: item, value: '' })),
-      env: { image: values.image, cpu: type === 'kt' ? values.cpuModel : values.cpu, mem: type === 'kt' ? values.ktMem : values.mem, disk: values.disk, network: values.network, kernel: values.kernel, ...(values.driverVersion ? { driver: values.driverVersion } : {}) },
+      env: { image: values.image, cpu: isKTransformersTemplate ? values.cpuModel : values.cpu, mem: isKTransformersTemplate ? values.ktMem : values.mem, disk: values.disk, network: values.network, kernel: values.kernel, ...(values.driverVersion ? { driver: values.driverVersion } : {}) },
       cpu: values.cpuModel,
       version: values.ktVersion,
       benchmark,
@@ -3835,8 +3857,11 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate, onP
       updatedAt: new Date().toISOString().slice(0, 16).replace('T', ' '),
     };
     if (type === 'pd') {
-      (next as StartupTemplateRecord & { routerYaml?: string; workerYaml?: string }).routerYaml = values.routerYaml;
-      (next as StartupTemplateRecord & { routerYaml?: string; workerYaml?: string }).workerYaml = values.workerYaml;
+      (next as StartupTemplateRecord & { routerYaml?: string; workerYaml?: string; mooncakeYaml?: string }).routerYaml = values.routerYaml;
+      (next as StartupTemplateRecord & { routerYaml?: string; workerYaml?: string; mooncakeYaml?: string }).workerYaml = values.workerYaml;
+      if (values.mooncakeYaml) {
+        (next as StartupTemplateRecord & { mooncakeYaml?: string }).mooncakeYaml = values.mooncakeYaml;
+      }
     }
     setTemplates((prev) => editing ? prev.map((item) => item.key === editing.key ? next : item) : [next, ...prev]);
     setEditorOpen(false);
@@ -3864,6 +3889,7 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate, onP
   const getEngineLogo = (value: string) => {
     if (value === 'SGLang') return sglangLogo;
     if (value === 'vLLM') return vllmLogo;
+    if (value === 'KTransformers') return ktransformersLogo;
     return undefined;
   };
   const renderVendorFilterButton = (item: { value: string; count: number }) => {
@@ -3881,7 +3907,13 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate, onP
   const renderEngineFilterButton = (value: string) => {
     const logo = getEngineLogo(value);
     return (
-      <button key={value} type="button" className={engine === value ? 'active' : ''} onClick={() => setEngine(engine === value ? '' : value)}>
+      <button key={value} type="button" className={engine === value ? 'active' : ''} onClick={() => {
+        const nextEngine = engine === value ? '' : value;
+        setEngine(nextEngine);
+        setQuant('');
+        setKtModel('');
+        setKtGpuCount('');
+      }}>
         <span className="ataas-template-vendor-label">
           <i className={logo ? 'has-logo' : ''}>{logo && <img src={logo} alt={value} />}</i>
           <span>{value}</span>
@@ -4422,9 +4454,8 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate, onP
           ['模板总数', richTemplates.length, ''],
           ['官方内置', richTemplates.filter((item) => item.source === 'official').length, 'blue'],
           ['自建模板', richTemplates.filter((item) => item.source === 'custom').length, 'orange'],
-          ['单机模板', countByType('single'), 'green'],
+          ['单机模板', singleTemplateCount, 'green'],
           ['PD 模板', countByType('pd'), 'purple'],
-          ['KT 模板', countByType('kt'), 'pink'],
           ['场景模板', richTemplates.filter((item) => item.sceneTags?.length).length, 'cyan'],
         ].map(([label, value, tone]) => <div key={label} className={`ataas-template-stat ${tone}`}><span>{label}</span><strong>{value}<em>个</em></strong></div>)}
       </div>
@@ -4436,7 +4467,6 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate, onP
           options={[
             { label: '单机模板', value: 'single' },
             { label: 'PD模板', value: 'pd' },
-            { label: 'KT模板', value: 'kt' },
             { label: '场景模板', value: 'scene' },
           ]}
         />
@@ -4455,7 +4485,9 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate, onP
             {gpuOptions.map((item) => renderFilterButton(item, gpu, (value) => { setGpu(value); setQuant(''); setEngine(''); }, countTemplatesBy(baseTemplates.filter((tpl) => inferChipVendor(tpl.gpu || tpl.hardware) === vendor), (tpl) => tpl.gpu || tpl.hardware)[item] || 0))}
           </div></div>}
           {activeType !== 'scene' && activeType !== 'kt' && <div className="ataas-template-filter-section"><span>推理引擎</span><div>{engineOptions.map((item) => renderEngineFilterButton(item))}</div></div>}
-          {activeType !== 'scene' && activeType !== 'kt' && <div className="ataas-template-filter-section"><span>量化格式</span><div>{quantOptions.map((item) => renderFilterButton(item, quant, setQuant))}</div></div>}
+          {activeType === 'single' && engine === 'KTransformers' && <div className="ataas-template-filter-section"><span>模型</span><div>{ktModelOptions.map((item) => renderFilterButton(item, ktModel, setKtModel, ktFilterTemplates.filter((tpl) => tpl.model === item).length))}</div></div>}
+          {activeType === 'single' && engine === 'KTransformers' && <div className="ataas-template-filter-section"><span>GPU 卡数</span><div>{ktGpuCountOptions.map((item) => renderFilterButton(item, ktGpuCount, setKtGpuCount, undefined, `${item}x GPU`))}</div></div>}
+          {activeType !== 'scene' && activeType !== 'kt' && engine !== 'KTransformers' && <div className="ataas-template-filter-section"><span>量化格式</span><div>{quantOptions.map((item) => renderFilterButton(item, quant, setQuant))}</div></div>}
           {activeType === 'kt' && <div className="ataas-template-filter-section"><span>模型</span><div>{ktModelOptions.map((item) => renderFilterButton(item, ktModel, setKtModel, baseTemplates.filter((tpl) => tpl.model === item).length))}</div></div>}
           {activeType === 'kt' && <div className="ataas-template-filter-section"><span>GPU 卡数</span><div>{ktGpuCountOptions.map((item) => renderFilterButton(item, ktGpuCount, setKtGpuCount, undefined, `${item}x GPU`))}</div></div>}
           {activeType === 'scene' && <div className="ataas-template-filter-section"><span>业务场景</span><div>
@@ -4576,7 +4608,7 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate, onP
         <Form form={form} layout="vertical" className="ataas-template-editor-form" requiredMark={false}>
           <div className="ataas-template-form-section"><strong>1. 基本信息</strong><div className="ataas-template-form-grid">
             <Form.Item label={requiredTemplateLabel('模板名称')} name="name" rules={[{ required: true }]}><Input placeholder="如 DeepSeek-R1 H20 单机模板" /></Form.Item>
-            <Form.Item label={requiredTemplateLabel('模板类型')} name="type" rules={[{ required: true }]}><Select disabled={Boolean(editing)} onChange={handleEditorTypeChange} options={[{ value: 'single', label: '单机模板' }, { value: 'pd', label: 'PD模板' }, { value: 'kt', label: 'KT模板 (KTransformers)' }]} /></Form.Item>
+            <Form.Item label={requiredTemplateLabel('模板类型')} name="type" rules={[{ required: true }]}><Select disabled={Boolean(editing)} onChange={handleEditorTypeChange} options={[{ value: 'single', label: '单机模板' }, { value: 'pd', label: 'PD模板' }]} /></Form.Item>
             <Form.Item label={editorType === 'pd' ? '模型' : requiredTemplateLabel('模型')} name="model" rules={editorType === 'pd' ? [] : [{ required: true, message: '请填写模型名称' }]}><AutoComplete options={[...new Set(richTemplates.map((item) => item.model || item.modelFamily).filter(Boolean))].map((value) => ({ value, label: value }))} placeholder="输入模型名称实时筛选" filterOption={(inputValue, option) => String(option?.value || '').toLowerCase().includes(inputValue.toLowerCase())} /></Form.Item>
             <Form.Item label="模板描述" name="description"><Input placeholder="如 单机 8 卡推理" /></Form.Item>
             <Form.Item
@@ -4603,7 +4635,7 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate, onP
               <Form.Item label="驱动版本" name="driverVersion"><Input placeholder="550.54.15 / CUDA 12.4" /></Form.Item>
               <Form.Item label={editorType === 'pd' ? '推理引擎' : requiredTemplateLabel('推理引擎')} name="engine"><Select allowClear options={['SGLang', 'vLLM', 'TensorRT-LLM', 'KTransformers'].map((value) => ({ value, label: value }))} placeholder="请选择" /></Form.Item>
             </div>
-            {editorType === 'kt' && <div className="ataas-template-form-grid three">
+            {isEditorKTransformers && <div className="ataas-template-form-grid three">
               <Form.Item label={requiredTemplateLabel('CPU 型号')} name="cpuModel"><Input placeholder="2x AMD EPYC 9355" /></Form.Item>
               <Form.Item label={requiredTemplateLabel('内存')} name="ktMem"><Input placeholder="768Gi" /></Form.Item>
             </div>}
@@ -4683,9 +4715,45 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate, onP
                 )}
                 <button className="ataas-pd-config-select-button" type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); openPdConfigPicker('workerYaml'); }}>从资源文件选择</button>
               </Upload.Dragger>
+              <Upload.Dragger
+                accept=".yaml,.yml,text/yaml,text/x-yaml"
+                multiple={false}
+                showUploadList={false}
+                beforeUpload={(file) => {
+                  if (!isYamlFile(file)) {
+                    message.error('仅支持 .yaml / .yml 文件');
+                    return Upload.LIST_IGNORE;
+                  }
+                  const reader = new FileReader();
+                  reader.onload = (readerEvent) => {
+                    form.setFieldValue('mooncakeYaml', String(readerEvent.target?.result || ''));
+                    setPdYamlFileLabels((prev) => ({ ...prev, mooncakeYaml: file.name }));
+                  };
+                  reader.onerror = () => message.error('Mooncake YAML 文件读取失败');
+                  reader.readAsText(file);
+                  return false;
+                }}
+              >
+                {watchedMooncakeYaml ? (
+                  <div className="ataas-pd-yaml-current-file">
+                    <FileSearchOutlined />
+                    <strong>Mooncake YAML</strong>
+                    <span title={pdYamlFileLabels.mooncakeYaml || '当前文件'}>{pdYamlFileLabels.mooncakeYaml || '当前文件'}</span>
+                    <em>点击卡片重新上传</em>
+                  </div>
+                ) : (
+                  <>
+                    <p className="ant-upload-drag-icon"><UploadOutlined /></p>
+                    <p className="ant-upload-text">Mooncake YAML <em>可选</em></p>
+                    <p className="ant-upload-hint">点击或拖拽文件上传</p>
+                  </>
+                )}
+                <button className="ataas-pd-config-select-button" type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); openPdConfigPicker('mooncakeYaml'); }}>从资源文件选择</button>
+              </Upload.Dragger>
             </div>
             <Form.Item name="routerYaml" rules={[{ required: true, message: '请上传或选择 Router YAML' }]} hidden><Input /></Form.Item>
             <Form.Item name="workerYaml" rules={[{ required: true, message: '请上传或选择 PD Worker YAML' }]} hidden><Input /></Form.Item>
+            <Form.Item name="mooncakeYaml" hidden><Input /></Form.Item>
           </div>}
           {editorType !== 'pd' && <div className="ataas-template-form-section">
             <strong className="ataas-template-section-title">
@@ -7364,10 +7432,15 @@ const AtAasDesign = () => {
     { key: 'gpu_memory_utilization', value: '0.9' },
   ]);
   const [pdDecodeShellText, setPdDecodeShellText] = useState('--max_model_len 8192\n--gpu_memory_utilization 0.9');
-  const [pdShellExpanded, setPdShellExpanded] = useState<Record<'router' | 'prefill' | 'decode', boolean>>({ router: false, prefill: false, decode: false });
-  type ConfigYamlPickerTarget = 'deploy-router' | 'deploy-worker' | 'startup-template' | 'custom';
+  const [pdMooncakeNodes, setPdMooncakeNodes] = useState<string[]>([]);
+  const [pdMooncakeDeployMode, setPdMooncakeDeployMode] = useState<'none' | 'reuse' | 'custom'>('none');
+  const [pdMooncakeParams, setPdMooncakeParams] = useState<Array<{key: string; value: string}>>([]);
+  const [pdMooncakeShellText, setPdMooncakeShellText] = useState('apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: mooncake-store');
+  const [pdShellExpanded, setPdShellExpanded] = useState<Record<'router' | 'prefill' | 'decode' | 'mooncake', boolean>>({ router: false, prefill: false, decode: false, mooncake: false });
+  type ConfigYamlPickerTarget = 'deploy-router' | 'deploy-worker' | 'deploy-mooncake' | 'startup-template' | 'custom';
   const [configYamlPickerOpen, setConfigYamlPickerOpen] = useState(false);
   const [configYamlPickerTarget, setConfigYamlPickerTarget] = useState<ConfigYamlPickerTarget>('deploy-router');
+  const [pdResourceYamlNames, setPdResourceYamlNames] = useState<Record<string, string>>({});
   const [configYamlPickerReadonly, setConfigYamlPickerReadonly] = useState(false);
   const [configYamlCustomSelect, setConfigYamlCustomSelect] = useState<((yaml: string, path: string) => void) | null>(null);
   const [configYamlTree, setConfigYamlTree] = useState<ConfigTreeNode | null>(null);
@@ -7379,27 +7452,29 @@ const AtAasDesign = () => {
   const [configYamlPickerLoading, setConfigYamlPickerLoading] = useState(false);
 
   const [pdNodePickerOpen, setPdNodePickerOpen] = useState(false);
-  const [pdNodePickerMode, setPdNodePickerMode] = useState<'router' | 'prefill' | 'decode'>('router');
+  const [pdNodePickerMode, setPdNodePickerMode] = useState<'router' | 'prefill' | 'decode' | 'mooncake'>('router');
   const [pdNodePickerSelected, setPdNodePickerSelected] = useState<string[]>([]);
   const [pdNodeGpuFilter, setPdNodeGpuFilter] = useState<string>('all');
   const [pdNodeSearch, setPdNodeSearch] = useState('');
   const [pdRouterUploadedYaml, setPdRouterUploadedYaml] = useState<string>('');
   const [pdPrefillUploadedYaml, setPdPrefillUploadedYaml] = useState<string>('');
 
-  const getPdNodeOccupiedByOtherMode = (nodeKey: string, mode: 'router' | 'prefill' | 'decode' = pdNodePickerMode) => {
+  const getPdNodeOccupiedByOtherMode = (nodeKey: string, mode: 'router' | 'prefill' | 'decode' | 'mooncake' = pdNodePickerMode) => {
     if (mode === 'prefill' && pdDecodeNodes.includes(nodeKey)) return 'Decode';
     if (mode === 'decode' && pdPrefillNodes.includes(nodeKey)) return 'Prefill';
     return '';
   };
 
   const getPdNodeSelectedRoles = (nodeKey: string) => {
-    const roles: Array<'Router' | 'Prefill' | 'Decode'> = [];
+    const roles: Array<'Router' | 'Prefill' | 'Decode' | 'Mooncake'> = [];
     const routerNodes = pdNodePickerMode === 'router' ? pdNodePickerSelected : pdRouterNodes;
     const prefillNodes = pdNodePickerMode === 'prefill' ? pdNodePickerSelected : pdPrefillNodes;
     const decodeNodes = pdNodePickerMode === 'decode' ? pdNodePickerSelected : pdDecodeNodes;
+    const mooncakeNodes = pdNodePickerMode === 'mooncake' ? pdNodePickerSelected : pdMooncakeNodes;
     if (routerNodes.includes(nodeKey)) roles.push('Router');
     if (prefillNodes.includes(nodeKey)) roles.push('Prefill');
     if (decodeNodes.includes(nodeKey)) roles.push('Decode');
+    if (mooncakeNodes.includes(nodeKey)) roles.push('Mooncake');
     return roles;
   };
 
@@ -7585,16 +7660,18 @@ const AtAasDesign = () => {
     .map((item) => ({ value: item.key, label: item.name + ' / ' + item.engine }));
 
   const getPdTemplateYamlPair = (template: StartupTemplateRecord) => {
-    const typedTemplate = template as StartupTemplateRecord & { routerYaml?: string; workerYaml?: string };
-    if (typedTemplate.routerYaml || typedTemplate.workerYaml) {
-      return { routerYaml: typedTemplate.routerYaml || '', workerYaml: typedTemplate.workerYaml || '' };
+    const typedTemplate = template as StartupTemplateRecord & { routerYaml?: string; workerYaml?: string; mooncakeYaml?: string };
+    if (typedTemplate.routerYaml || typedTemplate.workerYaml || typedTemplate.mooncakeYaml) {
+      return { routerYaml: typedTemplate.routerYaml || '', workerYaml: typedTemplate.workerYaml || '', mooncakeYaml: typedTemplate.mooncakeYaml || '' };
     }
     const yaml = template.yamlContent || '';
     const routerMatch = yaml.match(/# Router YAML\n([\s\S]*?)(?:\n# PD Worker YAML\n|$)/);
-    const workerMatch = yaml.match(/# PD Worker YAML\n([\s\S]*)$/);
+    const workerMatch = yaml.match(/# PD Worker YAML\n([\s\S]*?)(?:\n# Mooncake YAML\n|$)/);
+    const mooncakeMatch = yaml.match(/# Mooncake YAML\n([\s\S]*)$/);
     return {
       routerYaml: (routerMatch?.[1] || yaml).trim(),
       workerYaml: (workerMatch?.[1] || yaml).trim(),
+      mooncakeYaml: (mooncakeMatch?.[1] || '').trim(),
     };
   };
   const getDeployModelName = () => deployModels.find((item) => item.key === deployModel)?.name
@@ -7627,13 +7704,18 @@ const AtAasDesign = () => {
   };
 
   const applyPdTemplateRecord = (template: StartupTemplateRecord) => {
-    const { routerYaml, workerYaml } = getPdTemplateYamlPair(template);
+    const { routerYaml, workerYaml, mooncakeYaml } = getPdTemplateYamlPair(template);
     setPdSelectedTemplateKey(template.key);
     setPdRouterTemplateKey(template.key);
     setPdPrefillTemplateKey(template.key);
     setPdDecodeTemplateKey(template.key);
     setPdRouterUploadedYaml(routerYaml);
     setPdPrefillUploadedYaml(workerYaml);
+    if (mooncakeYaml) {
+      setPdMooncakeShellText(mooncakeYaml);
+      setPdMooncakeParams(parseShellParams(mooncakeYaml));
+      setPdMooncakeDeployMode('reuse');
+    }
     const nextParams = (template.params || []).map((param) => ({ ...param }));
     const resolvedParams = nextParams.length > 0 ? nextParams : [{ key: 'max_model_len', value: '8192' }, { key: 'gpu_memory_utilization', value: '0.9' }];
     setPdPrefillParams(resolvedParams.map((param) => ({ ...param })));
@@ -7805,6 +7887,8 @@ const AtAasDesign = () => {
       message.success(`已从资源文件选择 ${configYamlSelectedPath}`);
       return;
     }
+    const selectedFileName = configYamlSelectedPath.split('/').filter(Boolean).pop() || configYamlSelectedPath;
+    setPdResourceYamlNames((prev) => ({ ...prev, [configYamlPickerTarget]: selectedFileName }));
     if (configYamlPickerTarget === 'deploy-router') {
       setPdTemplateMode('upload');
       setPdSelectedTemplateKey('');
@@ -7825,6 +7909,11 @@ const AtAasDesign = () => {
       setPdPrefillParams(nextParams);
       setPdDecodeParams(nextParams.map((param) => ({ ...param })));
       setPdShellExpanded((prev) => ({ ...prev, prefill: true }));
+    } else if (configYamlPickerTarget === 'deploy-mooncake') {
+      const nextParams = parseShellParams(selectedYaml);
+      setPdMooncakeShellText(selectedYaml);
+      setPdMooncakeParams(nextParams);
+      setPdShellExpanded((prev) => ({ ...prev, mooncake: true }));
     } else {
       setTemplateYamlContent(selectedYaml);
     }
@@ -8214,6 +8303,11 @@ const AtAasDesign = () => {
     setPdDecodeCardCount(0);
     setPdDecodeParams([]);
     setPdDecodeShellText('--max_model_len 8192\n--gpu_memory_utilization 0.9');
+    setPdMooncakeNodes([]);
+    setPdMooncakeDeployMode('none');
+    setPdMooncakeParams([]);
+    setPdMooncakeShellText('apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: mooncake-store');
+    setPdResourceYamlNames({});
     setPdRouterUploadedYaml('');
     setPdPrefillUploadedYaml('');
     setPdDecodeTemplateKey('');
@@ -8315,7 +8409,10 @@ const AtAasDesign = () => {
       setPdDecodeNodes(pdDecodeNode ? [pdDecodeNode.key] : []);
       setPdPrefillCardCount(pdPrefillNode ? getDefaultPdCardCount([pdPrefillNode.key]) : 0);
       setPdDecodeCardCount(pdDecodeNode ? getDefaultPdCardCount([pdDecodeNode.key]) : 0);
-      setPdShellExpanded({ router: false, prefill: false, decode: false });
+      setPdMooncakeNodes([]);
+      setPdMooncakeDeployMode('none');
+      setPdResourceYamlNames({});
+      setPdShellExpanded({ router: false, prefill: false, decode: false, mooncake: false });
     }
     setDeployDrawerOpen(true);
     if (isPdTemplate) {
@@ -8331,10 +8428,16 @@ const AtAasDesign = () => {
     }
   };
 
+  const getMooncakeReuseNodes = () => [...new Set([...pdPrefillNodes, ...pdDecodeNodes])];
+  const getMooncakeEffectiveNodes = () => {
+    if (pdMooncakeDeployMode === 'reuse') return getMooncakeReuseNodes();
+    if (pdMooncakeDeployMode === 'custom') return pdMooncakeNodes;
+    return [];
+  };
+  const isPdWorkerNodesReady = (pdPrefillNodes.length > 0 && pdDecodeNodes.length > 0) || getMooncakeEffectiveNodes().length > 0;
   const isPdDeployNodesReady = deployMode !== 'pd-separation' || (
     pdRouterNodes.length > 0 &&
-    pdPrefillNodes.length > 0 &&
-    pdDecodeNodes.length > 0
+    isPdWorkerNodesReady
   );
   const isDeployNodeSelectionReady = deployMode === 'single'
     ? Boolean(selectedSingleNode && singleCardCount > 0)
@@ -8364,7 +8467,8 @@ const AtAasDesign = () => {
   };
   const getDeploySelectedNodes = () => {
     if (deployMode === 'pd-separation') {
-      return [...pdRouterNodes, ...pdPrefillNodes, ...pdDecodeNodes]
+      const mooncakeNodes = getMooncakeEffectiveNodes();
+      return [...new Set([...pdRouterNodes, ...pdPrefillNodes, ...pdDecodeNodes, ...mooncakeNodes])]
         .map((key) => deployNodes.find((node) => node.key === key))
         .filter((node): node is (typeof deployNodes)[number] => Boolean(node));
     }
@@ -8429,8 +8533,8 @@ const AtAasDesign = () => {
     };
   };
   const handleSubmitDeploy = () => {
-    if (!(deployCluster && deployServiceEntry && deployEngine && deployModel && deployServiceName.trim())) {
-      message.warning('请先填写服务名称、模型、推理引擎、部署集群和 SE');
+    if (!(deployCluster && deployEngine && deployModel && deployServiceName.trim())) {
+      message.warning('请先填写服务名称、模型、推理引擎和部署集群');
       return;
     }
     if (!isDeployNodeSelectionReady) {
@@ -8442,12 +8546,8 @@ const AtAasDesign = () => {
         message.warning('请选择 Router 节点');
         return;
       }
-      if (pdPrefillNodes.length === 0) {
-        message.warning('请选择 Prefill 节点');
-        return;
-      }
-      if (pdDecodeNodes.length === 0) {
-        message.warning('请选择 Decode 节点');
+      if (!isPdWorkerNodesReady) {
+        message.warning('请选择 Prefill / Decode 节点，或单独选择 Mooncake 节点');
         return;
       }
     }
@@ -8698,16 +8798,16 @@ const AtAasDesign = () => {
     );
   };
 
-  const renderPdDeployNodePicker = (mode: 'router' | 'prefill' | 'decode') => {
-    const selectedNodes = mode === 'router' ? pdRouterNodes : mode === 'prefill' ? pdPrefillNodes : pdDecodeNodes;
+  const renderPdDeployNodePicker = (mode: 'router' | 'prefill' | 'decode' | 'mooncake') => {
+    const selectedNodes = mode === 'router' ? pdRouterNodes : mode === 'prefill' ? pdPrefillNodes : mode === 'decode' ? pdDecodeNodes : pdMooncakeNodes;
     const nodeRecords = selectedNodes
       .map((key) => deployNodes.find((node) => node.key === key))
       .filter((node): node is (typeof deployNodes)[number] => Boolean(node));
-    const visibleNodes = nodeRecords.slice(0, 2);
+    const visibleNodes = nodeRecords.slice(0, 3);
     return (
       <button
         type="button"
-        className="ataas-deploy-node-picker ataas-pd-deploy-node-picker"
+        className="ataas-pd-node-wide-picker"
         onClick={() => {
           setPdNodePickerMode(mode);
           setPdNodePickerSelected([...selectedNodes]);
@@ -8716,24 +8816,57 @@ const AtAasDesign = () => {
           setPdNodePickerOpen(true);
         }}
       >
-        <div className="ataas-deploy-node-picker-main">
+        <div className="ataas-pd-node-wide-main">
           {nodeRecords.length > 0 ? (
             <>
               {visibleNodes.map((node) => (
-                <span className="ataas-deploy-node-chip" key={node.key}>
+                <span className="ataas-pd-node-wide-chip" key={node.key}>
                   <strong>{node.name}</strong>
                   <em>{node.gpuType}</em>
                 </span>
               ))}
-              {nodeRecords.length > visibleNodes.length && <span className="ataas-deploy-node-more">+{nodeRecords.length - visibleNodes.length}</span>}
+              {nodeRecords.length > visibleNodes.length && <span className="ataas-pd-node-wide-more">+{nodeRecords.length - visibleNodes.length}</span>}
             </>
           ) : (
-            <span className="ataas-deploy-node-empty">选择部署节点</span>
+            <span className="ataas-pd-node-wide-empty">未选择部署节点</span>
           )}
         </div>
-        <span className="ataas-deploy-node-action">{nodeRecords.length ? '重新选择' : '选择节点'}</span>
+        <span className="ataas-pd-node-wide-action">{nodeRecords.length ? '更改' : '选择'}</span>
       </button>
     );
+  };
+
+  const renderPdMooncakeNodePicker = () => {
+    if (pdMooncakeDeployMode === 'reuse') {
+      const reusedNodes = getMooncakeReuseNodes();
+      const nodeRecords = reusedNodes
+        .map((key) => deployNodes.find((node) => node.key === key))
+        .filter((node): node is (typeof deployNodes)[number] => Boolean(node));
+      return (
+        <div className="ataas-pd-node-wide-picker ataas-pd-mooncake-reuse">
+          <div className="ataas-pd-node-wide-main">
+            {nodeRecords.slice(0, 3).map((node) => (
+              <span className="ataas-pd-node-wide-chip" key={node.key}>
+                <strong>{node.name}</strong>
+                <em>{node.gpuType}</em>
+              </span>
+            ))}
+            {nodeRecords.length > 3 && <span className="ataas-pd-node-wide-more">+{nodeRecords.length - 3}</span>}
+            {nodeRecords.length === 0 && <span className="ataas-pd-node-wide-empty">请先选择 Prefill / Decode 节点</span>}
+          </div>
+        </div>
+      );
+    }
+    if (pdMooncakeDeployMode === 'none') {
+      return (
+        <div className="ataas-pd-node-wide-picker ataas-pd-mooncake-reuse">
+          <div className="ataas-pd-node-wide-main">
+            <span className="ataas-pd-node-wide-empty">不部署 Mooncake</span>
+          </div>
+        </div>
+      );
+    }
+    return renderPdDeployNodePicker('mooncake');
   };
 
   const renderAddInstanceNodePicker = () => {
@@ -8837,7 +8970,6 @@ const AtAasDesign = () => {
 
     return (
       <div className="ataas-card-select-control ataas-pd-auto-card-control">
-        <Segmented value="auto" options={[{ value: 'auto', label: '自动选卡' }]} />
         <div className="ataas-card-count-stepper">
           <Button size="small" disabled={!canDecrease} onClick={() => canDecrease && setPdPrefillCardCount(cardOptions[currentIndex - 1])}>-</Button>
           <div className="ataas-card-count-value">{current ? `${current} 卡` : '-'}</div>
@@ -9052,16 +9184,35 @@ const AtAasDesign = () => {
   };
 
   const renderPdShellPanel = (
-    role: 'router' | 'prefill' | 'decode',
+    role: 'router' | 'prefill' | 'decode' | 'mooncake',
     title: string,
     shellText: string,
     setShellText: (value: string) => void,
     onChange: (next: Array<{ key: string; value: string }>) => void,
-    options?: { locked?: boolean; pickerTarget?: ConfigYamlPickerTarget },
+    options?: { locked?: boolean; pickerTarget?: ConfigYamlPickerTarget; resourcePicker?: boolean },
   ) => {
     const paramLineCount = shellText.split('\n').filter((line) => line.trim().replace(/\\$/, '').trim().startsWith('--')).length;
     const expanded = pdShellExpanded[role];
     const locked = Boolean(options?.locked);
+    if (options?.resourcePicker) {
+      const selectedYamlName = options.pickerTarget ? pdResourceYamlNames[options.pickerTarget] : '';
+      return (
+        <div className={`ataas-pd-yaml-resource-area${locked ? ' locked' : ''}`}>
+          <button
+            type="button"
+            className="ataas-pd-yaml-resource-button"
+            onClick={() => {
+              if (locked || !options?.pickerTarget) return;
+              openConfigYamlPicker(options.pickerTarget);
+            }}
+          >
+            <FileSearchOutlined />
+            <span className="ataas-pd-yaml-resource-name">{locked ? '已由 PD 模板填充' : selectedYamlName || '从资源文件 YAML 中选择'}</span>
+            {!locked && selectedYamlName && <em>更换</em>}
+          </button>
+        </div>
+      );
+    }
     return (
       <div className={`ataas-pd-shell-area ${expanded ? 'expanded' : ''}${locked ? ' locked' : ''}`}>
         <button
@@ -12840,37 +12991,21 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
                           </div>
                         </Form.Item>
                         <Form.Item label="部署集群" required>
-                          <div className="ataas-deploy-engine-combo ataas-deploy-cluster-se-combo">
-                            <Select
-                              className="ataas-deploy-primary-select ataas-deploy-cluster-select"
-                              popupClassName="ataas-deploy-primary-select-dropdown"
-                              variant="borderless"
-                              placeholder="选择集群"
-                              value={deployCluster}
-                              onChange={selectDeployCluster}
-                              optionRender={(o) => {
-                                const c = clusters.find((x) => x.key === o.value);
-                                return c ? <span style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}><span>{c.name}</span><span style={{ color: '#86909c', fontSize: 12 }}>{c.gpuTypes.map(g => g.name).join(' / ')}</span></span> : o.label;
-                              }}
-                              options={clusters.map((c) => ({ value: c.key, label: c.name }))}
-                              allowClear
-                              showSearch
-                              optionFilterProp="label"
-                            />
-                            <Select
-                              className="ataas-deploy-primary-select ataas-deploy-service-entry-select"
-                              popupClassName="ataas-deploy-primary-select-dropdown"
-                              variant="borderless"
-                              placeholder="选择 SE"
-                              value={deployServiceEntry}
-                              onChange={setDeployServiceEntry}
-                              options={deployServiceEntryOptions}
-                              disabled={!deployCluster}
-                              allowClear
-                              showSearch
-                              optionFilterProp="label"
-                            />
-                          </div>
+                          <Select
+                            className="ataas-deploy-primary-select"
+                            popupClassName="ataas-deploy-primary-select-dropdown"
+                            placeholder="选择集群"
+                            value={deployCluster}
+                            onChange={selectDeployCluster}
+                            optionRender={(o) => {
+                              const c = clusters.find((x) => x.key === o.value);
+                              return c ? <span style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}><span>{c.name}</span><span style={{ color: '#86909c', fontSize: 12 }}>{c.gpuTypes.map(g => g.name).join(' / ')}</span></span> : o.label;
+                            }}
+                            options={clusters.map((c) => ({ value: c.key, label: c.name }))}
+                            allowClear
+                            showSearch
+                            optionFilterProp="label"
+                          />
                         </Form.Item>
                         <Form.Item label="部署方式">
                           {renderDeployModeSelector()}
@@ -12897,76 +13032,106 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
                             </div>
                           </div>
                         </div>
-                        {/* Router 配置 */}
-                        <div className="ataas-pd-section">
-                          <div className="ataas-pd-section-header">
-                            <span>Router</span>
-                          </div>
-                          <div className="ataas-pd-section-body">
-                            <div className="ataas-pd-config-form">
-                              <div className="ataas-pd-form-row">
-                                <div className="ataas-pd-form-label"><span className="ataas-pd-required-mark">*</span>部署节点：</div>
-                                <div className="ataas-pd-form-control">{renderPdDeployNodePicker('router')}</div>
-                              </div>
-                            </div>
-                            {renderPdShellPanel('router', 'Router YAML', pdRouterShellText, setPdRouterShellText, setPdRouterParams, {
-                              locked: Boolean(pdSelectedTemplateKey),
-                              pickerTarget: 'deploy-router',
-                            })}
-                          </div>
-                        </div>
-                        {/* PD Worker 配置 */}
-                        <div className="ataas-pd-section ataas-pd-worker-card">
-                          <div className="ataas-pd-worker-subsection">
-                            <div className="ataas-pd-section-header">
-                              <span>Prefill</span>
-                            </div>
-                            <div className="ataas-pd-section-body">
-                              <div className="ataas-pd-config-form">
-                                <div className="ataas-pd-form-row">
-                                  <div className="ataas-pd-form-label"><span className="ataas-pd-required-mark">*</span>部署节点：</div>
-                                  <div className="ataas-pd-form-control">{renderPdDeployNodePicker('prefill')}</div>
-                                </div>
-                                <div className="ataas-pd-form-row">
-                                  <div className="ataas-pd-form-label"><span className="ataas-pd-required-mark">*</span>使用卡数：</div>
-                                  <div className="ataas-pd-form-control">{renderPdAutoCardCount('prefill')}</div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="ataas-pd-worker-subsection">
-                          <div className="ataas-pd-section-header">
-                            <span>Decode</span>
-                          </div>
-                          <div className="ataas-pd-section-body">
-                            <div className="ataas-pd-config-form">
-                              <div className="ataas-pd-form-row">
-                                <div className="ataas-pd-form-label"><span className="ataas-pd-required-mark">*</span>部署节点：</div>
-                                <div className="ataas-pd-form-control">{renderPdDeployNodePicker('decode')}</div>
-                              </div>
-                              <div className="ataas-pd-form-row">
-                                <div className="ataas-pd-form-label"><span className="ataas-pd-required-mark">*</span>使用卡数：</div>
-                                <div className="ataas-pd-form-control">{renderPdAutoCardCount('decode')}</div>
-                              </div>
-                            </div>
-                            {renderPdShellPanel(
-                              'prefill',
-                              'PD Worker YAML',
-                              pdPrefillShellText,
-                              (value) => {
-                                setPdPrefillShellText(value);
-                                setPdDecodeShellText(value);
-                              },
-                              (next) => {
-                                setPdPrefillParams(next);
-                                setPdDecodeParams(next.map((param) => ({ ...param })));
-                              },
-                              {
+                        <div className="ataas-pd-compact-panel">
+                          <div className="ataas-pd-compact-section">
+                            <div className="ataas-pd-compact-title">Router</div>
+                            <div className="ataas-pd-compact-grid">
+                              <div className="ataas-pd-compact-label"><span className="ataas-pd-required-mark">*</span>部署节点</div>
+                              <div className="ataas-pd-compact-control">{renderPdDeployNodePicker('router')}</div>
+                              <div className="ataas-pd-compact-label">YAML</div>
+                              <div className="ataas-pd-compact-control">{renderPdShellPanel('router', 'Router YAML', pdRouterShellText, setPdRouterShellText, setPdRouterParams, {
                                 locked: Boolean(pdSelectedTemplateKey),
-                                pickerTarget: 'deploy-worker',
-                              },
-                            )}
+                                pickerTarget: 'deploy-router',
+                                resourcePicker: true,
+                              })}</div>
+                              <div className="ataas-pd-compact-label">ServerEntry</div>
+                              <div className="ataas-pd-compact-control">
+                                <Select
+                                  className="ataas-pd-server-entry-select"
+                                  popupClassName="ataas-deploy-primary-select-dropdown"
+                                  placeholder={deployCluster ? '选择 ServerEntry' : '请先选择部署集群'}
+                                  value={deployServiceEntry}
+                                  onChange={setDeployServiceEntry}
+                                  options={deployServiceEntryOptions}
+                                  disabled={!deployCluster}
+                                  showSearch
+                                  optionFilterProp="label"
+                                />
+                              </div>
+                            </div>
                           </div>
+                          <div className="ataas-pd-compact-section">
+                            <div className="ataas-pd-compact-title">Worker</div>
+                            <div className="ataas-pd-worker-fields">
+                              <div className="ataas-pd-worker-field-row">
+                                <div className="ataas-pd-worker-role-name">Prefill</div>
+                                <div>{renderPdDeployNodePicker('prefill')}</div>
+                              </div>
+                              <div className="ataas-pd-worker-field-row">
+                                <div className="ataas-pd-worker-role-name">Decode</div>
+                                <div>{renderPdDeployNodePicker('decode')}</div>
+                              </div>
+                            </div>
+                            <div className="ataas-pd-compact-grid ataas-pd-compact-yaml-only">
+                              <div className="ataas-pd-compact-label">YAML</div>
+                              <div className="ataas-pd-compact-control">{renderPdShellPanel(
+                                'prefill',
+                                'PD Worker YAML',
+                                pdPrefillShellText,
+                                (value) => {
+                                  setPdPrefillShellText(value);
+                                  setPdDecodeShellText(value);
+                                },
+                                (next) => {
+                                  setPdPrefillParams(next);
+                                  setPdDecodeParams(next.map((param) => ({ ...param })));
+                                },
+                                {
+                                  locked: Boolean(pdSelectedTemplateKey),
+                                  pickerTarget: 'deploy-worker',
+                                  resourcePicker: true,
+                                },
+                              )}</div>
+                            </div>
+                          </div>
+                          <div className={'ataas-pd-compact-section ataas-pd-mooncake-section' + (pdMooncakeDeployMode === 'none' ? ' compact' : '')}>
+                            <div className="ataas-pd-compact-title-row">
+                              <div className="ataas-pd-compact-title">Mooncake</div>
+                              <div className="ataas-pd-mode-tabs">
+                                {[
+                                  { key: 'none', label: '不部署' },
+                                  { key: 'reuse', label: '复用 PD 节点' },
+                                  { key: 'custom', label: '单独部署' },
+                                ].map((item) => (
+                                  <button
+                                    key={item.key}
+                                    type="button"
+                                    className={'ataas-pd-mode-tab' + (pdMooncakeDeployMode === item.key ? ' active' : '')}
+                                    onClick={() => setPdMooncakeDeployMode(item.key as 'none' | 'reuse' | 'custom')}
+                                  >
+                                    {item.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            {pdMooncakeDeployMode !== 'none' && (
+                              <div className="ataas-pd-compact-grid">
+                                <div className="ataas-pd-compact-label">部署节点</div>
+                                <div className="ataas-pd-compact-control">{renderPdMooncakeNodePicker()}</div>
+                                <div className="ataas-pd-compact-label">YAML</div>
+                                <div className="ataas-pd-compact-control">{renderPdShellPanel(
+                                  'mooncake',
+                                  'Mooncake YAML',
+                                  pdMooncakeShellText,
+                                  setPdMooncakeShellText,
+                                  setPdMooncakeParams,
+                                  {
+                                    pickerTarget: 'deploy-mooncake',
+                                    resourcePicker: true,
+                                  },
+                                )}</div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -13038,7 +13203,7 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
                       </div>
                     )}
                     {/* PD分离节点选择弹窗 */}
-                    <Modal className="ataas-node-select-modal" title={'选择' + (pdNodePickerMode === 'router' ? ' Router' : pdNodePickerMode === 'prefill' ? ' Prefill' : ' Decode') + '节点'} open={pdNodePickerOpen} onCancel={() => setPdNodePickerOpen(false)} footer={
+                    <Modal className="ataas-node-select-modal" title={'选择' + (pdNodePickerMode === 'router' ? ' Router' : pdNodePickerMode === 'prefill' ? ' Prefill' : pdNodePickerMode === 'decode' ? ' Decode' : ' Mooncake') + '节点'} open={pdNodePickerOpen} onCancel={() => setPdNodePickerOpen(false)} footer={
                       <div className="ataas-node-select-footer">
                         <span>已选 {pdNodePickerSelected.length} 个节点</span>
                         <div>
@@ -13053,6 +13218,7 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
                             setPdDecodeCardCount(nextCardCount);
                           }
                           else if (pdNodePickerMode === 'decode') setPdDecodeNodes(nextSelected);
+                          else if (pdNodePickerMode === 'mooncake') setPdMooncakeNodes(nextSelected);
                           setPdNodePickerOpen(false);
                         }}>确认</Button>
                         </div>
@@ -13196,12 +13362,8 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
                   <p className="ant-upload-hint">{addInstWorkerYamlFileName || '点击或拖拽文件上传'}</p>
                 </Upload.Dragger>
               </div>
-              <Form.Item name="routerYaml" required>
-                <Input.TextArea rows={5} placeholder="apiVersion: apps/v1&#10;kind: Deployment&#10;metadata:&#10;  name: pd-router" style={{ marginTop: 8 }} />
-              </Form.Item>
-              <Form.Item name="workerYaml" required>
-                <Input.TextArea rows={5} placeholder="apiVersion: apps/v1&#10;kind: Deployment&#10;metadata:&#10;  name: pd-worker" style={{ marginTop: 8 }} />
-              </Form.Item>
+              <Form.Item name="routerYaml" rules={[{ required: true, message: '请上传 Router YAML' }]} hidden><Input /></Form.Item>
+              <Form.Item name="workerYaml" rules={[{ required: true, message: '请上传 PD Worker YAML' }]} hidden><Input /></Form.Item>
             </div>
         </Form>
       </Modal>
