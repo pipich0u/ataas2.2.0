@@ -2984,8 +2984,8 @@ body,
 }
 
 .ataas-deploy-view-mooncake-icon {
-  width: 13px;
-  height: 13px;
+  width: 16px;
+  height: 16px;
   object-fit: contain;
 }
 
@@ -4851,19 +4851,28 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   z-index: 1;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin: 0 20px 14px;
+  gap: 6px;
+  margin: 0 20px 12px;
 
   > div {
+    position: relative;
+    display: flex;
     min-width: 0;
-    padding: 10px 12px;
+    height: 54px;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 9px 12px 11px;
+    overflow: hidden;
     border: 1px solid #EEF1F6;
     border-radius: 6px;
-    background: rgba(247, 250, 252, 0.82);
+    background: #fff;
   }
 
   span {
+    order: 2;
     display: block;
+    flex: 0 0 auto;
     color: #86909C;
     font-size: 11px;
     font-weight: 400;
@@ -4871,21 +4880,421 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   }
 
   strong {
-    display: block;
-    margin-top: 2px;
+    order: 1;
+    display: flex;
+    height: 30px;
+    flex: 0 0 auto;
+    align-items: baseline;
+    gap: 1px;
     color: #1D2129;
-    font-size: 15px;
-    font-weight: 500;
-    line-height: 22px;
+    font-size: 24px;
+    font-weight: 550;
+    line-height: 28px;
+
+    em {
+      color: inherit;
+      font-style: normal;
+    }
+
+    span {
+      position: static;
+      color: #1D2129;
+      font-size: 24px;
+      font-weight: 550;
+      line-height: 28px;
+    }
+  }
+
+  strong.is-degraded em {
+    color: #E02D2D;
   }
 }
 
 .ataas-deploy-mooncake-meta-grid {
-  padding-bottom: 20px;
+  padding-bottom: 12px;
+}
+
+.ataas-deploy-mooncake-etcd-endpoint {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  height: 34px;
+  align-items: center;
+  gap: 8px;
+  margin: 0 20px 14px;
+  padding: 0 10px;
+  border: 1px solid #EEF1F6;
+  border-radius: 6px;
+  background: #FAFBFC;
+  color: #4E5969;
+  font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+  font-size: 11px;
+  line-height: 16px;
+
+  span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  button {
+    display: inline-flex;
+    width: 24px;
+    height: 24px;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #86909C;
+    cursor: pointer;
+    transition: all 0.18s ease;
+
+    &:hover {
+      color: #6951FF;
+    }
+  }
 }
 
 .ataas-deploy-mooncake-actions {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.ataas-mooncake-status-modal {
+  .ant-modal-content {
+    padding: 0;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .ant-modal-header {
+    padding: 16px 22px 14px;
+    margin: 0;
+    border-bottom: 1px solid #E5E6EB;
+  }
+
+  .ant-modal-close {
+    top: 14px;
+    right: 16px;
+  }
+
+  .ant-modal-body {
+    max-height: calc(80vh - 66px);
+    padding: 14px 18px 18px;
+    overflow: auto;
+    background: #fff;
+  }
+}
+
+.ataas-mooncake-status-title {
+  display: inline-flex;
+  max-width: 940px;
+  align-items: center;
+  gap: 12px;
+  color: #111827;
+
+  .anticon {
+    color: #6951FF;
+    font-size: 17px;
+  }
+
+  strong {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 24px;
+  }
+
+  span {
+    min-width: 0;
+    overflow: hidden;
+    color: #86909C;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 20px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.ataas-mooncake-status-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.ataas-mooncake-status-section {
+  overflow: hidden;
+  border: 1px solid #E5E6EB;
+  border-left: 3px solid var(--mooncake-accent);
+  border-radius: 6px;
+  background: #fff;
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 0 14px;
+    border-bottom: 1px solid #F2F3F5;
+  }
+
+  header strong {
+    color: #1D2129;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 22px;
+  }
+
+  header span {
+    min-width: 0;
+    overflow: hidden;
+    color: #86909C;
+    font-size: 12px;
+    line-height: 18px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.ataas-mooncake-status-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.ataas-mooncake-status-table {
+  width: 100%;
+  min-width: 856px;
+  border-collapse: collapse;
+  table-layout: fixed;
+
+  th,
+  td {
+    height: 36px;
+    overflow: hidden;
+    padding: 0 10px;
+    border-bottom: 1px solid #F2F3F5;
+    color: #1D2129;
+    font-size: 13px;
+    line-height: 20px;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  th {
+    color: #86909C;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0;
+    background: #FAFBFC;
+  }
+
+  tr:last-child td {
+    border-bottom: 0;
+  }
+
+  tr.is-muted td {
+    color: #A8ABB2;
+  }
+
+  td.is-danger {
+    color: #F53F3F;
+  }
+
+  th:last-child,
+  td:last-child {
+    text-align: center;
+  }
+}
+
+.ataas-mooncake-pod-name {
+  display: block;
+  overflow: hidden;
+  color: #1D2129;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ataas-mooncake-status-running {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #1D2129;
+
+  i {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: #00B42A;
+  }
+
+  em {
+    color: #9CA3AF;
+    font-style: normal;
+  }
+
+  &.stopped {
+    color: #F53F3F;
+
+    i {
+      background: #F53F3F;
+    }
+  }
+}
+
+.ataas-mooncake-copy {
+  position: relative;
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  margin-left: 6px;
+  vertical-align: -2px;
+
+  &::before,
+  &::after {
+    position: absolute;
+    width: 8px;
+    height: 10px;
+    border: 1px solid #AEB6C2;
+    border-radius: 2px;
+    content: "";
+  }
+
+  &::before {
+    top: 3px;
+    left: 1px;
+  }
+
+  &::after {
+    top: 0;
+    left: 4px;
+    background: #fff;
+  }
+}
+
+.ataas-mooncake-role-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  height: 22px;
+  padding: 0 7px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #F2F3F5;
+  color: #6B7280;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ataas-mooncake-pd {
+  color: #2563EB;
+  font-weight: 600;
+
+  &.decode {
+    color: #6951FF;
+  }
+}
+
+.ataas-deploy-service-icon-action.compact {
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+}
+
+.ataas-mooncake-shutdown-modal {
+  .ant-modal-content {
+    border-radius: 8px;
+  }
+
+  .ant-modal-header {
+    padding-bottom: 12px;
+    border-bottom: 1px solid #EEF0F4;
+  }
+}
+
+.ataas-mooncake-shutdown-title {
+  display: inline-flex;
+  max-width: 540px;
+  align-items: center;
+  gap: 10px;
+
+  .anticon {
+    color: #E02D2D;
+    font-size: 18px;
+  }
+
+  strong {
+    color: #111827;
+    font-size: 16px;
+    font-weight: 650;
+  }
+
+  span {
+    min-width: 0;
+    overflow: hidden;
+    color: #8A94A3;
+    font-size: 13px;
+    font-weight: 400;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.ataas-mooncake-shutdown {
+  p {
+    margin: 0 0 14px;
+    color: #4E5969;
+    font-size: 13px;
+    line-height: 22px;
+  }
+}
+
+.ataas-mooncake-shutdown-list {
+  max-height: 310px;
+  overflow: auto;
+  border: 1px solid #EEF0F4;
+  border-radius: 8px;
+  background: #FAFBFC;
+}
+
+.ataas-mooncake-shutdown-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px 48px;
+  gap: 12px;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 12px;
+  border-bottom: 1px solid #EEF0F4;
+
+  &:last-child {
+    border-bottom: 0;
+  }
+
+  strong {
+    overflow: hidden;
+    color: #111827;
+    font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+    font-size: 13px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  span,
+  em {
+    color: #8A94A3;
+    font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+    font-size: 12px;
+    font-style: normal;
+  }
 }
 
 .ataas-deploy-inline-expand-trigger {
@@ -21428,7 +21837,7 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 }
 
 .ataas-deploy-realtime-log-modal {
-  max-width: calc(100vw - 64px);
+  max-width: calc(100vw - 72px);
 
   .ant-modal-content {
     overflow: hidden;
@@ -21458,7 +21867,7 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   color: #1D2129;
 
   .anticon {
-    color: #2F6BFF;
+    color: #6951FF;
     font-size: 16px;
   }
 
@@ -21470,7 +21879,7 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 
   em {
     overflow: hidden;
-    color: #2F6BFF;
+    color: #6951FF;
     font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
     font-size: 13px;
     font-style: normal;
@@ -21491,28 +21900,113 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   background: #fff;
 }
 
-.ataas-deploy-realtime-log-toolbar {
+.ataas-deploy-realtime-log-viewbar {
   display: flex;
   height: 40px;
   align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  padding: 0 20px;
+  gap: 8px;
+  padding: 0 16px;
+  border-bottom: 1px solid #E5E6EB;
+  background: #FAFBFC;
+  color: #9CA3AF;
+  font-size: 13px;
+
+  > span {
+    flex: 0 0 auto;
+  }
+
+  > div {
+    display: inline-flex;
+    overflow: hidden;
+    border: 1px solid #E5E6EB;
+    border-radius: 6px;
+    background: #fff;
+  }
+
+  button {
+    display: inline-flex;
+    height: 26px;
+    align-items: center;
+    justify-content: center;
+    padding: 0 12px;
+    border: 0;
+    border-right: 1px solid #E5E6EB;
+    background: transparent;
+    color: #86909C;
+    font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  button:last-child {
+    border-right: 0;
+  }
+
+  button.active {
+    background: #F4F1FF;
+    box-shadow: inset 0 0 0 1px rgba(105, 81, 255, 0.22);
+    color: #6951FF;
+    font-weight: 600;
+  }
+
+  button.split {
+    width: 64px;
+    gap: 4px;
+    border: 1px solid #E5E6EB;
+    border-radius: 6px;
+    background: #fff;
+    color: #A0A7B2;
+    font-family: PingFangSC, "PingFang SC", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    cursor: default;
+  }
+}
+
+.ataas-deploy-realtime-log-toolbar {
+  display: flex;
+  height: 38px;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 0 16px;
   border-bottom: 1px solid #E5E6EB;
   color: #1D2129;
   font-size: 13px;
 
+  strong {
+    flex: 0 0 auto;
+    margin-right: 12px;
+    color: #111827;
+    font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+    font-size: 13px;
+    font-weight: 600;
+
+    i {
+      display: inline-block;
+      width: 4px;
+      height: 17px;
+      margin-right: 8px;
+      border-radius: 999px;
+      vertical-align: -4px;
+    }
+  }
+
   button {
     display: inline-flex;
-    height: 28px;
+    height: 26px;
     align-items: center;
-    gap: 7px;
-    padding: 0 10px;
+    gap: 6px;
+    padding: 0 9px;
     border: 1px solid #E5E6EB;
-    border-radius: 6px;
+    border-radius: 5px;
     background: #fff;
-    color: #1D2129;
+    color: #4E5969;
     cursor: pointer;
+    transition: all 0.18s ease;
+
+    &:hover {
+      border-color: rgba(105, 81, 255, 0.38);
+      color: #6951FF;
+    }
 
     i {
       width: 8px;
@@ -21524,13 +22018,84 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
     &.active i {
       background: #18A957;
     }
+
+    &.level {
+      width: 28px;
+      padding: 0;
+      justify-content: center;
+      font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+      font-weight: 500;
+    }
+
+    &.level.active {
+      border-color: #6951FF;
+      background: #6951FF;
+      color: #fff;
+      box-shadow: 0 2px 5px rgba(105, 81, 255, 0.2);
+    }
+
+    &.follow-dot {
+      margin-left: 8px;
+      color: #18A957;
+      font-weight: 600;
+    }
   }
+
+  .level-label,
+  .grep-label {
+    color: #9CA3AF;
+    font-size: 13px;
+  }
+
+  .grep-label {
+    margin-left: 8px;
+  }
+
+  .grep-box {
+    display: flex;
+    height: 26px;
+    flex: 1 1 auto;
+    min-width: 220px;
+    align-items: center;
+    padding: 0 10px;
+    border: 1px solid #E5E6EB;
+    border-radius: 5px;
+    background: #fff;
+    color: #A0A7B2;
+    font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+  }
+}
+
+.ataas-deploy-realtime-log-toolbar.pane-toolbar {
+  padding: 0 14px;
+
+  strong {
+    margin-right: 12px;
+  }
+}
+
+.ataas-deploy-realtime-log-split {
+  height: min(64vh, 680px);
+  overflow: auto;
+}
+
+.ataas-deploy-realtime-log-pane {
+  border-bottom: 1px solid #E5E6EB;
+}
+
+.ataas-deploy-realtime-log-pane:last-child {
+  border-bottom: 0;
+}
+
+.ataas-deploy-realtime-log-pane pre {
+  height: 280px;
+  padding-top: 12px;
 }
 
 .ataas-deploy-realtime-log pre {
   height: min(58vh, 560px);
   margin: 0;
-  padding: 10px 20px 16px;
+  padding: 10px 16px 16px;
   overflow: auto;
   color: #1D2129;
   background: #fff;

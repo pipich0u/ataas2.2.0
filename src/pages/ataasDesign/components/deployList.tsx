@@ -1,7 +1,7 @@
 import { Button, ConfigProvider, Dropdown, Image, Input, InputNumber, message, Modal, Popconfirm, Select, Slider, Table, Tag, Tooltip } from 'antd';
 import type { ThemeConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { AppstoreOutlined, BarChartOutlined, DisconnectOutlined, FileSearchOutlined, FileTextOutlined, InfoCircleOutlined, LinkOutlined, PlayCircleOutlined, PlusOutlined, PoweroffOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
+import { AppstoreOutlined, BarChartOutlined, CopyOutlined, DisconnectOutlined, EyeOutlined, FileSearchOutlined, FileTextOutlined, InfoCircleOutlined, LinkOutlined, PlayCircleOutlined, PlusOutlined, PoweroffOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import deepseekLogo from '../deepseek-logo.svg';
@@ -20,6 +20,14 @@ export type ViewMode = 'card' | 'mooncake' | 'table';
 type DeployLogItem = { id: number; name: string };
 type RestartRecord = { id: number; name: string; works: string; createTime: string; restartTime: string; reasonConsuming: string };
 type InlineGatewayConfig = { enabled: boolean; traffic: Array<{ key: string; label: string; percent: number }> };
+type MooncakeMasterRow = { key: string; name: string; ip: string; ready: string; status: string; age: string; restart: number; levels: string; ops: string; silent?: boolean };
+type MooncakeStoreRow = { key: string; name: string; role: string; pd: 'P' | 'D'; ip: string; ready: string; status: string; age: string; restart: number; logId: number };
+type MooncakeEtcdRow = { key: string; name: string; ip: string; ready: string; status: string; age: string; restart: number };
+type MooncakeClusterStatus = {
+  masters: MooncakeMasterRow[];
+  stores: MooncakeStoreRow[];
+  etcds: MooncakeEtcdRow[];
+};
 
 export type DeployServiceItem = {
   id: number;
@@ -239,6 +247,9 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
   const [page, setPage] = useState(1);
   const [nowTick, setNowTick] = useState(() => Date.now());
   const [modelInfoPopup, setModelInfoPopup] = useState<{ item: DeployServiceItem; left: number; top: number } | null>(null);
+  const [mooncakeStatusItem, setMooncakeStatusItem] = useState<DeployServiceItem | null>(null);
+  const [mooncakeShutdownItem, setMooncakeShutdownItem] = useState<DeployServiceItem | null>(null);
+  const [mooncakeStoppedStores, setMooncakeStoppedStores] = useState<Record<number, boolean>>({});
   const [expandedServiceIds, setExpandedServiceIds] = useState<number[]>([]);
   const [expandedMooncakeKeys, setExpandedMooncakeKeys] = useState<string[]>([]);
   const [inlineGatewayConfigs, setInlineGatewayConfigs] = useState<Record<number, InlineGatewayConfig>>({});
@@ -429,15 +440,99 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
     const works = item.modelInfo.works?.split(',').map((work) => work.trim()).filter(Boolean) || [];
     const nodeCount = Math.max(works.length, item.modelInfo.number || 1);
     const storeCount = Math.max(3, Math.min(8, nodeCount + 3));
+    const runningStoreCount = mooncakeStoppedStores[item.id] ? 0 : storeCount;
     return {
       cluster,
       nodeCount,
-      storeReady: `${storeCount}/${storeCount}`,
+      storeReady: `${runningStoreCount}/${storeCount}`,
       etcdReady: '3/3',
       masterReady: '3/3',
       cache: `${Math.max(1, nodeCount * 1600)} GB`,
       namespace: `${cluster}.mooncake`,
     };
+  };
+
+  const getMooncakeNamePrefix = (item: DeployServiceItem) => {
+    const source = item.modelInfo.name || item.typeStr || item.name;
+    if (/glm[-_]?5[.-]?1/i.test(source) || /glm51/i.test(item.name)) return 'glm51';
+    const normalized = source
+      .toLowerCase()
+      .replace(/\./g, '-')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+    return normalized || 'glm51';
+  };
+
+  const getMooncakeClusterIndex = (item: DeployServiceItem) => {
+    const namedIndex = item.name.match(/glm51[_-](\d+)/i)?.[1] || item.modelOpsInstanceKey?.match(/glm51[_-](\d+)/i)?.[1];
+    if (namedIndex) return Number(namedIndex);
+    return Math.max(1, Math.min(9, item.modelInfo.number + 5));
+  };
+
+  const getMooncakeClusterStatus = (item: DeployServiceItem): MooncakeClusterStatus => {
+    const meta = getMooncakeCardMeta(item);
+    const baseName = `${getMooncakeNamePrefix(item)}-mooncake-${getMooncakeClusterIndex(item)}`;
+    const age = getRuntimeText(item);
+    const storeCount = Number(meta.storeReady.split('/')[0]) || 5;
+    const totalStoreCount = Number(meta.storeReady.split('/')[1]) || storeCount || 5;
+    const storesStopped = mooncakeStoppedStores[item.id];
+    const masterIps = [`10.42.9.${240 + item.id}`, `10.42.2.${92 + item.id}`, `10.42.1.${214 + item.id}`];
+    const storeIps = ['10.12.11.61', '10.12.11.60', '10.12.11.65', '10.12.11.63', '10.12.11.12', '10.12.11.18', '10.12.11.29', '10.12.11.36'];
+    const etcdIps = [`10.42.${item.id % 3}.221`, `10.42.9.${239 + item.id}`, `10.42.2.${93 + item.id}`];
+
+    return {
+      masters: masterIps.map((ip, index) => ({
+        key: `${baseName}-master-${index}`,
+        name: `${baseName}-master-${index}`,
+        ip,
+        ready: '1/1',
+        status: 'Running',
+        age,
+        restart: 0,
+        levels: index === 1 ? 'W 0 · E 0 · F 0' : 'silent 60s+',
+        ops: '1909505/0',
+        silent: index !== 1,
+      })),
+      stores: Array.from({ length: totalStoreCount }, (_, index) => ({
+        key: `${baseName}-store-${index}`,
+        name: `${baseName}-store-1300gb-${index}`,
+        role: 'store-1300gb',
+        pd: index === 2 ? 'D' : 'P',
+        ip: storeIps[index % storeIps.length],
+        ready: storesStopped ? '0/2' : '2/2',
+        status: storesStopped ? 'Stopped' : 'Running',
+        age,
+        restart: 0,
+        logId: item.modelInfo.logs[index % Math.max(1, item.modelInfo.logs.length)]?.id || item.id,
+      })),
+      etcds: etcdIps.map((ip, index) => ({
+        key: `${baseName}-etcd-${index}`,
+        name: `${baseName}-etcd-${index}`,
+        ip,
+        ready: '1/1',
+        status: 'Running',
+        age,
+        restart: 0,
+      })),
+    };
+  };
+
+  const isMooncakeReadyDegraded = (value: string) => {
+    const [ready, total] = value.split('/');
+    return ready !== total;
+  };
+
+  const renderMooncakeReadyValue = (value: string) => {
+    const [ready, total] = value.split('/');
+    const isDegraded = isMooncakeReadyDegraded(value);
+    return (
+      <>
+        <strong className={isDegraded ? 'is-degraded' : ''}>
+          <em>{ready}</em>
+          <span>/{total}</span>
+        </strong>
+      </>
+    );
   };
 
   const getInlineGatewayConfig = (item: DeployServiceItem): InlineGatewayConfig => {
@@ -1428,6 +1523,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 14 }}>
             {paginated.map((item) => {
               const meta = getMooncakeCardMeta(item);
+              const etcdEndpoint = `etcd://${getMooncakeNamePrefix(item)}-mooncake-${getMooncakeClusterIndex(item)}-etcd-client.default.svc.cluster.local:2379`;
               return (
                 <div key={item.id} className="ataas-deploy-service-card ataas-deploy-mooncake-card">
                   <div className="ataas-deploy-service-card-glow" />
@@ -1454,31 +1550,50 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
                   </div>
 
                   <div className="ataas-deploy-mooncake-metric-row">
-                    <div>
+                    <div className={isMooncakeReadyDegraded(meta.storeReady) ? 'is-degraded' : ''}>
                       <span>Store</span>
-                      <strong>{meta.storeReady}</strong>
+                      {renderMooncakeReadyValue(meta.storeReady)}
                     </div>
-                    <div>
+                    <div className={isMooncakeReadyDegraded(meta.masterReady) ? 'is-degraded' : ''}>
                       <span>Master</span>
-                      <strong>{meta.masterReady}</strong>
+                      {renderMooncakeReadyValue(meta.masterReady)}
                     </div>
-                    <div>
+                    <div className={isMooncakeReadyDegraded(meta.etcdReady) ? 'is-degraded' : ''}>
                       <span>Etcd</span>
-                      <strong>{meta.etcdReady}</strong>
+                      {renderMooncakeReadyValue(meta.etcdReady)}
                     </div>
                   </div>
 
                   <div className="ataas-deploy-service-meta-grid ataas-deploy-mooncake-meta-grid">
                     <div>部署集群 <MetaValue title={meta.cluster}>{meta.cluster}</MetaValue></div>
-                    <div>复用节点 <MetaValue title={`${meta.nodeCount} 个`}>{meta.nodeCount}</MetaValue></div>
-                    <div>缓存容量 <MetaValue title={meta.cache}>{meta.cache}</MetaValue></div>
-                    <div>运行时间 <MetaValue title={getRuntimeText(item)}>{getRuntimeText(item)}</MetaValue></div>
+                    <div>master容量 <MetaValue title="13.98 TiB / 15.63 TiB">13.98 TiB / 15.63 TiB</MetaValue></div>
+                    <div>主备节点 <MetaValue title="1 / 3">1 / 3</MetaValue></div>
+                    <div>模型实例 <MetaValue title={item.name}>{item.name}</MetaValue></div>
+                  </div>
+
+                  <div className="ataas-deploy-mooncake-etcd-endpoint">
+                    <Tooltip title={etcdEndpoint}>
+                      <span>{etcdEndpoint}</span>
+                    </Tooltip>
+                    <Tooltip title="复制">
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          navigator.clipboard?.writeText(etcdEndpoint);
+                          message.success('已复制 etcd 地址');
+                        }}
+                      >
+                        <CopyOutlined />
+                      </button>
+                    </Tooltip>
                   </div>
 
                   <div className="ataas-deploy-service-actions ataas-deploy-mooncake-actions">
                     <IconActionButton title="查看模型部署" icon={<InfoCircleOutlined />} disabled={item.status === 'loading'} onClick={() => onDetail(item)} />
+                    <IconActionButton title="Mooncake 集群状态" icon={<EyeOutlined />} disabled={item.status === 'loading'} onClick={() => setMooncakeStatusItem(item)} />
                     <IconActionButton title="监控" icon={<BarChartOutlined />} disabled={item.status !== 'running'} onClick={() => onMonitor(item)} />
-                    <IconActionButton title="日志" icon={<FileSearchOutlined />} disabled={!item.modelInfo.logs.length} onClick={() => onLog(item, item.modelInfo.logs[0]?.id || item.id, `${item.name}-mooncake-store-0`)} />
+                    <IconActionButton title={mooncakeStoppedStores[item.id] ? 'Store 已关停' : '关停 Store'} icon={<PoweroffOutlined />} disabled={!!mooncakeStoppedStores[item.id]} onClick={() => setMooncakeShutdownItem(item)} />
                   </div>
                 </div>
               );
@@ -1644,6 +1759,164 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
         );
       })()}
     </Modal>
+    <Modal
+      className="ataas-mooncake-status-modal"
+      title={mooncakeStatusItem ? (
+        <span className="ataas-mooncake-status-title">
+          <EyeOutlined />
+          <strong>Mooncake 集群状态</strong>
+          <span>{mooncakeStatusItem.name}</span>
+        </span>
+      ) : 'Mooncake 集群状态'}
+      open={!!mooncakeStatusItem}
+      width={1080}
+      footer={null}
+      destroyOnClose
+      onCancel={() => setMooncakeStatusItem(null)}
+    >
+      {mooncakeStatusItem && (() => {
+        const status = getMooncakeClusterStatus(mooncakeStatusItem);
+        const renderRunningStatus = (row: { status: string; age: string }) => (
+          <span className={row.status === 'Stopped' ? 'ataas-mooncake-status-running stopped' : 'ataas-mooncake-status-running'}><i />{row.status}</span>
+        );
+        return (
+          <div className="ataas-mooncake-status-content">
+            <MooncakeStatusSection accent="#2F6BFF" title="Masters" meta={`${status.masters.length} pods · 1 streaming · 0 E · 0 F`}>
+              <table className="ataas-mooncake-status-table">
+                <colgroup>
+                  <col style={{ width: 270 }} />
+                  <col style={{ width: 128 }} />
+                  <col style={{ width: 72 }} />
+                  <col style={{ width: 128 }} />
+                  <col style={{ width: 64 }} />
+                  <col style={{ width: 128 }} />
+                  <col style={{ width: 128 }} />
+                  <col style={{ width: 56 }} />
+                </colgroup>
+                <thead>
+                  <tr><th>名称</th><th>IP</th><th>Ready</th><th>状态</th><th>重启</th><th>Levels · 1m</th><th>Ops · Req/Fail</th><th>操作</th></tr>
+                </thead>
+                <tbody>
+                  {status.masters.map((row) => (
+                    <tr key={row.key} className={row.silent ? 'is-muted' : ''}>
+                      <td><Tooltip title={row.name}><span className="ataas-mooncake-pod-name">{row.name}</span></Tooltip></td>
+                      <td>{row.ip}<CopyTiny /></td>
+                      <td>{row.ready}</td>
+                      <td>{renderRunningStatus(row)}</td>
+                      <td>{row.restart}</td>
+                      <td className={row.silent ? 'is-danger' : ''}>{row.levels}</td>
+                      <td>{row.ops}</td>
+                      <td><IconActionButton className="compact" title="日志" icon={<FileSearchOutlined />} onClick={() => onLog(mooncakeStatusItem, mooncakeStatusItem.modelInfo.logs[0]?.id || mooncakeStatusItem.id, row.name)} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </MooncakeStatusSection>
+
+            <MooncakeStatusSection accent="#8B3DFF" title="Stores" meta={`${status.stores.length} pods`}>
+              <table className="ataas-mooncake-status-table">
+                <colgroup>
+                  <col style={{ width: 300 }} />
+                  <col style={{ width: 122 }} />
+                  <col style={{ width: 64 }} />
+                  <col style={{ width: 128 }} />
+                  <col style={{ width: 72 }} />
+                  <col style={{ width: 128 }} />
+                  <col style={{ width: 64 }} />
+                  <col style={{ width: 56 }} />
+                </colgroup>
+                <thead>
+                  <tr><th>名称</th><th>角色</th><th>PD</th><th>IP</th><th>Ready</th><th>状态</th><th>重启</th><th>操作</th></tr>
+                </thead>
+                <tbody>
+                  {status.stores.map((row) => (
+                    <tr key={row.key}>
+                      <td><Tooltip title={row.name}><span className="ataas-mooncake-pod-name">{row.name}</span></Tooltip></td>
+                      <td><span className="ataas-mooncake-role-chip">{row.role}</span></td>
+                      <td><span className={row.pd === 'D' ? 'ataas-mooncake-pd decode' : 'ataas-mooncake-pd'}>{row.pd} ✓</span></td>
+                      <td>{row.ip}<CopyTiny /></td>
+                      <td>{row.ready}</td>
+                      <td>{renderRunningStatus(row)}</td>
+                      <td>{row.restart}</td>
+                      <td><IconActionButton className="compact" title="日志" icon={<FileSearchOutlined />} onClick={() => onLog(mooncakeStatusItem, row.logId, row.name)} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </MooncakeStatusSection>
+
+            <MooncakeStatusSection accent="#D98B00" title="Etcd" meta={`${status.etcds.length} pods · sts=${getMooncakeNamePrefix(mooncakeStatusItem)}-mooncake-${getMooncakeClusterIndex(mooncakeStatusItem)}-etcd`}>
+              <table className="ataas-mooncake-status-table">
+                <colgroup>
+                  <col style={{ width: 330 }} />
+                  <col style={{ width: 150 }} />
+                  <col style={{ width: 90 }} />
+                  <col style={{ width: 150 }} />
+                  <col style={{ width: 80 }} />
+                  <col style={{ width: 56 }} />
+                </colgroup>
+                <thead>
+                  <tr><th>名称</th><th>IP</th><th>Ready</th><th>状态</th><th>重启</th><th>操作</th></tr>
+                </thead>
+                <tbody>
+                  {status.etcds.map((row) => (
+                    <tr key={row.key}>
+                      <td><Tooltip title={row.name}><span className="ataas-mooncake-pod-name">{row.name}</span></Tooltip></td>
+                      <td>{row.ip}<CopyTiny /></td>
+                      <td>{row.ready}</td>
+                      <td>{renderRunningStatus(row)}</td>
+                      <td>{row.restart}</td>
+                      <td><IconActionButton className="compact" title="日志" icon={<FileSearchOutlined />} onClick={() => onLog(mooncakeStatusItem, mooncakeStatusItem.modelInfo.logs[0]?.id || mooncakeStatusItem.id, row.name)} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </MooncakeStatusSection>
+          </div>
+        );
+      })()}
+    </Modal>
+    <Modal
+      className="ataas-mooncake-shutdown-modal"
+      title={mooncakeShutdownItem ? (
+        <span className="ataas-mooncake-shutdown-title">
+          <PoweroffOutlined />
+          <strong>关停 Mooncake Store</strong>
+          <span>{mooncakeShutdownItem.name}</span>
+        </span>
+      ) : '关停 Mooncake Store'}
+      open={!!mooncakeShutdownItem}
+      width={620}
+      destroyOnClose
+      okText="确定关停"
+      cancelText="取消"
+      okButtonProps={{ danger: true }}
+      onCancel={() => setMooncakeShutdownItem(null)}
+      onOk={() => {
+        if (!mooncakeShutdownItem) return;
+        setMooncakeStoppedStores((prev) => ({ ...prev, [mooncakeShutdownItem.id]: true }));
+        message.success('Store Pod 已全部关停');
+        setMooncakeShutdownItem(null);
+      }}
+    >
+      {mooncakeShutdownItem && (() => {
+        const status = getMooncakeClusterStatus(mooncakeShutdownItem);
+        return (
+          <div className="ataas-mooncake-shutdown">
+            <p>将关停以下 Store Pod，确认后 Mooncake 卡片 Store 状态会变为 0/{status.stores.length}。</p>
+            <div className="ataas-mooncake-shutdown-list">
+              {status.stores.map((store) => (
+                <div key={store.key} className="ataas-mooncake-shutdown-row">
+                  <strong>{store.name}</strong>
+                  <span>{store.ip}</span>
+                  <em>{store.ready}</em>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+    </Modal>
     {modelInfoPopup && typeof document !== 'undefined' && createPortal(
       <div className="ataas-deploy-model-info-card" style={{ left: modelInfoPopup.left, top: modelInfoPopup.top }}>
         <h3>模型信息</h3>
@@ -1659,6 +1932,22 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
     )}
     </ConfigProvider>
   );
+}
+
+function MooncakeStatusSection({ accent, title, meta, children }: { accent: string; title: string; meta: string; children: ReactNode }) {
+  return (
+    <section className="ataas-mooncake-status-section" style={{ ['--mooncake-accent' as string]: accent }}>
+      <header>
+        <strong>{title}</strong>
+        <span>{meta}</span>
+      </header>
+      <div className="ataas-mooncake-status-scroll">{children}</div>
+    </section>
+  );
+}
+
+function CopyTiny() {
+  return <span className="ataas-mooncake-copy" aria-hidden="true" />;
 }
 
 function IconActionButton({ title, icon, disabled, onClick, className }: { title: string; icon: ReactNode; disabled?: boolean; onClick: () => void; className?: string }) {

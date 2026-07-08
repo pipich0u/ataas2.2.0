@@ -6894,7 +6894,14 @@ const AtAasDesign = () => {
   const [deployDetailModalOpen, setDeployDetailModalOpen] = useState(false);
   const [deployDetailExtraNodes, setDeployDetailExtraNodes] = useState<ExtraInstanceInfo[]>([]);
   const [detailTrafficEnabled, setDetailTrafficEnabled] = useState(false);
-  const [deployLogModal, setDeployLogModal] = useState<{ podName: string; namespace: string; lines: string[]; follow: boolean } | null>(null);
+  const [deployLogModal, setDeployLogModal] = useState<{
+    podName: string;
+    namespace: string;
+    lines: string[];
+    follow: boolean;
+    panes?: string[];
+    activePane?: string;
+  } | null>(null);
   const deployLogBodyRef = useRef<HTMLPreElement | null>(null);
   const resetGatewayTrafficByCount = (count: number) => {
     const safeCount = Math.max(1, count);
@@ -7042,26 +7049,102 @@ const AtAasDesign = () => {
       return `[${stamp}] ${line}`;
     });
   };
+  const createMooncakeLogLines = (podName: string, pane: string | undefined, start: number, count: number) => {
+    const isMaster = podName.includes('-master-');
+    const isEtcd = podName.includes('-etcd-');
+    const isStore = podName.includes('-store-');
+    const pad = (value: number) => String(value).padStart(2, '0');
+    const base = new Date('2026-07-07T12:34:44');
+    const clusterName = podName.match(/^(.*?)-(?:store|master|etcd)-/)?.[1] || 'glm51-mooncake-3';
+    return Array.from({ length: count }, (_, index) => {
+      const seq = start + index;
+      const time = new Date(base.getTime() + seq * (isStore ? 4920 : isEtcd ? 1510 : 6020));
+      const stamp = `20260707 ${pad(time.getHours())}:${pad(time.getMinutes())}:${pad(time.getSeconds())}.${String(210000 + (seq * 887) % 780000).padStart(6, '0')}`;
+      if (isEtcd) {
+        const raftId = seq % 2 === 0 ? 'c68b4fb5fb3b6532' : '29b8653cafe9c0e7';
+        const templates = [
+          `{"level":"warn","ts":"2026-07-06T23:04:${pad(35 + (seq % 29))}.520725Z","caller":"rafthttp/probing_status.go:68","msg":"prober detected unhealthy status","round-tripper-name":"ROUND_TRIPPER_RAFT_MESSAGE","remote-peer-id":"e07333c5d1392bba","rtt":"0s","error":"dial tcp: lookup ${clusterName}-etcd-2.${clusterName}-etcd-headless.default.svc.cluster.local on 10.43.0.10:53: no such host"}`,
+          `{"level":"warn","ts":"2026-07-06T23:04:${pad(35 + (seq % 29))}.520729Z","caller":"rafthttp/probing_status.go:68","msg":"prober detected unhealthy status","round-tripper-name":"ROUND_TRIPPER_SNAPSHOT","remote-peer-id":"e07333c5d1392bba","rtt":"0s","error":"dial tcp: lookup ${clusterName}-etcd-2.${clusterName}-etcd-headless.default.svc.cluster.local on 10.43.0.10:53: no such host"}`,
+          `{"level":"info","ts":"2026-07-06T23:04:${pad(36 + (seq % 25))}.365882Z","caller":"rafthttp/stream.go:249","msg":"set message encoder","from":"50476246c4ee6f87","to":"e07333c5d1392bba","stream-type":"stream Message"}`,
+          `{"level":"info","ts":"2026-07-06T23:04:${pad(36 + (seq % 25))}.365915Z","caller":"rafthttp/peer_status.go:53","msg":"peer became active","peer-id":"e07333c5d1392bba"}`,
+          `{"level":"info","ts":"2026-07-06T23:04:${pad(36 + (seq % 25))}.365943Z","caller":"rafthttp/stream.go:274","msg":"established TCP streaming connection with remote peer","stream-writer-type":"stream MsgApp v2","local-member-id":"50476246c4ee6f87","remote-peer-id":"e07333c5d1392bba"}`,
+          `{"level":"warn","ts":"2026-07-06T23:04:${pad(39 + (seq % 21))}.029701Z","caller":"etcdserver/cluster_util.go:288","msg":"failed to reach the peer URL","address":"http://${clusterName}-etcd-2.${clusterName}-etcd-headless.default.svc.cluster.local:2380/version","remote-member-id":"e07333c5d1392bba","error":"Get \\"http://${clusterName}-etcd-2.${clusterName}-etcd-headless.default.svc.cluster.local:2380/version\\": dial tcp: lookup ${clusterName}-etcd-2.${clusterName}-etcd-headless.default.svc.cluster.local on 10.43.0.10:53: no such host"}`,
+        ];
+        return templates[seq % templates.length];
+      }
+      if (isMaster) {
+        const templates = [
+          'WARNING: Logging before InitGoogleLogging() is written to STDERR',
+          `I20260706 23:04:28.191541     7 master.cpp:515] Master service started on port 50051, max_threads=4, enable_metric_reporting=1, metrics_port=9003, default_kv_lease_ttl=10000, default_kv_soft_pin_ttl=1800000, allow_evict_soft_pinned_objects=1, eviction_ratio=0.05, eviction_high_watermark_ratio=0.9, enable_ha=1, enable_offload=0, etcd_endpoints=http://${clusterName}-etcd-client.default.svc.cluster.local:2379, client_ttl=10, rpc_thread_num=4, rpc_port=50051, rpc_address=10.42.9.243, rpc_conn_timeout_seconds=0, rpc_enable_tcp_no_delay=1, rpc_protocol=tcp, cluster_id=mooncake_cluster, root_fs_dir=, global_file_segment_size=9223372036854775807, memory_allocator=offset, enable_http_metadata_server=0, http_metadata_server_port=8080, http_metadata_server_host=0.0.0.0, put_start_discard_timeout_sec=30, put_start_release_timeout_sec=600, max_total_finished_tasks=10000, max_total_pending_tasks=10000, max_total_processing_tasks=10000, pending_task_timeout_sec=300, processing_task_timeout_sec=300, enable_cxl=0, cxl_path=/dev/dax0.0, cxl_size=8589934592`,
+          'I20260706 23:04:28.192319     7 ha_helper.cpp:118] Init master service...',
+          'I20260706 23:04:28.192412     7 ha_helper.cpp:127] Init leader election helper...',
+          'I20260706 23:04:28.192426     7 ha_helper.cpp:20] Master view key: mooncake-store/mooncake/master_view',
+          'I20260706 23:04:28.200052     7 ha_helper.cpp:134] Trying to elect self as leader...',
+          'I20260706 23:04:28.203835     7 ha_helper.cpp:42] CurrentLeader=10.42.1.216:50051, CurrentVersion=12',
+          'I20260706 23:04:28.203852     7 ha_helper.cpp:46] Waiting for leadership change...',
+        ];
+        return templates[seq] || '';
+      }
+      if (isStore) {
+        const numaIndex = pane === 'store-numa1' ? 1 : 0;
+        const metricPort = numaIndex === 1 ? 9301 : 9300;
+        const restPort = numaIndex === 1 ? 8100 : 8099;
+        const ip = numaIndex === 1 ? '10.12.11.66' : '10.12.11.66';
+        const templates = [
+          `I20260706 23:05:28.${numaIndex ? '318281' : '977700'}     1 real_client.cpp:295] Successfully created client on port ${numaIndex ? 13808 : 13923} after ${numaIndex ? 2 : 1} attempt(s)`,
+          `I20260706 23:05:28.${numaIndex ? '320751' : '980573'}     1 real_client.cpp:323] Registering local memory: 67108864 bytes`,
+          `I20260706 23:05:29.${numaIndex ? '390380' : '036497'}     1 real_client.cpp:376] Mounting segment [1/2]: 700 GiB (751619276800 bytes), 751619276800 of 1503238553600 total`,
+          `I20260706 23:06:14.${numaIndex ? '910593' : '911298'}     1 real_client.cpp:376] Mounting segment [2/2]: 700 GiB (751619276800 bytes), 1503238553600 of 1503238553600 total`,
+          `I20260706 23:07:07.${numaIndex ? '910593' : '933853'}     1 real_client.cpp:728] Client HTTP metrics server started on port ${metricPort}`,
+          `2026-07-06 23:0${numaIndex ? '6:14,910' : '7:07,934'} - root - INFO - Store service started successfully on ${ip}`,
+          `2026-07-06 23:0${numaIndex ? '6:14,911' : '7:07,935'} - root - INFO - REST API started on port ${restPort}`,
+          `2026-07-06 23:0${numaIndex ? '6:14,911' : '7:07,935'} - root - INFO - Mooncake Store Service is running. Press Ctrl+C to stop.`,
+        ];
+        if (seq < templates.length) return templates[seq];
+        const warnTimes = [
+          '2026-07-07 04:13:11.205866',
+          '2026-07-07 05:55:49.353044',
+          '2026-07-07 07:16:30.707883',
+          '2026-07-07 13:41:20.990144',
+          '2026-07-07 14:39:44.150269',
+          '2026-07-08 00:03:13.620327',
+          '2026-07-08 02:11:08.895303',
+        ];
+        const warn = warnTimes[(seq - templates.length) % warnTimes.length];
+        return `${warn} WARNING  [OK[141${numaIndex ? 7 : 6}]  [coro_http_connection.hpp:440] read http header error: Connection reset by peer`;
+      }
+      return createDeployPodLogLines(podName, start, count)[index];
+    });
+  };
+  const createLogModalLines = (podName: string, activePane: string | undefined, start: number, count: number) => (
+    podName.includes('-mooncake-') ? createMooncakeLogLines(podName, activePane, start, count) : createDeployPodLogLines(podName, start, count)
+  );
   const handleDeployLog = (item: DeployServiceItem, logId: number, podName?: string) => {
     const logName = item.modelInfo.logs.find((log) => log.id === logId)?.name || '运行日志';
     const resolvedPodName = podName || logName.replace(/\s*日志$/, '').replace(/\s+/g, '-') || `${item.name}-pod-0`;
+    const panes = resolvedPodName.includes('-store-') ? ['store-numa0', 'store-numa1'] : undefined;
+    const activePane = panes?.[0];
+    const lineCount = resolvedPodName.includes('-store-') ? 62 : resolvedPodName.includes('-etcd-') ? 100 : resolvedPodName.includes('-master-') ? 8 : 113;
     setDeployLogModal({
       podName: resolvedPodName,
       namespace: 'default',
       follow: true,
-      lines: createDeployPodLogLines(resolvedPodName, 0, 113),
+      panes,
+      activePane,
+      lines: createLogModalLines(resolvedPodName, activePane, 0, lineCount),
     });
   };
   useEffect(() => {
     if (!deployLogModal) return undefined;
+    if (deployLogModal.podName.includes('-master-') || deployLogModal.panes?.length) return undefined;
     const timer = window.setInterval(() => {
       setDeployLogModal((prev) => prev ? {
         ...prev,
-        lines: [...prev.lines, ...createDeployPodLogLines(prev.podName, prev.lines.length, 2)].slice(-180),
+        lines: [...prev.lines, ...createLogModalLines(prev.podName, prev.activePane, prev.lines.length, 2)].slice(-180),
       } : prev);
     }, 1800);
     return () => window.clearInterval(timer);
-  }, [deployLogModal?.podName]);
+  }, [deployLogModal?.podName, deployLogModal?.activePane]);
   useEffect(() => {
     if (!deployLogModal?.follow || !deployLogBodyRef.current) return;
     deployLogBodyRef.current.scrollTop = deployLogBodyRef.current.scrollHeight;
@@ -14122,25 +14205,81 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
           </div>
         ) : '日志'}
         open={!!deployLogModal}
-        width={1120}
+        width={1080}
         footer={null}
         destroyOnClose
         onCancel={() => setDeployLogModal(null)}
       >
         {deployLogModal && (
           <div className="ataas-deploy-realtime-log">
-            <div className="ataas-deploy-realtime-log-toolbar">
-              <button
-                type="button"
-                className={deployLogModal.follow ? 'active' : ''}
-                onClick={() => setDeployLogModal((prev) => prev ? { ...prev, follow: !prev.follow } : prev)}
-              >
-                <i />
-                跟随
-              </button>
-              <span>{deployLogModal.lines.length} 行</span>
-            </div>
-            <pre ref={deployLogBodyRef}>{deployLogModal.lines.join('\n')}</pre>
+            {deployLogModal.panes?.length ? (
+              <>
+                <div className="ataas-deploy-realtime-log-viewbar">
+                  <span>视图</span>
+                  <button type="button" className="split" disabled>分屏</button>
+                  <div>
+                    {deployLogModal.panes.map((pane) => (
+                      <button
+                        key={pane}
+                        type="button"
+                        className={deployLogModal.activePane === pane ? 'active' : ''}
+                        onClick={() => setDeployLogModal((prev) => {
+                          if (!prev) return prev;
+                          const lineCount = pane === 'store-numa0' ? 62 : 75;
+                          return {
+                            ...prev,
+                            activePane: pane,
+                            lines: createLogModalLines(prev.podName, pane, 0, lineCount),
+                          };
+                        })}
+                      >
+                        {pane}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="ataas-deploy-realtime-log-toolbar">
+                  <strong>
+                    <i style={{ background: deployLogModal.activePane === 'store-numa1' ? '#8B3DFF' : '#6951FF' }} />
+                    {deployLogModal.activePane}
+                  </strong>
+                  <span className="level-label">level:</span>
+                  {['All', 'I', 'W', 'E', 'F'].map((level) => <button key={level} type="button" className={level === 'All' ? 'active level' : 'level'}>{level}</button>)}
+                  <span className="grep-label">grep:</span>
+                  <div className="grep-box">substring match (case-sensitive)</div>
+                  <button
+                    type="button"
+                    className={deployLogModal.follow ? 'active follow-dot' : 'follow-dot'}
+                    onClick={() => setDeployLogModal((prev) => prev ? { ...prev, follow: !prev.follow } : prev)}
+                  >
+                    <i />
+                    跟随
+                  </button>
+                  <span>{deployLogModal.lines.length} 行</span>
+                </div>
+                <pre ref={deployLogBodyRef}>{deployLogModal.lines.join('\n')}</pre>
+              </>
+            ) : null}
+            {!deployLogModal.panes?.length && (
+              <>
+                <div className="ataas-deploy-realtime-log-toolbar">
+                  <span className="level-label">level:</span>
+                  {['All', 'I', 'W', 'E', 'F'].map((level) => <button key={level} type="button" className={level === 'All' ? 'active level' : 'level'}>{level}</button>)}
+                  <span className="grep-label">grep:</span>
+                  <div className="grep-box">substring match (case-sensitive)</div>
+                  <button
+                    type="button"
+                    className={deployLogModal.follow ? 'active follow-dot' : 'follow-dot'}
+                    onClick={() => setDeployLogModal((prev) => prev ? { ...prev, follow: !prev.follow } : prev)}
+                  >
+                    <i />
+                    跟随
+                  </button>
+                  <span>{deployLogModal.lines.length} 行</span>
+                </div>
+                <pre ref={deployLogBodyRef}>{deployLogModal.lines.join('\n')}</pre>
+              </>
+            )}
           </div>
         )}
       </Modal>
