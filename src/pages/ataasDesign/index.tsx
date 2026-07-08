@@ -6694,6 +6694,7 @@ const AtAasDesign = () => {
   const [monitorScope, setMonitorScope] = useState('all');
   const [monitorApp, setMonitorApp] = useState('all');
   const [monitorReportRow, setMonitorReportRow] = useState<MonitorRow | null>(null);
+  const [mooncakeMonitorItem, setMooncakeMonitorItem] = useState<DeployServiceItem | null>(null);
   const [monitorRefreshMode, setMonitorRefreshMode] = useState('手动刷新');
   const [monitorTimePrecision, setMonitorTimePrecision] = useState<MonitorTimePrecision>('minute');
   const [monitorReportDate, setMonitorReportDate] = useState(() => dayjs());
@@ -6957,6 +6958,275 @@ const AtAasDesign = () => {
     setMonitorClusterFilter('');
     setMonitorReportRow(null);
     setActiveTab('monitoring');
+  };
+  const handleMooncakeMonitor = (item: DeployServiceItem) => {
+    setMooncakeMonitorItem(item);
+  };
+  const getMooncakeMetricSeed = (item: DeployServiceItem) => {
+    const match = item.name.match(/(\d+)$/);
+    return Number(match?.[1] || item.id || 1);
+  };
+  const parseMooncakeTotal = (value: string, fallback: number) => {
+    const total = Number(String(value || '').split('/')[1]);
+    return Number.isFinite(total) && total > 0 ? total : fallback;
+  };
+  const getMooncakeMetricSnapshot = (item: DeployServiceItem) => {
+    const seed = getMooncakeMetricSeed(item);
+    const namePrefix = item.name.startsWith('st-router') ? 'glm51' : item.name.split('-router')[0] || 'glm51';
+    const clusterIndex = seed + 6;
+    const storeTotal = item.name.includes('st-router-1') ? 8 : 5;
+    const masterTotal = 3;
+    const etcdTotal = 3;
+    const storeReady = parseMooncakeTotal(`${storeTotal}/${storeTotal}`, storeTotal);
+    const capacityTotalTiB = storeTotal >= 8 ? 15.63 : 9.77;
+    const capacityUsedTiB = Number((capacityTotalTiB * (0.84 + (seed % 5) * 0.01)).toFixed(2));
+    const keyCount = 2880000 + seed * 4317;
+    const softPinCount = 1480000 + seed * 2191;
+    const activeClients = 112 + seed * 3;
+    const readGbps = Number((24.8 + seed * 0.67).toFixed(2));
+    const writeGbps = Number((11.6 + seed * 0.41).toFixed(2));
+    const now = Date.now();
+    return {
+      cluster: item.modelOpsCluster || getDeployClusterName(item),
+      groupKey: item.modelOpsInstanceKey || item.name,
+      rbgName: `${namePrefix}-mooncake-${clusterIndex}`,
+      namespace: 'default',
+      endpoint: `http://${namePrefix}-mooncake-${clusterIndex}-master-0.${namePrefix}-mooncake-${clusterIndex}-master-headless.default.svc.cluster.local:9003/metrics`,
+      scrapedAt: dayjs(now - (seed % 4) * 5000).format('YYYY-MM-DD HH:mm:ss'),
+      storage: {
+        mem: { allocated: capacityUsedTiB, total: capacityTotalTiB, ratio: Number((capacityUsedTiB / capacityTotalTiB * 100).toFixed(1)) },
+        file: { allocated: Number((capacityUsedTiB * 0.18).toFixed(2)), total: Number((capacityTotalTiB * 0.2).toFixed(2)), ratio: Number((capacityUsedTiB / capacityTotalTiB * 90).toFixed(1)) },
+        segments: Array.from({ length: Math.min(storeReady, 8) }, (_, index) => ({
+          segment: `store-${index}`,
+          allocated: Number((capacityUsedTiB / storeTotal * (0.96 + (index % 3) * 0.02)).toFixed(2)),
+          total: Number((capacityTotalTiB / storeTotal).toFixed(2)),
+        })),
+      },
+      keyValue: {
+        keyCount,
+        softPinCount,
+        avgValueBytes: 65536 + seed * 512,
+        p95ValueBytes: 524288 + seed * 2048,
+      },
+      clusterInfo: {
+        activeClients,
+        storeProcCount: storeReady * 2,
+        scrapeErrorCount: 0,
+      },
+      transfer: {
+        readGbps,
+        writeGbps,
+        putP95Us: 2410 + seed * 13,
+        getP95Us: 1880 + seed * 11,
+        batchPutP95Us: 6120 + seed * 19,
+        batchGetP95Us: 4390 + seed * 17,
+      },
+      snapshot: {
+        success: 980 + seed * 5,
+        fail: seed % 3,
+        durationP95Ms: 42 + seed,
+      },
+      ha: {
+        lastSeq: 1725146277362242900 + seed * 1000,
+        appliedSeq: 1725146277362242800 + seed * 1000,
+        standbyLag: seed % 2,
+        pendingEntries: seed % 3,
+        pendingMutationQueue: seed % 4,
+        state: 'standby',
+        etcdWriteRetries: seed % 2,
+        watchDisconnects: seed % 3,
+      },
+      eviction: {
+        attempts: 24 + seed,
+        successes: 24 + seed,
+        evictedKeys: 1800 + seed * 4,
+        evictedBytesGiB: Number((18.2 + seed * 0.13).toFixed(2)),
+      },
+      discard: {
+        discardCount: 382 + seed * 2,
+        releaseCount: 379 + seed * 2,
+        discardedStagingGiB: Number((4.6 + seed * 0.08).toFixed(2)),
+      },
+      operations: [
+        { name: 'put_start', category: 'put_lifecycle', requests: 128403 + seed * 91, failures: 0, failureRate: '0.000%' },
+        { name: 'put_end', category: 'put_lifecycle', requests: 128380 + seed * 91, failures: 1, failureRate: '0.001%' },
+        { name: 'get_exist', category: 'get_exist', requests: 284923 + seed * 123, failures: 0, failureRate: '0.000%' },
+        { name: 'mount_segment', category: 'segment', requests: storeReady * 2, failures: 0, failureRate: '0.000%' },
+        { name: 'ping', category: 'ping', requests: 1909505, failures: 0, failureRate: '0.000%' },
+      ],
+      batchOps: [
+        { name: 'batch_put', requests: 48291 + seed * 37, failures: 0, items: 965820 + seed * 97, failedItems: 0, requestFailureRate: '0.000%', itemFailureRate: '0.000%' },
+        { name: 'batch_get', requests: 92340 + seed * 41, failures: 1, items: 1846800 + seed * 113, failedItems: 2, requestFailureRate: '0.001%', itemFailureRate: '0.000%' },
+      ],
+      roleReady: {
+        store: `${storeReady}/${storeTotal}`,
+        master: `${masterTotal}/${masterTotal}`,
+        etcd: `${etcdTotal}/${etcdTotal}`,
+      },
+    };
+  };
+  const renderMooncakeMetricContent = (item: DeployServiceItem) => {
+    const metrics = getMooncakeMetricSnapshot(item);
+    const renderValue = (label: string, value: ReactNode, sub?: ReactNode) => (
+      <div className="ataas-mooncake-metric-tile">
+        <span>{label}</span>
+        <strong>{value}</strong>
+        {sub ? <em>{sub}</em> : null}
+      </div>
+    );
+    const renderSection = (title: string, extra: ReactNode, children: ReactNode) => (
+      <section className="ataas-mooncake-metric-section">
+        <div className="ataas-mooncake-metric-section-head">
+          <strong>{title}</strong>
+          {extra ? <span>{extra}</span> : null}
+        </div>
+        {children}
+      </section>
+    );
+    const operationColumns = [
+      { title: 'Name', dataIndex: 'name', key: 'name', width: 150, ellipsis: true },
+      { title: 'Category', dataIndex: 'category', key: 'category', width: 150, ellipsis: true },
+      { title: 'Requests', dataIndex: 'requests', key: 'requests', width: 120, align: 'right' as const },
+      { title: 'Failures', dataIndex: 'failures', key: 'failures', width: 100, align: 'right' as const },
+      { title: 'Failure Rate', dataIndex: 'failureRate', key: 'failureRate', width: 120, align: 'right' as const },
+    ];
+    const batchColumns = [
+      { title: 'Name', dataIndex: 'name', key: 'name', width: 150, ellipsis: true },
+      { title: 'Requests', dataIndex: 'requests', key: 'requests', width: 120, align: 'right' as const },
+      { title: 'Items', dataIndex: 'items', key: 'items', width: 120, align: 'right' as const },
+      { title: 'Failed Items', dataIndex: 'failedItems', key: 'failedItems', width: 120, align: 'right' as const },
+      { title: 'Req Fail', dataIndex: 'requestFailureRate', key: 'requestFailureRate', width: 120, align: 'right' as const },
+      { title: 'Item Fail', dataIndex: 'itemFailureRate', key: 'itemFailureRate', width: 120, align: 'right' as const },
+    ];
+    return (
+      <div className="ataas-mooncake-metric-panel">
+        <div className="ataas-mooncake-metric-overview">
+          <div>
+            <span>Cluster</span>
+            <strong>{metrics.cluster}</strong>
+          </div>
+          <div>
+            <span>RBG</span>
+            <Tooltip title={metrics.rbgName}><strong>{metrics.rbgName}</strong></Tooltip>
+          </div>
+          <div>
+            <span>Namespace</span>
+            <strong>{metrics.namespace}</strong>
+          </div>
+          <div>
+            <span>Scraped At</span>
+            <strong>{metrics.scrapedAt}</strong>
+          </div>
+        </div>
+        <div className="ataas-mooncake-metric-endpoint">
+          <Tooltip title={metrics.endpoint}><span>{metrics.endpoint}</span></Tooltip>
+          <Tooltip title="复制">
+            <button type="button" onClick={() => { navigator.clipboard?.writeText(metrics.endpoint); message.success('已复制 metrics endpoint'); }}>
+              <CopyOutlined />
+            </button>
+          </Tooltip>
+        </div>
+
+        <div className="ataas-mooncake-metric-grid">
+          {renderValue('Store', metrics.roleReady.store)}
+          {renderValue('Master', metrics.roleReady.master)}
+          {renderValue('Etcd', metrics.roleReady.etcd)}
+          {renderValue('Active Clients', metrics.clusterInfo.activeClients)}
+          {renderValue('Read', `${metrics.transfer.readGbps} GB/s`, 'client throughput')}
+          {renderValue('Write', `${metrics.transfer.writeGbps} GB/s`, 'client throughput')}
+        </div>
+
+        {renderSection('Storage', 'mooncake_master :9003/metrics', (
+          <>
+            <div className="ataas-mooncake-storage-grid">
+              <div>
+                <span>Memory</span>
+                <strong>{metrics.storage.mem.allocated} TiB / {metrics.storage.mem.total} TiB</strong>
+                <Progress percent={metrics.storage.mem.ratio} showInfo={false} strokeColor="#6951FF" trailColor="#EEF1F5" />
+              </div>
+              <div>
+                <span>File</span>
+                <strong>{metrics.storage.file.allocated} TiB / {metrics.storage.file.total} TiB</strong>
+                <Progress percent={metrics.storage.file.ratio} showInfo={false} strokeColor="#14A0C7" trailColor="#EEF1F5" />
+              </div>
+            </div>
+            <div className="ataas-mooncake-segment-grid">
+              {metrics.storage.segments.map((segment) => (
+                <Tooltip key={segment.segment} title={`${segment.segment}: ${segment.allocated} TiB / ${segment.total} TiB`}>
+                  <div>
+                    <span>{segment.segment}</span>
+                    <b style={{ width: `${Math.min(100, (segment.allocated / segment.total) * 100)}%` }} />
+                  </div>
+                </Tooltip>
+              ))}
+            </div>
+          </>
+        ))}
+
+        <div className="ataas-mooncake-metric-two-col">
+          {renderSection('Key Value', 'value_size histogram', (
+            <div className="ataas-mooncake-metric-mini-grid">
+              {renderValue('Keys', metrics.keyValue.keyCount.toLocaleString())}
+              {renderValue('Soft Pin', metrics.keyValue.softPinCount.toLocaleString())}
+              {renderValue('Avg Value', `${(metrics.keyValue.avgValueBytes / 1024).toFixed(1)} KiB`)}
+              {renderValue('P95 Value', `${(metrics.keyValue.p95ValueBytes / 1024).toFixed(1)} KiB`)}
+            </div>
+          ))}
+          {renderSection('Transfer Latency', 'client :9300 metrics', (
+            <div className="ataas-mooncake-metric-mini-grid">
+              {renderValue('PUT P95', `${metrics.transfer.putP95Us} us`)}
+              {renderValue('GET P95', `${metrics.transfer.getP95Us} us`)}
+              {renderValue('Batch PUT P95', `${metrics.transfer.batchPutP95Us} us`)}
+              {renderValue('Batch GET P95', `${metrics.transfer.batchGetP95Us} us`)}
+            </div>
+          ))}
+        </div>
+
+        <div className="ataas-mooncake-metric-two-col">
+          {renderSection('HA', 'oplog / standby', (
+            <div className="ataas-mooncake-metric-mini-grid">
+              {renderValue('Last Seq', String(metrics.ha.lastSeq))}
+              {renderValue('Applied Seq', String(metrics.ha.appliedSeq))}
+              {renderValue('Standby Lag', metrics.ha.standbyLag)}
+              {renderValue('Pending', metrics.ha.pendingEntries)}
+              {renderValue('Mutation Queue', metrics.ha.pendingMutationQueue)}
+              {renderValue('Watch Drops', metrics.ha.watchDisconnects)}
+            </div>
+          ))}
+          {renderSection('Snapshot / Eviction', 'delta counters', (
+            <div className="ataas-mooncake-metric-mini-grid">
+              {renderValue('Snapshot OK', metrics.snapshot.success)}
+              {renderValue('Snapshot Fail', metrics.snapshot.fail)}
+              {renderValue('Evicted Keys', metrics.eviction.evictedKeys.toLocaleString())}
+              {renderValue('Evicted Bytes', `${metrics.eviction.evictedBytesGiB} GiB`)}
+              {renderValue('Discard', metrics.discard.discardCount)}
+              {renderValue('Release', metrics.discard.releaseCount)}
+            </div>
+          ))}
+        </div>
+
+        {renderSection('Operations', 'single RPC counters', (
+          <Table
+            className="ataas-mooncake-metric-table"
+            size="small"
+            rowKey="name"
+            pagination={false}
+            columns={operationColumns}
+            dataSource={metrics.operations}
+          />
+        ))}
+        {renderSection('Batch Operations', 'batch RPC counters', (
+          <Table
+            className="ataas-mooncake-metric-table"
+            size="small"
+            rowKey="name"
+            pagination={false}
+            columns={batchColumns}
+            dataSource={metrics.batchOps}
+          />
+        ))}
+      </div>
+    );
   };
   const handleDeployStop = (item: DeployServiceItem) => {
     const parseRoleCount = (value?: string) => {
@@ -10177,6 +10447,148 @@ const AtAasDesign = () => {
     },
   ];
 
+  const renderMonitorReportContent = (row: MonitorRow, mode: 'page' | 'modal' = 'page') => {
+    const setActiveRow = setMonitorReportRow;
+    return (
+      <ConfigProvider theme={{ token: { colorPrimary: '#6738E8', colorPrimaryHover: '#5D30D8', colorPrimaryActive: '#5127C7', controlOutline: 'rgba(103, 56, 232, 0.12)' } }}>
+        <div className={(mode === 'modal' ? 'ataas-mooncake-monitor-report ' : '') + 'ataas-panel ataas-monitor-report-page ataas-deploy-list'}>
+          <div className="ataas-monitor-report-title">
+            {mode === 'page' && <Button className="ataas-monitor-report-back" type="text" icon={<ArrowLeftOutlined />} onClick={() => setMonitorReportRow(null)}>返回</Button>}
+            <Select
+              className="ataas-monitor-model-switch-select"
+              showSearch
+              value={row.key}
+              placeholder="输入模型名称切换"
+              optionFilterProp="label"
+              suffixIcon={<SwapRightOutlined />}
+              onChange={(key) => {
+                const nextRow = allMonitorRows.find((item) => item.key === key);
+                if (nextRow) setActiveRow(nextRow);
+              }}
+              options={allMonitorRows.map((item) => ({ value: item.key, label: item.name }))}
+            />
+          </div>
+          <div className="ataas-monitor-report-layout">
+            <main className="ataas-monitor-report-main">
+              <div className="ataas-monitor-summary ataas-monitor-report-summary">
+                {[
+                  ['调用接口数', String(row.interfaceCount || 1), '个'],
+                  ['调用总量', formatMonitorNumber(row.callTotal), '次'],
+                  ['调用失败', formatMonitorNumber(row.callFailed), '次'],
+                  ['调用总tokens数', formatMonitorTokens(row.totalTokens), 'tokens'],
+                  ['输入tokens数', formatMonitorTokens(row.inputTokens), 'tokens'],
+                  ['输出tokens数', formatMonitorTokens(row.outputTokens), 'tokens'],
+                ].map(([label, value, unit]) => (
+                  <div key={label} className="ataas-monitor-stat">
+                    <span>{label}</span>
+                    <strong>{value}</strong>
+                    <em>{unit}</em>
+                  </div>
+                ))}
+              </div>
+              <div className="ataas-monitor-report-toolbar">
+                <div
+                  className="ataas-monitor-report-time-segment"
+                  data-active={monitorTimePrecision}
+                  role="tablist"
+                  aria-label="时间粒度"
+                >
+                  <span className="ataas-monitor-report-time-indicator" aria-hidden="true" />
+                  {[
+                    { value: 'day', label: '按日' },
+                    { value: 'hour', label: '按时' },
+                    { value: 'minute', label: '按分钟' },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      role="tab"
+                      aria-selected={monitorTimePrecision === option.value}
+                      className={monitorTimePrecision === option.value ? 'is-active' : undefined}
+                      onClick={() => handleMonitorPrecisionChange(option.value as MonitorTimePrecision)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+                {monitorTimePrecision === 'minute' ? (
+                  <DatePicker
+                    className="ataas-log-range-picker ataas-monitor-report-date ataas-monitor-report-single-date"
+                    value={monitorReportDate}
+                    allowClear={false}
+                    disabledDate={disabledMonitorReportDate}
+                    onChange={handleMonitorReportDateChange}
+                  />
+                ) : (
+                  <DatePicker.RangePicker
+                    className="ataas-log-range-picker ataas-monitor-report-date"
+                    value={monitorReportDateRange}
+                    allowClear={false}
+                    disabledDate={disabledMonitorReportDate}
+                    onCalendarChange={(range) => setMonitorReportCalendarRange(range)}
+                    onChange={handleMonitorReportRangeChange}
+                  />
+                )}
+                <span>数据更新于 2026-05-31 17:53:30</span>
+                <div className="ataas-monitor-refresh-split">
+                  <Button className="ataas-monitor-refresh-trigger" icon={<ReloadOutlined />} onClick={() => message.success('已手动刷新')} />
+                  <Dropdown
+                    trigger={['click']}
+                    menu={{
+                      selectedKeys: [monitorRefreshMode],
+                      items: ['手动刷新', '每隔 5min 刷新', '每隔 15min 刷新', '每隔 30min 刷新', '每隔 1h 刷新'].map((label) => ({ key: label, label })),
+                      onClick: ({ key }) => {
+                        setMonitorRefreshMode(key);
+                        message.success(key === '手动刷新' ? '已切换为手动刷新' : '刷新频率已更新');
+                      },
+                    }}
+                    overlayClassName="ataas-monitor-refresh-menu"
+                  >
+                    <Button className="ataas-monitor-refresh-select">
+                      <span>{monitorRefreshMode}</span>
+                      <DownOutlined />
+                    </Button>
+                  </Dropdown>
+                </div>
+              </div>
+              <div className="ataas-monitor-chart-grid">
+                {[
+                  { title: '调用量（次）', legends: [{ name: '调用成功', color: '#4F46FF', value: Math.max(1, Math.round((row.callTotal - row.callFailed) / 96)) }, { name: '调用失败', color: '#8DDC7F', value: Math.max(1, Math.round(row.callFailed / 96)) }, { name: 'Prompt cache次数', color: '#DD8B6D', value: Math.max(1, Math.round(row.callTotal * Number(row.cacheHitRate.replace('%', '')) / 100 / 96)) }] },
+                  { title: '调用tokens量（tokens）', legends: [{ name: '请求token数', color: '#4F46FF', value: Math.round(row.totalTokens / 96) }, { name: '输入tokens数', color: '#8DDC7F', value: Math.round(row.inputTokens / 96) }, { name: '输出tokens数', color: '#6FA9B3', value: Math.round(row.outputTokens / 96) }, { name: 'Prompt cache tokens数', color: '#DD8B6D', value: Math.round(row.totalTokens * Number(row.cacheHitRate.replace('%', '')) / 100 / 96) }] },
+                  { title: '平均每请求输入输出tokens量（tokens）', legends: [{ name: '平均输入tokens', color: '#4F46FF', value: Math.round(row.inputTokens / row.callTotal) }, { name: '平均输出tokens', color: '#8DDC7F', value: Math.round(row.outputTokens / row.callTotal) }] },
+                  { title: '调用失败率（百分比）', max: 5, legends: [{ name: '失败率', color: '#4F46FF', value: Number(row.failRate.replace('%', '')) }] },
+                  { title: '4xx/5xx错误率（%）', max: 3, legends: [{ name: '4xx错误率', color: '#4F46FF', value: Number(row.failRate.replace('%', '')) * 0.62 }, { name: '5xx错误率', color: '#8DDC7F', value: Number(row.failRate.replace('%', '')) * 0.38 }] },
+                  { title: 'TTFT：首Tokens时延（毫秒）', max: 600, hint: '仅统计流式响应', legends: [{ name: 'p99', color: '#4F46FF', value: row.avgTtft * 1.35 }, { name: 'p90', color: '#8DDC7F', value: row.avgTtft * 1.18 }, { name: 'p50', color: '#6FA9B3', value: row.avgTtft * 0.82 }] },
+                  { title: 'TPOT：平均响应时间（毫秒）', max: 180, legends: [{ name: 'AVG', color: '#4F46FF', value: 68 + (row.avgTtft % 6) * 9 }] },
+                  { title: '接口耗时（s）', max: 12, legends: [{ name: 'P50', color: '#4F46FF', value: 2.6 }, { name: 'P90', color: '#8DDC7F', value: 5.8 }, { name: 'P99', color: '#6FA9B3', value: 8.4 }] },
+                  { title: 'OTPS（tokens/s）', max: 120, hint: '仅统计流式响应', legends: [{ name: 'p99', color: '#4F46FF', value: row.avgOtps * 1.22 }, { name: 'p90', color: '#8DDC7F', value: row.avgOtps * 1.08 }, { name: 'p50', color: '#6FA9B3', value: row.avgOtps * 0.76 }] },
+                  { title: '各 Rank accept_length', max: 4096, legends: [{ name: '最小值', color: '#4F46FF', value: 768 + (row.avgTtft % 5) * 128 }, { name: '平均值', color: '#8DDC7F', value: 1792 + (row.avgTtft % 7) * 160 }] },
+                  { title: 'RPM', max: 10000, legends: [{ name: 'RPM', color: '#4F46FF', value: Math.round(row.callTotal / 60) }, { name: 'RPM ratelimit', color: '#8DDC7F', value: 10000 }, { name: '成功RPM', color: '#6FA9B3', value: Math.round((row.callTotal - row.callFailed) / 60) }, { name: '失败RPM', color: '#DD8B6D', value: Math.max(1, Math.round(row.callFailed / 60)) }] },
+                  { title: 'TPM', max: 800000, legends: [{ name: '总TPM', color: '#4F46FF', value: Math.round(row.totalTokens / 60) }, { name: '总TPM ratelimit', color: '#8DDC7F', value: 800000 }] },
+                ].map((chart) => (
+                  <div key={chart.title} className="ataas-monitor-chart-card">
+                    <div className="ataas-monitor-chart-head">
+                      <div>
+                        <strong>{chart.title}</strong>
+                        {chart.hint && (
+                          <span className="ataas-monitor-chart-hint">
+                            <ExclamationCircleOutlined />
+                            {chart.hint}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <MonitorLineChart legends={chart.legends} timePrecision={monitorTimePrecision} max={chart.max} seed={`${row.key}-${chart.title}`} />
+                  </div>
+                ))}
+              </div>
+            </main>
+          </div>
+        </div>
+      </ConfigProvider>
+    );
+  };
+
   const filteredNodes = useMemo(() => {
     let list = clusterNodeList;
     if (selectedClusterKey !== 'all') list = list.filter((n) => n.clusterKey === selectedClusterKey);
@@ -10804,6 +11216,7 @@ const AtAasDesign = () => {
                 onDetail={handleDeployDetail}
                 onStop={handleDeployStop}
                 onMonitor={handleDeployMonitor}
+                onMooncakeMonitor={handleMooncakeMonitor}
                 onExperience={handleDeployExperience}
                 onLog={handleDeployLog}
                 onDeleteInstance={handleDeployDeleteInstance}
@@ -10987,6 +11400,7 @@ const AtAasDesign = () => {
                       onDetail={(item) => handleDeployDetail(resolveModelOpsSourceService(item))}
                       onStop={handleDeployStop}
                       onMonitor={(item) => handleDeployMonitor(resolveModelOpsSourceService(item))}
+                      onMooncakeMonitor={(item) => handleMooncakeMonitor(resolveModelOpsSourceService(item))}
                       onExperience={(item) => handleDeployExperience(resolveModelOpsSourceService(item))}
                       onLog={(item, logId, podName) => handleDeployLog(resolveModelOpsSourceService(item), logId, podName)}
                       onDeleteInstance={(item, instanceIndex) => handleDeployDeleteInstance(resolveModelOpsSourceService(item), getModelOpsSourceInstanceIndex(item, instanceIndex))}
@@ -11174,142 +11588,7 @@ const AtAasDesign = () => {
       case 'monitoring':
         if (monitorReportRow) return (
           <div className="ataas-section-stack">
-            <ConfigProvider theme={{ token: { colorPrimary: '#6738E8', colorPrimaryHover: '#5D30D8', colorPrimaryActive: '#5127C7', controlOutline: 'rgba(103, 56, 232, 0.12)' } }}>
-              <div className="ataas-panel ataas-monitor-report-page ataas-deploy-list">
-                <div className="ataas-monitor-report-title">
-                  <Button className="ataas-monitor-report-back" type="text" icon={<ArrowLeftOutlined />} onClick={() => setMonitorReportRow(null)}>返回</Button>
-                  <Select
-                    className="ataas-monitor-model-switch-select"
-                    showSearch
-                    value={monitorReportRow.key}
-                    placeholder="输入模型名称切换"
-                    optionFilterProp="label"
-                    suffixIcon={<SwapRightOutlined />}
-                    onChange={(key) => {
-                      const nextRow = allMonitorRows.find((row) => row.key === key);
-                      if (nextRow) setMonitorReportRow(nextRow);
-                    }}
-                    options={allMonitorRows.map((row) => ({ value: row.key, label: row.name }))}
-                  />
-                </div>
-                <div className="ataas-monitor-report-layout">
-                  <main className="ataas-monitor-report-main">
-                    <div className="ataas-monitor-summary ataas-monitor-report-summary">
-                      {[
-                        ['调用接口数', String(monitorReportRow.interfaceCount || 1), '个'],
-                        ['调用总量', formatMonitorNumber(monitorReportRow.callTotal), '次'],
-                        ['调用失败', formatMonitorNumber(monitorReportRow.callFailed), '次'],
-                        ['调用总tokens数', formatMonitorTokens(monitorReportRow.totalTokens), 'tokens'],
-                        ['输入tokens数', formatMonitorTokens(monitorReportRow.inputTokens), 'tokens'],
-                        ['输出tokens数', formatMonitorTokens(monitorReportRow.outputTokens), 'tokens'],
-                      ].map(([label, value, unit]) => (
-                        <div key={label} className="ataas-monitor-stat">
-                          <span>{label}</span>
-                          <strong>{value}</strong>
-                          <em>{unit}</em>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="ataas-monitor-report-toolbar">
-                      <div
-                        className="ataas-monitor-report-time-segment"
-                        data-active={monitorTimePrecision}
-                        role="tablist"
-                        aria-label="时间粒度"
-                      >
-                        <span className="ataas-monitor-report-time-indicator" aria-hidden="true" />
-                        {[
-                          { value: 'day', label: '按日' },
-                          { value: 'hour', label: '按时' },
-                          { value: 'minute', label: '按分钟' },
-                        ].map((option) => (
-                          <button
-                            key={option.value}
-                            type="button"
-                            role="tab"
-                            aria-selected={monitorTimePrecision === option.value}
-                            className={monitorTimePrecision === option.value ? 'is-active' : undefined}
-                            onClick={() => handleMonitorPrecisionChange(option.value as MonitorTimePrecision)}
-                          >
-                            {option.label}
-                          </button>
-                        ))}
-                      </div>
-                      {monitorTimePrecision === 'minute' ? (
-                        <DatePicker
-                          className="ataas-log-range-picker ataas-monitor-report-date ataas-monitor-report-single-date"
-                          value={monitorReportDate}
-                          allowClear={false}
-                          disabledDate={disabledMonitorReportDate}
-                          onChange={handleMonitorReportDateChange}
-                        />
-                      ) : (
-                        <DatePicker.RangePicker
-                          className="ataas-log-range-picker ataas-monitor-report-date"
-                          value={monitorReportDateRange}
-                          allowClear={false}
-                          disabledDate={disabledMonitorReportDate}
-                          onCalendarChange={(range) => setMonitorReportCalendarRange(range)}
-                          onChange={handleMonitorReportRangeChange}
-                        />
-                      )}
-                      <span>数据更新于 2026-05-31 17:53:30</span>
-                      <div className="ataas-monitor-refresh-split">
-                        <Button className="ataas-monitor-refresh-trigger" icon={<ReloadOutlined />} onClick={() => message.success('已手动刷新')} />
-                        <Dropdown
-                          trigger={['click']}
-                          menu={{
-                            selectedKeys: [monitorRefreshMode],
-                            items: ['手动刷新', '每隔 5min 刷新', '每隔 15min 刷新', '每隔 30min 刷新', '每隔 1h 刷新'].map((label) => ({ key: label, label })),
-                            onClick: ({ key }) => {
-                              setMonitorRefreshMode(key);
-                              message.success(key === '手动刷新' ? '已切换为手动刷新' : '刷新频率已更新');
-                            },
-                          }}
-                          overlayClassName="ataas-monitor-refresh-menu"
-                        >
-                          <Button className="ataas-monitor-refresh-select">
-                            <span>{monitorRefreshMode}</span>
-                            <DownOutlined />
-                          </Button>
-                        </Dropdown>
-                      </div>
-                    </div>
-                    <div className="ataas-monitor-chart-grid">
-                      {[
-                        { title: '调用量（次）', legends: [{ name: '调用成功', color: '#4F46FF', value: Math.max(1, Math.round((monitorReportRow.callTotal - monitorReportRow.callFailed) / 96)) }, { name: '调用失败', color: '#8DDC7F', value: Math.max(1, Math.round(monitorReportRow.callFailed / 96)) }, { name: 'Prompt cache次数', color: '#DD8B6D', value: Math.max(1, Math.round(monitorReportRow.callTotal * Number(monitorReportRow.cacheHitRate.replace('%', '')) / 100 / 96)) }] },
-                        { title: '调用tokens量（tokens）', legends: [{ name: '请求token数', color: '#4F46FF', value: Math.round(monitorReportRow.totalTokens / 96) }, { name: '输入tokens数', color: '#8DDC7F', value: Math.round(monitorReportRow.inputTokens / 96) }, { name: '输出tokens数', color: '#6FA9B3', value: Math.round(monitorReportRow.outputTokens / 96) }, { name: 'Prompt cache tokens数', color: '#DD8B6D', value: Math.round(monitorReportRow.totalTokens * Number(monitorReportRow.cacheHitRate.replace('%', '')) / 100 / 96) }] },
-                        { title: '平均每请求输入输出tokens量（tokens）', legends: [{ name: '平均输入tokens', color: '#4F46FF', value: Math.round(monitorReportRow.inputTokens / monitorReportRow.callTotal) }, { name: '平均输出tokens', color: '#8DDC7F', value: Math.round(monitorReportRow.outputTokens / monitorReportRow.callTotal) }] },
-                        { title: '调用失败率（百分比）', max: 5, legends: [{ name: '失败率', color: '#4F46FF', value: Number(monitorReportRow.failRate.replace('%', '')) }] },
-                        { title: '4xx/5xx错误率（%）', max: 3, legends: [{ name: '4xx错误率', color: '#4F46FF', value: Number(monitorReportRow.failRate.replace('%', '')) * 0.62 }, { name: '5xx错误率', color: '#8DDC7F', value: Number(monitorReportRow.failRate.replace('%', '')) * 0.38 }] },
-                        { title: 'TTFT：首Tokens时延（毫秒）', max: 600, hint: '仅统计流式响应', legends: [{ name: 'p99', color: '#4F46FF', value: monitorReportRow.avgTtft * 1.35 }, { name: 'p90', color: '#8DDC7F', value: monitorReportRow.avgTtft * 1.18 }, { name: 'p50', color: '#6FA9B3', value: monitorReportRow.avgTtft * 0.82 }] },
-                        { title: 'TPOT：平均响应时间（毫秒）', max: 180, legends: [{ name: 'AVG', color: '#4F46FF', value: 68 + (monitorReportRow.avgTtft % 6) * 9 }] },
-                        { title: '接口耗时（s）', max: 12, legends: [{ name: 'P50', color: '#4F46FF', value: 2.6 }, { name: 'P90', color: '#8DDC7F', value: 5.8 }, { name: 'P99', color: '#6FA9B3', value: 8.4 }] },
-                        { title: 'OTPS（tokens/s）', max: 120, hint: '仅统计流式响应', legends: [{ name: 'p99', color: '#4F46FF', value: monitorReportRow.avgOtps * 1.22 }, { name: 'p90', color: '#8DDC7F', value: monitorReportRow.avgOtps * 1.08 }, { name: 'p50', color: '#6FA9B3', value: monitorReportRow.avgOtps * 0.76 }] },
-                        { title: '各 Rank accept_length', max: 4096, legends: [{ name: '最小值', color: '#4F46FF', value: 768 + (monitorReportRow.avgTtft % 5) * 128 }, { name: '平均值', color: '#8DDC7F', value: 1792 + (monitorReportRow.avgTtft % 7) * 160 }] },
-                        { title: 'RPM', max: 10000, legends: [{ name: 'RPM', color: '#4F46FF', value: Math.round(monitorReportRow.callTotal / 60) }, { name: 'RPM ratelimit', color: '#8DDC7F', value: 10000 }, { name: '成功RPM', color: '#6FA9B3', value: Math.round((monitorReportRow.callTotal - monitorReportRow.callFailed) / 60) }, { name: '失败RPM', color: '#DD8B6D', value: Math.max(1, Math.round(monitorReportRow.callFailed / 60)) }] },
-                        { title: 'TPM', max: 800000, legends: [{ name: '总TPM', color: '#4F46FF', value: Math.round(monitorReportRow.totalTokens / 60) }, { name: '总TPM ratelimit', color: '#8DDC7F', value: 800000 }] },
-                      ].map((chart) => (
-                        <div key={chart.title} className="ataas-monitor-chart-card">
-                          <div className="ataas-monitor-chart-head">
-                            <div>
-                              <strong>{chart.title}</strong>
-                              {chart.hint && (
-                                <span className="ataas-monitor-chart-hint">
-                                  <ExclamationCircleOutlined />
-                                  {chart.hint}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <MonitorLineChart legends={chart.legends} timePrecision={monitorTimePrecision} max={chart.max} seed={`${monitorReportRow.key}-${chart.title}`} />
-                        </div>
-                      ))}
-                    </div>
-                  </main>
-                </div>
-              </div>
-            </ConfigProvider>
+            {renderMonitorReportContent(monitorReportRow, 'page')}
           </div>
         );
         return (
@@ -14193,6 +14472,23 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
             })
           )}
         </div>
+      </Modal>
+      <Modal
+        className="ataas-mooncake-monitor-modal"
+        title={mooncakeMonitorItem ? (
+          <div className="ataas-mooncake-monitor-title">
+            <BarChartOutlined />
+            <strong>Mooncake Metric</strong>
+            <span>{mooncakeMonitorItem.name}</span>
+          </div>
+        ) : 'Mooncake Metric'}
+        open={!!mooncakeMonitorItem}
+        width={1180}
+        footer={null}
+        destroyOnClose
+        onCancel={() => setMooncakeMonitorItem(null)}
+      >
+        {mooncakeMonitorItem && renderMooncakeMetricContent(mooncakeMonitorItem)}
       </Modal>
       <Modal
         className="ataas-deploy-realtime-log-modal"

@@ -219,6 +219,7 @@ interface DeployListProps {
   onDetail: (item: DeployServiceItem) => void;
   onStop: (item: DeployServiceItem) => void;
   onMonitor: (item: DeployServiceItem) => void;
+  onMooncakeMonitor?: (item: DeployServiceItem) => void;
   onExperience: (item: DeployServiceItem) => void;
   onLog: (item: DeployServiceItem, logId: number, podName?: string) => void;
   onDeleteInstance?: (item: DeployServiceItem, instanceIndex: number) => void;
@@ -237,7 +238,7 @@ interface DeployListProps {
   mode?: 'deploy' | 'modelOps';
 }
 
-export default function DeployList({ data, onDetail, onStop, onMonitor, onExperience, onLog, onDeleteInstance, onAddInstance, onAllocateWeight, onOpenCreate, onScalePd, onNodeFilter, onScheduleDetail, onModelOpsYamlPreview, viewModeValue, onViewModeChange, clusterFilterValue, onClusterFilterChange, getModelOpsRowWeight, mode = 'deploy' }: DeployListProps) {
+export default function DeployList({ data, onDetail, onStop, onMonitor, onMooncakeMonitor, onExperience, onLog, onDeleteInstance, onAddInstance, onAllocateWeight, onOpenCreate, onScalePd, onNodeFilter, onScheduleDetail, onModelOpsYamlPreview, viewModeValue, onViewModeChange, clusterFilterValue, onClusterFilterChange, getModelOpsRowWeight, mode = 'deploy' }: DeployListProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('card');
   const [statusFilter, setStatusFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -1592,7 +1593,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onExperi
                   <div className="ataas-deploy-service-actions ataas-deploy-mooncake-actions">
                     <IconActionButton title="查看模型部署" icon={<InfoCircleOutlined />} disabled={item.status === 'loading'} onClick={() => onDetail(item)} />
                     <IconActionButton title="Mooncake 集群状态" icon={<EyeOutlined />} disabled={item.status === 'loading'} onClick={() => setMooncakeStatusItem(item)} />
-                    <IconActionButton title="监控" icon={<BarChartOutlined />} disabled={item.status !== 'running'} onClick={() => onMonitor(item)} />
+                    <IconActionButton title="监控" icon={<BarChartOutlined />} disabled={item.status !== 'running'} onClick={() => (onMooncakeMonitor || onMonitor)(item)} />
                     <IconActionButton title={mooncakeStoppedStores[item.id] ? 'Store 已关停' : '关停 Store'} icon={<PoweroffOutlined />} disabled={!!mooncakeStoppedStores[item.id]} onClick={() => setMooncakeShutdownItem(item)} />
                   </div>
                 </div>
