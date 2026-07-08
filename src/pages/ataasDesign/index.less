@@ -2983,6 +2983,12 @@ body,
   }
 }
 
+.ataas-deploy-view-mooncake-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+
 button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 .ataas-deploy-create-button.ant-btn.ant-btn-primary {
   height: 32px;
@@ -4186,6 +4192,313 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   background: #fff;
 }
 
+.ataas-mooncake-monitor-modal {
+  max-width: calc(100vw - 64px);
+
+  .ant-modal-content {
+    overflow: hidden;
+    border-radius: 8px;
+  }
+
+  .ant-modal-header {
+    padding: 16px 22px 14px;
+    margin: 0;
+    border-bottom: 1px solid #E5E6EB;
+  }
+
+  .ant-modal-body {
+    max-height: calc(86vh - 64px);
+    padding: 16px 18px 18px;
+    overflow: auto;
+    background: #F6F7FB;
+  }
+}
+
+.ataas-mooncake-monitor-title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+
+  .anticon {
+    color: #6951FF;
+    font-size: 16px;
+  }
+
+  strong {
+    color: #1D2129;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 24px;
+  }
+
+  span {
+    min-width: 0;
+    overflow: hidden;
+    color: #86909C;
+    font-size: 13px;
+    line-height: 20px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.ataas-mooncake-metric-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: #1D2129;
+}
+
+.ataas-mooncake-metric-overview {
+  display: grid;
+  grid-template-columns: 1.1fr 1.3fr 0.8fr 1fr;
+  gap: 10px;
+
+  > div {
+    min-width: 0;
+    padding: 12px 14px;
+    border: 1px solid #E8ECF2;
+    border-radius: 6px;
+    background: #fff;
+
+    span {
+      display: block;
+      color: #86909C;
+      font-size: 12px;
+      line-height: 18px;
+    }
+
+    strong {
+      display: block;
+      overflow: hidden;
+      margin-top: 3px;
+      color: #1D2129;
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 20px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+}
+
+.ataas-mooncake-metric-endpoint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid #E8ECF2;
+  border-radius: 6px;
+  background: #fff;
+  color: #4E5969;
+  font-family: Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+
+  span {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  button {
+    display: inline-flex;
+    width: 24px;
+    height: 24px;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    border: 0;
+    background: transparent;
+    color: #86909C;
+    cursor: pointer;
+    transition: color 0.15s;
+
+    &:hover {
+      color: #6951FF;
+    }
+  }
+}
+
+.ataas-mooncake-metric-grid,
+.ataas-mooncake-metric-mini-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.ataas-mooncake-metric-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.ataas-mooncake-metric-mini-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ataas-mooncake-metric-tile {
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid #E8ECF2;
+  border-radius: 6px;
+  background: #fff;
+
+  span {
+    display: block;
+    overflow: hidden;
+    color: #86909C;
+    font-size: 12px;
+    line-height: 18px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  strong {
+    display: block;
+    overflow: hidden;
+    margin-top: 3px;
+    color: #1D2129;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 28px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  em {
+    display: block;
+    overflow: hidden;
+    margin-top: 1px;
+    color: #A4ACB9;
+    font-size: 11px;
+    font-style: normal;
+    line-height: 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.ataas-mooncake-metric-section {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #E8ECF2;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.ataas-mooncake-metric-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+
+  strong {
+    color: #1D2129;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 20px;
+  }
+
+  span {
+    overflow: hidden;
+    color: #A4ACB9;
+    font-size: 12px;
+    line-height: 18px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.ataas-mooncake-storage-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+
+  > div {
+    min-width: 0;
+    padding: 12px;
+    border-radius: 6px;
+    background: #F7F8FA;
+
+    span {
+      color: #86909C;
+      font-size: 12px;
+      line-height: 18px;
+    }
+
+    strong {
+      display: block;
+      margin: 4px 0 8px;
+      color: #1D2129;
+      font-size: 16px;
+      font-weight: 700;
+      line-height: 22px;
+    }
+  }
+}
+
+.ataas-mooncake-segment-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+
+  > div {
+    position: relative;
+    height: 28px;
+    overflow: hidden;
+    border-radius: 5px;
+    background: #F2F3F8;
+
+    span {
+      position: relative;
+      z-index: 1;
+      display: block;
+      overflow: hidden;
+      padding: 0 8px;
+      color: #4E5969;
+      font-size: 12px;
+      line-height: 28px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    b {
+      position: absolute;
+      inset: 0 auto 0 0;
+      display: block;
+      border-radius: inherit;
+      background: rgba(105, 81, 255, 0.16);
+    }
+  }
+}
+
+.ataas-mooncake-metric-two-col {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ataas-mooncake-metric-table {
+  .ant-table {
+    color: #1D2129;
+    font-size: 12px;
+  }
+
+  .ant-table-thead > tr > th {
+    background: #F7F8FA;
+    color: #86909C;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .ant-table-tbody > tr > td {
+    color: #4E5969;
+  }
+}
+
 .ataas-monitor-chart-head {
   display: flex;
   align-items: flex-start;
@@ -4771,6 +5084,524 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   border-top: 1px solid #F2F3F5;
   background: #fff;
   padding: 0;
+}
+
+.ataas-deploy-mooncake-card {
+  min-height: 282px;
+  border-color: #F2F3F5;
+  background: #fff;
+
+  &::after {
+    background: radial-gradient(circle at 100% 0%, rgba(0, 180, 42, 0.035) 0%, transparent 62%);
+  }
+
+  &:hover {
+    box-shadow: 0 4px 16px rgba(51, 112, 255, 0.08);
+  }
+
+  .ataas-deploy-service-card-glow {
+    background: linear-gradient(135deg, rgba(0, 180, 42, 0.22), rgba(105, 81, 255, 0.18), rgba(178, 151, 255, 0.12));
+  }
+}
+
+.ataas-deploy-mooncake-logo {
+  position: relative;
+  border: 1px solid rgba(0, 180, 42, 0.12);
+  background: #fff !important;
+  box-shadow: 0 0 0 4px rgba(0, 180, 42, 0.035);
+
+  &::before,
+  &::after {
+    position: absolute;
+    inset: -5px;
+    border: 1px solid rgba(0, 180, 42, 0.16);
+    border-radius: 999px;
+    content: "";
+    pointer-events: none;
+    animation: ataas-mooncake-logo-wave 2.4s ease-in-out infinite;
+  }
+
+  &::after {
+    inset: -10px;
+    opacity: 0.55;
+    animation-delay: 0.55s;
+  }
+
+  img {
+    position: relative;
+    z-index: 1;
+    width: 40px;
+    height: 40px;
+  }
+}
+
+.ataas-deploy-mooncake-category {
+  border-color: rgba(0, 180, 42, 0.16) !important;
+  background: rgba(0, 180, 42, 0.055) !important;
+  color: #18A957 !important;
+}
+
+@keyframes ataas-mooncake-logo-wave {
+  0%, 100% {
+    opacity: 0.28;
+    transform: scale(0.96);
+  }
+
+  50% {
+    opacity: 0.78;
+    transform: scale(1.04);
+  }
+}
+
+.ataas-deploy-mooncake-metric-row {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0 20px 12px;
+
+  > div {
+    position: relative;
+    display: flex;
+    min-width: 0;
+    height: 54px;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 9px 12px 11px;
+    overflow: hidden;
+    border: 1px solid #EEF1F6;
+    border-radius: 6px;
+    background: #fff;
+  }
+
+  span {
+    order: 2;
+    display: block;
+    flex: 0 0 auto;
+    color: #86909C;
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 16px;
+  }
+
+  strong {
+    order: 1;
+    display: flex;
+    height: 30px;
+    flex: 0 0 auto;
+    align-items: baseline;
+    gap: 1px;
+    color: #1D2129;
+    font-size: 24px;
+    font-weight: 550;
+    line-height: 28px;
+
+    em {
+      color: inherit;
+      font-style: normal;
+    }
+
+    span {
+      position: static;
+      color: #1D2129;
+      font-size: 24px;
+      font-weight: 550;
+      line-height: 28px;
+    }
+  }
+
+  strong.is-degraded em {
+    color: #E02D2D;
+  }
+}
+
+.ataas-deploy-mooncake-meta-grid {
+  padding-bottom: 12px;
+}
+
+.ataas-deploy-mooncake-etcd-endpoint {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  height: 34px;
+  align-items: center;
+  gap: 8px;
+  margin: 0 20px 14px;
+  padding: 0 10px;
+  border: 1px solid #EEF1F6;
+  border-radius: 6px;
+  background: #FAFBFC;
+  color: #4E5969;
+  font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+  font-size: 11px;
+  line-height: 16px;
+
+  span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  button {
+    display: inline-flex;
+    width: 24px;
+    height: 24px;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #86909C;
+    cursor: pointer;
+    transition: all 0.18s ease;
+
+    &:hover {
+      color: #6951FF;
+    }
+  }
+}
+
+.ataas-deploy-mooncake-actions {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.ataas-mooncake-status-modal {
+  .ant-modal-content {
+    padding: 0;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .ant-modal-header {
+    padding: 16px 22px 14px;
+    margin: 0;
+    border-bottom: 1px solid #E5E6EB;
+  }
+
+  .ant-modal-close {
+    top: 14px;
+    right: 16px;
+  }
+
+  .ant-modal-body {
+    max-height: calc(80vh - 66px);
+    padding: 14px 18px 18px;
+    overflow: auto;
+    background: #fff;
+  }
+}
+
+.ataas-mooncake-status-title {
+  display: inline-flex;
+  max-width: 940px;
+  align-items: center;
+  gap: 12px;
+  color: #111827;
+
+  .anticon {
+    color: #6951FF;
+    font-size: 17px;
+  }
+
+  strong {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 24px;
+  }
+
+  span {
+    min-width: 0;
+    overflow: hidden;
+    color: #86909C;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 20px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.ataas-mooncake-status-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.ataas-mooncake-status-section {
+  overflow: hidden;
+  border: 1px solid #E5E6EB;
+  border-left: 3px solid var(--mooncake-accent);
+  border-radius: 6px;
+  background: #fff;
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 0 14px;
+    border-bottom: 1px solid #F2F3F5;
+  }
+
+  header strong {
+    color: #1D2129;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 22px;
+  }
+
+  header span {
+    min-width: 0;
+    overflow: hidden;
+    color: #86909C;
+    font-size: 12px;
+    line-height: 18px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.ataas-mooncake-status-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.ataas-mooncake-status-table {
+  width: 100%;
+  min-width: 856px;
+  border-collapse: collapse;
+  table-layout: fixed;
+
+  th,
+  td {
+    height: 36px;
+    overflow: hidden;
+    padding: 0 10px;
+    border-bottom: 1px solid #F2F3F5;
+    color: #1D2129;
+    font-size: 13px;
+    line-height: 20px;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  th {
+    color: #86909C;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0;
+    background: #FAFBFC;
+  }
+
+  tr:last-child td {
+    border-bottom: 0;
+  }
+
+  tr.is-muted td {
+    color: #A8ABB2;
+  }
+
+  td.is-danger {
+    color: #F53F3F;
+  }
+
+  th:last-child,
+  td:last-child {
+    text-align: center;
+  }
+}
+
+.ataas-mooncake-pod-name {
+  display: block;
+  overflow: hidden;
+  color: #1D2129;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ataas-mooncake-status-running {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #1D2129;
+
+  i {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: #00B42A;
+  }
+
+  em {
+    color: #9CA3AF;
+    font-style: normal;
+  }
+
+  &.stopped {
+    color: #F53F3F;
+
+    i {
+      background: #F53F3F;
+    }
+  }
+}
+
+.ataas-mooncake-copy {
+  position: relative;
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  margin-left: 6px;
+  vertical-align: -2px;
+
+  &::before,
+  &::after {
+    position: absolute;
+    width: 8px;
+    height: 10px;
+    border: 1px solid #AEB6C2;
+    border-radius: 2px;
+    content: "";
+  }
+
+  &::before {
+    top: 3px;
+    left: 1px;
+  }
+
+  &::after {
+    top: 0;
+    left: 4px;
+    background: #fff;
+  }
+}
+
+.ataas-mooncake-role-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  height: 22px;
+  padding: 0 7px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #F2F3F5;
+  color: #6B7280;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ataas-mooncake-pd {
+  color: #2563EB;
+  font-weight: 600;
+
+  &.decode {
+    color: #6951FF;
+  }
+}
+
+.ataas-deploy-service-icon-action.compact {
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+}
+
+.ataas-mooncake-shutdown-modal {
+  .ant-modal-content {
+    border-radius: 8px;
+  }
+
+  .ant-modal-header {
+    padding-bottom: 12px;
+    border-bottom: 1px solid #EEF0F4;
+  }
+}
+
+.ataas-mooncake-shutdown-title {
+  display: inline-flex;
+  max-width: 540px;
+  align-items: center;
+  gap: 10px;
+
+  .anticon {
+    color: #E02D2D;
+    font-size: 18px;
+  }
+
+  strong {
+    color: #111827;
+    font-size: 16px;
+    font-weight: 650;
+  }
+
+  span {
+    min-width: 0;
+    overflow: hidden;
+    color: #8A94A3;
+    font-size: 13px;
+    font-weight: 400;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.ataas-mooncake-shutdown {
+  p {
+    margin: 0 0 14px;
+    color: #4E5969;
+    font-size: 13px;
+    line-height: 22px;
+  }
+}
+
+.ataas-mooncake-shutdown-list {
+  max-height: 310px;
+  overflow: auto;
+  border: 1px solid #EEF0F4;
+  border-radius: 8px;
+  background: #FAFBFC;
+}
+
+.ataas-mooncake-shutdown-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px 48px;
+  gap: 12px;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 12px;
+  border-bottom: 1px solid #EEF0F4;
+
+  &:last-child {
+    border-bottom: 0;
+  }
+
+  strong {
+    overflow: hidden;
+    color: #111827;
+    font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+    font-size: 13px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  span,
+  em {
+    color: #8A94A3;
+    font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+    font-size: 12px;
+    font-style: normal;
+  }
 }
 
 .ataas-deploy-inline-expand-trigger {
@@ -12235,7 +13066,7 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 
 .ataas-deploy-mode-compact {
   display: grid;
-  width: 360px;
+  width: 400px;
   max-width: 100%;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
@@ -12276,8 +13107,33 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 }
 
 .ataas-deploy-config-plain {
+  width: 488px;
+  max-width: 100%;
   margin-top: 22px;
   padding-top: 4px;
+
+  > div {
+    width: 100%;
+  }
+
+  .ant-form-item-control,
+  .ant-select,
+  .ant-input,
+  .ant-input-number,
+  .ataas-card-select-control {
+    width: 400px;
+    max-width: 400px;
+  }
+
+  .ataas-advanced-shell-toggle {
+    width: 488px;
+    max-width: 488px;
+  }
+
+  .ataas-advanced-shell {
+    width: 488px;
+    max-width: 488px;
+  }
 }
 
 .ataas-deploy-pd-template-control {
@@ -12380,21 +13236,22 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 .ataas-deploy-node-picker {
   display: flex;
   width: 100%;
-  min-height: 38px;
+  max-width: 400px;
+  min-height: 30px;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 7px 10px;
+  gap: 8px;
+  padding: 3px 4px 3px 10px;
   border: 1px solid #E5E6EB;
-  border-radius: 4px;
+  border-radius: 7px;
   background: #fff;
   color: #1D2129;
   cursor: pointer;
-  transition: border-color 0.18s ease, background 0.18s ease;
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
 
   &:hover {
-    border-color: #DCDDE1;
-    background: #F7F8FA;
+    border-color: #CFC6F8;
+    background: #FBFAFF;
     color: #1D2129;
   }
 }
@@ -12453,22 +13310,30 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   display: flex;
   min-width: 0;
   flex: 1;
-  flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
+  overflow: hidden;
 }
 
 .ataas-deploy-node-chip {
   display: inline-flex;
-  max-width: 180px;
+  min-width: 0;
+  max-width: 188px;
+  height: 22px;
+  flex: 0 1 auto;
   align-items: center;
   gap: 6px;
-  padding: 2px 8px;
-  border: 1px solid #F2F3F5;
+  padding: 0 8px;
+  border: 0;
   border-radius: 4px;
   background: #F7F8FA;
+  overflow: hidden;
+  line-height: 22px;
+  white-space: nowrap;
 
   strong {
     overflow: auto;
+    max-width: 112px;
     color: #1D2129;
     font-size: 12px;
     font-weight: 500;
@@ -12487,12 +13352,38 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 .ataas-deploy-node-more,
 .ataas-deploy-node-empty,
 .ataas-deploy-node-action {
-  color: #86909C;
   font-size: 12px;
 }
 
+.ataas-deploy-node-more {
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 4px;
+  background: #F2F3F5;
+  color: #6B778A;
+  line-height: 22px;
+  white-space: nowrap;
+}
+
+.ataas-deploy-node-empty {
+  color: #86909C;
+  font-size: 13px;
+  line-height: 20px;
+}
+
 .ataas-deploy-node-action {
+  display: inline-flex;
+  height: 24px;
+  min-width: 48px;
   flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  border-radius: 5px;
+  background: #F5F3FF;
+  color: #6738E8;
+  line-height: 24px;
+  white-space: nowrap;
 }
 
 .ataas-node-select-modal {
@@ -15119,7 +16010,7 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   }
 
   .ataas-deploy-drawer-form {
-    max-width: 500px;
+    max-width: 540px;
 
     .ant-form-item {
       margin-bottom: 16px;
@@ -15141,13 +16032,13 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
     }
 
     .ant-form-item-control {
-      max-width: 340px;
+      max-width: 400px;
     }
 
     .ant-input,
     .ant-select,
     .ant-input-number {
-      max-width: 320px;
+      max-width: 400px;
     }
   }
 
@@ -15223,7 +16114,7 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
     display: grid;
     grid-template-columns: minmax(116px, 0.42fr) minmax(0, 0.58fr);
     width: 100%;
-    max-width: 320px;
+    max-width: 400px;
     height: 32px;
     box-sizing: border-box;
     overflow: hidden;
@@ -16080,7 +16971,7 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 
 .ataas-template-stats {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 0;
   min-height: 128px;
   margin-bottom: 18px;
@@ -18969,6 +19860,11 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   box-shadow: none;
 }
 .ataas-pd-deploy-stack {
+  --pd-deploy-control-width: 400px;
+  --pd-deploy-label-width: 88px;
+  --pd-deploy-row-width: 488px;
+  --pd-deploy-card-label-width: 86px;
+  --pd-deploy-card-control-width: 322px;
   display: flex;
   flex-direction: column;
   gap: 0;
@@ -18992,6 +19888,8 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   .ataas-pd-template-strip-main {
     display: grid;
     grid-template-columns: minmax(220px, 1fr) 34px;
+    width: var(--pd-deploy-control-width);
+    max-width: 100%;
     align-items: center;
     gap: 8px;
   }
@@ -19071,7 +19969,7 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   .ataas-pd-template-content .ant-select {
     width: 100% !important;
     min-width: 0 !important;
-    max-width: 360px;
+    max-width: 400px;
   }
 
   .ataas-pd-section-row {
@@ -19088,9 +19986,9 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 
   .ataas-pd-form-row {
     display: grid;
-    grid-template-columns: 104px minmax(0, 1fr);
+    grid-template-columns: var(--pd-deploy-label-width) var(--pd-deploy-control-width);
     align-items: center;
-    column-gap: 8px;
+    column-gap: 0;
   }
 
   .ataas-pd-form-label {
@@ -19268,10 +20166,18 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 
 .ataas-pd-yaml-upload-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   margin-top: 12px;
   margin-bottom: 12px;
+}
+
+.ataas-pd-yaml-upload-grid .ant-upload-text em {
+  margin-left: 4px;
+  color: #86909C;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 400;
 }
 .ataas-pd-section-header {
   display: flex;
@@ -19506,6 +20412,417 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 }
 .ataas-pd-shell-area .ataas-advanced-shell-input.ant-input {
   resize: vertical;
+}
+
+.ataas-pd-mooncake-card {
+  margin-top: 12px;
+}
+
+.ataas-pd-mooncake-reuse {
+  cursor: default;
+  background: #F7F8FA;
+}
+
+.ataas-pd-mooncake-reuse .ataas-deploy-node-action {
+  color: #86909C;
+}
+
+.ataas-pd-compact-panel {
+  margin-top: 16px;
+  display: grid;
+  width: var(--pd-deploy-row-width);
+  max-width: 100%;
+  gap: 14px;
+}
+
+.ataas-pd-compact-section {
+  padding: 18px 22px;
+  border: 1px solid #E5E6EB;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.ataas-pd-compact-section.compact {
+  padding: 10px 22px;
+}
+
+.ataas-pd-mooncake-section.compact {
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+}
+
+.ataas-pd-compact-section + .ataas-pd-compact-section {
+  border-top: 1px solid #E5E6EB;
+}
+
+.ataas-pd-compact-title {
+  margin-bottom: 16px;
+  color: #1D2129;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 22px;
+}
+
+.ataas-pd-compact-title-row {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.ataas-pd-compact-title-row .ataas-pd-compact-title {
+  margin-bottom: 0;
+}
+
+.ataas-pd-mooncake-section.compact .ataas-pd-compact-title-row {
+  width: 100%;
+  min-height: 24px;
+  margin-bottom: 0;
+}
+
+.ataas-pd-mooncake-section.compact .ataas-pd-compact-title {
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.ataas-pd-mooncake-section.compact .ataas-pd-mode-tabs {
+  display: grid;
+  width: 260px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ataas-pd-mooncake-section.compact .ataas-pd-mode-tab {
+  width: 100%;
+  text-align: center;
+}
+
+.ataas-pd-compact-grid {
+  display: grid;
+  grid-template-columns: var(--pd-deploy-card-label-width) var(--pd-deploy-card-control-width);
+  gap: 14px 16px;
+  align-items: center;
+}
+
+.ataas-pd-compact-yaml-only {
+  margin-top: 12px;
+}
+
+.ataas-pd-compact-label {
+  color: #1D2129;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.ataas-pd-compact-control {
+  min-width: 0;
+  width: var(--pd-deploy-card-control-width);
+  max-width: 100%;
+}
+
+.ataas-pd-server-entry-select.ant-select {
+  width: 100%;
+}
+
+.ataas-pd-server-entry-select.ant-select .ant-select-selector {
+  min-height: 30px !important;
+  height: 30px !important;
+  border-radius: 7px !important;
+  border-color: #E5E6EB !important;
+  box-shadow: none !important;
+}
+
+.ataas-pd-server-entry-select.ant-select .ant-select-selection-search-input,
+.ataas-pd-server-entry-select.ant-select .ant-select-selection-item,
+.ataas-pd-server-entry-select.ant-select .ant-select-selection-placeholder {
+  height: 28px !important;
+  line-height: 28px !important;
+  font-size: 12px;
+}
+
+.ataas-pd-server-entry-select.ant-select-focused .ant-select-selector,
+.ataas-pd-server-entry-select.ant-select:hover .ant-select-selector {
+  border-color: #CFC6F8 !important;
+}
+
+.ataas-pd-worker-fields {
+  display: grid;
+  gap: 12px;
+}
+
+.ataas-pd-worker-field-row {
+  display: grid;
+  grid-template-columns: var(--pd-deploy-card-label-width) var(--pd-deploy-card-control-width);
+  align-items: center;
+  gap: 16px;
+}
+
+.ataas-pd-worker-field-row > div:last-child {
+  width: var(--pd-deploy-card-control-width);
+  max-width: 100%;
+}
+
+.ataas-pd-worker-field-row + .ataas-pd-worker-field-row {
+  padding-top: 12px;
+  border-top: 1px solid #F2F3F5;
+}
+
+.ataas-pd-worker-role-name {
+  color: #1D2129;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.ataas-pd-node-wide-picker {
+  display: flex;
+  width: 100%;
+  max-width: var(--pd-deploy-card-control-width);
+  min-height: 30px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 4px 3px 10px;
+  border: 1px solid #E5E6EB;
+  border-radius: 7px;
+  background: #fff;
+  color: #1D2129;
+  cursor: pointer;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.ataas-pd-node-wide-picker:hover {
+  border-color: #CFC6F8;
+  background: #FBFAFF;
+}
+
+.ataas-pd-node-wide-main {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.ataas-pd-node-wide-empty {
+  color: #86909C;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.ataas-pd-node-wide-chip {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 188px;
+  height: 22px;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  border-radius: 4px;
+  background: #F7F8FA;
+  color: #1D2129;
+  font-size: 12px;
+  line-height: 22px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.ataas-pd-node-wide-chip strong {
+  overflow: hidden;
+  max-width: 112px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.ataas-pd-node-wide-chip em {
+  color: #86909C;
+  font-style: normal;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.ataas-pd-node-wide-more,
+.ataas-pd-node-wide-reuse-label {
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 4px;
+  background: #F2F3F5;
+  color: #6B778A;
+  font-size: 12px;
+  line-height: 22px;
+  white-space: nowrap;
+}
+
+.ataas-pd-node-wide-action {
+  display: inline-flex;
+  height: 24px;
+  min-width: 48px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  border-radius: 5px;
+  background: #F5F3FF;
+  color: #6738E8;
+  font-size: 12px;
+  line-height: 24px;
+  white-space: nowrap;
+}
+
+.ataas-pd-mooncake-reuse {
+  cursor: default;
+  border-color: #EEF0F4;
+  background: #FAFBFC;
+}
+
+.ataas-pd-mooncake-reuse:hover {
+  border-color: #EEF0F4;
+  background: #FAFBFC;
+}
+
+.ataas-pd-mode-tabs {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.ataas-pd-mode-tab {
+  position: relative;
+  height: 24px;
+  padding: 0 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #6B778A;
+  font-size: 12px;
+  line-height: 24px;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.ataas-pd-mode-tab:hover {
+  color: #6738E8;
+}
+
+.ataas-pd-mode-tab.active {
+  background: transparent;
+  color: #6738E8;
+  box-shadow: none;
+}
+
+.ataas-pd-mode-tab.active::after {
+  position: absolute;
+  right: 0;
+  bottom: 1px;
+  left: 0;
+  height: 2px;
+  border-radius: 999px;
+  background: #6738E8;
+  content: '';
+}
+
+.ataas-pd-compact-hint {
+  margin-bottom: 14px;
+  padding: 9px 12px;
+  border-radius: 6px;
+  background: #F7F8FA;
+  color: #6B778A;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.ataas-pd-compact-panel .ataas-card-select-control {
+  display: inline-flex;
+}
+
+.ataas-pd-compact-panel .ataas-card-count-stepper {
+  height: 32px;
+}
+
+.ataas-pd-compact-panel .ataas-card-count-stepper .ant-btn {
+  width: 34px;
+  height: 32px;
+}
+
+.ataas-pd-compact-panel .ataas-card-count-value {
+  min-width: 54px;
+  height: 32px;
+  line-height: 32px;
+}
+
+.ataas-pd-compact-panel .ataas-pd-shell-area {
+  margin-top: 0;
+}
+
+.ataas-pd-compact-panel .ataas-pd-shell-toggle {
+  min-height: 32px;
+  color: #1D2129;
+}
+
+.ataas-pd-yaml-resource-area {
+  width: 100%;
+}
+
+.ataas-pd-yaml-resource-button {
+  display: flex;
+  width: 100%;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 10px;
+  border: 1px solid #E5E6EB;
+  border-radius: 7px;
+  background: #fff;
+  color: #1D2129;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+}
+
+.ataas-pd-yaml-resource-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ataas-pd-yaml-resource-button em {
+  color: #6738E8;
+  font-style: normal;
+  white-space: nowrap;
+}
+
+.ataas-pd-yaml-resource-button:hover {
+  border-color: #CFC6F8;
+  background: #FBFAFF;
+  color: #6738E8;
+}
+
+.ataas-pd-yaml-resource-area.locked .ataas-pd-yaml-resource-button {
+  cursor: default;
+  border-color: #EEF0F4;
+  background: #FAFBFC;
+  color: #86909C;
+}
+
+@media (max-width: 760px) {
+  .ataas-pd-compact-grid,
+  .ataas-pd-worker-field-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
 }
 
 .ataas-deploy-detail-traffic-track {
@@ -20827,7 +22144,7 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 }
 
 .ataas-deploy-realtime-log-modal {
-  max-width: calc(100vw - 64px);
+  max-width: calc(100vw - 72px);
 
   .ant-modal-content {
     overflow: hidden;
@@ -20857,7 +22174,7 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   color: #1D2129;
 
   .anticon {
-    color: #2F6BFF;
+    color: #6951FF;
     font-size: 16px;
   }
 
@@ -20869,7 +22186,7 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 
   em {
     overflow: hidden;
-    color: #2F6BFF;
+    color: #6951FF;
     font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
     font-size: 13px;
     font-style: normal;
@@ -20890,28 +22207,113 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   background: #fff;
 }
 
-.ataas-deploy-realtime-log-toolbar {
+.ataas-deploy-realtime-log-viewbar {
   display: flex;
   height: 40px;
   align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  padding: 0 20px;
+  gap: 8px;
+  padding: 0 16px;
+  border-bottom: 1px solid #E5E6EB;
+  background: #FAFBFC;
+  color: #9CA3AF;
+  font-size: 13px;
+
+  > span {
+    flex: 0 0 auto;
+  }
+
+  > div {
+    display: inline-flex;
+    overflow: hidden;
+    border: 1px solid #E5E6EB;
+    border-radius: 6px;
+    background: #fff;
+  }
+
+  button {
+    display: inline-flex;
+    height: 26px;
+    align-items: center;
+    justify-content: center;
+    padding: 0 12px;
+    border: 0;
+    border-right: 1px solid #E5E6EB;
+    background: transparent;
+    color: #86909C;
+    font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  button:last-child {
+    border-right: 0;
+  }
+
+  button.active {
+    background: #F4F1FF;
+    box-shadow: inset 0 0 0 1px rgba(105, 81, 255, 0.22);
+    color: #6951FF;
+    font-weight: 600;
+  }
+
+  button.split {
+    width: 64px;
+    gap: 4px;
+    border: 1px solid #E5E6EB;
+    border-radius: 6px;
+    background: #fff;
+    color: #A0A7B2;
+    font-family: PingFangSC, "PingFang SC", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    cursor: default;
+  }
+}
+
+.ataas-deploy-realtime-log-toolbar {
+  display: flex;
+  height: 38px;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 0 16px;
   border-bottom: 1px solid #E5E6EB;
   color: #1D2129;
   font-size: 13px;
 
+  strong {
+    flex: 0 0 auto;
+    margin-right: 12px;
+    color: #111827;
+    font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+    font-size: 13px;
+    font-weight: 600;
+
+    i {
+      display: inline-block;
+      width: 4px;
+      height: 17px;
+      margin-right: 8px;
+      border-radius: 999px;
+      vertical-align: -4px;
+    }
+  }
+
   button {
     display: inline-flex;
-    height: 28px;
+    height: 26px;
     align-items: center;
-    gap: 7px;
-    padding: 0 10px;
+    gap: 6px;
+    padding: 0 9px;
     border: 1px solid #E5E6EB;
-    border-radius: 6px;
+    border-radius: 5px;
     background: #fff;
-    color: #1D2129;
+    color: #4E5969;
     cursor: pointer;
+    transition: all 0.18s ease;
+
+    &:hover {
+      border-color: rgba(105, 81, 255, 0.38);
+      color: #6951FF;
+    }
 
     i {
       width: 8px;
@@ -20923,13 +22325,84 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
     &.active i {
       background: #18A957;
     }
+
+    &.level {
+      width: 28px;
+      padding: 0;
+      justify-content: center;
+      font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+      font-weight: 500;
+    }
+
+    &.level.active {
+      border-color: #6951FF;
+      background: #6951FF;
+      color: #fff;
+      box-shadow: 0 2px 5px rgba(105, 81, 255, 0.2);
+    }
+
+    &.follow-dot {
+      margin-left: 8px;
+      color: #18A957;
+      font-weight: 600;
+    }
   }
+
+  .level-label,
+  .grep-label {
+    color: #9CA3AF;
+    font-size: 13px;
+  }
+
+  .grep-label {
+    margin-left: 8px;
+  }
+
+  .grep-box {
+    display: flex;
+    height: 26px;
+    flex: 1 1 auto;
+    min-width: 220px;
+    align-items: center;
+    padding: 0 10px;
+    border: 1px solid #E5E6EB;
+    border-radius: 5px;
+    background: #fff;
+    color: #A0A7B2;
+    font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+  }
+}
+
+.ataas-deploy-realtime-log-toolbar.pane-toolbar {
+  padding: 0 14px;
+
+  strong {
+    margin-right: 12px;
+  }
+}
+
+.ataas-deploy-realtime-log-split {
+  height: min(64vh, 680px);
+  overflow: auto;
+}
+
+.ataas-deploy-realtime-log-pane {
+  border-bottom: 1px solid #E5E6EB;
+}
+
+.ataas-deploy-realtime-log-pane:last-child {
+  border-bottom: 0;
+}
+
+.ataas-deploy-realtime-log-pane pre {
+  height: 280px;
+  padding-top: 12px;
 }
 
 .ataas-deploy-realtime-log pre {
   height: min(58vh, 560px);
   margin: 0;
-  padding: 10px 20px 16px;
+  padding: 10px 16px 16px;
   overflow: auto;
   color: #1D2129;
   background: #fff;

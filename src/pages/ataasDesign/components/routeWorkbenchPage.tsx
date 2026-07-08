@@ -714,6 +714,7 @@ const buildRouteWorkbenchFromResources = (routes: RouteEntry[], podRows: PodReco
   const nodes: Node[] = [];
   const edges: Edge[] = [];
   let routeStartY = 120;
+  const clusterRouteStartY = new Map<string, number>();
   const modelNodes = new Map<string, { id: string; y: number; routeCount: number; clusterCount: number; podCount: number; nodeCount: number; health: RouteWorkbenchNodeData['health'] }>();
   const clusterIngress = new Map<string, { ingressId: string; y: number }>();
   const orderedRoutes = [...routes].sort((a, b) => {
@@ -721,11 +722,15 @@ const buildRouteWorkbenchFromResources = (routes: RouteEntry[], podRows: PodReco
     const bModel = getRouteModelName(b.name);
     const aKnown = ['glm-5.1','deepseek-r1','kimi-k2'].includes(aModel);
     const bKnown = ['glm-5.1','deepseek-r1','kimi-k2'].includes(bModel);
+    const aCluster = a.cluster || 'default';
+    const bCluster = b.cluster || 'default';
+    // Group by cluster first so manual SEs are sibling to same-cluster routes
+    const clusterCompare = aCluster.localeCompare(bCluster);
+    if (clusterCompare !== 0) return clusterCompare;
+    // Within same cluster: known models first, then unknown
     if (aKnown !== bKnown) return aKnown ? -1 : 1;
     const modelCompare = aModel.localeCompare(bModel);
     if (modelCompare !== 0) return modelCompare;
-    const clusterCompare = (a.cluster || 'default').localeCompare(b.cluster || 'default');
-    if (clusterCompare !== 0) return clusterCompare;
     return a.name.localeCompare(b.name);
   });
 
@@ -751,7 +756,6 @@ const buildRouteWorkbenchFromResources = (routes: RouteEntry[], podRows: PodReco
     });
   });
 
-  const manualSeStateAtIngress = new Map<string, { cumulativeOffset: number; prevContentHeight: number }>();
   orderedRoutes.forEach((route, routeIndex) => {
     const modelName = getRouteModelName(route.name);
     const modelId = getRouteResourceId('model', modelName);
@@ -764,6 +768,7 @@ const buildRouteWorkbenchFromResources = (routes: RouteEntry[], podRows: PodReco
     const clusterKey = route.cluster || 'default';
     const modelClusterKey = `${modelName}-${clusterKey}`;
     const isKnownModel = ['glm-5.1','deepseek-r1','kimi-k2'].includes(modelName);
+    if (!isKnownModel) seY = clusterRouteStartY.get(clusterKey) ?? routeStartY;
     if (isKnownModel && !modelNodes.has(modelName)) {
       const rawStats = modelStats.get(modelName) || { routeCount: 1, clusterSet: new Set([route.cluster || 'default']), podCount: routePods.length, nodeSet: new Set(routePods.map((pod) => pod.node).filter(Boolean)), health: routeHealth };
       const stats = { ...rawStats, clusterCount: rawStats.clusterSet.size, nodeCount: rawStats.nodeSet.size };
@@ -843,23 +848,6 @@ const buildRouteWorkbenchFromResources = (routes: RouteEntry[], podRows: PodReco
             history: [],
           },
         });
-      }
-    }
-    // 非已知模型的 SE（手动）：内容向上生长，间距根据内容动态调整
-    if (!isKnownModel && ingress) {
-      const ingressNode = nodes.find((n) => n.id === ingress.ingressId);
-      if (ingressNode) {
-        const ingressY = ingressNode.position.y;
-        const state = manualSeStateAtIngress.get(ingress.ingressId) || { cumulativeOffset: 0, prevContentHeight: 0 };
-        let spacing: number;
-        if (state.cumulativeOffset === 0) {
-          spacing = 220; // 第一个手动 SE，与已知 SE 保持 220px 间距
-        } else {
-          spacing = Math.max(220, state.prevContentHeight + 60); // 根据上一个 SE 的内容高度动态调整
-        }
-        const newCumulativeOffset = state.cumulativeOffset + spacing;
-        manualSeStateAtIngress.set(ingress.ingressId, { cumulativeOffset: newCumulativeOffset, prevContentHeight: 0 });
-        seY = ingressY - newCumulativeOffset;
       }
     }
     const isExpanded = expandedRouteKeys.has(route.key);
@@ -957,7 +945,7 @@ const buildRouteWorkbenchFromResources = (routes: RouteEntry[], podRows: PodReco
       displayPods.forEach((pod, podIndex) => {
         const podKind: RouteWorkbenchKind = pod.role === 'prefill' || pod.role === 'decode' ? 'pdWorkerNode' : 'routerPodNode';
         const podId = getRouteResourceId(podKind === 'pdWorkerNode' ? 'worker' : 'pod', route.key, service.key || service.name, pod.key);
-        const podY = isKnownModel ? (serviceY + podIndex * rowHeight) : (serviceY - podIndex * rowHeight);
+        const podY = serviceY + podIndex * rowHeight;
         nodes.push({
           id: podId,
           type: podKind,
@@ -1040,17 +1028,14 @@ const buildRouteWorkbenchFromResources = (routes: RouteEntry[], podRows: PodReco
           });
         }
       });
-      branchY += isKnownModel
-        ? Math.max(1, displayPods.length) * rowHeight
-        : -(Math.max(1, displayPods.length) * rowHeight);
+      branchY += Math.max(1, displayPods.length) * rowHeight;
     });
 
     routeStartY = Math.max(routeStartY + 220, branchY + 120);
-    if (!isKnownModel && ingress) {
-      const calculatedContentHeight = Math.max(0, seY - branchY);
-      const currentState = manualSeStateAtIngress.get(ingress.ingressId) || { cumulativeOffset: 0, prevContentHeight: 0 };
-      manualSeStateAtIngress.set(ingress.ingressId, { ...currentState, prevContentHeight: calculatedContentHeight });
-    }
+    clusterRouteStartY.set(clusterKey, Math.max(
+      (clusterRouteStartY.get(clusterKey) ?? seY) + 220,
+      branchY + 120
+    ));
   });
 
   // Fix parallel routing for all gateway edges (ingress → SE)
@@ -1143,6 +1128,7 @@ const RouteWorkbenchPage = ({ onNavigateToNodeManagement }: { onNavigateToNodeMa
   const resourceStore = useK8sResourceStore();
   const { routes: routeList, pods: podList } = useMemo(() => toRouteWorkbenchResources(resourceStore.state), [resourceStore.state]);
   const [routeWorkbenchExpandedRouteKeys, setRouteWorkbenchExpandedRouteKeys] = useState<string[]>(() => routeList.map((route) => route.key));
+  const [routeWorkbenchCollapsedClusters, setRouteWorkbenchCollapsedClusters] = useState<string[]>([]);
   const initialRouteWorkbenchGraph = useMemo(() => buildRouteWorkbenchFromResources(routeList, podList, new Set(routeWorkbenchExpandedRouteKeys)), [routeList, podList, routeWorkbenchExpandedRouteKeys]);
   const [routeWorkbenchSelected, setRouteWorkbenchSelected] = useState('');
   const [routeWorkbenchPanelTab, setRouteWorkbenchPanelTab] = useState<'detail' | 'relation' | 'yaml' | 'history'>('detail');
@@ -1319,7 +1305,17 @@ const RouteWorkbenchPage = ({ onNavigateToNodeManagement }: { onNavigateToNodeMa
             ...collectRouteWorkbenchDownstream(serviceMatchedIds),
           ])
           : modelVisibleIds;
-        const visibleNodes = routeWorkbenchNodes.filter((node) => modelVisibleIds.has(node.id) && serviceVisibleIds.has(node.id));
+        const collapsedClustersSet = new Set(routeWorkbenchCollapsedClusters);
+        const visibleNodes = routeWorkbenchNodes.filter((node) => {
+          if (!modelVisibleIds.has(node.id)) return false;
+          if (!serviceVisibleIds.has(node.id)) return false;
+          const nd = node.data as RouteWorkbenchNodeData;
+          // Keep ingress group nodes visible even when collapsed
+          if (nd.kind === 'ingressGroupNode') return true;
+          // Hide nodes belonging to collapsed clusters
+          if (nd.cluster && collapsedClustersSet.has(nd.cluster)) return false;
+          return true;
+        });
         const visibleNodeIds = new Set(visibleNodes.map((node) => node.id));
         const visibleEdges = routeWorkbenchEdges.filter((edge) => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target));
         const clusterOptions = Array.from(new Set([
@@ -1504,6 +1500,13 @@ const RouteWorkbenchPage = ({ onNavigateToNodeManagement }: { onNavigateToNodeMa
           setRouteWorkbenchContextMenu(null);
           message.success('已收回全部 SE 分支');
         };
+        const toggleClusterCollapse = (clusterName: string) => {
+          setRouteWorkbenchCollapsedClusters((prev) =>
+            prev.includes(clusterName)
+              ? prev.filter((c) => c !== clusterName)
+              : [...prev, clusterName]
+          );
+        };
         const quickAddWorkbenchChild = (parentId: string, parentKind: RouteWorkbenchKind) => {
           const parent = routeWorkbenchNodes.find((node) => node.id === parentId);
           const parentData = parent?.data as RouteWorkbenchNodeData | undefined;
@@ -1547,13 +1550,18 @@ const RouteWorkbenchPage = ({ onNavigateToNodeManagement }: { onNavigateToNodeMa
           setRouteWorkbenchNodes((nodes) => layoutRouteWorkbenchNodes(nodes));
           setRouteWorkbenchChanges((changes) => [...changes, { type: '关联', desc: `${sourceTitle} -> ${targetTitle}` }]);
         };
-        const workbenchFlowNodes = visibleNodes.map((node) => ({
-          ...node,
-          data: {
-            ...node.data,
-            onQuickAdd: quickAddWorkbenchChild,
-          },
-        }));
+        const workbenchFlowNodes = visibleNodes.map((node) => {
+          const nd = node.data as RouteWorkbenchNodeData;
+          const clusterCollapsed = nd.kind === 'ingressGroupNode' && nd.cluster && routeWorkbenchCollapsedClusters.includes(nd.cluster);
+          return {
+            ...node,
+            data: {
+              ...nd,
+              onQuickAdd: quickAddWorkbenchChild,
+              subtitle: clusterCollapsed ? `${nd.subtitle || ''} · 已折叠` : nd.subtitle,
+            },
+          };
+        });
         const renderWorkbenchPanel = () => {
           if (!selectedNode || !selectedData) return null;
           const typeLabel = routeWorkbenchKindLabel[selectedData.kind];
@@ -1855,7 +1863,9 @@ const RouteWorkbenchPage = ({ onNavigateToNodeManagement }: { onNavigateToNodeMa
                   onNodeDragStart={pushRouteWorkbenchUndo}
                   onNodeClick={(_, node) => {
                     const data = node.data as RouteWorkbenchNodeData | undefined;
-                    if (data?.kind === 'clusterNode' && data.sourceRouteKey) {
+                    if (data?.kind === 'ingressGroupNode' && data.cluster) {
+                      toggleClusterCollapse(data.cluster);
+                    } else if (data?.kind === 'clusterNode' && data.sourceRouteKey) {
                       toggleWorkbenchRouteExpand(data.sourceRouteKey);
                     }
                     setRouteWorkbenchSelected(node.id);
