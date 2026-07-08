@@ -183,6 +183,68 @@ function defaultRepo(): Record<string, ConfigFile> {
     workersGlm51CacheLayerSplitYaml,
     nowMinus(0, 1),
   );
+  repo['resources/glm-5.2/service.yaml'] = makeFile(
+    'resources/glm-5.2/service.yaml',
+    `apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    monitoring: scrape
+    rolebasedgroup.workloads.x-k8s.io/name: glm51-router-0
+    rolebasedgroup.workloads.x-k8s.io/role: router
+  name: glm51-router-0
+  namespace: default
+spec:
+  clusterIP: 10.43.219.154
+  clusterIPs:
+  - 10.43.219.154
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+  - IPv4
+  ipFamilyPolicy: SingleStack
+  ports:
+  - name: http
+    port: 30002
+    protocol: TCP
+    targetPort: 30002
+  - name: metrics
+    port: 9090
+    protocol: TCP
+    targetPort: 29000
+  selector:
+    rolebasedgroup.workloads.x-k8s.io/name: glm51-router-0
+    rolebasedgroup.workloads.x-k8s.io/role: router
+  sessionAffinity: None
+  type: ClusterIP
+`,
+    nowMinus(0, 1),
+  );
+  repo['resources/glm-5.2/service-entry.yaml'] = makeFile(
+    'resources/glm-5.2/service-entry.yaml',
+    `apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: glm-5.2
+  namespace: higress-system
+spec:
+  endpoints:
+  - address: glm51-router-0.default.svc.cluster.local
+    weight: 24
+  - address: glm51-router-1.default.svc.cluster.local
+    weight: 40
+  - address: glm51-router-2.default.svc.cluster.local
+    weight: 35
+  hosts:
+  - glm-5.2-cluster.local
+  location: MESH_INTERNAL
+  ports:
+  - name: http
+    number: 30002
+    protocol: HTTP
+  resolution: DNS
+`,
+    nowMinus(0, 1),
+  );
   return repo;
 }
 

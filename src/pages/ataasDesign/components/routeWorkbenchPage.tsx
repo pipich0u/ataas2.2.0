@@ -5,11 +5,15 @@ import {
   DatabaseOutlined,
   DeleteOutlined,
   DeploymentUnitOutlined,
+  DownOutlined,
   EditOutlined,
+  FileSearchOutlined,
+  LinkOutlined,
   PlusOutlined,
   SaveOutlined,
+  UploadOutlined,
 } from '@ant-design/icons';
-import { Button, Input, InputNumber, message, Modal, Select, Space } from 'antd';
+import { Button, Drawer, Input, InputNumber, message, Modal, Select, Space, Tooltip } from 'antd';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Background,
@@ -35,6 +39,8 @@ import deepseekLogo from '../deepseek-logo.svg';
 import glmLogo from '../glm-logo.svg';
 import kimiLogo from '../kimi-logo.svg';
 import '@xyflow/react/dist/style.css';
+import { rpc } from '@/lib/bus/rpc';
+import type { ConfigTreeNode } from '@/lib/types';
 import {
   buildServiceEntryYaml as buildStoreServiceEntryYaml,
   createManualService,
@@ -226,6 +232,7 @@ type RouteWorkbenchNodeData = {
   yaml?: string;
   history?: Array<{ hash: string; time: string; author: string; message: string }>;
   sourceRouteKey?: string;
+  sourceServiceKey?: string;
   expanded?: boolean;
   onQuickAdd?: (nodeId: string, kind: RouteWorkbenchKind) => void;
 };
@@ -373,8 +380,8 @@ const RouteWorkbenchEdge = (props: EdgeProps) => {
   ].join(' ');
   const gatewayIndex = d.parallelIndex || 0;
   const gatewayTotal = d.parallelTotal || 1;
-  const gatewayTrunkX = sourceX + 36 + gatewayIndex * 28;
-  const gatewayTargetY = targetY + (gatewayIndex - (gatewayTotal - 1) / 2) * 8;
+  const gatewayTrunkX = sourceX + 36;
+  const gatewayTargetY = targetY;
   const gatewayPath = [
     `M ${sourceX} ${sourceY}`,
     `L ${gatewayTrunkX} ${sourceY}`,
@@ -710,7 +717,12 @@ const buildRouteWorkbenchFromResources = (routes: RouteEntry[], podRows: PodReco
   const modelNodes = new Map<string, { id: string; y: number; routeCount: number; clusterCount: number; podCount: number; nodeCount: number; health: RouteWorkbenchNodeData['health'] }>();
   const clusterIngress = new Map<string, { ingressId: string; y: number }>();
   const orderedRoutes = [...routes].sort((a, b) => {
-    const modelCompare = getRouteModelName(a.name).localeCompare(getRouteModelName(b.name));
+    const aModel = getRouteModelName(a.name);
+    const bModel = getRouteModelName(b.name);
+    const aKnown = ['glm-5.1','deepseek-r1','kimi-k2'].includes(aModel);
+    const bKnown = ['glm-5.1','deepseek-r1','kimi-k2'].includes(bModel);
+    if (aKnown !== bKnown) return aKnown ? -1 : 1;
+    const modelCompare = aModel.localeCompare(bModel);
     if (modelCompare !== 0) return modelCompare;
     const clusterCompare = (a.cluster || 'default').localeCompare(b.cluster || 'default');
     if (clusterCompare !== 0) return clusterCompare;
@@ -739,6 +751,7 @@ const buildRouteWorkbenchFromResources = (routes: RouteEntry[], podRows: PodReco
     });
   });
 
+  const manualSeStateAtIngress = new Map<string, { cumulativeOffset: number; prevContentHeight: number }>();
   orderedRoutes.forEach((route, routeIndex) => {
     const modelName = getRouteModelName(route.name);
     const modelId = getRouteResourceId('model', modelName);
@@ -747,9 +760,11 @@ const buildRouteWorkbenchFromResources = (routes: RouteEntry[], podRows: PodReco
     const routeHealth = getRouteResourceHealth(routePods);
     const seId = getRouteResourceId('se', route.key);
     const baseY = routeStartY;
+    let seY = baseY;
     const clusterKey = route.cluster || 'default';
     const modelClusterKey = `${modelName}-${clusterKey}`;
-    if (!modelNodes.has(modelName)) {
+    const isKnownModel = ['glm-5.1','deepseek-r1','kimi-k2'].includes(modelName);
+    if (isKnownModel && !modelNodes.has(modelName)) {
       const rawStats = modelStats.get(modelName) || { routeCount: 1, clusterSet: new Set([route.cluster || 'default']), podCount: routePods.length, nodeSet: new Set(routePods.map((pod) => pod.node).filter(Boolean)), health: routeHealth };
       const stats = { ...rawStats, clusterCount: rawStats.clusterSet.size, nodeCount: rawStats.nodeSet.size };
       modelNodes.set(modelName, { id: modelId, y: baseY, routeCount: stats.routeCount, clusterCount: stats.clusterCount, podCount: stats.podCount, nodeCount: stats.nodeCount, health: stats.health });
@@ -771,35 +786,81 @@ const buildRouteWorkbenchFromResources = (routes: RouteEntry[], podRows: PodReco
         },
       });
     }
-    let ingress = clusterIngress.get(modelClusterKey);
-    if (!ingress) {
-      const ingressId = getRouteResourceId('cluster', modelName, clusterKey);
-      ingress = { ingressId, y: baseY };
-      clusterIngress.set(modelClusterKey, ingress);
-      const clusterRoutes = orderedRoutes.filter((item) => getRouteModelName(item.name) === modelName && (item.cluster || 'default') === clusterKey);
-      const clusterServiceIds = new Set(clusterRoutes.flatMap((item) => item.services.map((service) => service.key)));
-      const clusterPods = podRows.filter((pod) => pod.cluster === route.cluster && !!pod.serviceId && clusterServiceIds.has(pod.serviceId));
-      const clusterNodeCount = new Set(clusterPods.map((pod) => pod.node).filter(Boolean)).size;
-      nodes.push(
-        {
+    let ingress;
+    if (isKnownModel) {
+      ingress = clusterIngress.get(modelClusterKey);
+      if (!ingress) {
+        const ingressId = getRouteResourceId('cluster', modelName, clusterKey);
+        ingress = { ingressId, y: baseY };
+        clusterIngress.set(modelClusterKey, ingress);
+        const clusterRoutes = orderedRoutes.filter((item) => getRouteModelName(item.name) === modelName && (item.cluster || 'default') === clusterKey);
+        const clusterServiceIds = new Set(clusterRoutes.flatMap((item) => item.services.map((service) => service.key)));
+        const clusterPods = podRows.filter((pod) => pod.cluster === route.cluster && !!pod.serviceId && clusterServiceIds.has(pod.serviceId));
+        const clusterNodeCount = new Set(clusterPods.map((pod) => pod.node).filter(Boolean)).size;
+        nodes.push(
+          {
+            id: ingressId,
+            type: 'ingressGroupNode',
+            position: { x: routeWorkbenchLayerX.ingressGroupNode, y: baseY },
+            data: {
+              kind: 'ingressGroupNode',
+              title: `${clusterKey} 集群`,
+              subtitle: `${clusterRoutes.length} SE · ${clusterPods.length} 实例`,
+              cluster: clusterKey,
+              qps: 78 - routeIndex * 5,
+              pods: clusterPods.length,
+              nodeCount: clusterNodeCount,
+              health: getRouteResourceHealth(clusterPods),
+              yaml: routeWorkbenchYaml('Gateway', `${clusterKey}-ingress`),
+              history: routeWorkbenchHistory,
+            },
+          },
+        );
+        edges.push({ id: `e-${modelId}-${ingressId}`, source: modelId, target: ingressId, type: 'trafficEdge', markerEnd: routeWorkbenchMarkerEnd, data: { type: 'structure' } });
+        }
+    } else {
+      const clusterIngressEntry = Array.from(clusterIngress.entries()).find(([key]) => key.endsWith(`-${clusterKey}`));
+      if (clusterIngressEntry) {
+        ingress = clusterIngressEntry[1];
+      } else {
+        const ingressId = getRouteResourceId('cluster', 'manual', clusterKey);
+        ingress = { ingressId, y: baseY };
+        clusterIngress.set(`manual-${clusterKey}`, ingress);
+        nodes.push({
           id: ingressId,
           type: 'ingressGroupNode',
           position: { x: routeWorkbenchLayerX.ingressGroupNode, y: baseY },
           data: {
             kind: 'ingressGroupNode',
             title: `${clusterKey} 集群`,
-            subtitle: `${clusterRoutes.length} SE · ${clusterPods.length} 实例`,
+            subtitle: '手动 SE',
             cluster: clusterKey,
-            qps: 78 - routeIndex * 5,
-            pods: clusterPods.length,
-            nodeCount: clusterNodeCount,
-            health: getRouteResourceHealth(clusterPods),
+            qps: 70,
+            pods: 0,
+            nodeCount: 0,
+            health: 'healthy',
             yaml: routeWorkbenchYaml('Gateway', `${clusterKey}-ingress`),
-            history: routeWorkbenchHistory,
+            history: [],
           },
-        },
-      );
-      edges.push({ id: `e-${modelId}-${ingressId}`, source: modelId, target: ingressId, type: 'trafficEdge', markerEnd: routeWorkbenchMarkerEnd, data: { type: 'structure' } });
+        });
+      }
+    }
+    // 非已知模型的 SE（手动）：内容向上生长，间距根据内容动态调整
+    if (!isKnownModel && ingress) {
+      const ingressNode = nodes.find((n) => n.id === ingress.ingressId);
+      if (ingressNode) {
+        const ingressY = ingressNode.position.y;
+        const state = manualSeStateAtIngress.get(ingress.ingressId) || { cumulativeOffset: 0, prevContentHeight: 0 };
+        let spacing: number;
+        if (state.cumulativeOffset === 0) {
+          spacing = 220; // 第一个手动 SE，与已知 SE 保持 220px 间距
+        } else {
+          spacing = Math.max(220, state.prevContentHeight + 60); // 根据上一个 SE 的内容高度动态调整
+        }
+        const newCumulativeOffset = state.cumulativeOffset + spacing;
+        manualSeStateAtIngress.set(ingress.ingressId, { cumulativeOffset: newCumulativeOffset, prevContentHeight: 0 });
+        seY = ingressY - newCumulativeOffset;
+      }
     }
     const isExpanded = expandedRouteKeys.has(route.key);
 
@@ -807,7 +868,7 @@ const buildRouteWorkbenchFromResources = (routes: RouteEntry[], podRows: PodReco
       {
         id: seId,
         type: 'clusterNode',
-        position: { x: routeWorkbenchLayerX.clusterNode, y: baseY },
+        position: { x: routeWorkbenchLayerX.clusterNode, y: seY },
         data: {
           kind: 'clusterNode',
           title: route.name,
@@ -828,23 +889,34 @@ const buildRouteWorkbenchFromResources = (routes: RouteEntry[], podRows: PodReco
     );
     const siblingRoutes = orderedRoutes.filter((item) => getRouteModelName(item.name) === modelName && (item.cluster || 'default') === clusterKey);
     const siblingIndex = Math.max(0, siblingRoutes.findIndex((item) => item.key === route.key));
-    edges.push(
-      {
-        id: `e-${ingress.ingressId}-${seId}`,
-        source: ingress.ingressId,
-        target: seId,
-        type: 'trafficEdge',
-        markerEnd: routeWorkbenchMarkerEnd,
-        data: { type: 'gateway', qps: 78 - routeIndex * 5, parallelIndex: siblingIndex, parallelTotal: siblingRoutes.length },
+    if (ingress) {
+      edges.push(
+        {
+          id: `e-${ingress.ingressId}-${seId}`,
+          source: ingress.ingressId,
+          target: seId,
+          type: 'trafficEdge',
+          markerEnd: routeWorkbenchMarkerEnd,
+          data: { type: 'gateway', qps: isKnownModel ? 78 - routeIndex * 5 : 70, parallelIndex: siblingIndex, parallelTotal: siblingRoutes.length },
       },
     );
+    }
 
-    let branchY = baseY;
-    if (isExpanded) route.services.forEach((service, serviceIndex) => {
+    let branchY = seY;
+    route.services.forEach((service, serviceIndex) => {
       const linkedPods = getPodsForService(route, service, podRows);
       const serviceHealth = getRouteResourceHealth(linkedPods);
       const serviceId = getRouteResourceId('svc', route.key, service.key || service.name);
       const endpoint = route.endpoints.find((item) => item.address.startsWith(service.name));
+      edges.push({
+        id: `e-${seId}-${serviceId}`,
+        source: seId,
+        target: serviceId,
+        type: 'trafficEdge',
+        markerEnd: routeWorkbenchMarkerEnd,
+        data: { type: 'endpoint', qps: 28 + (serviceIndex % 12) * 3, weight: endpoint?.weight, healthy: serviceHealth !== 'error' },
+      });
+      if (!isExpanded) return;
       const serviceY = branchY;
       nodes.push({
         id: serviceId,
@@ -860,17 +932,10 @@ const buildRouteWorkbenchFromResources = (routes: RouteEntry[], podRows: PodReco
           weight: endpoint?.weight || 0,
           qps: 28 + (serviceIndex % 12) * 3,
           health: serviceHealth,
+          sourceServiceKey: service.key,
           yaml: buildServiceYaml(service),
           history: routeWorkbenchHistory,
         },
-      });
-      edges.push({
-        id: `e-${seId}-${serviceId}`,
-        source: seId,
-        target: serviceId,
-        type: 'trafficEdge',
-        markerEnd: routeWorkbenchMarkerEnd,
-        data: { type: 'endpoint', qps: 28 + (serviceIndex % 12) * 3, weight: endpoint?.weight, healthy: serviceHealth !== 'error' },
       });
 
       const servicePods = linkedPods.length ? linkedPods : [];
@@ -892,7 +957,7 @@ const buildRouteWorkbenchFromResources = (routes: RouteEntry[], podRows: PodReco
       displayPods.forEach((pod, podIndex) => {
         const podKind: RouteWorkbenchKind = pod.role === 'prefill' || pod.role === 'decode' ? 'pdWorkerNode' : 'routerPodNode';
         const podId = getRouteResourceId(podKind === 'pdWorkerNode' ? 'worker' : 'pod', route.key, service.key || service.name, pod.key);
-        const podY = serviceY + podIndex * rowHeight;
+        const podY = isKnownModel ? (serviceY + podIndex * rowHeight) : (serviceY - podIndex * rowHeight);
         nodes.push({
           id: podId,
           type: podKind,
@@ -975,11 +1040,37 @@ const buildRouteWorkbenchFromResources = (routes: RouteEntry[], podRows: PodReco
           });
         }
       });
-      branchY += Math.max(1, displayPods.length) * rowHeight;
+      branchY += isKnownModel
+        ? Math.max(1, displayPods.length) * rowHeight
+        : -(Math.max(1, displayPods.length) * rowHeight);
     });
 
     routeStartY = Math.max(routeStartY + 220, branchY + 120);
+    if (!isKnownModel && ingress) {
+      const calculatedContentHeight = Math.max(0, seY - branchY);
+      const currentState = manualSeStateAtIngress.get(ingress.ingressId) || { cumulativeOffset: 0, prevContentHeight: 0 };
+      manualSeStateAtIngress.set(ingress.ingressId, { ...currentState, prevContentHeight: calculatedContentHeight });
+    }
   });
+
+  // Fix parallel routing for all gateway edges (ingress → SE)
+  {
+    const gatewayEdges = edges.filter((e) => {
+      const src = nodes.find((n) => n.id === e.source);
+      return src && (src.data as any).kind === 'ingressGroupNode';
+    });
+    const ingressGroups = new Map();
+    gatewayEdges.forEach((e) => {
+      const g = ingressGroups.get(e.source) || [];
+      g.push(e);
+      ingressGroups.set(e.source, g);
+    });
+    ingressGroups.forEach((group: Edge[]) => {
+      group.forEach((e: Edge, i: number) => {
+        e.data = { ...(e.data as any), parallelIndex: i, parallelTotal: group.length };
+      });
+    });
+  }
 
   return {
     nodes: nodes.length ? nodes : routeWorkbenchInitialNodes,
@@ -1048,7 +1139,7 @@ const toRouteWorkbenchResources = (state: K8sResourceState) => {
   return { routes, pods: podsForRoute };
 };
 
-const RouteWorkbenchPage = () => {
+const RouteWorkbenchPage = ({ onNavigateToNodeManagement }: { onNavigateToNodeManagement?: (clusterKey: string) => void }) => {
   const resourceStore = useK8sResourceStore();
   const { routes: routeList, pods: podList } = useMemo(() => toRouteWorkbenchResources(resourceStore.state), [resourceStore.state]);
   const [routeWorkbenchExpandedRouteKeys, setRouteWorkbenchExpandedRouteKeys] = useState<string[]>(() => routeList.map((route) => route.key));
@@ -1057,8 +1148,10 @@ const RouteWorkbenchPage = () => {
   const [routeWorkbenchPanelTab, setRouteWorkbenchPanelTab] = useState<'detail' | 'relation' | 'yaml' | 'history'>('detail');
   const [routeWorkbenchNodes, setRouteWorkbenchNodes, onRouteWorkbenchNodesChange] = useNodesState(initialRouteWorkbenchGraph.nodes);
   const [routeWorkbenchEdges, setRouteWorkbenchEdges, onRouteWorkbenchEdgesChange] = useEdgesState(initialRouteWorkbenchGraph.edges);
+  const routeWorkbenchReactFlowRef = useRef<any>(null);
   const routeWorkbenchStateRef = useRef<{ nodes: Node[]; edges: Edge[] }>({ nodes: initialRouteWorkbenchGraph.nodes, edges: initialRouteWorkbenchGraph.edges });
   const routeWorkbenchUndoRef = useRef<Array<{ nodes: Node[]; edges: Edge[] }>>([]);
+  const routeWorkbenchFocusNodeIdRef = useRef<string>('');
   const [routeWorkbenchContextMenu, setRouteWorkbenchContextMenu] = useState<{ nodeId: string; x: number; y: number } | null>(null);
   const [routeWorkbenchRenameNodeId, setRouteWorkbenchRenameNodeId] = useState('');
   const [routeWorkbenchRenameValue, setRouteWorkbenchRenameValue] = useState('');
@@ -1083,8 +1176,43 @@ const RouteWorkbenchPage = () => {
     podIds: [] as string[],
     yaml: '',
   });
+  /* ── YAML 文件选择器 ── */
+  const [wbYamlTree, setWbYamlTree] = useState<ConfigTreeNode | null>(null);
+  const [wbYamlPickerOpen, setWbYamlPickerOpen] = useState(false);
+  const [wbYamlSelectedPath, setWbYamlSelectedPath] = useState('');
+  const [wbYamlPreview, setWbYamlPreview] = useState('');
+  const [wbYamlPickerLoading, setWbYamlPickerLoading] = useState(false);
+  const loadWbYamlTree = async () => {
+    if (wbYamlTree) return;
+    setWbYamlPickerLoading(true);
+    try {
+      const res = await rpc('config.list_tree');
+      setWbYamlTree(res.root);
+    } catch {
+      message.error('资源文件加载失败');
+    }
+    setWbYamlPickerLoading(false);
+  };
+  const selectWbYamlFile = async (path: string) => {
+    setWbYamlSelectedPath(path);
+    setWbYamlPickerLoading(true);
+    try {
+      const res = await rpc('config.get', { path });
+      const yaml = res.yaml || '';
+      setWbYamlPreview(yaml);
+      setRouteWorkbenchCreateDraft((prev) => ({ ...prev, yaml }));
+    } catch {
+      message.error('YAML 读取失败');
+    } finally {
+      setWbYamlPickerLoading(false);
+    }
+  };
+  const applyWbConfigYaml = () => {
+    if (!wbYamlSelectedPath) return;
+    setWbYamlPickerOpen(false);
+  };
   useEffect(() => {
-    if (routeWorkbenchEditMode || routeWorkbenchChanges.length > 0) return;
+    if (routeWorkbenchEditMode) return;
     const nextGraph = buildRouteWorkbenchFromResources(routeList, podList, new Set(routeWorkbenchExpandedRouteKeys));
     setRouteWorkbenchNodes(nextGraph.nodes);
     setRouteWorkbenchEdges(nextGraph.edges);
@@ -1112,6 +1240,22 @@ const RouteWorkbenchPage = () => {
   useEffect(() => {
     routeWorkbenchStateRef.current = { nodes: routeWorkbenchNodes, edges: routeWorkbenchEdges };
   }, [routeWorkbenchEdges, routeWorkbenchNodes]);
+  useEffect(() => {
+    if (routeWorkbenchFocusNodeIdRef.current) {
+      const focusId = routeWorkbenchFocusNodeIdRef.current;
+      const node = routeWorkbenchNodes.find((n) => n.id === focusId);
+      if (node && routeWorkbenchReactFlowRef.current) {
+        const ingressEdge = routeWorkbenchEdges.find((e) => e.target === focusId && (e.data as any)?.type === 'gateway');
+        const ingressNode = ingressEdge ? routeWorkbenchNodes.find((n) => n.id === ingressEdge.source) : null;
+        if (ingressNode) {
+          routeWorkbenchReactFlowRef.current.setCenter(node.position.x + 380, node.position.y, { zoom: 0.8, duration: 400 });
+        } else {
+          routeWorkbenchReactFlowRef.current.setCenter(node.position.x + 380, node.position.y, { zoom: 1.2, duration: 400 });
+        }
+        routeWorkbenchFocusNodeIdRef.current = '';
+      }
+    }
+  }, [routeWorkbenchNodes]);
   useEffect(() => {
     const handleRouteWorkbenchUndo = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -1219,41 +1363,31 @@ const RouteWorkbenchPage = () => {
               yaml: routeWorkbenchCreateDraft.yaml.trim() || undefined,
             });
             resourceStore.addServiceEntry(entry);
+            routeWorkbenchFocusNodeIdRef.current = `se-${entry.id}`;
             message.success(`SE ${entry.name} 已创建`);
           } else {
-            if (!routeWorkbenchCreateDraft.serviceEntryId) {
-              message.warning('创建 SVC 需要选择 SE');
-              return;
-            }
             const service = createManualService({
               name,
               cluster: routeWorkbenchCreateDraft.cluster,
               namespace: routeWorkbenchCreateDraft.namespace || 'default',
-              type: routeWorkbenchCreateDraft.serviceType as 'ClusterIP' | 'NodePort' | 'LoadBalancer',
-              serviceEntryId: routeWorkbenchCreateDraft.serviceEntryId,
-              podIds: routeWorkbenchCreateDraft.podIds,
-              port: routeWorkbenchCreateDraft.port,
+              type: 'ClusterIP',
+              serviceEntryId: routeWorkbenchCreateDraft.serviceEntryId || undefined,
             });
-            const nextService = {
-              ...service,
-              ports: [{
-                name: routeWorkbenchCreateDraft.portName || 'http',
-                port: Number(routeWorkbenchCreateDraft.port) || 8000,
-                targetPort: Number(routeWorkbenchCreateDraft.targetPort) || Number(routeWorkbenchCreateDraft.port) || 8000,
-                protocol: routeWorkbenchCreateDraft.protocol as 'TCP' | 'UDP',
-              }],
-              selector: routeWorkbenchCreateDraft.selectorKey.trim()
-                ? { [routeWorkbenchCreateDraft.selectorKey.trim()]: routeWorkbenchCreateDraft.selectorValue.trim() || name }
-                : {},
-              labels: { app: name },
-              podIds: routeWorkbenchCreateDraft.podIds,
-              ...(routeWorkbenchCreateDraft.yaml.trim() ? { yaml: routeWorkbenchCreateDraft.yaml.trim(), source: 'imported-yaml' as const } : {}),
-            };
-            resourceStore.addService(nextService);
+            resourceStore.addService(service.serviceEntryId
+              ? {
+                  ...service,
+                  yaml: routeWorkbenchCreateDraft.yaml.trim() || service.yaml,
+                  labels: { app: name },
+                }
+              : {
+                  ...service,
+                  yaml: routeWorkbenchCreateDraft.yaml.trim() || service.yaml,
+                  labels: { app: name },
+                },
+            );
             message.success(`SVC ${service.name} 已创建`);
           }
           setRouteWorkbenchCreateKind('');
-          setRouteWorkbenchChanges((changes) => [...changes, { type: '新增', desc: `创建 ${routeWorkbenchCreateKind.toUpperCase()} ${name}` }]);
         };
         const openWorkbenchRename = (nodeId: string) => {
           const node = routeWorkbenchNodes.find((item) => item.id === nodeId);
@@ -1269,6 +1403,11 @@ const RouteWorkbenchPage = () => {
           pushRouteWorkbenchUndo();
           setRouteWorkbenchNodes((nodes) => nodes.filter((item) => item.id !== nodeId));
           setRouteWorkbenchEdges((edges) => edges.filter((edge) => edge.source !== nodeId && edge.target !== nodeId));
+          if (data?.kind === 'clusterNode' && data.sourceRouteKey) {
+            resourceStore.removeServiceEntry(data.sourceRouteKey);
+          } else if (data?.kind === 'serviceNode' && data.sourceServiceKey) {
+            resourceStore.removeService(data.sourceServiceKey);
+          }
           if (routeWorkbenchSelected === nodeId) {
             setRouteWorkbenchSelected('');
             setRouteWorkbenchPanelTab('detail');
@@ -1288,6 +1427,14 @@ const RouteWorkbenchPage = () => {
           setRouteWorkbenchChanges((changes) => [...changes, { type: '修改', desc: `重命名为 ${nextName}` }]);
           setRouteWorkbenchRenameNodeId('');
           setRouteWorkbenchRenameValue('');
+        };
+        const autoLayoutWorkbench = () => {
+          pushRouteWorkbenchUndo();
+          const allKeys = routeList.map((r) => r.key);
+          const initial = buildRouteWorkbenchFromResources(routeList, podList, new Set(allKeys));
+          setRouteWorkbenchExpandedRouteKeys(allKeys);
+          setRouteWorkbenchNodes(initial.nodes);
+          setRouteWorkbenchEdges(initial.edges);
         };
         const addWorkbenchNode = (kind: RouteWorkbenchKind) => {
           if (kind === 'clusterNode') {
@@ -1471,9 +1618,13 @@ const RouteWorkbenchPage = () => {
             }
             return (
               <>
-                <label><span>显示名称</span><Input value={selectedData.title} readOnly /></label>
-                <label><span>资源类型</span><Input value={typeLabel} readOnly /></label>
-                <label><span>所属集群</span><Select value={selectedData.cluster || '全局'} options={['全局', 'st', 'bx', 'st1'].map((value) => ({ value, label: value }))} /></label>
+                {selectedData.kind !== 'ingressGroupNode' && (
+                  <>
+                    <label><span>显示名称</span><Input value={selectedData.title} readOnly /></label>
+                    <label><span>资源类型</span><Input value={typeLabel} readOnly /></label>
+                    <label><span>所属集群</span><Select value={selectedData.cluster || '全局'} options={['全局', 'st', 'bx', 'st1'].map((value) => ({ value, label: value }))} /></label>
+                  </>
+                )}
                 {selectedData.kind === 'clusterNode' && (
                   <>
                     <label><span>Hosts</span><Input value="glm-5.1-cluster.local" readOnly /></label>
@@ -1567,14 +1718,7 @@ const RouteWorkbenchPage = () => {
                   <>
                     <label><span>集群名称</span><Input value={selectedData.title} readOnly /></label>
                     <label><span>资源状态</span><Input value={`${selectedData.subtitle || '0 SE · 0 实例'}`} readOnly /></label>
-                    <label><span>部署节点</span><Input value={`${selectedData.nodeCount || 0} 个节点`} readOnly /></label>
-                    <div className="ataas-route-workbench-edit-card">
-                      <div className="ataas-route-workbench-edit-title">
-                        <strong>集群下游</strong>
-                        <Button size="small" type="text" icon={<EditOutlined />} onClick={() => pushWorkbenchChange('修改', `${selectedData.title} 调整 SE 绑定`)}>修改</Button>
-                      </div>
-                      <label><span>SE</span><Input defaultValue="glm-5.1 / glm-5.1-canary" onBlur={(event) => pushWorkbenchChange('修改', `${selectedData.title} SE 改为 ${event.target.value}`)} /></label>
-                    </div>
+                    <label><span>部署节点</span><Input value={`${selectedData.nodeCount || 0} 个节点`} readOnly addonAfter={onNavigateToNodeManagement && <LinkOutlined style={{ cursor: 'pointer' }} onClick={() => onNavigateToNodeManagement(selectedData.cluster || '')} />} /></label>
                   </>
                 )}
                 {selectedData.kind === 'modelNode' && (
@@ -1597,11 +1741,13 @@ const RouteWorkbenchPage = () => {
                     </div>
                   </>
                 )}
-                <div className="ataas-route-workbench-checks">
-                  <div><span>链路健康</span><strong>{selectedData.health === 'warning' ? '需关注' : selectedData.health === 'error' ? '异常' : '正常'}</strong></div>
-                  <div><span>配置来源</span><strong>资源文件 / 表单生成</strong></div>
-                  <div><span>最近变更</span><strong>2026/07/02 21:47</strong></div>
-                </div>
+                {selectedData.kind !== 'ingressGroupNode' && (
+                  <div className="ataas-route-workbench-checks">
+                    <div><span>链路健康</span><strong>{selectedData.health === 'warning' ? '需关注' : selectedData.health === 'error' ? '异常' : '正常'}</strong></div>
+                    <div><span>配置来源</span><strong>资源文件 / 表单生成</strong></div>
+                    <div><span>最近变更</span><strong>2026/07/02 21:47</strong></div>
+                  </div>
+                )}
               </>
             );
           };
@@ -1618,8 +1764,12 @@ const RouteWorkbenchPage = () => {
               <div className="ataas-route-workbench-panel-tabs">
                 <button className={routeWorkbenchPanelTab === 'detail' ? 'active' : ''} onClick={() => setRouteWorkbenchPanelTab('detail')}>资源详情</button>
                 <button className={routeWorkbenchPanelTab === 'relation' ? 'active' : ''} onClick={() => setRouteWorkbenchPanelTab('relation')}>关联关系</button>
-                <button className={routeWorkbenchPanelTab === 'yaml' ? 'active' : ''} onClick={() => setRouteWorkbenchPanelTab('yaml')}>YAML</button>
-                <button className={routeWorkbenchPanelTab === 'history' ? 'active' : ''} onClick={() => setRouteWorkbenchPanelTab('history')}>History</button>
+                {selectedData.kind !== 'ingressGroupNode' && (
+                  <button className={routeWorkbenchPanelTab === 'yaml' ? 'active' : ''} onClick={() => setRouteWorkbenchPanelTab('yaml')}>YAML</button>
+                )}
+                {selectedData.kind !== 'ingressGroupNode' && (
+                  <button className={routeWorkbenchPanelTab === 'history' ? 'active' : ''} onClick={() => setRouteWorkbenchPanelTab('history')}>History</button>
+                )}
               </div>
               <div className="ataas-route-workbench-form">
                 {renderPanelBody()}
@@ -1667,6 +1817,9 @@ const RouteWorkbenchPage = () => {
                 >
                   {routeWorkbenchEditMode ? '退出编辑' : '编辑模式'}
                 </Button>
+                <Button onClick={autoLayoutWorkbench}>
+                  <ApartmentOutlined /> 自动排版
+                </Button>
               </Space>
             </header>
             <div className="ataas-route-workbench-shell">
@@ -1676,7 +1829,15 @@ const RouteWorkbenchPage = () => {
                   ['clusterNode', 'SE'],
                   ['serviceNode', 'SVC'],
                 ] as Array<[RouteWorkbenchKind, string]>).map(([type, label]) => (
-                  <button key={String(type)} onClick={() => addWorkbenchNode(type)}>
+                  <button
+                    key={String(type)}
+                    draggable
+                    onClick={() => addWorkbenchNode(type)}
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData('application/rtwb-node', type);
+                      e.dataTransfer.effectAllowed = 'move';
+                    }}
+                  >
                     <span className={`ataas-rf-node-icon ${type}`}>{routeWorkbenchKindIcon[type]}</span>
                     <span className="ataas-route-workbench-palette-label">{label}</span>
                   </button>
@@ -1706,6 +1867,13 @@ const RouteWorkbenchPage = () => {
                     setRouteWorkbenchSelected(node.id);
                     setRouteWorkbenchPanelTab('detail');
                     setRouteWorkbenchContextMenu({ nodeId: node.id, x: event.clientX, y: event.clientY });
+                  }}
+                  onInit={(instance) => { routeWorkbenchReactFlowRef.current = instance; }}
+                  onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    const kind = e.dataTransfer.getData('application/rtwb-node') as RouteWorkbenchKind | '';
+                    if (kind) addWorkbenchNode(kind);
                   }}
                   onPaneClick={() => {
                     setRouteWorkbenchSelected('');
@@ -1759,147 +1927,203 @@ const RouteWorkbenchPage = () => {
                 {renderWorkbenchPanel()}
               </main>
             </div>
-            <Modal
-              open={!!routeWorkbenchCreateKind}
-              title={routeWorkbenchCreateKind === 'se' ? '创建 SE' : '创建 SVC'}
-              width={routeWorkbenchCreateKind === 'svc' ? 660 : 560}
-              okText="创建"
-              cancelText="取消"
-              onOk={submitWorkbenchCreate}
-              onCancel={() => setRouteWorkbenchCreateKind('')}
-            >
-              <div className="ataas-route-workbench-create-form">
-                <label>
-                  <span>{routeWorkbenchCreateKind === 'se' ? 'SE 名称' : 'SVC 名称'}</span>
-                  <Input
-                    value={routeWorkbenchCreateDraft.name}
-                    onChange={(event) => setRouteWorkbenchCreateDraft((prev) => ({
-                      ...prev,
-                      name: event.target.value,
-                      selectorValue: prev.selectorValue || event.target.value,
-                    }))}
-                    placeholder={routeWorkbenchCreateKind === 'se' ? '例如 glm-5.1' : '例如 glm51-router-01'}
-                  />
-                </label>
-                <label>
-                  <span>集群</span>
-                  <Select
-                    value={routeWorkbenchCreateDraft.cluster}
-                    options={clusterOptions.map((item) => ({ value: item, label: item }))}
-                    onChange={(value) => {
-                      const serviceEntryId = resourceStore.state.serviceEntries.find((item) => item.cluster === value)?.id || '';
-                      setRouteWorkbenchCreateDraft((prev) => ({ ...prev, cluster: value, serviceEntryId: routeWorkbenchCreateKind === 'svc' ? serviceEntryId : '', podIds: [] }));
-                    }}
-                  />
-                </label>
-                <label>
-                  <span>命名空间</span>
-                  <Input
-                    value={routeWorkbenchCreateDraft.namespace}
-                    onChange={(event) => setRouteWorkbenchCreateDraft((prev) => ({ ...prev, namespace: event.target.value }))}
-                  />
-                </label>
-                {routeWorkbenchCreateKind === 'svc' && (
-                  <label>
-                    <span>绑定 SE</span>
+            {routeWorkbenchCreateKind === 'se' ? (
+              <>
+              <Drawer
+                title="创建 ServiceEntry"
+                open={true}
+                onClose={() => setRouteWorkbenchCreateKind('')}
+                width={560}
+                footer={
+                  <div className="ataas-drawer-footer">
+                    <Button onClick={() => setRouteWorkbenchCreateKind('')}>取消</Button>
+                    <Button type="primary" onClick={submitWorkbenchCreate}>确定</Button>
+                  </div>
+                }
+              >
+                <div className="ataas-cm-create-form">
+                  <div className="ataas-cm-create-field">
+                    <label>ServiceEntry名称 <span style={{ color: '#d92d20' }}>*</span></label>
+                    <Input
+                      placeholder="例如: glm-5.1"
+                      value={routeWorkbenchCreateDraft.name}
+                      onChange={(event) => setRouteWorkbenchCreateDraft((prev) => ({
+                        ...prev,
+                        name: event.target.value,
+                        selectorValue: prev.selectorValue || event.target.value,
+                      }))}
+                    />
+                  </div>
+                  <div className="ataas-cm-create-field">
+                    <label>集群 <span style={{ color: '#d92d20' }}>*</span></label>
+                    <Select
+                      value={routeWorkbenchCreateDraft.cluster || undefined}
+                      onChange={(value) => setRouteWorkbenchCreateDraft((prev) => ({ ...prev, cluster: value }))}
+                      placeholder="请选择集群"
+                      style={{ width: '100%' }}
+                      options={clusterOptions.map((item) => ({ value: item, label: item }))}
+                    />
+                  </div>
+                  <div className="ataas-cm-create-field">
+                    <label>YAML 文件</label>
+                    <div className="ataas-cm-create-yaml-row">
+                      {wbYamlSelectedPath ? (
+                        <div className="ataas-cm-selected-yaml">
+                          <FileSearchOutlined />
+                          <span>{wbYamlSelectedPath}</span>
+                          <button
+                            type="button"
+                            className="ataas-cm-remove-yaml"
+                            onClick={() => { setWbYamlSelectedPath(''); setWbYamlPreview(''); setRouteWorkbenchCreateDraft((prev) => ({ ...prev, yaml: '' })); }}
+                          >
+                            移除
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="ataas-cm-select-yaml-hint">未选择</span>
+                      )}
+                      <Tooltip title="从资源文件选择">
+                        <Button type="text" size="small" icon={<UploadOutlined />} onClick={() => { loadWbYamlTree(); setWbYamlPickerOpen(true); }} />
+                      </Tooltip>
+                    </div>
+                  </div>
+                </div>
+              </Drawer>
+            </>
+            ) : (
+              <Drawer
+                title="创建 SVC"
+                open={!!routeWorkbenchCreateKind}
+                onClose={() => setRouteWorkbenchCreateKind('')}
+                width={560}
+                footer={
+                  <div className="ataas-drawer-footer">
+                    <Button onClick={() => setRouteWorkbenchCreateKind('')}>取消</Button>
+                    <Button type="primary" onClick={submitWorkbenchCreate}>确定</Button>
+                  </div>
+                }
+              >
+                <div className="ataas-cm-create-form">
+                  <div className="ataas-cm-create-field">
+                    <label>Service名称 <span style={{ color: '#d92d20' }}>*</span></label>
+                    <Input
+                      placeholder="例如: glm51-router-01"
+                      value={routeWorkbenchCreateDraft.name}
+                      onChange={(event) => setRouteWorkbenchCreateDraft((prev) => ({ ...prev, name: event.target.value }))}
+                    />
+                  </div>
+                  <div className="ataas-cm-create-field">
+                    <label>集群 <span style={{ color: '#d92d20' }}>*</span></label>
+                    <Select
+                      value={routeWorkbenchCreateDraft.cluster || undefined}
+                      onChange={(value) => setRouteWorkbenchCreateDraft((prev) => ({ ...prev, cluster: value, serviceEntryId: '', podIds: [] }))}
+                      placeholder="请选择集群"
+                      style={{ width: '100%' }}
+                      options={clusterOptions.map((item) => ({ value: item, label: item }))}
+                    />
+                  </div>
+                  <div className="ataas-cm-create-field">
+                    <label>关联 ServiceEntry（可选）</label>
                     <Select
                       value={routeWorkbenchCreateDraft.serviceEntryId || undefined}
-                      placeholder="请选择当前集群下的 SE"
+                      onChange={(value) => setRouteWorkbenchCreateDraft((prev) => ({ ...prev, serviceEntryId: value }))}
+                      placeholder="不关联 SE"
+                      allowClear
+                      style={{ width: '100%' }}
                       options={resourceStore.state.serviceEntries
                         .filter((item) => item.cluster === routeWorkbenchCreateDraft.cluster)
-                        .map((item) => ({ value: item.id, label: `${item.name} / ${item.namespace}` }))}
-                      onChange={(value) => setRouteWorkbenchCreateDraft((prev) => ({ ...prev, serviceEntryId: value }))}
+                        .map((item) => ({ value: item.id, label: `${item.name} (${item.cluster})` }))}
                     />
-                  </label>
-                )}
-                {routeWorkbenchCreateKind === 'svc' && (
-                  <>
-                    <label>
-                      <span>Service 类型</span>
-                      <Select
-                        value={routeWorkbenchCreateDraft.serviceType}
-                        options={['ClusterIP', 'NodePort', 'LoadBalancer'].map((value) => ({ value, label: value }))}
-                        onChange={(value) => setRouteWorkbenchCreateDraft((prev) => ({ ...prev, serviceType: value }))}
-                      />
-                    </label>
-                    <label>
-                      <span>端口名称</span>
-                      <Input
-                        value={routeWorkbenchCreateDraft.portName}
-                        onChange={(event) => setRouteWorkbenchCreateDraft((prev) => ({ ...prev, portName: event.target.value }))}
-                        placeholder="http"
-                      />
-                    </label>
-                    <div className="ataas-route-workbench-create-grid">
-                      <label>
-                        <span>Service Port</span>
-                        <InputNumber
-                          min={1}
-                          max={65535}
-                          value={routeWorkbenchCreateDraft.port}
-                          onChange={(value) => setRouteWorkbenchCreateDraft((prev) => ({ ...prev, port: Number(value) || 8000 }))}
-                        />
-                      </label>
-                      <label>
-                        <span>Target Port</span>
-                        <InputNumber
-                          min={1}
-                          max={65535}
-                          value={routeWorkbenchCreateDraft.targetPort}
-                          onChange={(value) => setRouteWorkbenchCreateDraft((prev) => ({ ...prev, targetPort: Number(value) || prev.port }))}
-                        />
-                      </label>
+                  </div>
+                  <div className="ataas-cm-create-field">
+                    <label>YAML 文件</label>
+                    <div className="ataas-cm-create-yaml-row">
+                      {routeWorkbenchCreateDraft.yaml ? (
+                        <div className="ataas-cm-selected-yaml">
+                          <FileSearchOutlined />
+                          <span>已选择 YAML 文件</span>
+                          <button
+                            type="button"
+                            className="ataas-cm-remove-yaml"
+                            onClick={() => setRouteWorkbenchCreateDraft((prev) => ({ ...prev, yaml: '' }))}
+                          >
+                            移除
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="ataas-cm-select-yaml-hint">未选择</span>
+                      )}
+                      <Tooltip title="从资源文件选择">
+                        <Button type="text" size="small" icon={<UploadOutlined />} onClick={() => { loadWbYamlTree(); setWbYamlPickerOpen(true); }} />
+                      </Tooltip>
                     </div>
-                    <label>
-                      <span>协议</span>
-                      <Select
-                        value={routeWorkbenchCreateDraft.protocol}
-                        options={['TCP', 'UDP'].map((value) => ({ value, label: value }))}
-                        onChange={(value) => setRouteWorkbenchCreateDraft((prev) => ({ ...prev, protocol: value }))}
-                      />
-                    </label>
-                    <div className="ataas-route-workbench-create-grid">
-                      <label>
-                        <span>Selector Key</span>
-                        <Input
-                          value={routeWorkbenchCreateDraft.selectorKey}
-                          onChange={(event) => setRouteWorkbenchCreateDraft((prev) => ({ ...prev, selectorKey: event.target.value }))}
-                          placeholder="app"
-                        />
-                      </label>
-                      <label>
-                        <span>Selector Value</span>
-                        <Input
-                          value={routeWorkbenchCreateDraft.selectorValue}
-                          onChange={(event) => setRouteWorkbenchCreateDraft((prev) => ({ ...prev, selectorValue: event.target.value }))}
-                          placeholder={routeWorkbenchCreateDraft.name || 'svc-name'}
-                        />
-                      </label>
-                    </div>
-                    <label>
-                      <span>关联 POD</span>
-                      <Select
-                        mode="multiple"
-                        allowClear
-                        value={routeWorkbenchCreateDraft.podIds}
-                        placeholder="可为空，模型部署同步后再关联"
-                        options={resourceStore.state.pods
-                          .filter((pod) => pod.cluster === routeWorkbenchCreateDraft.cluster)
-                          .map((pod) => ({ value: pod.id, label: `${pod.name} / ${pod.role} / ${pod.status}` }))}
-                        onChange={(value) => setRouteWorkbenchCreateDraft((prev) => ({ ...prev, podIds: value }))}
-                      />
-                    </label>
-                  </>
-                )}
-                <label>
-                  <span>YAML</span>
-                  <Input.TextArea
-                    rows={6}
-                    value={routeWorkbenchCreateDraft.yaml}
-                    onChange={(event) => setRouteWorkbenchCreateDraft((prev) => ({ ...prev, yaml: event.target.value }))}
-                    placeholder={routeWorkbenchCreateKind === 'se' ? '可选：粘贴 ServiceEntry YAML' : '可选：粘贴 Service YAML'}
-                  />
-                </label>
+                  </div>
+                </div>
+              </Drawer>
+            )}
+            <Modal
+              className="ataas-config-yaml-picker-modal"
+              title="从资源文件选择 YAML"
+              open={wbYamlPickerOpen}
+              onCancel={() => { setWbYamlPickerOpen(false); setWbYamlSelectedPath(''); }}
+              width={920}
+              footer={
+                <div className="ataas-config-yaml-picker-footer">
+                  <Button onClick={() => { setWbYamlPickerOpen(false); setWbYamlSelectedPath(''); }}>取消</Button>
+                  <Button type="primary" disabled={!wbYamlSelectedPath || !wbYamlPreview.trim()} onClick={applyWbConfigYaml}>确认选择</Button>
+                </div>
+              }
+            >
+              <div className={'ataas-config-yaml-picker' + (wbYamlSelectedPath ? '' : '')}>
+                <div className="ataas-config-yaml-picker-tree">
+                  <div className="ataas-config-yaml-picker-title">文件</div>
+                  <div className="ataas-config-yaml-picker-tree-body">
+                    {wbYamlPickerLoading && !wbYamlTree ? (
+                      <div className="ataas-config-yaml-picker-empty">加载中...</div>
+                    ) : wbYamlTree ? (
+                      <>
+                        {(function renderTree(node: ConfigTreeNode, depth = 0): ReactNode {
+                          const children = node.children || [];
+                          return children.map((child) => {
+                            if (child.is_dir) {
+                              return (
+                                <div key={child.path}>
+                                  <div className="ataas-config-yaml-picker-dir" style={{ paddingLeft: 12 + depth * 14 }}>
+                                    <DownOutlined />
+                                    <span>{child.name}</span>
+                                  </div>
+                                  {renderTree(child, depth + 1)}
+                                </div>
+                              );
+                            }
+                            return (
+                              <button
+                                key={child.path}
+                                type="button"
+                                className={'ataas-config-yaml-picker-file' + (wbYamlSelectedPath === child.path ? ' selected' : '')}
+                                style={{ paddingLeft: 24 + depth * 14 }}
+                                onClick={() => selectWbYamlFile(child.path)}
+                              >
+                                <FileSearchOutlined />
+                                <span>{child.name}</span>
+                              </button>
+                            );
+                          });
+                        })(wbYamlTree, 0)}
+                      </>
+                    ) : (
+                      <div className="ataas-config-yaml-picker-empty">暂无配置文件</div>
+                    )}
+                  </div>
+                </div>
+                <div className="ataas-config-yaml-picker-preview">
+                  <div className="ataas-config-yaml-picker-title">{wbYamlSelectedPath ? wbYamlSelectedPath : '文件预览'}</div>
+                  {wbYamlSelectedPath ? (
+                    <pre className="ataas-cm-yaml-preview" style={{ margin: 0, padding: 12, fontSize: 12, lineHeight: 1.6, overflow: 'auto', height: '100%' }}>{wbYamlPreview}</pre>
+                  ) : (
+                    <div className="ataas-config-yaml-picker-empty" style={{ height: '100%' }}>请在左侧文件树中选择一个文件</div>
+                  )}
+                </div>
               </div>
             </Modal>
             <Modal

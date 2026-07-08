@@ -548,16 +548,17 @@ const clusters: ClusterRecord[] = [
 ];
 
 const nodes: NodeRecord[] = [
-  { key: 'n1', clusterKey: 'c1', name: 'qujing4', label: 'GPU=RTX_4090', tags: ['deployment=dev', 'zone=shanghai', 'worker=high-performance', 'accelerator=nvidia-rtx'], clusterName: 'default', status: 'normal', authStatus: 'authorized', modelCount: 0, runningInstances: 0, ip: '192.168.110.4', cpu: 128, cpuUsed: 42, memory: '1007.56 GB', memoryUsed: '352.6 GB', gpu: 4, gpuMemory: '191.95 GB', gpuMemoryUsed: '95.9 GB', disk: '3.86 TB', diskUsed: '1.54 TB', gpuCards: [{ index: 0, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '12.0 GB', memoryFree: '11.99 GB', utilization: 52, power: 315, temperature: 72, status: 'active', replicas: [] }, { index: 1, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 98, power: 425, temperature: 81, status: 'active', replicas: [] }, { index: 2, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 95, power: 410, temperature: 78, status: 'active', replicas: [] }, { index: 3, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 87, power: 380, temperature: 75, status: 'active', replicas: [] }] },
-  { key: 'n2', clusterKey: 'c1', name: 'qujing7', label: 'GPU=RTX_4090', clusterName: 'default', status: 'normal', authStatus: 'authorized', modelCount: 0, runningInstances: 0, ip: '192.168.110.21', cpu: 192, cpuUsed: 68, memory: '1.48 TB', memoryUsed: '521.3 GB', gpu: 4, gpuMemory: '191.95 GB', gpuMemoryUsed: '115.2 GB', disk: '12.6 TB', diskUsed: '5.04 TB', gpuCards: [{ index: 0, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '12.0 GB', memoryFree: '11.99 GB', utilization: 48, power: 300, temperature: 68, status: 'active', replicas: [] }, { index: 1, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 92, power: 400, temperature: 76, status: 'active', replicas: [] }, { index: 2, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 94, power: 405, temperature: 77, status: 'active', replicas: [] }, { index: 3, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 88, power: 385, temperature: 74, status: 'active', replicas: [] }] },
-  { key: 'n3', clusterKey: 'c1', name: 'qujing21', label: 'GPU=RTX_4090', clusterName: 'default', status: 'normal', authStatus: 'unauthorized', modelCount: 0, runningInstances: 0, ip: '192.168.109.6', cpu: 192, cpuUsed: 56, memory: '1007.51 GB', memoryUsed: '483.6 GB', gpu: 2, gpuMemory: '95.97 GB', gpuMemoryUsed: '67.2 GB', disk: '3.86 TB', diskUsed: '2.12 TB', gpuCards: [{ index: 0, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '19.2 GB', memoryFree: '4.79 GB', utilization: 78, power: 350, temperature: 71, status: 'active', replicas: [] }, { index: 1, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 96, power: 420, temperature: 82, status: 'active', replicas: [] }] },
-  { key: 'n4', clusterKey: 'c1', name: 'qujing1', label: 'GPU=RTX_5000', clusterName: 'default', status: 'error', authStatus: 'unauthorized', modelCount: 0, runningInstances: 0, ip: '192.168.200.10', cpu: 192, cpuUsed: 0, memory: '1007.39 GB', memoryUsed: '0 GB', gpu: 2, gpuMemory: '95.97 GB', gpuMemoryUsed: '0 GB', disk: '3.86 TB', diskUsed: '1.89 TB', gpuCards: [{ index: 0, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 35, status: 'idle', replicas: [] }, { index: 1, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 34, status: 'idle', replicas: [] }] },
-  { key: 'n5', clusterKey: 'c1', name: 'qujing24', label: 'GPU=RTX_4090', clusterName: 'default', status: 'normal', authStatus: 'authorized', modelCount: 0, runningInstances: 0, ip: '192.168.109.23', cpu: 96, cpuUsed: 38, memory: '503.35 GB', memoryUsed: '176.2 GB', gpu: 2, gpuMemory: '95.97 GB', gpuMemoryUsed: '57.6 GB', disk: '5.68 TB', diskUsed: '2.27 TB', gpuCards: [{ index: 0, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '14.4 GB', memoryFree: '9.59 GB', utilization: 58, power: 320, temperature: 69, status: 'active', replicas: [] }, { index: 1, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 93, power: 408, temperature: 79, status: 'active', replicas: [] }] },
-  { key: 'n6', clusterKey: 'c1', name: 'qujing20', label: 'GPU=RTX_4011', clusterName: 'default', status: 'normal', authStatus: 'authorized', modelCount: 0, runningInstances: 0, ip: '192.168.110.20', cpu: 192, cpuUsed: 72, memory: '1007.51 GB', memoryUsed: '604.5 GB', gpu: 2, gpuMemory: '95.97 GB', gpuMemoryUsed: '72.0 GB', disk: '3.86 TB', diskUsed: '1.62 TB', gpuCards: [{ index: 0, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '16.8 GB', memoryFree: '7.19 GB', utilization: 68, power: 340, temperature: 70, status: 'active', replicas: [] }, { index: 1, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 91, power: 395, temperature: 76, status: 'active', replicas: [] }] },
-  { key: 'n7', clusterKey: 'c2', name: 'nj-h20-001', label: 'GPU=H20', tags: ['deployment=glm51_1_prefill', 'worker=true'], clusterName: 'online', status: 'normal', authStatus: 'authorized', modelCount: 1, runningInstances: 2, ip: '192.168.120.1', cpu: 256, cpuUsed: 112, memory: '2.01 TB', memoryUsed: '824.1 GB', gpu: 8, gpuMemory: '383.9 GB', gpuMemoryUsed: '230.3 GB', disk: '8.5 TB', diskUsed: '4.25 TB', gpuCards: Array.from({ length: 8 }, (_, i) => ({ index: i, model: 'H20', spec: '48 GB', memoryTotal: '47.99 GB', memoryUsed: i < 5 ? '47.9 GB' : '23.9 GB', memoryFree: i < 5 ? '0.09 GB' : '24.09 GB', utilization: i < 5 ? 95 : 48, power: i < 5 ? 280 : 160, temperature: i < 5 ? 78 : 62, status: 'active', replicas: i < 5 ? ['deepseek-prod-r1-p1', 'deepseek-prod-r1-p2'] : [] })) },
-  { key: 'n8', clusterKey: 'c2', name: 'nj-h20-002', label: 'GPU=H20', tags: ['deployment=prod'], clusterName: 'online', status: 'normal', authStatus: 'authorized', modelCount: 2, runningInstances: 4, ip: '192.168.120.2', cpu: 256, cpuUsed: 148, memory: '2.01 TB', memoryUsed: '1.21 TB', gpu: 8, gpuMemory: '383.9 GB', gpuMemoryUsed: '287.9 GB', disk: '8.5 TB', diskUsed: '5.53 TB', gpuCards: Array.from({ length: 8 }, (_, i) => ({ index: i, model: 'H20', spec: '48 GB', memoryTotal: '47.99 GB', memoryUsed: i < 6 ? '47.9 GB' : '23.9 GB', memoryFree: i < 6 ? '0.09 GB' : '24.09 GB', utilization: i < 6 ? 97 : 52, power: i < 6 ? 285 : 165, temperature: i < 6 ? 80 : 64, status: 'active', replicas: i < 6 ? ['qwen3-coding-p1', 'qwen3-coding-p2'] : [] })) },
-  { key: 'n9', clusterKey: 'c2', name: 'nj-910b-001', label: 'GPU=Ascend_910B', clusterName: 'online', status: 'warning', authStatus: 'authorized', modelCount: 0, runningInstances: 0, ip: '192.168.120.10', cpu: 128, cpuUsed: 96, memory: '1.01 TB', memoryUsed: '757.5 GB', gpu: 8, gpuMemory: '191.95 GB', gpuMemoryUsed: '153.6 GB', disk: '4.2 TB', diskUsed: '2.94 TB', gpuCards: Array.from({ length: 8 }, (_, i) => ({ index: i, model: 'Ascend 910B', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '19.2 GB', memoryFree: '4.79 GB', utilization: i > 4 ? 82 : 76, power: 220, temperature: 72, status: 'active', replicas: [] })) },
-  { key: 'n10', clusterKey: 'c3', name: 'gz-l20-001', label: 'GPU=L20', clusterName: 'test', status: 'normal', authStatus: 'unauthorized', modelCount: 0, runningInstances: 0, ip: '192.168.130.5', cpu: 192, cpuUsed: 84, memory: '1007.51 GB', memoryUsed: '453.4 GB', gpu: 4, gpuMemory: '191.95 GB', gpuMemoryUsed: '115.2 GB', disk: '3.86 TB', diskUsed: '1.35 TB', gpuCards: Array.from({ length: 4 }, (_, i) => ({ index: i, model: 'L20', spec: '48 GB', memoryTotal: '47.99 GB', memoryUsed: '23.9 GB', memoryFree: '24.09 GB', utilization: 52 + i * 8, power: 180, temperature: 66, status: 'active', replicas: [] })) },
+  { key: 'n1', clusterKey: 'c1', name: 'qujing4', label: 'GPU=RTX_4090', tags: ['deployment=dev', 'zone=shanghai', 'worker=high-performance', 'accelerator=nvidia-rtx'], clusterName: 'beijing-prod', status: 'normal', authStatus: 'authorized', modelCount: 0, runningInstances: 0, ip: '192.168.110.4', cpu: 128, cpuUsed: 42, memory: '1007.56 GB', memoryUsed: '352.6 GB', gpu: 4, gpuMemory: '191.95 GB', gpuMemoryUsed: '95.9 GB', disk: '3.86 TB', diskUsed: '1.54 TB', gpuCards: [{ index: 0, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '12.0 GB', memoryFree: '11.99 GB', utilization: 52, power: 315, temperature: 72, status: 'active', replicas: [] }, { index: 1, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 98, power: 425, temperature: 81, status: 'active', replicas: [] }, { index: 2, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 95, power: 410, temperature: 78, status: 'active', replicas: [] }, { index: 3, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 87, power: 380, temperature: 75, status: 'active', replicas: [] }] },
+  { key: 'n2', clusterKey: 'c1', name: 'qujing7', label: 'GPU=RTX_4090', clusterName: 'beijing-prod', status: 'normal', authStatus: 'authorized', modelCount: 0, runningInstances: 0, ip: '192.168.110.21', cpu: 192, cpuUsed: 68, memory: '1.48 TB', memoryUsed: '521.3 GB', gpu: 4, gpuMemory: '191.95 GB', gpuMemoryUsed: '115.2 GB', disk: '12.6 TB', diskUsed: '5.04 TB', gpuCards: [{ index: 0, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '12.0 GB', memoryFree: '11.99 GB', utilization: 48, power: 300, temperature: 68, status: 'active', replicas: [] }, { index: 1, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 92, power: 400, temperature: 76, status: 'active', replicas: [] }, { index: 2, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 94, power: 405, temperature: 77, status: 'active', replicas: [] }, { index: 3, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 88, power: 385, temperature: 74, status: 'active', replicas: [] }] },
+  { key: 'n3', clusterKey: 'c1', name: 'qujing21', label: 'GPU=RTX_4090', clusterName: 'beijing-prod', status: 'normal', authStatus: 'unauthorized', modelCount: 0, runningInstances: 0, ip: '192.168.109.6', cpu: 192, cpuUsed: 56, memory: '1007.51 GB', memoryUsed: '483.6 GB', gpu: 2, gpuMemory: '95.97 GB', gpuMemoryUsed: '67.2 GB', disk: '3.86 TB', diskUsed: '2.12 TB', gpuCards: [{ index: 0, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '19.2 GB', memoryFree: '4.79 GB', utilization: 78, power: 350, temperature: 71, status: 'active', replicas: [] }, { index: 1, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 96, power: 420, temperature: 82, status: 'active', replicas: [] }] },
+  { key: 'n4', clusterKey: 'c1', name: 'qujing1', label: 'GPU=RTX_5000', clusterName: 'beijing-prod', status: 'error', authStatus: 'unauthorized', modelCount: 0, runningInstances: 0, ip: '192.168.200.10', cpu: 192, cpuUsed: 0, memory: '1007.39 GB', memoryUsed: '0 GB', gpu: 2, gpuMemory: '95.97 GB', gpuMemoryUsed: '0 GB', disk: '3.86 TB', diskUsed: '1.89 TB', gpuCards: [{ index: 0, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 35, status: 'idle', replicas: [] }, { index: 1, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 34, status: 'idle', replicas: [] }] },
+  { key: 'n5', clusterKey: 'c1', name: 'qujing24', label: 'GPU=RTX_4090', clusterName: 'beijing-prod', status: 'normal', authStatus: 'authorized', modelCount: 0, runningInstances: 0, ip: '192.168.109.23', cpu: 96, cpuUsed: 38, memory: '503.35 GB', memoryUsed: '176.2 GB', gpu: 2, gpuMemory: '95.97 GB', gpuMemoryUsed: '57.6 GB', disk: '5.68 TB', diskUsed: '2.27 TB', gpuCards: [{ index: 0, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '14.4 GB', memoryFree: '9.59 GB', utilization: 58, power: 320, temperature: 69, status: 'active', replicas: [] }, { index: 1, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 93, power: 408, temperature: 79, status: 'active', replicas: [] }] },
+  { key: 'n6', clusterKey: 'c1', name: 'qujing20', label: 'GPU=RTX_4011', clusterName: 'beijing-prod', status: 'normal', authStatus: 'authorized', modelCount: 0, runningInstances: 0, ip: '192.168.110.20', cpu: 192, cpuUsed: 72, memory: '1007.51 GB', memoryUsed: '604.5 GB', gpu: 2, gpuMemory: '95.97 GB', gpuMemoryUsed: '72.0 GB', disk: '3.86 TB', diskUsed: '1.62 TB', gpuCards: [{ index: 0, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '16.8 GB', memoryFree: '7.19 GB', utilization: 68, power: 340, temperature: 70, status: 'active', replicas: [] }, { index: 1, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 91, power: 395, temperature: 76, status: 'active', replicas: [] }] },
+  { key: 'n7', clusterKey: 'c2', name: 'nj-h20-001', label: 'GPU=H20', tags: ['deployment=glm51_1_prefill', 'worker=true'], clusterName: 'shanghai-online', status: 'normal', authStatus: 'authorized', modelCount: 1, runningInstances: 2, ip: '192.168.120.1', cpu: 256, cpuUsed: 112, memory: '2.01 TB', memoryUsed: '824.1 GB', gpu: 8, gpuMemory: '383.9 GB', gpuMemoryUsed: '230.3 GB', disk: '8.5 TB', diskUsed: '4.25 TB', gpuCards: Array.from({ length: 8 }, (_, i) => ({ index: i, model: 'H20', spec: '48 GB', memoryTotal: '47.99 GB', memoryUsed: i < 5 ? '47.9 GB' : '23.9 GB', memoryFree: i < 5 ? '0.09 GB' : '24.09 GB', utilization: i < 5 ? 95 : 48, power: i < 5 ? 280 : 160, temperature: i < 5 ? 78 : 62, status: 'active', replicas: i < 5 ? ['deepseek-prod-r1-p1', 'deepseek-prod-r1-p2'] : [] })) },
+  { key: 'n8', clusterKey: 'c2', name: 'nj-h20-002', label: 'GPU=H20', tags: ['deployment=prod'], clusterName: 'shanghai-online', status: 'normal', authStatus: 'authorized', modelCount: 2, runningInstances: 4, ip: '192.168.120.2', cpu: 256, cpuUsed: 148, memory: '2.01 TB', memoryUsed: '1.21 TB', gpu: 8, gpuMemory: '383.9 GB', gpuMemoryUsed: '287.9 GB', disk: '8.5 TB', diskUsed: '5.53 TB', gpuCards: Array.from({ length: 8 }, (_, i) => ({ index: i, model: 'H20', spec: '48 GB', memoryTotal: '47.99 GB', memoryUsed: i < 6 ? '47.9 GB' : '23.9 GB', memoryFree: i < 6 ? '0.09 GB' : '24.09 GB', utilization: i < 6 ? 97 : 52, power: i < 6 ? 285 : 165, temperature: i < 6 ? 80 : 64, status: 'active', replicas: i < 6 ? ['qwen3-coding-p1', 'qwen3-coding-p2'] : [] })) },
+  // ── c4: wuhan-kunpeng ──
+  { key: 'n11', clusterKey: 'c4', name: 'nj-910b-001', label: 'GPU=Ascend_910B', clusterName: 'wuhan-kunpeng', status: 'normal', authStatus: 'authorized', modelCount: 0, runningInstances: 0, ip: '192.168.140.5', cpu: 128, cpuUsed: 72, memory: '1.01 TB', memoryUsed: '604.8 GB', gpu: 8, gpuMemory: '191.95 GB', gpuMemoryUsed: '134.4 GB', disk: '4.2 TB', diskUsed: '2.52 TB', gpuCards: Array.from({ length: 8 }, (_, i) => ({ index: i, model: 'Ascend 910B', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: i < 6 ? '19.2 GB' : '9.6 GB', memoryFree: i < 6 ? '4.79 GB' : '14.39 GB', utilization: i < 6 ? 82 : 42, power: 220, temperature: 72, status: 'active', replicas: [] })) },
+  { key: 'n10', clusterKey: 'c3', name: 'gz-l20-001', label: 'GPU=L20', clusterName: 'guangzhou-test', status: 'normal', authStatus: 'unauthorized', modelCount: 0, runningInstances: 0, ip: '192.168.130.5', cpu: 192, cpuUsed: 84, memory: '1007.51 GB', memoryUsed: '453.4 GB', gpu: 4, gpuMemory: '191.95 GB', gpuMemoryUsed: '115.2 GB', disk: '3.86 TB', diskUsed: '1.35 TB', gpuCards: Array.from({ length: 4 }, (_, i) => ({ index: i, model: 'L20', spec: '48 GB', memoryTotal: '47.99 GB', memoryUsed: '23.9 GB', memoryFree: '24.09 GB', utilization: 52 + i * 8, power: 180, temperature: 66, status: 'active', replicas: [] })) },
 ];
 
 const pods: PodRecord[] = [
@@ -5129,7 +5130,7 @@ const deployNodes: DeployNodeOption[] = [
   { key: 'dn6', clusterKey: 'c1', name: 'qujing20', ip: '192.168.110.20', gpuType: 'RTX 4090', totalCards: 8, availableCards: 8, status: 'ready' },
   { key: 'dn7', clusterKey: 'c2', name: 'nj-h20-001', ip: '192.168.120.1', gpuType: 'H20', totalCards: 8, availableCards: 4, status: 'ready' },
   { key: 'dn8', clusterKey: 'c2', name: 'nj-h20-002', ip: '192.168.120.2', gpuType: 'H20', totalCards: 8, availableCards: 6, status: 'ready' },
-  { key: 'dn9', clusterKey: 'c2', name: 'nj-910b-001', ip: '192.168.120.10', gpuType: 'Ascend 910B', totalCards: 8, availableCards: 2, status: 'busy' },
+  { key: 'dn9', clusterKey: 'c4', name: 'nj-910b-001', ip: '192.168.140.5', gpuType: 'Ascend 910B', totalCards: 8, availableCards: 2, status: 'busy' },
   { key: 'dn10', clusterKey: 'c3', name: 'gz-l20-001', ip: '192.168.130.5', gpuType: 'L20', totalCards: 4, availableCards: 4, status: 'ready' },
   { key: 'dn11', clusterKey: 'c3', name: 'gz-a100-001', ip: '192.168.130.6', gpuType: 'A100', totalCards: 8, availableCards: 6, status: 'ready' },
   { key: 'dn12', clusterKey: 'c1', name: 'qujing5090-01', ip: '192.168.111.10', gpuType: 'RTX 5090', totalCards: 8, availableCards: 8, status: 'ready' },
@@ -8429,8 +8430,12 @@ const AtAasDesign = () => {
     };
   };
   const handleSubmitDeploy = () => {
-    if (!(deployCluster && deployServiceEntry && deployEngine && deployModel && deployServiceName.trim())) {
-      message.warning('请先填写服务名称、模型、推理引擎、部署集群和 SE');
+    if (!(deployCluster && deployEngine && deployModel && deployServiceName.trim())) {
+      message.warning('请先填写服务名称、模型、推理引擎和部署集群');
+      return;
+    }
+    if (deployMode === 'pd-separation' && !deployServiceEntry) {
+      message.warning('PD 分离模式下请选择 SE');
       return;
     }
     if (!isDeployNodeSelectionReady) {
@@ -9708,9 +9713,8 @@ const AtAasDesign = () => {
   };
 
   const nodeColumns: ColumnsType<NodeRecord> = [
-    { title: '节点名称', dataIndex: 'name', key: 'name', width: 120, render: (v, r) => (
+    { title: '节点名称', dataIndex: 'name', key: 'name', width: 120, render: (v) => (
       <span className="ataas-node-name-cell">
-        <span className={'ataas-node-status-dot' + (r.status === 'normal' ? ' normal' : '')} />
         <strong title={v}>{v}</strong>
       </span>
     ) },
@@ -9722,6 +9726,12 @@ const AtAasDesign = () => {
       </div>
     ) },
     { title: '授权状态', dataIndex: 'authStatus', key: 'authStatus', width: 95, render: (v: string) => <span className={'ataas-cluster-auth-status' + (v === 'authorized' ? ' authorized' : '')}>{v === 'authorized' ? '已授权' : '未授权'}</span> },
+    { title: '状态', key: 'status', width: 70, render: (_, r) => (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#344054' }}>
+        <i style={{ width: 7, height: 7, borderRadius: '50%', background: r.status === 'normal' ? '#00A11F' : r.status === 'warning' ? '#f59e0b' : '#E02D2D', flexShrink: 0 }} />
+        {r.status === 'normal' ? '正常' : r.status === 'warning' ? '警告' : '异常'}
+      </span>
+    ) },
     { title: '模型数量', key: 'modelCount', width: 110, render: (_, r) => {
       const count = getNodeDeployServices(r).length;
       return <span className="ataas-cluster-table-main">{count}</span>;
@@ -11848,8 +11858,8 @@ const AtAasDesign = () => {
               </div>
 	            );
 	          }
-      case 'containerManagement': return <ContainerManagementPage />;
-      case 'routeWorkbench': return <RouteWorkbenchPage />;
+      case 'containerManagement': return <ContainerManagementPage onNavigateToNodeManagement={(nodeName) => { setSelectedClusterKey('all'); setClusterNodeSearch(nodeName); setActiveTab('clusters'); setClusterPanel('nodes'); }} />;
+      case 'routeWorkbench': return <RouteWorkbenchPage onNavigateToNodeManagement={(clusterKey) => { setSelectedClusterKey(clusterKey || 'all'); setActiveTab('clusters'); setClusterPanel('nodes'); }} />;
       case 'taskFlow': return (
         <div className="ataas-b300-task-page">
           <TasksPage />
@@ -12857,19 +12867,21 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
                               showSearch
                               optionFilterProp="label"
                             />
-                            <Select
-                              className="ataas-deploy-primary-select ataas-deploy-service-entry-select"
-                              popupClassName="ataas-deploy-primary-select-dropdown"
-                              variant="borderless"
-                              placeholder="选择 SE"
-                              value={deployServiceEntry}
-                              onChange={setDeployServiceEntry}
-                              options={deployServiceEntryOptions}
-                              disabled={!deployCluster}
-                              allowClear
-                              showSearch
-                              optionFilterProp="label"
-                            />
+                            {deployMode === 'pd-separation' && (
+                              <Select
+                                className="ataas-deploy-primary-select ataas-deploy-service-entry-select"
+                                popupClassName="ataas-deploy-primary-select-dropdown"
+                                variant="borderless"
+                                placeholder="选择 SE"
+                                value={deployServiceEntry}
+                                onChange={setDeployServiceEntry}
+                                options={deployServiceEntryOptions}
+                                disabled={!deployCluster}
+                                allowClear
+                                showSearch
+                                optionFilterProp="label"
+                              />
+                            )}
                           </div>
                         </Form.Item>
                         <Form.Item label="部署方式">

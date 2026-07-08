@@ -375,6 +375,28 @@ export const useK8sResourceStore = () => {
     });
   }, [update]);
 
+  const removeServiceEntry = useCallback((entryId: string) => {
+    update((prev) => {
+      const entry = prev.serviceEntries.find((e) => e.id === entryId);
+      if (!entry) return prev;
+      const linkedServiceIds = entry.serviceIds;
+      return {
+        ...prev,
+        serviceEntries: prev.serviceEntries.filter((e) => e.id !== entryId),
+        services: prev.services.filter((s) => !linkedServiceIds.includes(s.id)),
+        pods: prev.pods.filter((p) => p.serviceId && !linkedServiceIds.includes(p.serviceId)),
+      };
+    });
+  }, [update]);
+
+  const removeService = useCallback((serviceId: string) => {
+    update((prev) => ({
+      ...prev,
+      services: prev.services.filter((s) => s.id !== serviceId),
+      pods: prev.pods.filter((p) => p.serviceId !== serviceId),
+    }));
+  }, [update]);
+
   const reset = useCallback(() => {
     const next = createInitialK8sResourceState();
     writeState(next);
@@ -382,7 +404,7 @@ export const useK8sResourceStore = () => {
     setState(next);
   }, []);
 
-  return useMemo(() => ({ state, addService, addServiceEntry, addPod, reset, update }), [addPod, addService, addServiceEntry, reset, state, update]);
+  return useMemo(() => ({ state, addService, addServiceEntry, addPod, reset, update, removeServiceEntry, removeService }), [addPod, addService, addServiceEntry, removeService, removeServiceEntry, reset, state, update]);
 };
 
 export const getServicePods = (state: K8sResourceState, service: K8sServiceResource) =>

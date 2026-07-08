@@ -1,10 +1,11 @@
-import { AppstoreOutlined, CodeOutlined, DeploymentUnitOutlined, DownOutlined, FileOutlined, FileSearchOutlined, InboxOutlined, PlusOutlined, UploadOutlined, WarningOutlined } from '@ant-design/icons';
+import { AppstoreOutlined, CodeOutlined, DeleteOutlined, DeploymentUnitOutlined, DownOutlined, FileOutlined, FileSearchOutlined, InboxOutlined, PlusOutlined, UploadOutlined, WarningOutlined } from '@ant-design/icons';
 import { Button, ConfigProvider, Drawer, Input, Modal, Select, Space, Table, Tooltip, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { rpc } from '@/lib/bus/rpc';
 import { MonacoEditor } from '@/components/shared/MonacoEditor';
 import type { ConfigCommitEntry, ConfigTreeNode } from '@/lib/types';
+import { useK8sResourceStore, createManualServiceEntry, createManualService } from './k8sResourceStore';
 import './containerManagementPage.less';
 
 type PortInfo = { port: number; targetPort: number; nodePort?: number; protocol: string };
@@ -39,98 +40,15 @@ type PodRow = {
   age: string;
 };
 
-const serviceRows: ServiceRow[] = Array.from({ length: 30 }, (_, index) => {
-  const no = index + 1;
-  const cluster = index % 3 === 0 ? 'beijing-prod' : index % 3 === 1 ? 'shanghai-online' : 'guangzhou-test';
-  const basePort = 30000 + no;
-  return {
-    key: 'svc-' + no,
-    name: 'glm51-router-' + String(no).padStart(2, '0'),
-    se: 'glm-5.1',
-    cluster,
-    namespace: 'default',
-    clusterIP: '10.43.' + (21 + (index % 6)) + '.' + (18 + index),
-    type: 'ClusterIP',
-    ports: [
-      { port: basePort, targetPort: basePort, nodePort: basePort + 6, protocol: 'TCP' },
-      { port: basePort + 100, targetPort: basePort + 100, nodePort: basePort + 106, protocol: 'TCP' },
-    ],
-    endpoints: [
-      { address: 'glm51-router-' + String(no).padStart(2, '0') + '.default.svc.cluster.local', weight: 100 },
-    ],
-    pods: 1 + (index % 3),
-    age: (2 + (index % 9)) + 'd ' + (index % 20) + 'h',
-  };
-});
-
-const podRows: PodRow[] = serviceRows.flatMap((svc, index) => {
-  const router: PodRow = {
-    key: 'router-' + svc.key,
-    name: svc.name + '-router-0',
-    cluster: svc.cluster,
-    namespace: svc.namespace,
-    role: 'router',
-    status: index % 9 === 0 ? 'Pending' : 'Running',
-    restart: index % 5,
-    image: 'sglang/router:v0.5.10',
-    yaml: 'glm-5.1/' + svc.name + '-router.yaml',
-    ip: '10.0.' + (index % 8) + '.' + (20 + index),
-    node: 'worker-' + String(index % 12).padStart(3, '0'),
-    age: svc.age,
-  };
-  const prefill: PodRow = {
-    key: 'prefill-' + svc.key,
-    name: svc.name + '-prefill-0',
-    cluster: svc.cluster,
-    namespace: svc.namespace,
-    role: 'prefill',
-    status: index % 7 === 0 ? 'Failed' : 'Running',
-    restart: (index + 1) % 4,
-    image: 'sglang/worker:v0.5.10',
-    yaml: 'glm-5.1/' + svc.name + '-prefill.yaml',
-    ip: '10.1.' + (index % 8) + '.' + (20 + index),
-    node: 'worker-' + String((index + 3) % 12).padStart(3, '0'),
-    age: svc.age,
-  };
-  const decode: PodRow = {
-    key: 'decode-' + svc.key,
-    name: svc.name + '-decode-0',
-    cluster: svc.cluster,
-    namespace: svc.namespace,
-    role: 'decode',
-    status: 'Running',
-    restart: index % 3,
-    image: 'sglang/worker:v0.5.10',
-    yaml: 'glm-5.1/' + svc.name + '-decode.yaml',
-    ip: '10.2.' + (index % 8) + '.' + (20 + index),
-    node: 'worker-' + String((index + 6) % 12).padStart(3, '0'),
-    age: svc.age,
-  };
-  return [router, prefill, decode];
-});
-
-const clusters = ['全部集群', ...Array.from(new Set(serviceRows.map((item) => item.cluster)))];
-
-/* ServiceEntry data */
 type RouteEntry = {
   key: string; name: string; cluster: string; namespace: string;
   hosts: string[];
+  ports: PortInfo[];
   endpoints: { address: string; weight: number }[];
 };
 
-const routeData: RouteEntry[] = [
-  { key: "route-1", name: "glm-5.1", cluster: "beijing-prod", namespace: "higress-system", hosts: ["glm51.example.com"], endpoints: [{ address: "glm51-router.default.svc.cluster.local", weight: 100 }] },
-  { key: "route-2", name: "deepseek-r1", cluster: "beijing-prod", namespace: "higress-system", hosts: ["deepseek.example.com"], endpoints: [{ address: "deepseek-router.default.svc.cluster.local", weight: 100 }] },
-  { key: "route-3", name: "kimi-k2", cluster: "shanghai-online", namespace: "higress-system", hosts: ["kimi.example.com"], endpoints: [{ address: "kimi-router.default.svc.cluster.local", weight: 100 }] },
-  { key: "route-4", name: "qwen-max", cluster: "shanghai-online", namespace: "higress-system", hosts: ["qwen.example.com"], endpoints: [{ address: "qwen-router.default.svc.cluster.local", weight: 100 }] },
-  { key: "route-5", name: "minimax", cluster: "guangzhou-test", namespace: "higress-system", hosts: ["minimax.example.com"], endpoints: [{ address: "minimax-router.default.svc.cluster.local", weight: 100 }] },
-  { key: "route-6", name: "glm-5.1-se", cluster: "shanghai-online", namespace: "higress-system", hosts: ["glm51-se.example.com"], endpoints: [{ address: "glm51-pd-router.default.svc.cluster.local", weight: 80 }, { address: "glm51-pd-bx-router.default.svc.cluster.local", weight: 20 }] },
-  { key: "route-7", name: "deepseek-prod", cluster: "beijing-prod", namespace: "higress-system", hosts: ["deepseek-prod.example.com"], endpoints: [{ address: "deepseek-router.default.svc.cluster.local", weight: 55 }, { address: "deepseek-pd-router.default.svc.cluster.local", weight: 45 }] },
-  { key: "route-8", name: "kimi-prod", cluster: "shanghai-online", namespace: "higress-system", hosts: ["kimi-prod.example.com"], endpoints: [{ address: "kimi-router.default.svc.cluster.local", weight: 70 }, { address: "kimi-pd-router.default.svc.cluster.local", weight: 30 }] },
-];
 
-
-export default function ContainerManagementPage() {
+export default function ContainerManagementPage({ onNavigateToNodeManagement }: { onNavigateToNodeManagement?: (nodeName: string) => void } = {}) {
   const [view, setView] = useState<'se' | 'svc' | 'pod'>('se');
   const [cluster, setCluster] = useState('全部集群');
   const [keyword, setKeyword] = useState('');
@@ -143,7 +61,9 @@ export default function ContainerManagementPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [serviceName, setServiceName] = useState('');
   const [serviceCluster, setServiceCluster] = useState<string>('');
+  const [serviceSeId, setServiceSeId] = useState<string>('');
   const [serviceYamlPath, setServiceYamlPath] = useState('');
+  const [serviceYamlContent, setServiceYamlContent] = useState('');
 
   /* 创建 POD 抽屉 */
   const [podCreateOpen, setPodCreateOpen] = useState(false);
@@ -156,6 +76,92 @@ export default function ContainerManagementPage() {
   const [seCreateName, setSeCreateName] = useState('');
   const [seCreateCluster, setSeCreateCluster] = useState<string>('');
   const [seCreateYamlPath, setSeCreateYamlPath] = useState('');
+  const [seCreateYamlContent, setSeCreateYamlContent] = useState('');
+
+  /* ── 统一数据源：k8sResourceStore（与链路编排共用） ── */
+  const resourceStore = useK8sResourceStore();
+  const { serviceEntries, services, pods } = resourceStore.state;
+
+  const seNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    serviceEntries.forEach((se) => se.serviceIds.forEach((sid) => map.set(sid, se.name)));
+    return map;
+  }, [serviceEntries]);
+
+  const serviceEndpointMap = useMemo(() => {
+    const map = new Map<string, EndpointInfo[]>();
+    serviceEntries.forEach((se) => se.endpoints.forEach((ep) => {
+      const list = map.get(ep.serviceId) || [];
+      list.push({ address: ep.address, weight: ep.weight });
+      map.set(ep.serviceId, list);
+    }));
+    return map;
+  }, [serviceEntries]);
+
+  const storeServiceRows = useMemo<ServiceRow[]>(() => services.map((svc) => ({
+    key: svc.id,
+    name: svc.name,
+    se: seNameMap.get(svc.id) || svc.serviceEntryId || '-',
+    cluster: svc.cluster,
+    namespace: svc.namespace,
+    clusterIP: svc.clusterIP,
+    type: svc.type,
+    ports: svc.ports,
+    endpoints: serviceEndpointMap.get(svc.id) || [],
+    pods: svc.podIds.length,
+    age: svc.createdAt,
+  })), [services, seNameMap, serviceEndpointMap]);
+
+  const storePodRows = useMemo<PodRow[]>(() => pods.map((pod) => ({
+    key: pod.id,
+    name: pod.name,
+    cluster: pod.cluster,
+    namespace: pod.namespace,
+    role: pod.role,
+    status: pod.status === 'Draft' ? 'Pending' : pod.status,
+    restart: pod.restart,
+    image: pod.image,
+    yaml: pod.yaml,
+    ip: pod.podIP,
+    node: pod.node,
+    age: pod.age,
+  })), [pods]);
+
+  const storeRouteData = useMemo<RouteEntry[]>(() => serviceEntries.map((se) => {
+    const seServices = services.filter((s) => se.serviceIds.includes(s.id));
+    const seen = new Set<string>();
+    const sePorts: PortInfo[] = [];
+    seServices.forEach((s) => s.ports.forEach((p) => {
+      const key = `${p.port}-${p.protocol}`;
+      if (!seen.has(key)) { seen.add(key); sePorts.push(p); }
+    }));
+    return {
+      key: se.id,
+      name: se.name,
+      cluster: se.cluster,
+      namespace: se.namespace,
+      hosts: se.hosts,
+      ports: sePorts,
+      endpoints: (() => {
+        const eps = se.endpoints.map((ep) => ({ address: ep.address, weight: ep.weight }));
+        const total = eps.reduce((s, ep) => s + ep.weight, 0);
+        if (total > 0) eps.forEach((ep) => { ep.weight = Math.round(ep.weight / total * 100); });
+        return eps;
+      })(),
+    };
+  }), [serviceEntries, services]);
+
+  const storeClusters = useMemo(() =>
+    ['全部集群', ...Array.from(new Set(services.map((s) => s.cluster)))],
+  [services]);
+
+  const clusterOptions = useMemo(() =>
+    Array.from(new Set(services.map((s) => s.cluster))).map((c) => ({ value: c, label: c })),
+  [services]);
+
+  const seOptions = useMemo(() =>
+    serviceEntries.map((se) => ({ value: se.id, label: `${se.name} (${se.cluster})` })),
+  [serviceEntries]);
 
   / ── 从资源文件选择 YAML（含预览） ── */
   const [configYamlTree, setConfigYamlTree] = useState<ConfigTreeNode | null>(null);
@@ -166,7 +172,7 @@ export default function ContainerManagementPage() {
   const [configYamlHistory, setConfigYamlHistory] = useState<ConfigCommitEntry[]>([]);
   const [configYamlVersionKey, setConfigYamlVersionKey] = useState('latest');
   const [configYamlPickerLoading, setConfigYamlPickerLoading] = useState(false);
-  const [configYamlTarget, setConfigYamlTarget] = useState<'service' | 'pod'>('service');
+  const [configYamlTarget, setConfigYamlTarget] = useState<'service' | 'pod' | 'se'>('service');
 
   useEffect(() => {
     loadConfigTree();
@@ -232,10 +238,15 @@ export default function ContainerManagementPage() {
   const handleApplyConfigYaml = () => {
     const selectedYaml = configYamlLatest || configYamlPreview;
     if (!configYamlSelectedPath || !selectedYaml.trim()) return;
+    const yamlContent = selectedYaml;
     if (configYamlTarget === 'service') {
       setServiceYamlPath(configYamlSelectedPath);
-    } else {
+      setServiceYamlContent(yamlContent);
+    } else if (configYamlTarget === 'pod') {
       setPodCreateYamlPath(configYamlSelectedPath);
+    } else {
+      setSeCreateYamlPath(configYamlSelectedPath);
+      setSeCreateYamlContent(yamlContent);
     }
     setConfigYamlPickerOpen(false);
   };
@@ -243,7 +254,9 @@ export default function ContainerManagementPage() {
   const resetCreateForm = () => {
     setServiceName('');
     setServiceCluster('');
+    setServiceSeId('');
     setServiceYamlPath('');
+    setServiceYamlContent('');
   };
 
   const resetPodCreateForm = () => {
@@ -263,6 +276,14 @@ export default function ContainerManagementPage() {
   const handleCreate = () => {
     if (!serviceName.trim()) { message.warning('请输入服务名称'); return; }
     if (!serviceCluster) { message.warning('请选择集群'); return; }
+    const service = createManualService({
+      name: serviceName.trim(),
+      cluster: serviceCluster,
+      namespace: 'default',
+      type: 'ClusterIP',
+      serviceEntryId: serviceSeId || undefined,
+    });
+    resourceStore.addService(service);
     message.success('服务「' + serviceName + '」创建成功！');
     setCreateOpen(false);
     resetCreateForm();
@@ -272,12 +293,19 @@ export default function ContainerManagementPage() {
     setSeCreateName('');
     setSeCreateCluster('');
     setSeCreateYamlPath('');
+    setSeCreateYamlContent('');
   };
 
   const handleSeCreate = () => {
     if (!seCreateName.trim()) { message.warning('请输入 ServiceEntry 名称'); return; }
     if (!seCreateCluster) { message.warning('请选择集群'); return; }
-    message.success('ServiceEntry「' + seCreateName + '」创建成功！');
+    const entry = createManualServiceEntry({
+      name: seCreateName.trim(),
+      cluster: seCreateCluster,
+      yaml: seCreateYamlPath || undefined,
+    });
+    resourceStore.addServiceEntry(entry);
+    message.success('ServiceEntry「' + entry.name + '」创建成功！');
     setSeCreateOpen(false);
     resetSeCreateForm();
   };
@@ -333,27 +361,29 @@ export default function ContainerManagementPage() {
     });
   };
 
-  const filteredSvcs = useMemo(() => serviceRows.filter((row) => {
+  const filteredSvcs = useMemo(() => storeServiceRows.filter((row) => {
     const matchedCluster = cluster === '全部集群' || row.cluster === cluster;
     const text = (row.name + ' ' + row.se + ' ' + row.namespace + ' ' + row.clusterIP).toLowerCase();
     return matchedCluster && (!keyword || text.includes(keyword.toLowerCase()));
-  }), [cluster, keyword]);
+  }), [storeServiceRows, cluster, keyword]);
 
-  const filteredPods = useMemo(() => podRows.filter((row) => {
+  const filteredPods = useMemo(() => storePodRows.filter((row) => {
     const matchedCluster = cluster === '全部集群' || row.cluster === cluster;
     const text = (row.name + ' ' + row.namespace + ' ' + row.image + ' ' + row.ip + ' ' + row.node).toLowerCase();
     return matchedCluster && (!keyword || text.includes(keyword.toLowerCase()));
-  }), [cluster, keyword]);
+  }), [storePodRows, cluster, keyword]);
 
-  const filteredRoutes = useMemo(() => routeData.filter((r) => {
+  const filteredRoutes = useMemo(() => storeRouteData.filter((r) => {
     const matchedCluster = cluster === '全部集群' || r.cluster === cluster;
     const text = (r.name + ' ' + r.hosts.join(' ')).toLowerCase();
     return matchedCluster && (!keyword || text.includes(keyword.toLowerCase()));
-  }), [cluster, keyword]);
+  }), [storeRouteData, cluster, keyword]);
 
   const serviceColumns: ColumnsType<ServiceRow> = [
     { title: 'SVC', dataIndex: 'name', key: 'name', width: 190, fixed: 'left', render: (v) => <strong className="ataas-cm-name">{v}</strong> },
-    { title: 'SE', dataIndex: 'se', key: 'se', width: 120 },
+    { title: 'SE', dataIndex: 'se', key: 'se', width: 120, render: (v) => (
+      <a style={{ cursor: 'pointer', color: '#2468F2', whiteSpace: 'nowrap' }} onClick={() => { setKeyword(v); setCluster('全部集群'); setView('se'); }}>{v}</a>
+    ) },
     { title: '集群', dataIndex: 'cluster', key: 'cluster', width: 130 },
     { title: '命名空间', dataIndex: 'namespace', key: 'namespace', width: 110 },
     { title: 'Cluster IP', dataIndex: 'clusterIP', key: 'clusterIP', width: 140, render: (v) => <span className="ataas-cm-code">{v}</span> },
@@ -384,12 +414,34 @@ export default function ContainerManagementPage() {
         </div>
       ),
     },
-    { title: 'POD', dataIndex: 'pods', key: 'pods', width: 80 },
-    { title: '运行时间', dataIndex: 'age', key: 'age', width: 100, render: (v) => <span className="ataas-cm-muted">{v}</span> },
+    { title: 'POD', dataIndex: 'pods', key: 'pods', width: 80, render: (v, record) => (
+      <a style={{ cursor: 'pointer', color: '#2468F2' }} onClick={() => { setKeyword(record.name); setCluster(record.cluster); setView('pod'); }}>{v}</a>
+    ) },
+    { title: '运行时间', dataIndex: 'age', key: 'age', width: 100, render: (v) => <span className="ataas-cm-muted" style={{ whiteSpace: 'nowrap' }}>{v}</span> },
     { title: '操作', key: 'action', width: 110, fixed: 'right', render: (_, record) => (
       <Space size={2}>
         <Tooltip title="YAML"><Button type="text" size="small" icon={<FileOutlined />} onClick={() => setYamlTarget(record)} /></Tooltip>
-        <Tooltip title="关联 POD"><Button type="text" size="small" icon={<DeploymentUnitOutlined />} onClick={() => { setView('pod'); setKeyword(record.name); }} /></Tooltip>
+        <Tooltip title="删除"><Button type="text" size="small" danger icon={<DeleteOutlined />} onClick={() => {
+          Modal.confirm({
+            title: '删除 Service',
+            content: `确定要删除 "${record.name}" 吗？`,
+            okText: '确定',
+            cancelText: '取消',
+            onOk: () => {
+              resourceStore.update((prev) => ({
+                ...prev,
+                services: prev.services.filter((svc) => svc.id !== record.key),
+                pods: prev.pods.filter((pod) => pod.serviceId !== record.key),
+                serviceEntries: prev.serviceEntries.map((entry) => ({
+                  ...entry,
+                  serviceIds: entry.serviceIds.filter((sid) => sid !== record.key),
+                  endpoints: entry.endpoints.filter((ep) => ep.serviceId !== record.key),
+                })),
+              }));
+              message.success(`已删除 ${record.name}`);
+            },
+          });
+        }} /></Tooltip>
       </Space>
     ) },
   ];
@@ -401,15 +453,16 @@ export default function ContainerManagementPage() {
     { title: '角色', dataIndex: 'role', key: 'role', width: 90, render: (v) => <span className="ataas-cm-role">{v}</span> },
     { title: '状态', dataIndex: 'status', key: 'status', width: 100, render: (v) => <span className={'ataas-cm-status ' + String(v).toLowerCase()}><i />{v}</span> },
     { title: '重启', dataIndex: 'restart', key: 'restart', width: 70, render: (v) => <span className="ataas-cm-muted">{v}</span> },
-    { title: '镜像', dataIndex: 'image', key: 'image', width: 170, render: (v) => <span className="ataas-cm-ellipsis" title={v}>{v}</span> },
+    { title: 'IP', dataIndex: 'ip', key: 'ip', width: 120, render: (v) => <span className="ataas-cm-code">{v}</span> },
     { title: 'YAML', dataIndex: 'yaml', key: 'yaml', width: 190, render: (v, record) => (
       <button type="button" className="ataas-cm-yaml" onClick={() => setYamlTarget(record)}>
         <FileOutlined />
         <span title={v}>{v}</span>
       </button>
     ) },
-    { title: 'IP', dataIndex: 'ip', key: 'ip', width: 120, render: (v) => <span className="ataas-cm-code">{v}</span> },
-    { title: 'Node', dataIndex: 'node', key: 'node', width: 130 },
+    { title: 'Node', dataIndex: 'node', key: 'node', width: 130, render: (v) => (
+      <a style={{ cursor: 'pointer', color: '#2468F2', whiteSpace: 'nowrap' }} onClick={() => onNavigateToNodeManagement?.(v)}>{v}</a>
+    ) },
     { title: '运行时间', dataIndex: 'age', key: 'age', width: 100, render: (v) => <span className="ataas-cm-muted">{v}</span> },
     { title: '操作', key: 'action', width: 110, fixed: 'right', render: (_, record) => (
       <Space size={2}>
@@ -421,24 +474,71 @@ export default function ContainerManagementPage() {
 
   const seColumns: ColumnsType<RouteEntry> = [
     { title: 'Name', dataIndex: 'name', key: 'name', width: 180, fixed: 'left', render: (v) => <strong className="ataas-cm-name">{v}</strong> },
+    { title: '命名空间', dataIndex: 'namespace', key: 'namespace', width: 110 },
     { title: '集群', dataIndex: 'cluster', key: 'cluster', width: 100 },
     { title: 'Hosts', dataIndex: 'hosts', key: 'hosts', width: 240, render: (hosts: string[]) => (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         {hosts.map((h, i) => <span key={i} style={{ fontSize: 12, fontFamily: 'monospace', color: '#4E5969' }}>{h}</span>)}
       </div>
     ) },
-    { title: 'Endpoints', dataIndex: 'endpoints', key: 'endpoints', width: 280, render: (endpoints: { address: string; weight: number }[]) => (
+    { title: 'Ports', dataIndex: 'ports', key: 'ports', width: 140, render: (ports: PortInfo[]) => (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {ports.map((p, i) => (
+          <span key={i} style={{ fontSize: 11, fontFamily: 'monospace', color: '#4E5969', whiteSpace: 'nowrap' }}>
+            {p.port} / {p.protocol.toLowerCase()}
+          </span>
+        ))}
+        {ports.length === 0 && <span style={{ color: '#98a2b3' }}>-</span>}
+      </div>
+    ) },
+    { title: 'Endpoints（SVC）', dataIndex: 'endpoints', key: 'endpoints', width: 280, render: (endpoints: { address: string; weight: number }[], record: RouteEntry) => (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         {endpoints.map((ep, i) => (
-          <span key={i} style={{ fontSize: 11, fontFamily: 'monospace', color: '#4E5969', whiteSpace: 'nowrap' }}>
-            {ep.address} <span style={{ color: '#86909C' }}>({ep.weight}%)</span>
+          <span key={i} style={{ fontSize: 11, fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+            <a
+              style={{ cursor: 'pointer', color: '#2468F2' }}
+              onClick={() => {
+                const svcName = ep.address.split('.')[0];
+                setKeyword(svcName);
+                setCluster(record.cluster);
+                setView('svc');
+              }}
+            >
+              {ep.address}
+            </a>
+            <span style={{ color: '#86909C' }}> ({ep.weight}%)</span>
           </span>
         ))}
       </div>
     ) },
-    { title: '操作', key: 'action', width: 100, fixed: 'right', render: (_, record) => (
+    { title: '操作', key: 'action', width: 120, fixed: 'right', render: (_, record) => (
       <Space size={2}>
-        <Tooltip title="YAML"><Button type="text" size="small" icon={<FileOutlined />} onClick={() => { setRouteEditTarget(record); setRouteEditYaml('apiVersion: networking.istio.io/v1beta1\nkind: ServiceEntry\nmetadata:\n  name: ' + record.name + '\n  namespace: ' + record.namespace + '\nspec:\n  hosts:\n' + record.hosts.map((h) => '  - ' + h).join('\n') + '\n  location: MESH_INTERNAL\n  ports:\n  - number: 80\n    name: http\n    protocol: TCP\n  resolution: DNS\n  endpoints:\n' + record.endpoints.map((ep) => '  - address: ' + ep.address + '\n    weight: ' + ep.weight).join('\n')); setRouteEditOpen(true); }} /></Tooltip>
+        <Tooltip title="YAML"><Button type="text" size="small" icon={<FileOutlined />} onClick={() => {
+          const portsYaml = record.ports.length > 0
+            ? record.ports.map((p) => `  - number: ${p.port}\n    name: ${'name' in p ? (p as any).name : 'http'}\n    protocol: ${p.protocol}`).join('\n')
+            : '  - number: 80\n    name: http\n    protocol: TCP';
+          setRouteEditTarget(record);
+          setRouteEditYaml('apiVersion: networking.istio.io/v1beta1\nkind: ServiceEntry\nmetadata:\n  name: ' + record.name + '\n  namespace: ' + record.namespace + '\nspec:\n  hosts:\n' + record.hosts.map((h) => '  - ' + h).join('\n') + '\n  location: MESH_INTERNAL\n  ports:\n' + portsYaml + '\n  resolution: DNS\n  endpoints:\n' + record.endpoints.map((ep) => '  - address: ' + ep.address + '\n    weight: ' + ep.weight).join('\n'));
+          setRouteEditOpen(true);
+        }} /></Tooltip>
+        <Tooltip title="删除"><Button type="text" size="small" danger icon={<DeleteOutlined />} onClick={() => {
+          Modal.confirm({
+            title: '删除 ServiceEntry',
+            content: `确定要删除 "${record.name}" 吗？`,
+            okText: '确定',
+            cancelText: '取消',
+            onOk: () => {
+              resourceStore.update((prev) => ({
+                ...prev,
+                serviceEntries: prev.serviceEntries.filter((item) => item.id !== record.key),
+                services: prev.services.map((svc) =>
+                  svc.serviceEntryId === record.key ? { ...svc, serviceEntryId: undefined } : svc
+                ),
+              }));
+              message.success(`已删除 ${record.name}`);
+            },
+          });
+        }} /></Tooltip>
       </Space>
     ) },
   ];
@@ -455,7 +555,7 @@ export default function ContainerManagementPage() {
             <h2>容器管理</h2>
           </div>
           <div className="ataas-cm-switch">
-            <button type="button" className={view === 'se' ? 'active' : ''} onClick={() => setView('se')}><FileSearchOutlined />SE</button>
+            <button type="button" className={view === 'se' ? 'active' : ''} onClick={() => { setKeyword(''); setCluster('全部集群'); setView('se'); }}><FileSearchOutlined />SE</button>
             <i />
             <button type="button" className={view === 'svc' ? 'active' : ''} onClick={() => setView('svc')}><AppstoreOutlined />SVC</button>
             <i />
@@ -464,12 +564,14 @@ export default function ContainerManagementPage() {
         </div>
         <div className="ataas-cm-toolbar">
           <div className="ataas-cm-toolbar-filters">
-            <Select value={cluster} onChange={setCluster} options={clusters.map((item) => ({ value: item, label: item }))} />
-            <Input.Search allowClear value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder={view === 'se' ? '搜索 SE / Host' : view === 'svc' ? '搜索 SVC / SE / Cluster IP' : '搜索 POD / 镜像 / IP / Node'} />
+            <Select value={cluster} onChange={setCluster} options={storeClusters.map((item) => ({ value: item, label: item }))} />
+            <Input.Search size="small" allowClear value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder={view === 'se' ? '搜索 SE / Host' : view === 'svc' ? '搜索 SVC / SE / Cluster IP' : '搜索 POD / IP / Node'} />
           </div>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => view === 'se' ? (resetSeCreateForm(), setSeCreateOpen(true)) : view === 'svc' ? (resetCreateForm(), setCreateOpen(true)) : (resetPodCreateForm(), setPodCreateOpen(true))}>
-            {view === 'se' ? '创建ServiceEntry' : view === 'svc' ? '创建 Service' : '新建 POD'}
-          </Button>
+          {view !== 'pod' && (
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => view === 'se' ? (resetSeCreateForm(), setSeCreateOpen(true)) : (resetCreateForm(), setCreateOpen(true))}>
+              {view === 'se' ? '创建ServiceEntry' : '创建 Service'}
+            </Button>
+          )}
         </div>
         {view === 'se' ? (
           <Table<RouteEntry>
@@ -541,11 +643,18 @@ export default function ContainerManagementPage() {
                 onChange={setServiceCluster}
                 placeholder="请选择集群"
                 style={{ width: '100%' }}
-                options={[
-                  { value: 'beijing-prod', label: 'beijing-prod' },
-                  { value: 'shanghai-online', label: 'shanghai-online' },
-                  { value: 'guangzhou-test', label: 'guangzhou-test' },
-                ]}
+                options={clusterOptions}
+              />
+            </div>
+            <div className="ataas-cm-create-field">
+              <label>关联 ServiceEntry（可选）</label>
+              <Select
+                value={serviceSeId || undefined}
+                onChange={setServiceSeId}
+                placeholder="不关联 SE"
+                allowClear
+                style={{ width: '100%' }}
+                options={seOptions}
               />
             </div>
             <div className="ataas-cm-create-field">
@@ -570,6 +679,9 @@ export default function ContainerManagementPage() {
                   <Button type="text" size="small" icon={<UploadOutlined />} onClick={() => { setConfigYamlTarget('service'); loadConfigTree(); setConfigYamlPickerOpen(true); }} />
                 </Tooltip>
             </div>
+            {serviceYamlContent && (
+              <pre className="ataas-cm-yaml-preview" style={{ marginTop: 8 }}>{serviceYamlContent}</pre>
+            )}
           </div>
         </div>
         </Drawer>
@@ -603,11 +715,7 @@ export default function ContainerManagementPage() {
                 onChange={setPodCreateCluster}
                 placeholder="请选择集群"
                 style={{ width: '100%' }}
-                options={[
-                  { value: 'beijing-prod', label: 'beijing-prod' },
-                  { value: 'shanghai-online', label: 'shanghai-online' },
-                  { value: 'guangzhou-test', label: 'guangzhou-test' },
-                ]}
+                options={clusterOptions}
               />
             </div>
             <div className="ataas-cm-create-field">
@@ -758,11 +866,7 @@ export default function ContainerManagementPage() {
                 onChange={setSeCreateCluster}
                 placeholder="请选择集群"
                 style={{ width: '100%' }}
-                options={[
-                  { value: 'beijing-prod', label: 'beijing-prod' },
-                  { value: 'shanghai-online', label: 'shanghai-online' },
-                  { value: 'guangzhou-test', label: 'guangzhou-test' },
-                ]}
+                options={clusterOptions}
               />
             </div>
             <div className="ataas-cm-create-field">
@@ -784,9 +888,12 @@ export default function ContainerManagementPage() {
                   <span className="ataas-cm-select-yaml-hint">未选择</span>
                 )}
                 <Tooltip title="从资源文件选择">
-                  <Button type="text" size="small" icon={<UploadOutlined />} onClick={() => { setConfigYamlTarget('service'); loadConfigTree(); setConfigYamlPickerOpen(true); }} />
+                  <Button type="text" size="small" icon={<UploadOutlined />} onClick={() => { setConfigYamlTarget('se'); loadConfigTree(); setConfigYamlPickerOpen(true); }} />
                 </Tooltip>
               </div>
+              {seCreateYamlContent && (
+                <pre className="ataas-cm-yaml-preview" style={{ marginTop: 8 }}>{seCreateYamlContent}</pre>
+              )}
             </div>
           </div>
         </Drawer>
