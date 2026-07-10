@@ -5375,7 +5375,9 @@ const getClusterFamily = (gpu: string) => {
   if (/910B|Ascend/i.test(gpu)) return 'Ascend 910B';
   if (/H20/i.test(gpu)) return 'H20';
   if (/L20/i.test(gpu)) return 'L20';
-  return 'RTX 4090';
+  if (/RTX\s*4090/i.test(gpu)) return 'RTX 4090';
+  if (/A100/i.test(gpu)) return 'A100';
+  return '待同步';
 };
 
 const getClusterHostName = (item: ClusterRecord) => {
@@ -5406,19 +5408,19 @@ const toClusterResourceCard = (item: ClusterRecord): ResourceCardRecord => {
   };
 };
 
-const gpuIconMap: Record<string, string> = {
-  'RTX 4090': nvidiaLogo,
-  H20: nvidiaLogo,
-  L20: nvidiaLogo,
-  'Ascend 910B': ascendLogo,
-  '910B': ascendLogo,
-  A100: nvidiaLogo,
+const chipVendorLogoMap: Record<string, string> = {
+  NVIDIA: nvidiaLogo,
+  Ascend: ascendLogo,
+  PPU: ppuLogo,
+  '摩尔': mooreLogo,
+  '沐曦': muxiLogo,
+  '寒武纪': cambriconLogo,
+  '昆仑芯': kunlunLogo,
+  '天数': tianshuLogo,
+  '海光': hygonLogo,
 };
 
-const GpuIcon = ({ name }: { name: string }) => {
-  const src = gpuIconMap[name];
-  return src ? <img src={src} alt={name} style={{ width: 24, height: 18, objectFit: 'contain', flexShrink: 0 }} /> : null;
-};
+const getChipLogo = (name: string) => chipVendorLogoMap[inferChipVendor(name)];
 
 const getGpuBrand = (name: string) => (/910B|950PR|Ascend/i.test(name) ? 'Ascend' : 'NVIDIA');
 
@@ -5589,6 +5591,51 @@ const getCapacityPercent = (used: string | number, total: string | number) => {
   return totalValue > 0 ? (usedValue / totalValue) * 100 : 0;
 };
 
+const ClusterServerFront = ({ item }: { item: ResourceCardRecord }) => {
+  const chips = Array.from(new Set(item.chips?.length ? item.chips : [item.family]));
+  const visibleChips = chips.slice(0, 2);
+  const remainingChips = Math.max(chips.length - visibleChips.length, 0);
+  const statusText = item.status === 'healthy' ? '运行正常' : item.status === 'warning' ? '运行警告' : '运行异常';
+  const visibleBrands = visibleChips.reduce<Array<{ name: string; logo?: string; fallback: string }>>((brands, chip) => {
+    const name = inferChipVendor(chip);
+    if (!brands.some((brand) => brand.name === name)) brands.push({ name, logo: getChipLogo(chip), fallback: chip.slice(0, 2) });
+    return brands;
+  }, []);
+
+  return (
+    <div className="ataas-machine-visual" role="img" aria-label={`${chips.join('、')}，${statusText}，服务器正视图`}>
+      <div className={`ataas-server-front ataas-server-front-${item.status}`}>
+        <div className="ataas-server-ear ataas-server-ear-left"><i /><i /></div>
+        <div className="ataas-server-front-body">
+          <div className="ataas-server-brand-plate">
+            <div className={`ataas-server-brand-logos${visibleBrands.length > 1 ? ' multi' : ''}`}>
+              {visibleBrands.map((brand) => brand.logo
+                ? <img key={brand.name} src={brand.logo} alt="" />
+                : <span key={brand.name} className="ataas-server-brand-fallback">{brand.fallback}</span>)}
+            </div>
+            <div className="ataas-server-chip-models">
+              {visibleChips.map((chip) => <span key={chip}>{chip}</span>)}
+              {remainingChips > 0 && <span>+{remainingChips}</span>}
+            </div>
+          </div>
+          <div className="ataas-server-drive-bays">
+            {Array.from({ length: 8 }, (_, index) => <span key={index} />)}
+          </div>
+          <div className="ataas-server-airflow">
+            <div className="ataas-server-vent-grid" />
+            <div className="ataas-server-status-panel">
+              <span className="ataas-server-power" />
+              <span className="ataas-server-status-led ataas-server-status-led-health" />
+              <span className="ataas-server-status-led" />
+            </div>
+          </div>
+        </div>
+        <div className="ataas-server-ear ataas-server-ear-right"><i /><i /></div>
+      </div>
+    </div>
+  );
+};
+
 const ClusterCard = ({ item, compact }: { item: ResourceCardRecord; compact?: boolean }) => (
   <div className="ataas-cluster-card">
     <div className="ataas-machine-head">
@@ -5606,84 +5653,10 @@ const ClusterCard = ({ item, compact }: { item: ResourceCardRecord; compact?: bo
           )}
           <i />
           <span>{item.models} 模型</span>
-          {item.chips && item.chips.map((c) => (
-            <span key={c} className="ataas-cluster-chip"><i /><GpuIcon name={c} />{c}</span>
-          ))}
         </div>
       </div>
     </div>
-    <div className="ataas-machine-visual">
-      <div className="ataas-server-rack">
-{(() => {
-          const totalNodes = item.nodes;
-          const wW = 58;  // worker 宽度
-          const wGap = 10; // worker 间距
-          const ellipsisW = 24; // 省略号宽度
-          const displayNodes = totalNodes <= 3
-            ? Array.from({ length: totalNodes }, (_, i) => ({ label: `Worker-${i + 1}`, idx: i, width: wW }))
-            : [
-                { label: 'Worker-1', idx: 0, width: wW },
-                { label: 'Worker-2', idx: 1, width: wW },
-                { label: '...', idx: -1, width: ellipsisW },
-                { label: `Worker-${totalNodes}`, idx: totalNodes - 1, width: wW },
-              ];
-          // 计算每个节点中心 x 坐标
-          const positions: number[] = [];
-          let curX = 14;
-          displayNodes.forEach((w) => {
-            positions.push(curX + w.width / 2);
-            curX += w.width + wGap;
-          });
-          const totalW = curX - wGap + 14;
-          return (
-        <svg viewBox={`0 0 ${totalW} 90`} className="ataas-server-svg">
-          {/* ── 连接线 ── */}
-          {displayNodes.map((w, i) => {
-            if (w.idx === -1) return null;
-            return (
-              <g key={i}>
-                <line x1={totalW / 2} y1="18" x2={positions[i]} y2="42" stroke="#2d3140" strokeWidth="0.8" strokeDasharray="3 3" />
-                <line x1={positions[i]} y1="60" x2={positions[i]} y2="78" stroke="#2d3140" strokeWidth="0.8" strokeDasharray="3 3" />
-              </g>
-            );
-          })}
-
-          {/* ── Master 节点 ── */}
-          <rect x={totalW / 2 - 30} y="4" width="60" height="16" rx="3" fill="#1a1d28" stroke="#3370FF" strokeWidth="0.8" />
-          <text x={totalW / 2} y="15" textAnchor="middle" fill="#3370FF" fontSize="6" fontWeight="600">Master</text>
-          <circle cx={totalW / 2 - 25} cy="12" r="1.5" className="ataas-led ataas-led-master" fill="#3370FF" />
-
-          {/* ── Worker 节点 ── */}
-          {displayNodes.map((w, i) => {
-            const left = positions[i] - w.width / 2;
-            if (w.idx === -1) {
-              return <text key={i} x={positions[i]} y="60" textAnchor="middle" fill="#86909C" fontSize="8" fontWeight="700">...</text>;
-            }
-            return (
-              <g key={i}>
-                <rect x={left} y="42" width={w.width} height="36" rx="3" fill="#1a1d28" stroke="#2d3140" strokeWidth="0.8" />
-                <rect x={left} y="42" width={w.width} height="8" rx="3" fill="#1e2235" />
-                <text x={positions[i]} y="48" textAnchor="middle" fill="#86909C" fontSize="5" fontWeight="600">{w.label}</text>
-                {Array.from({ length: 4 }).map((_, pi) => (
-                  <rect key={pi} x={left + 4 + pi * (w.width - 8) / 4} y="54" width={(w.width - 8) / 4 - 1.5} height="8" rx="1" fill="#171923" stroke="#252836" strokeWidth="0.5" />
-                ))}
-                <rect x={left + 4} y="65" width={w.width - 8} height="10" rx="1.5" fill="#11131c" stroke="#1e2235" strokeWidth="0.5" />
-                <text x={positions[i]} y="72" textAnchor="middle" fill="#4a5080" fontSize="5">GPU</text>
-                <circle cx={left + w.width - 10} cy="46" r="1.3" className={`ataas-led ataas-led-w${i + 1}`} fill="#00e676" />
-              </g>
-            );
-          })}
-
-          {/* ── 高速互联 ── */}
-          <line x1="10" y1="86" x2={totalW - 10} y2="86" stroke="#D0D5E0" strokeWidth="1.2" />
-          {displayNodes.map((w, i) => {
-            if (w.idx === -1) return null;
-            return <line key={i} x1={positions[i]} y1="78" x2={positions[i]} y2="86" stroke="#C0C8D8" strokeWidth="0.7" />;
-          })}
-        </svg>);
-        })()}
-      </div>
-    </div>
+    <ClusterServerFront item={item} />
     <div className="ataas-machine-metrics">
       <RingMetric label="GPU 使用率" value={item.gpuUsage} height={compact ? 90 : 100} />
       <RingMetric label="CPU 使用率" value={item.cpuUsage} height={compact ? 90 : 100} />
@@ -10882,7 +10855,7 @@ const AtAasDesign = () => {
                                 role="button"
                                 tabIndex={0}
                                 onClick={openPicker}
-                                onKeyDown={(e) => { if (e.key === 'Enter') openPicker(); }}
+                                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPicker(); } }}
                               >
                                 <ClusterCard item={toClusterResourceCard(selectedCluster)} compact />
                               </div>
@@ -10901,7 +10874,7 @@ const AtAasDesign = () => {
                                 role="button"
                                 tabIndex={0}
                                 onClick={openPicker}
-                                onKeyDown={(e) => { if (e.key === 'Enter') openPicker(); }}
+                                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPicker(); } }}
                               >
                                 <ClusterCard item={selectedGpu} compact />
                               </div>
