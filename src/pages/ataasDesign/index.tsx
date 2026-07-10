@@ -537,9 +537,13 @@ type DeployNodeOption = {
 
 type ExtraInstanceInfo = {
   node: string;
+  cluster?: string;
   routerNodes: string[];
   prefillNodes: string[];
   decodeNodes: string[];
+  mooncakeNodes?: string[];
+  serviceEntry?: string;
+  mooncakeDeployMode?: 'none' | 'reuse' | 'custom';
 };
 
 const clusters: ClusterRecord[] = [
@@ -4478,7 +4482,7 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate, onP
       <div className="ataas-template-layout">
         <aside className="ataas-template-filter">
           <strong>筛选</strong>
-          {activeType !== 'scene' && activeType !== 'kt' && <div className="ataas-template-filter-section ataas-template-filter-search"><Input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="输入模型名搜索" allowClear /></div>}
+          {activeType !== 'scene' && activeType !== 'kt' && <div className="ataas-template-filter-section ataas-template-filter-search"><Input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="输入模版名搜索" allowClear /></div>}
           {activeType !== 'scene' && activeType !== 'kt' && <div className="ataas-template-filter-section"><span>芯片品牌</span><div>{vendorCounts.map((item) => renderVendorFilterButton(item))}</div></div>}
           {activeType !== 'scene' && activeType !== 'kt' && vendor && <div className="ataas-template-filter-section"><span>卡型号</span><div>
             {renderFilterButton('', gpu, (value) => { setGpu(value); setQuant(''); setEngine(''); }, baseTemplates.filter((item) => inferChipVendor(item.gpu || item.hardware) === vendor).length)}
@@ -7790,7 +7794,15 @@ const AtAasDesign = () => {
   const [pdMooncakeParams, setPdMooncakeParams] = useState<Array<{key: string; value: string}>>([]);
   const [pdMooncakeShellText, setPdMooncakeShellText] = useState('apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: mooncake-store');
   const [pdShellExpanded, setPdShellExpanded] = useState<Record<'router' | 'prefill' | 'decode' | 'mooncake', boolean>>({ router: false, prefill: false, decode: false, mooncake: false });
-  type ConfigYamlPickerTarget = 'deploy-router' | 'deploy-worker' | 'deploy-mooncake' | 'startup-template' | 'custom';
+  type ConfigYamlPickerTarget =
+    | 'deploy-router'
+    | 'deploy-worker'
+    | 'deploy-mooncake'
+    | 'add-instance-router'
+    | 'add-instance-worker'
+    | 'add-instance-mooncake'
+    | 'startup-template'
+    | 'custom';
   const [configYamlPickerOpen, setConfigYamlPickerOpen] = useState(false);
   const [configYamlPickerTarget, setConfigYamlPickerTarget] = useState<ConfigYamlPickerTarget>('deploy-router');
   const [pdResourceYamlNames, setPdResourceYamlNames] = useState<Record<string, string>>({});
@@ -7842,6 +7854,7 @@ const AtAasDesign = () => {
 
   const [addInstanceModalOpen, setAddInstanceModalOpen] = useState(false);
   const [addInstCluster, setAddInstCluster] = useState<string | undefined>(undefined);
+  const [addInstServiceEntry, setAddInstServiceEntry] = useState<string | undefined>(undefined);
   const [addInstPerformanceTemplateKey, setAddInstPerformanceTemplateKey] = useState<string | undefined>(undefined);
   const [addInstCardCount, setAddInstCardCount] = useState<number>(0);
   const [addInstGpuSelectMode, setAddInstGpuSelectMode] = useState<'auto' | 'manual'>('auto');
@@ -7857,6 +7870,8 @@ const AtAasDesign = () => {
   const [addInstRouterNodes, setAddInstRouterNodes] = useState<string[]>([]);
   const [addInstPrefillNodes, setAddInstPrefillNodes] = useState<string[]>([]);
   const [addInstDecodeNodes, setAddInstDecodeNodes] = useState<string[]>([]);
+  const [addInstMooncakeNodes, setAddInstMooncakeNodes] = useState<string[]>([]);
+  const [addInstMooncakeDeployMode, setAddInstMooncakeDeployMode] = useState<'none' | 'reuse' | 'custom'>('none');
   const [addInstPrefillCardCount, setAddInstPrefillCardCount] = useState(0);
   const [addInstDecodeCardCount, setAddInstDecodeCardCount] = useState(0);
   const [addInstRouterTemplateKey, setAddInstRouterTemplateKey] = useState<string>('');
@@ -7865,9 +7880,11 @@ const AtAasDesign = () => {
   const [addInstRouterParams, setAddInstRouterParams] = useState<Array<{key: string; value: string}>>([]);
   const [addInstPrefillParams, setAddInstPrefillParams] = useState<Array<{key: string; value: string}>>([]);
   const [addInstDecodeParams, setAddInstDecodeParams] = useState<Array<{key: string; value: string}>>([]);
+  const [addInstMooncakeParams, setAddInstMooncakeParams] = useState<Array<{key: string; value: string}>>([]);
   const [addInstRouterShellText, setAddInstRouterShellText] = useState('');
   const [addInstPrefillShellText, setAddInstPrefillShellText] = useState('');
   const [addInstDecodeShellText, setAddInstDecodeShellText] = useState('');
+  const [addInstMooncakeShellText, setAddInstMooncakeShellText] = useState('apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: mooncake-store');
   const [addInstRouterUploadedYaml, setAddInstRouterUploadedYaml] = useState<string>('');
   const [addInstPrefillUploadedYaml, setAddInstPrefillUploadedYaml] = useState<string>('');
   const [addInstDecodeUploadedYaml, setAddInstDecodeUploadedYaml] = useState<string>('');
@@ -7878,24 +7895,64 @@ const AtAasDesign = () => {
     if (!deployDetailModalOpen) setDeployDetailItem(null);
   };
   const [addInstNodePickerOpen, setAddInstNodePickerOpen] = useState(false);
-  const [addInstNodePickerMode, setAddInstNodePickerMode] = useState<'router' | 'prefill' | 'decode'>('router');
+  const [addInstNodePickerMode, setAddInstNodePickerMode] = useState<'router' | 'prefill' | 'decode' | 'mooncake'>('router');
   const [addInstNodePickerSelected, setAddInstNodePickerSelected] = useState<string[]>([]);
   const [addInstNodeSearch, setAddInstNodeSearch] = useState('');
   const [addInstNodeGpuFilter, setAddInstNodeGpuFilter] = useState<string>('all');
 
-  const getAddInstNodeOccupiedByOtherMode = (nodeKey: string, mode: 'router' | 'prefill' | 'decode' = addInstNodePickerMode) => {
+  const getAddInstNodeOccupiedByOtherMode = (nodeKey: string, mode: 'router' | 'prefill' | 'decode' | 'mooncake' = addInstNodePickerMode) => {
     if (deployDetailItem?.deployMode !== 'PD 分离') return '';
     if (mode === 'prefill' && addInstDecodeNodes.includes(nodeKey)) return 'Decode';
     if (mode === 'decode' && addInstPrefillNodes.includes(nodeKey)) return 'Prefill';
     return '';
   };
 
-  const getAddInstNodePickerLimit = (mode: 'router' | 'prefill' | 'decode' = addInstNodePickerMode) => {
+  const getAddInstNodePickerLimit = (mode: 'router' | 'prefill' | 'decode' | 'mooncake' = addInstNodePickerMode) => {
     if (deployDetailItem?.deployMode !== 'PD 分离') return Infinity;
     if (mode === 'router') return addInstRouterCount;
     if (mode === 'prefill') return addInstPrefillCount;
     if (mode === 'decode') return addInstDecodeCount;
     return Infinity;
+  };
+
+  const addInstServiceEntryOptions = useMemo(() => {
+    const cluster = clusters.find((item) => item.name === addInstCluster || item.key === addInstCluster);
+    const systemOption = cluster
+      ? [{ value: `${cluster.key}-system-se`, label: `系统 SE / ${cluster.name}` }]
+      : [];
+    return [
+      ...systemOption,
+      { value: 'glm-5.1-se', label: 'glm-5.1 生产链路' },
+      { value: 'deepseek-r1-se', label: 'deepseek-r1 生产链路' },
+      { value: 'custom-business-se', label: '业务自定义 SE' },
+    ];
+  }, [addInstCluster]);
+
+  const selectAddInstCluster = (value?: string) => {
+    const cluster = clusters.find((item) => item.name === value || item.key === value);
+    if (value !== addInstCluster) {
+      setAddInstRouterNodes([]);
+      setAddInstPrefillNodes([]);
+      setAddInstDecodeNodes([]);
+      setAddInstMooncakeNodes([]);
+      setAddInstManualGpuSelected([]);
+      setAddInstCardCount(0);
+      setAddInstPrefillCardCount(0);
+      setAddInstDecodeCardCount(0);
+      setAddInstNodePickerSelected([]);
+    }
+    setAddInstCluster(value);
+    setAddInstServiceEntry(cluster ? `${cluster.key}-system-se` : undefined);
+  };
+
+  const clearAddInstResourceYamlNames = () => {
+    setPdResourceYamlNames((prev) => {
+      const next = { ...prev };
+      delete next['add-instance-router'];
+      delete next['add-instance-worker'];
+      delete next['add-instance-mooncake'];
+      return next;
+    });
   };
 
   const formatDeployParamsShell = (params: Array<{ key: string; value: string }>) => params
@@ -8267,6 +8324,28 @@ const AtAasDesign = () => {
       setPdMooncakeShellText(selectedYaml);
       setPdMooncakeParams(nextParams);
       setPdShellExpanded((prev) => ({ ...prev, mooncake: true }));
+    } else if (configYamlPickerTarget === 'add-instance-router') {
+      setAddInstRouterTemplateKey('');
+      setAddInstRouterUploadedYaml(selectedYaml);
+      setAddInstRouterShellText(selectedYaml);
+      setAddInstRouterParams(parseShellParams(selectedYaml));
+      setPdShellExpanded((prev) => ({ ...prev, router: true }));
+    } else if (configYamlPickerTarget === 'add-instance-worker') {
+      const nextParams = parseShellParams(selectedYaml);
+      setAddInstPrefillTemplateKey('');
+      setAddInstDecodeTemplateKey('');
+      setAddInstPrefillUploadedYaml(selectedYaml);
+      setAddInstDecodeUploadedYaml(selectedYaml);
+      setAddInstPrefillShellText(selectedYaml);
+      setAddInstDecodeShellText(selectedYaml);
+      setAddInstPrefillParams(nextParams);
+      setAddInstDecodeParams(nextParams.map((param) => ({ ...param })));
+      setPdShellExpanded((prev) => ({ ...prev, prefill: true }));
+    } else if (configYamlPickerTarget === 'add-instance-mooncake') {
+      const nextParams = parseShellParams(selectedYaml);
+      setAddInstMooncakeShellText(selectedYaml);
+      setAddInstMooncakeParams(nextParams);
+      setPdShellExpanded((prev) => ({ ...prev, mooncake: true }));
     } else {
       setTemplateYamlContent(selectedYaml);
     }
@@ -8321,6 +8400,7 @@ const AtAasDesign = () => {
   };
   const applyAddInstPdTemplate = (templateKey: string) => {
     const template = startupTemplates.find((item) => item.key === templateKey);
+    clearAddInstResourceYamlNames();
     if (!template) {
       setAddInstRouterTemplateKey('');
       setAddInstPrefillTemplateKey('');
@@ -8328,9 +8408,13 @@ const AtAasDesign = () => {
       setAddInstRouterUploadedYaml('');
       setAddInstPrefillUploadedYaml('');
       setAddInstDecodeUploadedYaml('');
+      setAddInstMooncakeNodes([]);
+      setAddInstMooncakeDeployMode('none');
+      setAddInstMooncakeParams([]);
+      setAddInstMooncakeShellText('apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: mooncake-store');
       return;
     }
-    const { routerYaml, workerYaml } = getPdTemplateYamlPair(template);
+    const { routerYaml, workerYaml, mooncakeYaml } = getPdTemplateYamlPair(template);
     const nextParams = (template.params || []).map((param) => ({ ...param }));
     const resolvedParams = nextParams.length > 0 ? nextParams : [{ key: 'max_model_len', value: '8192' }, { key: 'gpu_memory_utilization', value: '0.9' }];
     const workerShellText = workerYaml || formatDeployParamsShell(resolvedParams);
@@ -8346,6 +8430,17 @@ const AtAasDesign = () => {
     setAddInstRouterShellText(routerYaml || formatDeployParamsShell(resolvedParams));
     setAddInstPrefillShellText(workerShellText);
     setAddInstDecodeShellText(workerShellText);
+    setAddInstMooncakeNodes([]);
+    if (mooncakeYaml) {
+      setAddInstMooncakeShellText(mooncakeYaml);
+      setAddInstMooncakeParams(parseShellParams(mooncakeYaml));
+      setAddInstMooncakeDeployMode('reuse');
+    } else {
+      setAddInstMooncakeNodes([]);
+      setAddInstMooncakeDeployMode('none');
+      setAddInstMooncakeParams([]);
+      setAddInstMooncakeShellText('apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: mooncake-store');
+    }
   };
   const openDeployPdTemplateCreate = () => {
     const now = new Date();
@@ -8459,6 +8554,7 @@ const AtAasDesign = () => {
   };
   const resetAddInstanceForm = () => {
     setAddInstCluster(undefined);
+    setAddInstServiceEntry(undefined);
     setAddInstPerformanceTemplateKey(undefined);
     setAddInstCardCount(0);
     setAddInstGpuSelectMode('auto');
@@ -8472,6 +8568,8 @@ const AtAasDesign = () => {
     setAddInstRouterNodes([]);
     setAddInstPrefillNodes([]);
     setAddInstDecodeNodes([]);
+    setAddInstMooncakeNodes([]);
+    setAddInstMooncakeDeployMode('none');
     setAddInstPrefillCardCount(0);
     setAddInstDecodeCardCount(0);
     setAddInstRouterTemplateKey('');
@@ -8480,12 +8578,15 @@ const AtAasDesign = () => {
     setAddInstRouterParams([]);
     setAddInstPrefillParams([]);
     setAddInstDecodeParams([]);
+    setAddInstMooncakeParams([]);
     setAddInstRouterShellText('');
     setAddInstPrefillShellText('');
     setAddInstDecodeShellText('');
+    setAddInstMooncakeShellText('apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: mooncake-store');
     setAddInstRouterUploadedYaml('');
     setAddInstPrefillUploadedYaml('');
     setAddInstDecodeUploadedYaml('');
+    clearAddInstResourceYamlNames();
   };
   const getDeployDetailClusterName = (item: DeployServiceItem | null) => {
     if (!item) return undefined;
@@ -8501,6 +8602,8 @@ const AtAasDesign = () => {
   };
   const openAddInstanceModal = (targetItem = deployDetailItem) => {
     resetAddInstanceForm();
+    const defaultClusterName = getDeployDetailClusterName(targetItem);
+    const defaultClusterKey = clusters.find((cluster) => cluster.name === defaultClusterName)?.key;
     const defaultShell = advancedShellText || formatDeployParamsShell(deployParams);
     const defaultParams = parseShellParams(defaultShell);
     setAddInstRouterShellText(defaultShell);
@@ -8509,18 +8612,15 @@ const AtAasDesign = () => {
     setAddInstRouterParams(defaultParams);
     setAddInstPrefillParams(defaultParams.map((param) => ({ ...param })));
     setAddInstDecodeParams(defaultParams.map((param) => ({ ...param })));
-    setAddInstCluster(getDeployDetailClusterName(targetItem));
-    if (targetItem?.deployMode === 'PD 分离') {
-      setAddInstCluster(getDeployDetailClusterName(targetItem));
-    }
+    selectAddInstCluster(defaultClusterName);
     if (targetItem?.deployMode === '单机部署') {
-      const defaultNode = deployNodes.find((node) => node.status === 'ready');
+      const defaultNode = deployNodes.find((node) => node.status === 'ready' && (!defaultClusterKey || node.clusterKey === defaultClusterKey));
       if (defaultNode) {
         setAddInstRouterNodes([defaultNode.key]);
         setAddInstCardCount(Math.min(4, defaultNode.availableCards));
       }
     } else if (targetItem?.deployMode === '分布式部署') {
-      const defaultNodes = deployNodes.filter((node) => node.status === 'ready').slice(0, 2);
+      const defaultNodes = deployNodes.filter((node) => node.status === 'ready' && (!defaultClusterKey || node.clusterKey === defaultClusterKey)).slice(0, 2);
       setAddInstRouterNodes(defaultNodes.map((node) => node.key));
       const minCards = defaultNodes.length ? Math.min(...defaultNodes.map((node) => node.availableCards)) : 0;
       setAddInstCardCount(Math.min(4, minCards));
@@ -8536,10 +8636,19 @@ const AtAasDesign = () => {
     resetGatewayTrafficByCount(count);
     openAddInstanceModal(item);
   };
+  const getAddInstMooncakeEffectiveNodes = () => {
+    if (addInstMooncakeDeployMode === 'reuse') return [...new Set([...addInstPrefillNodes, ...addInstDecodeNodes])];
+    if (addInstMooncakeDeployMode === 'custom') return addInstMooncakeNodes;
+    return [];
+  };
+  const hasCompleteAddInstPdWorkers = addInstPrefillNodes.length > 0 && addInstDecodeNodes.length > 0;
+  const isAddInstPdWorkerReady = addInstMooncakeDeployMode === 'custom'
+    ? addInstMooncakeNodes.length > 0
+    : hasCompleteAddInstPdWorkers;
   const isAddInstanceNodesReady = !deployDetailItem
     ? false
     : deployDetailItem.deployMode === 'PD 分离'
-      ? Boolean(addInstCluster && addInstRouterNodes.length > 0 && addInstPrefillNodes.length > 0 && addInstDecodeNodes.length > 0)
+      ? Boolean(addInstCluster && addInstRouterNodes.length > 0 && isAddInstPdWorkerReady)
       : Boolean(addInstCluster && addInstRouterNodes.length > 0);
   const isAddInstanceSubmitDisabled = !isAddInstanceNodesReady;
   const handleAddInstanceConfirm = () => {
@@ -8552,12 +8661,12 @@ const AtAasDesign = () => {
         message.warning('请选择 Router 节点');
         return;
       }
-      if (addInstPrefillNodes.length === 0) {
-        message.warning('请选择 Prefill 节点');
+      if (addInstMooncakeDeployMode === 'custom' && addInstMooncakeNodes.length === 0) {
+        message.warning('请选择 Mooncake 节点');
         return;
       }
-      if (addInstDecodeNodes.length === 0) {
-        message.warning('请选择 Decode 节点');
+      if (!isAddInstPdWorkerReady) {
+        message.warning('请选择 Prefill / Decode 节点，或配置 Mooncake 节点');
         return;
       }
     } else if (addInstRouterNodes.length === 0) {
@@ -8570,9 +8679,15 @@ const AtAasDesign = () => {
     const nextTotal = (deployDetailItem?.modelInfo.number ?? 1) + 1;
     setDeployDetailExtraNodes([...deployDetailExtraNodes, {
       node: firstNodeName,
+      cluster: addInstCluster,
       routerNodes: [...addInstRouterNodes],
       prefillNodes: [...addInstPrefillNodes],
       decodeNodes: [...addInstDecodeNodes],
+      ...(deployDetailItem?.deployMode === 'PD 分离' ? {
+        mooncakeNodes: [...getAddInstMooncakeEffectiveNodes()],
+        serviceEntry: addInstServiceEntry,
+        mooncakeDeployMode: addInstMooncakeDeployMode,
+      } : {}),
     }]);
     if (deployDetailItem) {
       const nextItem = { ...deployDetailItem, modelInfo: { ...deployDetailItem.modelInfo, number: nextTotal } };
@@ -9220,6 +9335,83 @@ const AtAasDesign = () => {
       );
     }
     return renderPdDeployNodePicker('mooncake');
+  };
+
+  const renderAddInstPdNodePicker = (mode: 'router' | 'prefill' | 'decode' | 'mooncake') => {
+    const selectedNodes = mode === 'router'
+      ? addInstRouterNodes
+      : mode === 'prefill'
+        ? addInstPrefillNodes
+        : mode === 'decode'
+          ? addInstDecodeNodes
+          : addInstMooncakeNodes;
+    const nodeRecords = selectedNodes
+      .map((key) => deployNodes.find((node) => node.key === key))
+      .filter((node): node is (typeof deployNodes)[number] => Boolean(node));
+    const visibleNodes = nodeRecords.slice(0, 3);
+    return (
+      <button
+        type="button"
+        className="ataas-pd-node-wide-picker"
+        onClick={() => {
+          setAddInstNodePickerMode(mode);
+          setAddInstNodePickerSelected([...selectedNodes]);
+          setAddInstNodeGpuFilter('all');
+          setAddInstNodeSearch('');
+          setAddInstNodePickerOpen(true);
+        }}
+      >
+        <div className="ataas-pd-node-wide-main">
+          {nodeRecords.length > 0 ? (
+            <>
+              {visibleNodes.map((node) => (
+                <span className="ataas-pd-node-wide-chip" key={node.key}>
+                  <strong>{node.name}</strong>
+                  <em>{node.gpuType}</em>
+                </span>
+              ))}
+              {nodeRecords.length > visibleNodes.length && <span className="ataas-pd-node-wide-more">+{nodeRecords.length - visibleNodes.length}</span>}
+            </>
+          ) : (
+            <span className="ataas-pd-node-wide-empty">未选择部署节点</span>
+          )}
+        </div>
+        <span className="ataas-pd-node-wide-action">{nodeRecords.length ? '更改' : '选择'}</span>
+      </button>
+    );
+  };
+
+  const renderAddInstMooncakeNodePicker = () => {
+    if (addInstMooncakeDeployMode === 'reuse') {
+      const reusedNodes = [...new Set([...addInstPrefillNodes, ...addInstDecodeNodes])];
+      const nodeRecords = reusedNodes
+        .map((key) => deployNodes.find((node) => node.key === key))
+        .filter((node): node is (typeof deployNodes)[number] => Boolean(node));
+      return (
+        <div className="ataas-pd-node-wide-picker ataas-pd-mooncake-reuse">
+          <div className="ataas-pd-node-wide-main">
+            {nodeRecords.slice(0, 3).map((node) => (
+              <span className="ataas-pd-node-wide-chip" key={node.key}>
+                <strong>{node.name}</strong>
+                <em>{node.gpuType}</em>
+              </span>
+            ))}
+            {nodeRecords.length > 3 && <span className="ataas-pd-node-wide-more">+{nodeRecords.length - 3}</span>}
+            {nodeRecords.length === 0 && <span className="ataas-pd-node-wide-empty">请先选择 Prefill / Decode 节点</span>}
+          </div>
+        </div>
+      );
+    }
+    if (addInstMooncakeDeployMode === 'none') {
+      return (
+        <div className="ataas-pd-node-wide-picker ataas-pd-mooncake-reuse">
+          <div className="ataas-pd-node-wide-main">
+            <span className="ataas-pd-node-wide-empty">不部署 Mooncake</span>
+          </div>
+        </div>
+      );
+    }
+    return renderAddInstPdNodePicker('mooncake');
   };
 
   const renderAddInstanceNodePicker = () => {
@@ -13890,14 +14082,23 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
             const routerNodeNames = getNodeNames(record.routerNodes, record.node || '-');
             const prefillNodeNames = getNodeNames(record.prefillNodes, record.node || '-');
             const decodeNodeNames = getNodeNames(record.decodeNodes, record.node || '-');
+            const mooncakeNodeNames = getNodeNames(record.mooncakeNodes, '-');
             const suffix = podSuffix(record.node || '-');
+            const rows = [
+              { key: `${record.key}-router`, podName: `router-${suffix}-0`, comp: 'Router', cluster: record.cluster, machine: routerNodeNames, gpu: '-', logId: 1 },
+              ...((record.source !== 'extra' || record.prefillNodes?.length > 0) ? [
+                { key: `${record.key}-prefill`, podName: `prefill-${suffix}-0`, comp: 'Prefill', cluster: record.cluster, machine: prefillNodeNames, gpu: '8 卡', logId: 2 },
+              ] : []),
+              ...((record.source !== 'extra' || record.decodeNodes?.length > 0) ? [
+                { key: `${record.key}-decode`, podName: `decode-${suffix}-0`, comp: 'Decode', cluster: record.cluster, machine: decodeNodeNames, gpu: '8 卡', logId: 3 },
+              ] : []),
+              ...(record.mooncakeNodes?.length > 0 ? [
+                { key: `${record.key}-mooncake`, podName: `mooncake-${suffix}-0`, comp: 'Mooncake', cluster: record.cluster, machine: mooncakeNodeNames, gpu: '-', logId: 4 },
+              ] : []),
+            ];
             return {
               record,
-              rows: [
-                { key: `${record.key}-router`, podName: `router-${suffix}-0`, comp: 'Router', cluster: record.cluster, machine: routerNodeNames, gpu: '-', logId: 1 },
-                { key: `${record.key}-prefill`, podName: `prefill-${suffix}-0`, comp: 'Prefill', cluster: record.cluster, machine: prefillNodeNames, gpu: '8 卡', logId: 2 },
-                { key: `${record.key}-decode`, podName: `decode-${suffix}-0`, comp: 'Decode', cluster: record.cluster, machine: decodeNodeNames, gpu: '8 卡', logId: 3 },
-              ],
+              rows,
             };
           })
           : [];
@@ -14086,30 +14287,41 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
       {/* 添加实例弹窗 - PD 模式 */}
       {deployDetailItem?.deployMode === 'PD 分离' && (
         <ConfigProvider theme={{ token: { colorPrimary: '#6738E8', colorPrimaryHover: '#5D30D8', colorPrimaryActive: '#5127C7', controlOutline: 'rgba(103, 56, 232, 0.12)' } }}>
-        <Modal className="ataas-add-instance-modal" title="添加实例" open={addInstanceModalOpen} onCancel={closeAddInstanceModal} width={720} footer={
+        <Modal className="ataas-add-instance-modal ataas-add-instance-pd-modal" title="添加实例" open={addInstanceModalOpen} onCancel={closeAddInstanceModal} width={560} footer={
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
             <Button onClick={closeAddInstanceModal}>取消</Button>
             <Button type="primary" disabled={isAddInstanceSubmitDisabled} onClick={handleAddInstanceConfirm}>确认添加</Button>
           </div>
         }>
+          <Form className="ataas-deploy-drawer-form" layout="horizontal" size="middle" labelCol={{ flex: '88px' }} wrapperCol={{ flex: '1' }}>
+            <Form.Item label="部署集群" required>
+                <Select
+                  className="ataas-deploy-primary-select"
+                  popupClassName="ataas-deploy-primary-select-dropdown"
+                  placeholder="选择部署集群"
+                  value={addInstCluster}
+                  onChange={selectAddInstCluster}
+                  optionRender={(option) => {
+                    const cluster = clusters.find((item) => item.name === option.value || item.key === option.value);
+                    return cluster ? (
+                      <span style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                        <span>{cluster.name}</span>
+                        <span style={{ color: '#86909c', fontSize: 12 }}>{cluster.gpuTypes.map((gpu) => gpu.name).join(' / ')}</span>
+                      </span>
+                    ) : option.label;
+                  }}
+                  options={clusters.map((cluster) => ({ value: cluster.name, label: cluster.name }))}
+                  allowClear
+                  showSearch
+                  optionFilterProp="label"
+                />
+            </Form.Item>
+          </Form>
           <div className="ataas-pd-deploy-stack ataas-add-instance-pd-stack">
-            <div className="ataas-deploy-config-plain ataas-add-instance-config" style={{ padding: '12px 16px' }}>
-              <div className="ataas-pd-form-row ataas-add-instance-top-row">
-                <div className="ataas-pd-form-label"><span className="ataas-pd-required-mark">*</span>部署集群：</div>
-                <div className="ataas-pd-form-control">
-                  <Select
-                    className="ataas-deploy-primary-select"
-                    popupClassName="ataas-deploy-primary-select-dropdown"
-                    placeholder="选择部署集群"
-                    value={addInstCluster}
-                    onChange={setAddInstCluster}
-                    options={clusters.map((cluster) => ({ value: cluster.name, label: cluster.name }))}
-                  />
-                </div>
-              </div>
-              <div className="ataas-pd-form-row ataas-add-instance-top-row">
+            <div className="ataas-pd-template-strip">
+              <div className="ataas-pd-form-row">
                 <div className="ataas-pd-form-label">PD模板：</div>
-                <div className="ataas-pd-form-control ataas-deploy-pd-template-control">
+                <div className="ataas-pd-form-control ataas-pd-template-strip-main">
                   <Select
                     className="ataas-deploy-primary-select"
                     popupClassName="ataas-deploy-primary-select-dropdown"
@@ -14125,80 +14337,56 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
                 </div>
               </div>
             </div>
-            {/* Router */}
-            <div className="ataas-pd-section">
-              <div className="ataas-pd-section-header">
-                <span>Router</span>
-              </div>
-              <div className="ataas-pd-section-body">
-                <div className="ataas-pd-config-form">
-                  <div className="ataas-pd-form-row ataas-add-instance-node-row">
-                    <div className="ataas-pd-form-label"><span className="ataas-pd-required-mark">*</span>部署节点：</div>
-                    <div className="ataas-pd-form-control">
-                      <div className="ataas-pd-node-selector" onClick={() => { setAddInstNodePickerMode('router'); setAddInstNodePickerSelected([...addInstRouterNodes]); setAddInstNodeGpuFilter('all'); setAddInstNodeSearch(''); setAddInstNodePickerOpen(true); }}>
-                      {addInstRouterNodes.length > 0 ? addInstRouterNodes.map((k) => {
-                        const n = deployNodes.find((d) => d.key === k);
-                        return n ? <Tag key={k} closable onClose={(e) => { e.stopPropagation(); setAddInstRouterNodes((prev) => prev.filter((x) => x !== k)); }} className="ataas-pd-node-tag ataas-pd-node-tag-router">{n.name}</Tag> : null;
-                      }) : <span className="ataas-pd-node-placeholder">选择部署节点</span>}
-                        <span className="ataas-pd-node-action">选择节点</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                {renderPdShellPanel('router', 'Router YAML', addInstRouterShellText, setAddInstRouterShellText, setAddInstRouterParams)}
-              </div>
-            </div>
-            {/* PD Worker */}
-            <div className="ataas-pd-section ataas-pd-worker-card">
-              <div className="ataas-pd-worker-subsection">
-                <div className="ataas-pd-section-header">
-                  <span>Prefill</span>
-                </div>
-                <div className="ataas-pd-section-body">
-                  <div className="ataas-pd-config-form">
-                    <div className="ataas-pd-form-row ataas-add-instance-node-row">
-                      <div className="ataas-pd-form-label"><span className="ataas-pd-required-mark">*</span>部署节点：</div>
-                      <div className="ataas-pd-form-control">
-                        <div className="ataas-pd-node-selector" onClick={() => { setAddInstNodePickerMode('prefill'); setAddInstNodePickerSelected([...addInstPrefillNodes]); setAddInstNodeGpuFilter('all'); setAddInstNodeSearch(''); setAddInstNodePickerOpen(true); }}>
-                          {addInstPrefillNodes.length > 0 ? addInstPrefillNodes.map((k) => {
-                            const n = deployNodes.find((d) => d.key === k);
-                            return n ? <Tag key={k} closable onClose={(e) => { e.stopPropagation(); setAddInstPrefillNodes((prev) => prev.filter((x) => x !== k)); }} className="ataas-pd-node-tag ataas-pd-node-tag-prefill">{n.name}</Tag> : null;
-                          }) : <span className="ataas-pd-node-placeholder">选择部署节点</span>}
-                          <span className="ataas-pd-node-action">选择节点</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="ataas-pd-form-row">
-                      <div className="ataas-pd-form-label"><span className="ataas-pd-required-mark">*</span>使用卡数：</div>
-                      <div className="ataas-pd-form-control">{renderAddInstPdAutoCardCount('prefill')}</div>
-                    </div>
+            <div className="ataas-pd-compact-panel">
+              <div className="ataas-pd-compact-section">
+                <div className="ataas-pd-compact-title">Router</div>
+                <div className="ataas-pd-compact-grid">
+                  <div className="ataas-pd-compact-label"><span className="ataas-pd-required-mark">*</span>部署节点</div>
+                  <div className="ataas-pd-compact-control">{renderAddInstPdNodePicker('router')}</div>
+                  <div className="ataas-pd-compact-label">YAML</div>
+                  <div className="ataas-pd-compact-control">{renderPdShellPanel(
+                    'router',
+                    'Router YAML',
+                    addInstRouterShellText,
+                    setAddInstRouterShellText,
+                    setAddInstRouterParams,
+                    {
+                      locked: Boolean(addInstRouterTemplateKey),
+                      pickerTarget: 'add-instance-router',
+                      resourcePicker: true,
+                    },
+                  )}</div>
+                  <div className="ataas-pd-compact-label">ServerEntry</div>
+                  <div className="ataas-pd-compact-control">
+                    <Select
+                      className="ataas-pd-server-entry-select"
+                      popupClassName="ataas-deploy-primary-select-dropdown"
+                      placeholder={addInstCluster ? '选择 ServerEntry' : '请先选择部署集群'}
+                      value={addInstServiceEntry}
+                      onChange={setAddInstServiceEntry}
+                      options={addInstServiceEntryOptions}
+                      disabled={!addInstCluster}
+                      showSearch
+                      optionFilterProp="label"
+                    />
                   </div>
                 </div>
               </div>
-              <div className="ataas-pd-worker-subsection">
-                <div className="ataas-pd-section-header">
-                  <span>Decode</span>
-                </div>
-                <div className="ataas-pd-section-body">
-                  <div className="ataas-pd-config-form">
-                    <div className="ataas-pd-form-row ataas-add-instance-node-row">
-                      <div className="ataas-pd-form-label"><span className="ataas-pd-required-mark">*</span>部署节点：</div>
-                      <div className="ataas-pd-form-control">
-                        <div className="ataas-pd-node-selector" onClick={() => { setAddInstNodePickerMode('decode'); setAddInstNodePickerSelected([...addInstDecodeNodes]); setAddInstNodeGpuFilter('all'); setAddInstNodeSearch(''); setAddInstNodePickerOpen(true); }}>
-                          {addInstDecodeNodes.length > 0 ? addInstDecodeNodes.map((k) => {
-                            const n = deployNodes.find((d) => d.key === k);
-                            return n ? <Tag key={k} closable onClose={(e) => { e.stopPropagation(); setAddInstDecodeNodes((prev) => prev.filter((x) => x !== k)); }} className="ataas-pd-node-tag ataas-pd-node-tag-decode">{n.name}</Tag> : null;
-                          }) : <span className="ataas-pd-node-placeholder">选择部署节点</span>}
-                          <span className="ataas-pd-node-action">选择节点</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="ataas-pd-form-row">
-                      <div className="ataas-pd-form-label"><span className="ataas-pd-required-mark">*</span>使用卡数：</div>
-                      <div className="ataas-pd-form-control">{renderAddInstPdAutoCardCount('decode')}</div>
-                    </div>
+              <div className="ataas-pd-compact-section">
+                <div className="ataas-pd-compact-title">Worker</div>
+                <div className="ataas-pd-worker-fields">
+                  <div className="ataas-pd-worker-field-row">
+                    <div className="ataas-pd-worker-role-name">Prefill</div>
+                    <div>{renderAddInstPdNodePicker('prefill')}</div>
                   </div>
-                  {renderPdShellPanel(
+                  <div className="ataas-pd-worker-field-row">
+                    <div className="ataas-pd-worker-role-name">Decode</div>
+                    <div>{renderAddInstPdNodePicker('decode')}</div>
+                  </div>
+                </div>
+                <div className="ataas-pd-compact-grid ataas-pd-compact-yaml-only">
+                  <div className="ataas-pd-compact-label">YAML</div>
+                  <div className="ataas-pd-compact-control">{renderPdShellPanel(
                     'prefill',
                     'PD Worker YAML',
                     addInstPrefillShellText,
@@ -14210,8 +14398,52 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
                       setAddInstPrefillParams(next);
                       setAddInstDecodeParams(next.map((param) => ({ ...param })));
                     },
-                  )}
+                    {
+                      locked: Boolean(addInstPrefillTemplateKey || addInstDecodeTemplateKey),
+                      pickerTarget: 'add-instance-worker',
+                      resourcePicker: true,
+                    },
+                  )}</div>
                 </div>
+              </div>
+              <div className={'ataas-pd-compact-section ataas-pd-mooncake-section' + (addInstMooncakeDeployMode === 'none' ? ' compact' : '')}>
+                <div className="ataas-pd-compact-title-row">
+                  <div className="ataas-pd-compact-title">Mooncake</div>
+                  <div className="ataas-pd-mode-tabs">
+                    {[
+                      { key: 'none', label: '不部署' },
+                      { key: 'reuse', label: '复用 PD 节点' },
+                      { key: 'custom', label: '单独部署' },
+                    ].map((item) => (
+                      <button
+                        key={item.key}
+                        type="button"
+                        className={'ataas-pd-mode-tab' + (addInstMooncakeDeployMode === item.key ? ' active' : '')}
+                        onClick={() => setAddInstMooncakeDeployMode(item.key as 'none' | 'reuse' | 'custom')}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {addInstMooncakeDeployMode !== 'none' && (
+                  <div className="ataas-pd-compact-grid">
+                    <div className="ataas-pd-compact-label">部署节点</div>
+                    <div className="ataas-pd-compact-control">{renderAddInstMooncakeNodePicker()}</div>
+                    <div className="ataas-pd-compact-label">YAML</div>
+                    <div className="ataas-pd-compact-control">{renderPdShellPanel(
+                      'mooncake',
+                      'Mooncake YAML',
+                      addInstMooncakeShellText,
+                      setAddInstMooncakeShellText,
+                      setAddInstMooncakeParams,
+                      {
+                        pickerTarget: 'add-instance-mooncake',
+                        resourcePicker: true,
+                      },
+                    )}</div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -14234,7 +14466,7 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
                 popupClassName="ataas-deploy-primary-select-dropdown"
                 placeholder="选择部署集群"
                 value={addInstCluster}
-                onChange={setAddInstCluster}
+                onChange={selectAddInstCluster}
                 options={clusters.map((cluster) => ({ value: cluster.name, label: cluster.name }))}
               />
             </Form.Item>
@@ -14268,7 +14500,7 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
         </ConfigProvider>
       )}
       {/* 添加实例 - 节点选择弹窗 */}
-      <Modal zIndex={2200} className="ataas-node-select-modal" title={deployDetailItem?.deployMode !== 'PD 分离' ? '选择部署节点' : '选择' + (addInstNodePickerMode === 'router' ? 'Router' : addInstNodePickerMode === 'prefill' ? 'Prefill' : 'Decode') + '节点'} open={addInstNodePickerOpen} onCancel={() => setAddInstNodePickerOpen(false)} footer={
+      <Modal zIndex={2200} className="ataas-node-select-modal" title={deployDetailItem?.deployMode !== 'PD 分离' ? '选择部署节点' : '选择' + (addInstNodePickerMode === 'router' ? 'Router' : addInstNodePickerMode === 'prefill' ? 'Prefill' : addInstNodePickerMode === 'decode' ? 'Decode' : 'Mooncake') + '节点'} open={addInstNodePickerOpen} onCancel={() => setAddInstNodePickerOpen(false)} footer={
         <div className="ataas-node-select-footer">
           <span>已选 {addInstNodePickerSelected.length} 个节点{Number.isFinite(getAddInstNodePickerLimit()) ? `，最多 ${getAddInstNodePickerLimit()} 个` : ''}</span>
           <div>
@@ -14286,6 +14518,7 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
                 setAddInstDecodeCardCount(nextCardCount);
               }
               else if (addInstNodePickerMode === 'decode') setAddInstDecodeNodes(nextSelected);
+              else if (addInstNodePickerMode === 'mooncake') setAddInstMooncakeNodes(nextSelected);
               if (addInstNodePickerMode === 'router' && deployDetailItem?.deployMode !== 'PD 分离') {
                 const selectedNodes = nextSelected
                   .map((key) => deployNodes.find((node) => node.key === key))
@@ -14310,6 +14543,8 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
           <Table
             dataSource={deployNodes.filter((n) => {
               if (n.status !== 'ready') return false;
+              const selectedClusterKey = clusters.find((cluster) => cluster.name === addInstCluster || cluster.key === addInstCluster)?.key;
+              if (selectedClusterKey && n.clusterKey !== selectedClusterKey) return false;
               if (addInstNodeGpuFilter !== 'all' && n.gpuType !== addInstNodeGpuFilter) return false;
               if (addInstNodeSearch) {
                 const q = addInstNodeSearch.toLowerCase();

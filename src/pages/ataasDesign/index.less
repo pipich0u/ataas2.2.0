@@ -20917,6 +20917,128 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 
 }
 
+.ataas-add-instance-pd-modal {
+  top: 24px;
+  padding-bottom: 24px;
+
+  .ant-modal-container,
+  .ant-modal-content {
+    display: flex;
+    max-height: calc(100vh - 48px);
+    flex-direction: column;
+  }
+
+  .ant-modal-body {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
+  }
+
+  .ataas-deploy-drawer-form {
+    max-width: 540px;
+
+    .ant-form-item {
+      margin-bottom: 16px;
+    }
+
+    .ant-form-item-label {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 0 12px 0 0;
+    }
+
+    .ant-form-item-label > label {
+      height: 20px;
+      color: #4E5969;
+      font-size: 13px;
+      font-weight: 400;
+      line-height: 20px;
+    }
+
+    .ant-form-item-control {
+      max-width: 400px;
+    }
+
+    .ant-input,
+    .ant-select,
+    .ant-input-number {
+      max-width: 400px;
+    }
+  }
+
+  .ataas-deploy-drawer-form .ant-select:not(.ant-select-customize-input) .ant-select-selector,
+  .ataas-pd-template-strip .ant-select:not(.ant-select-customize-input) .ant-select-selector {
+    border-color: #E5E6EB !important;
+    border-radius: 4px !important;
+    background: #fff !important;
+    box-shadow: none !important;
+    color: #1D2129;
+    font-family: PingFangSC, "PingFang SC", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 13px;
+  }
+
+  .ataas-deploy-drawer-form .ant-select-selection-item,
+  .ataas-deploy-drawer-form .ant-select-selection-placeholder,
+  .ataas-pd-template-strip .ant-select-selection-item,
+  .ataas-pd-template-strip .ant-select-selection-placeholder {
+    font-size: 13px;
+  }
+
+  .ataas-deploy-drawer-form .ant-select-selection-placeholder,
+  .ataas-pd-template-strip .ant-select-selection-placeholder {
+    color: #C9CDD4 !important;
+    font-weight: 400;
+  }
+}
+
+@media (max-width: 760px) {
+  .ataas-add-instance-pd-modal {
+    .ataas-pd-form-row {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 8px;
+    }
+
+    .ataas-pd-form-label {
+      line-height: 20px;
+    }
+
+    .ataas-pd-template-strip-main {
+      grid-template-columns: minmax(0, 1fr) 34px;
+    }
+
+    .ataas-pd-compact-title-row {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 8px;
+    }
+
+    .ataas-pd-mode-tabs,
+    .ataas-pd-mooncake-section.compact .ataas-pd-mode-tabs {
+      display: grid;
+      width: 100%;
+      grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.4fr) minmax(0, 1fr);
+      gap: 8px;
+    }
+
+    .ataas-pd-mode-tab,
+    .ataas-pd-mooncake-section.compact .ataas-pd-mode-tab {
+      width: 100%;
+      text-align: center;
+    }
+
+    .ataas-pd-form-control,
+    .ataas-pd-template-strip-main,
+    .ataas-pd-compact-panel,
+    .ataas-pd-compact-control,
+    .ataas-pd-worker-field-row > div:last-child,
+    .ataas-pd-node-wide-picker {
+      width: 100%;
+      max-width: 100%;
+    }
+  }
+}
+
 .ataas-pd-param-row {
   display: flex;
   gap: 6px;
