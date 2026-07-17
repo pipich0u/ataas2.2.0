@@ -1,0 +1,712 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>集群资源概览 · ATaaS风格Demo V2.4</title>
+  <style>
+    * { box-sizing: border-box; }
+    :root {
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --line: #e7ebf2;
+      --text: #172033;
+      --muted: #738096;
+      --blue: #3976f6;
+      --blue-soft: #edf4ff;
+      --green: #16a36a;
+      --green-soft: #e9f8f1;
+      --amber: #e69727;
+      --amber-soft: #fff5e6;
+      --red: #e24949;
+      --red-soft: #fff0f0;
+      --nav: #17243b;
+      --nav-text: #d4dbea;
+      --nav-muted: #76849c;
+    }
+    body {
+      margin: 0;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", Arial, sans-serif;
+      font-size: 13px;
+      -webkit-font-smoothing: antialiased;
+    }
+    .app { display: grid; grid-template-columns: 76px 260px 1fr; width: 100%; height: 100%; }
+    .sidebar {
+      background: var(--nav);
+      color: var(--nav-text);
+      padding: 0 9px 14px;
+      box-shadow: 5px 0 24px rgba(20, 36, 60, .08);
+      position: relative;
+    }
+    .brand {
+      height: 66px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      font-size: 17px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: .2px;
+      border-bottom: 1px solid rgba(255,255,255,.07);
+      margin-bottom: 14px;
+    }
+    .brand-text { display: none; }
+    .brand-mark {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: linear-gradient(145deg, #4387ff, #315eda);
+      display: grid; place-items: center;
+      box-shadow: 0 6px 18px rgba(57, 118, 246, .35);
+    }
+    .brand-mark::before {
+      content: ""; width: 13px; height: 13px; border: 2px solid #fff; border-radius: 4px;
+      box-shadow: 4px -4px 0 -2px #fff, -4px 4px 0 -2px #fff;
+    }
+    .nav-section { display: none; }
+    .nav-item {
+      height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+      padding: 6px 2px; margin: 3px 0; border-radius: 9px; color: #aeb9cc;
+      font-size: 10px; position: relative;
+    }
+    .nav-item.active { color: #fff; background: rgba(66, 128, 255, .19); font-weight: 600; }
+    .nav-item.active::before { content: ""; position: absolute; left: -9px; width: 3px; height: 26px; background: #5b8dff; border-radius: 0 3px 3px 0; }
+    .nav-icon { width: 18px; height: 18px; border: 1.5px solid currentColor; border-radius: 5px; opacity: .9; position: relative; }
+    .nav-icon.round { border-radius: 50%; }
+    .nav-icon.grid::before { content: ""; position: absolute; inset: 3px; border-top: 1px solid currentColor; border-bottom: 1px solid currentColor; }
+    .nav-badge { position: absolute; right: 6px; top: 6px; min-width: 16px; height: 16px; padding: 0 4px; display: grid; place-items: center; border-radius: 9px; background: rgba(226, 73, 73, .22); color: #ff9b9b; font-size: 9px; }
+    .collapse-btn { position: absolute; right: -10px; top: 76px; width: 20px; height: 28px; border-radius: 8px; background: #fff; color: #65728a; border: 1px solid #e2e7ef; display: grid; place-items: center; font-size: 14px; box-shadow: 0 3px 9px rgba(28, 43, 68, .12); z-index: 5; }
+    .resource-tree { position: relative; background: #fff; border-right: 1px solid #e3e8ef; color: #324054; min-width: 0; }
+    .tree-header { height: 66px; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e7ebf2; }
+    .tree-title { font-size: 15px; font-weight: 700; color: #243248; }
+    .tree-total { color: #7f8a9d; font-size: 10px; }
+    .tree-controls { padding: 13px; border-bottom: 1px solid #edf0f5; }
+    .tree-search { height: 31px; display: flex; align-items: center; gap: 7px; padding: 0 9px; color: #9aa4b5; border: 1px solid #dde3ec; border-radius: 7px; font-size: 10px; }
+    .tree-stats { margin: 4px 8px 8px; padding: 8px 7px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; border-radius: 7px; background: #f6f8fb; color: #8490a3; font-size: 8px; text-align: center; }
+    .tree-stats strong { display: block; margin-top: 2px; color: #45556d; font-size: 11px; }
+    .tree-provider { margin-bottom: 7px; }
+    .tree-provider-head { height: 34px; padding: 0 8px; display: grid; grid-template-columns: 14px 1fr auto; align-items: center; gap: 6px; color: #34435a; font-size: 10.5px; font-weight: 700; }
+    .tree-provider-count { color: #8793a5; font-size: 8.5px; font-weight: 500; }
+    .tree-dc { margin-left: 17px; }
+    .tree-dc-head { min-height: 31px; padding: 5px 7px; display: grid; grid-template-columns: 12px 1fr auto; align-items: center; gap: 5px; color: #59677b; font-size: 9px; font-weight: 600; }
+    .tree-dc-count { min-width: 18px; height: 17px; padding: 0 4px; display: grid; place-items: center; border-radius: 8px; color: #4873c8; background: #edf3ff; font-size: 8px; }
+    .tree-cluster-link { min-height: 34px; margin: 2px 5px 3px 20px; padding: 5px 7px; display: grid; grid-template-columns: 8px 1fr auto; align-items: center; gap: 6px; border-radius: 6px; color: #4a586e; font-size: 9px; }
+    .tree-cluster-link::before { display: none; }
+    .tree-cluster-link > span:first-child { width: 6px; height: 6px; border-radius: 50%; background: #18a66a; }
+    .tree-cluster-link.active { color: #2257ad; background: #dfeeff; font-weight: 700; }
+    .tree-cluster-link.active > span:first-child { background: #3976f6; box-shadow: 0 0 0 3px rgba(57,118,246,.11); }
+    .tree-link-meta { display: block; margin-top: 2px; color: #8996a9; font-size: 7.5px; font-weight: 400; }
+    .tree-cross { margin-left: 4px; color: #986b13; background: #fff4dc; border-radius: 6px; padding: 1px 4px; font-size: 7px; font-style: normal; font-weight: 600; }
+    .tree-node-count { color: #5c6f8b; font-size: 8px; white-space: nowrap; }
+    .tree-scroll { padding: 10px 10px 96px; }
+    .tree-all { height: 34px; display: flex; align-items: center; justify-content: space-between; padding: 0 9px; margin-bottom: 5px; border-radius: 7px; color: #46617f; font-size: 11px; font-weight: 700; }
+    .tree-all-count { color: #8b96a8; font-size: 9px; font-weight: 500; }
+    .tree-cluster { margin-bottom: 6px; border-radius: 8px; }
+    .tree-cluster.active { background: #edf4ff; border: 1px solid #d8e6ff; }
+    .tree-cluster-head { min-height: 43px; padding: 7px 8px; display: grid; grid-template-columns: 14px 1fr auto; align-items: center; gap: 6px; }
+    .tree-chevron { color: #8190a7; font-size: 11px; }
+    .tree-cluster.active .tree-chevron { color: #326bdc; }
+    .tree-cluster-name { font-size: 11px; font-weight: 700; color: #29384f; }
+    .tree-cluster-meta { margin-top: 3px; color: #7d8ca2; font-size: 8.5px; }
+    .tree-health { min-width: 25px; height: 18px; padding: 0 5px; display: grid; place-items: center; border-radius: 9px; color: #e24949; background: #fff0f0; font-size: 8px; }
+    .tree-health.ok { color: #118557; background: #e9f8f1; }
+    .tree-children { position: relative; margin: 0 8px 8px 23px; padding-left: 10px; border-left: 1px solid #cbdcfb; }
+    .tree-leaf { min-height: 37px; padding: 5px 5px 5px 2px; display: flex; align-items: center; justify-content: space-between; gap: 5px; border-radius: 5px; }
+    .tree-leaf:hover { background: rgba(255,255,255,.75); }
+    .tree-leaf-main { min-width: 0; }
+    .tree-leaf-name { display: flex; align-items: center; gap: 6px; color: #3d4d64; font-size: 9.5px; font-weight: 600; white-space: nowrap; }
+    .tree-leaf-name::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #3976f6; }
+    .tree-leaf-meta { margin: 3px 0 0 12px; color: #8996a9; font-size: 8px; white-space: nowrap; }
+    .tree-leaf-count { color: #68758a; font-size: 8.5px; white-space: nowrap; }
+    .tree-leaf-count.bad { color: #e24949; }
+    .tree-cluster.collapsed { border: 1px solid transparent; }
+    .tree-cluster.collapsed .tree-cluster-head { min-height: 40px; }
+    .tree-footer { position: absolute; left: 12px; right: 12px; bottom: 14px; padding-top: 10px; background: #fff; border-top: 1px solid #edf0f5; }
+    .tree-unmanaged { height: 38px; padding: 0 10px; display: flex; align-items: center; justify-content: space-between; border-radius: 7px; color: #5f6d82; background: #f6f8fb; font-size: 10px; }
+    .tree-unmanaged strong { color: #d48a1e; font-size: 9px; }
+    .workspace { display: grid; grid-template-rows: 66px 1fr; min-width: 0; }
+    .topbar {
+      background: #fff; border-bottom: 1px solid var(--line); padding: 0 22px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .product-context { color: #6b778a; font-size: 12px; font-weight: 600; white-space: nowrap; margin-right: 2px; }
+    .product-context span { color: #b6bfcd; margin: 0 5px; }
+    .select, .time, .search {
+      height: 34px; border: 1px solid #dde3ec; border-radius: 8px; background: #fff;
+      display: flex; align-items: center; color: #4c596e; white-space: nowrap;
+    }
+    .select { padding: 0 11px; min-width: 98px; justify-content: space-between; gap: 14px; }
+    .select.selected { color: #2f67db; border-color: #aec7fa; background: #f7faff; font-weight: 600; }
+    .select::after { content: "⌄"; color: #9ba6b7; font-size: 12px; }
+    .search { width: 265px; margin-left: auto; color: #9aa4b5; padding: 0 12px; gap: 9px; }
+    .magnify { width: 13px; height: 13px; border: 1.6px solid #8995a8; border-radius: 50%; position: relative; }
+    .magnify::after { content: ""; width: 6px; height: 1.5px; background: #8995a8; position: absolute; right: -5px; bottom: -2px; transform: rotate(45deg); border-radius: 2px; }
+    .time { padding: 0 11px; }
+    .abnormal-toggle { display: flex; align-items: center; gap: 7px; color: #5d697b; margin-left: auto; }
+    .switch { width: 30px; height: 18px; background: #dce2eb; border-radius: 10px; position: relative; }
+    .switch::after { content: ""; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.18); position: absolute; top: 2px; left: 2px; }
+    .avatar { width: 32px; height: 32px; margin-left: 4px; border-radius: 50%; display: grid; place-items: center; color: #fff; background: #536e9d; font-size: 12px; }
+    .content { padding: 14px 20px 18px; overflow: hidden; }
+    .page-title-row { height: 57px; display: flex; align-items: center; justify-content: space-between; }
+    .page-title { font-size: 20px; font-weight: 700; line-height: 24px; }
+    .page-title-line { display: flex; align-items: center; gap: 8px; }
+    .cluster-running { padding: 2px 7px; border-radius: 9px; color: #13865a; background: #e9f8f1; font-size: 9px; font-weight: 700; }
+    .cluster-health { padding: 2px 7px; border-radius: 9px; color: #d92d20; background: #fff1f0; font-size: 9px; font-weight: 600; }
+    .cluster-cross { padding: 2px 7px; border-radius: 9px; color: #93680f; background: #fff4dc; font-size: 9px; font-weight: 600; }
+    .cluster-code { padding: 2px 6px; border-radius: 5px; color: #6b7280; background: #f2f3f5; font-family: Menlo, Monaco, Consolas, monospace; font-size: 9px; font-weight: 500; }
+    .version-eol { margin-left: 4px; padding: 1px 4px; border-radius: 5px; color: #d92d20; background: #fff1f0; font-size: 7px; font-style: normal; font-weight: 700; }
+    .page-subtitle { display: flex; gap: 16px; color: var(--muted); font-size: 10px; margin-top: 5px; }
+    .page-subtitle b { color: #4e5b6f; font-weight: 600; }
+    .freshness { color: #909bad; font-size: 11px; }
+    .page-actions { display: flex; align-items: center; gap: 12px; }
+    .onboard-action { height: 36px; padding: 0 12px; display: flex; align-items: center; gap: 7px; border-radius: 9px; color: #fff; background: #3976f6; font-size: 11px; font-weight: 700; box-shadow: 0 4px 10px rgba(57,118,246,.22); white-space: nowrap; }
+    .onboard-action span { font-size: 16px; line-height: 1; font-weight: 400; }
+    .module-nav { height: 42px; display: flex; align-items: flex-end; gap: 17px; border-bottom: 1px solid #dfe5ee; margin-bottom: 12px; padding: 0 3px; overflow: hidden; }
+    .module-tab { height: 39px; display: flex; align-items: center; color: #647087; font-size: 11px; position: relative; white-space: nowrap; }
+    .module-tab.active { color: var(--blue); font-weight: 700; }
+    .module-tab.active::after { content: ""; position: absolute; height: 3px; background: var(--blue); border-radius: 3px 3px 0 0; left: 0; right: 0; bottom: -1px; }
+    .module-tab .count { margin-left: 5px; min-width: 18px; height: 17px; padding: 0 5px; border-radius: 9px; display: grid; place-items: center; background: var(--red-soft); color: var(--red); font-size: 9px; }
+    .module-tab .count.neutral { color: #6738e8; background: #f2eeff; }
+    .module-tab.group-start { margin-left: 0; padding-left: 0; }
+    .module-tab.group-start::before { display: none; }
+    .tab-legend { display: none; }
+    .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; }
+    .summary-card {
+      height: 88px; background: var(--card); border: 1px solid var(--line); border-radius: 11px;
+      padding: 10px 14px; display: block;
+      box-shadow: 0 2px 8px rgba(20, 36, 60, .025);
+    }
+    .summary-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+    .summary-label { color: #536176; font-size: 11px; font-weight: 700; }
+    .summary-note { color: #9aa4b4; font-size: 8px; font-weight: 400; }
+    .summary-split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .summary-metric { min-width: 0; }
+    .summary-metric + .summary-metric { border-left: 1px solid #edf0f5; padding-left: 12px; }
+    .metric-top { display: flex; align-items: baseline; gap: 6px; }
+    .metric-name { color: #7b8799; font-size: 9px; }
+    .summary-number { font-size: 21px; line-height: 22px; font-weight: 700; letter-spacing: -.3px; }
+    .summary-meta { margin-top: 4px; color: #8792a4; font-size: 8.5px; white-space: nowrap; }
+    .bad { color: var(--red); font-weight: 600; }
+    .warn { color: var(--amber); font-weight: 600; }
+    .summary-icon { width: 35px; height: 35px; border-radius: 9px; display: grid; place-items: center; color: var(--blue); background: var(--blue-soft); font-weight: 700; font-size: 10px; }
+    .summary-icon.red { background: var(--red-soft); color: var(--red); }
+    .summary-icon.amber { background: var(--amber-soft); color: var(--amber); }
+    .grid-main { display: grid; grid-template-columns: minmax(0, 1.72fr) minmax(360px, .88fr); gap: 12px; margin-bottom: 12px; }
+    .card { background: #fff; border: 1px solid var(--line); border-radius: 11px; box-shadow: 0 2px 9px rgba(20, 36, 60, .025); }
+    .card-head { height: 42px; padding: 0 15px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #edf0f5; }
+    .card-title { font-size: 14px; font-weight: 700; }
+    .card-link { font-size: 11px; color: var(--blue); }
+    .issue-card, .region-card { height: 200px; }
+    .issue-body { display: grid; grid-template-columns: 1.44fr .76fr; height: 157px; }
+    .critical { margin: 12px; padding: 12px 13px; border-radius: 9px; background: linear-gradient(90deg, #fff5f4, #fff9f8); border: 1px solid #ffd9d5; }
+    .critical-top { display: flex; align-items: center; gap: 8px; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 4px rgba(226,73,73,.10); }
+    .critical-name { font-size: 14px; font-weight: 700; }
+    .status-pill { padding: 2px 7px; border-radius: 9px; background: #ffe3e1; color: #d84242; font-size: 10px; font-weight: 600; }
+    .chain { margin: 11px 0 10px 16px; font-size: 12px; color: #48566b; line-height: 20px; }
+    .chain strong { color: #c63f3f; }
+    .tags { display: flex; align-items: center; gap: 6px; }
+    .tag { color: #657187; background: #fff; border: 1px solid #e3e7ee; border-radius: 5px; padding: 2px 6px; font-size: 10px; }
+    .primary-btn { margin-left: auto; background: var(--blue); color: #fff; border-radius: 6px; padding: 6px 10px; font-size: 11px; box-shadow: 0 3px 8px rgba(57,118,246,.23); }
+    .minor-issues { padding: 9px 12px 8px 0; }
+    .minor-row { height: 64px; padding: 10px 10px; border-bottom: 1px solid #edf0f5; display: flex; align-items: flex-start; gap: 9px; }
+    .minor-row:last-child { border-bottom: 0; }
+    .minor-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--amber); margin-top: 4px; }
+    .minor-title { font-size: 12px; font-weight: 600; margin-bottom: 5px; }
+    .minor-meta { font-size: 10px; color: #8994a6; }
+    .region-list { padding: 5px 14px; }
+    .region-row { height: 38px; display: grid; grid-template-columns: 1fr 64px 62px 57px; align-items: center; border-bottom: 1px solid #eff2f6; }
+    .region-row:last-child { border-bottom: 0; }
+    .region-name { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+    .region-icon { width: 22px; height: 22px; border-radius: 6px; background: #edf3ff; color: var(--blue); display: grid; place-items: center; font-size: 10px; }
+    .provider { font-size: 10px; color: #758197; background: #f4f6f9; padding: 3px 5px; border-radius: 4px; text-align: center; }
+    .state { font-size: 10px; display: flex; align-items: center; gap: 5px; justify-content: flex-end; }
+    .state::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+    .state.issue { color: var(--red); }
+    .state.issue::before { background: var(--red); }
+    .coverage-summary { padding: 12px 14px 10px; }
+    .coverage-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .coverage-cluster { font-size: 13px; font-weight: 700; }
+    .cross-badge { font-size: 9px; padding: 3px 7px; color: #8a5a00; background: #fff4dc; border: 1px solid #f5d899; border-radius: 9px; }
+    .coverage-meta { color: #7b8799; font-size: 10px; margin-bottom: 9px; }
+    .coverage-list { display: grid; gap: 7px; }
+    .coverage-row { display: grid; grid-template-columns: 1fr 70px 88px; align-items: center; gap: 7px; }
+    .coverage-place { display: flex; align-items: center; gap: 7px; font-size: 11px; font-weight: 600; min-width: 0; }
+    .coverage-place i { width: 7px; height: 7px; border-radius: 50%; background: var(--blue); box-shadow: 0 0 0 3px #edf3ff; }
+    .coverage-vendor { color: #6f7b8e; font-size: 9px; text-align: center; background: #f3f5f8; border-radius: 4px; padding: 3px 4px; }
+    .coverage-count { color: #4f5d72; font-size: 10px; text-align: right; }
+    .coverage-count.bad { color: var(--red); }
+    .node-health-body { height: 157px; padding: 16px 20px; display: grid; grid-template-columns: 118px 1fr; align-items: center; gap: 20px; }
+    .health-donut { width: 104px; height: 104px; border-radius: 50%; background: conic-gradient(#16a36a 0 89.2%, #e69727 89.2% 94.6%, #e24949 94.6% 97.3%, #6e9cf8 97.3% 100%); display: grid; place-items: center; position: relative; }
+    .health-donut::after { content: ""; width: 70px; height: 70px; border-radius: 50%; background: #fff; position: absolute; }
+    .health-total { position: relative; z-index: 2; text-align: center; color: #7b8799; font-size: 8px; }
+    .health-total strong { display: block; color: #25364c; font-size: 20px; line-height: 22px; }
+    .health-legend { display: grid; gap: 8px; }
+    .health-row { display: grid; grid-template-columns: 1fr auto; align-items: center; color: #67748a; font-size: 10px; }
+    .health-label { display: flex; align-items: center; gap: 7px; }
+    .health-dot { width: 7px; height: 7px; border-radius: 50%; background: #16a36a; }
+    .health-dot.warn { background: #e69727; }
+    .health-dot.bad { background: #e24949; }
+    .health-dot.maint { background: #6e9cf8; }
+    .mapping-body { height: 157px; padding: 18px 17px 12px; }
+    .mapping-flow { display: grid; grid-template-columns: 1fr 20px 1fr 20px 1fr; align-items: center; }
+    .mapping-step { height: 66px; border-radius: 9px; background: #f6f8fb; display: grid; place-items: center; align-content: center; gap: 4px; }
+    .mapping-step strong { font-size: 20px; line-height: 20px; color: #26364d; }
+    .mapping-step span { color: #7b8799; font-size: 9px; }
+    .mapping-step.bad { background: #fff3f2; }
+    .mapping-step.bad strong { color: #d84242; }
+    .mapping-arrow { text-align: center; color: #a1abbb; font-size: 15px; }
+    .mapping-notes { margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .mapping-note { display: flex; align-items: center; gap: 6px; color: #6c788c; font-size: 9px; }
+    .mapping-note::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--amber); }
+    .mapping-note.bad::before { background: var(--red); }
+    .resource-card { height: 170px; margin-bottom: 12px; }
+    .resource-content { height: 127px; display: grid; grid-template-columns: repeat(6, 1fr); }
+    .card-subtitle { color: #909bad; font-size: 10px; font-weight: 400; margin-left: 8px; }
+    .resource-item { padding: 12px 14px 8px; border-right: 1px solid #edf0f5; }
+    .resource-item:last-child { border-right: 0; }
+    .resource-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; }
+    .trend-meta { display: flex; justify-content: space-between; color: #8a95a7; font-size: 8.5px; margin-bottom: 2px; }
+    .range-select { height: 26px; padding: 0 9px; border: 1px solid #dfe5ee; border-radius: 6px; display: flex; align-items: center; color: #667389; background: #fff; font-size: 9px; }
+    .resource-name { font-size: 13px; font-weight: 700; }
+    .resource-value { color: #68758b; font-size: 10px; }
+    .progress { height: 7px; background: #edf1f6; border-radius: 5px; overflow: hidden; display: flex; margin-bottom: 8px; }
+    .progress .allocated { background: #9fbaf7; }
+    .progress .used { background: var(--blue); margin-left: -100%; position: relative; z-index: 2; }
+    .legend { display: flex; gap: 10px; color: #8a95a7; font-size: 9px; }
+    .legend i { width: 6px; height: 6px; display: inline-block; border-radius: 2px; margin-right: 3px; background: #9fbaf7; }
+    .legend i.used { background: var(--blue); }
+    .spark { width: 100%; height: 35px; margin-top: 5px; }
+    .spark polyline { fill: none; stroke: #7ca4f8; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .spark .area { fill: rgba(83, 132, 244, .08); stroke: none; }
+    .bottom-grid { display: grid; grid-template-columns: 1.43fr 1fr; gap: 12px; }
+    .bottom-card { height: 330px; }
+    table { width: 100%; border-collapse: collapse; }
+    th { height: 30px; text-align: left; color: #8a95a7; font-size: 10px; font-weight: 500; background: #fafbfc; padding: 0 12px; }
+    td { height: 34px; padding: 0 12px; border-top: 1px solid #eff2f5; font-size: 11px; color: #4c596e; }
+    .severity { display: inline-flex; align-items: center; gap: 5px; }
+    .severity::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--red); }
+    .severity.amber::before { background: var(--amber); }
+    .task-list { padding: 4px 15px; }
+    .task { padding: 9px 0 8px; border-bottom: 1px solid #eff2f5; }
+    .task:last-child { border-bottom: 0; }
+    .task-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+    .task-name { font-size: 11px; font-weight: 600; }
+    .task-status { font-size: 10px; color: var(--blue); }
+    .task-status.amber { color: var(--amber); }
+    .task-status.red { color: var(--red); }
+    .task-track { height: 5px; border-radius: 4px; background: #edf1f5; overflow: hidden; }
+    .task-track span { display: block; height: 100%; background: var(--blue); border-radius: 4px; }
+    .task-track span.amber { background: var(--amber); }
+    .task-track span.red { background: var(--red); }
+    .task-meta { margin-top: 5px; color: #8c97a8; font-size: 9px; display: flex; justify-content: space-between; }
+    .quick-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; padding: 9px 12px 7px; border-bottom: 1px solid #edf0f5; }
+    .quick-btn { height: 38px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border: 1px solid #dbe5f6; border-radius: 6px; color: #326bdc; background: #f8faff; font-size: 10px; font-weight: 600; line-height: 12px; }
+    .quick-btn small { color: #8d7bc8; font-size: 8px; font-weight: 400; line-height: 10px; }
+    .quick-main { display: block; }
+    .quick-btn.danger { color: #c4322b; border-color: #ffd5d2; background: #fff8f7; }
+    .quick-btn.danger small { color: #b86c67; }
+    .task-list.ops { padding: 1px 13px; }
+    .task-list.ops .task { padding: 6px 0 5px; }
+    .task-list.ops .task-top { margin-bottom: 4px; }
+    .task-list.ops .task-meta { margin-top: 4px; }
+    .asset-reminder { height: 31px; margin: 7px 12px 0; padding: 0 9px; border-radius: 6px; background: #fff6e8; color: #785a28; display: flex; align-items: center; justify-content: space-between; font-size: 9px; }
+    .asset-reminder strong { color: #cf7f16; }
+    .domain-card { height: 218px; margin-bottom: 12px; }
+    .domain-table td { height: 36px; }
+    .domain-name { font-weight: 700; color: #334258; }
+    .domain-name small { display: block; margin-top: 3px; color: #8995a7; font-size: 8.5px; font-weight: 400; }
+    .cell-main { color: #47566c; font-weight: 600; }
+    .cell-sub { display: block; margin-top: 2px; color: #8a96a8; font-size: 8.5px; font-weight: 400; }
+    .domain-total td { background: #fafbfc; font-weight: 600; color: #425168; }
+    .status-chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 7px; border-radius: 9px; color: #c23f3f; background: #fff0f0; font-size: 9px; font-weight: 600; }
+    .status-chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--red); }
+    .status-chip.warn-chip { color: #a86d12; background: #fff5e6; }
+    .status-chip.warn-chip::before { background: var(--amber); }
+    .fault-list { padding: 0 14px; }
+    .fault-row { height: 96px; display: grid; grid-template-columns: minmax(0, 1fr) 112px; gap: 12px; align-items: center; border-bottom: 1px solid #edf0f5; }
+    .fault-row:last-child { border-bottom: 0; }
+    .fault-title-line { display: flex; align-items: center; gap: 7px; }
+    .fault-level { padding: 2px 6px; border-radius: 8px; color: #d84242; background: #ffe9e7; font-size: 8px; font-weight: 600; }
+    .fault-level.amber { color: #a86d12; background: #fff2dc; }
+    .fault-title { color: #2e3d53; font-size: 12px; font-weight: 700; }
+    .fault-context { margin-top: 5px; color: #7b8799; font-size: 9px; }
+    .fault-chain-line { margin-top: 7px; padding: 5px 8px; border-left: 3px solid #f0a2a2; border-radius: 4px; color: #5c687a; background: #fff7f6; font-size: 9.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .fault-chain-line.amber { border-left-color: #e9bd70; background: #fffaf1; }
+    .fault-chain-line strong { color: #c63f3f; }
+    .fault-side { text-align: right; }
+    .fault-impact { color: #5e6b7e; font-size: 9px; margin-bottom: 8px; }
+    .fault-status { display: inline-block; padding: 4px 8px; border-radius: 7px; color: #2f67db; background: #edf4ff; font-size: 9px; font-weight: 600; }
+    .fault-status.tracking { color: #a86d12; background: #fff4df; }
+    .asset-list { padding: 5px 12px 4px; border-bottom: 1px solid #edf0f5; }
+    .asset-line { height: 28px; display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #5d697c; font-size: 9px; }
+    .asset-line + .asset-line { border-top: 1px solid #f1f3f6; }
+    .asset-line strong { color: #c97b17; font-size: 9px; }
+    .focus-grid { display: grid; grid-template-columns: minmax(0, 1.68fr) minmax(390px, .82fr); gap: 12px; }
+    .focus-card { height: 660px; }
+    .fault-toolbar { height: 40px; padding: 0 14px; display: flex; align-items: center; gap: 7px; border-bottom: 1px solid #edf0f5; }
+    .filter-chip { height: 24px; padding: 0 9px; border-radius: 12px; display: grid; place-items: center; color: #68758a; background: #f4f6f9; font-size: 9px; }
+    .filter-chip.active { color: #2f67db; background: #eaf2ff; font-weight: 600; }
+    .filter-chip.unlocated { margin-left: auto; color: #a86d12; background: #fff5e6; }
+    .focus-card .fault-row { height: 108px; }
+    .ops-section-title { height: 29px; padding: 0 13px; display: flex; align-items: center; justify-content: space-between; color: #69768a; background: #fafbfc; border-top: 1px solid #edf0f5; border-bottom: 1px solid #edf0f5; font-size: 9px; font-weight: 600; }
+    .ops-section-title span { color: #9aa4b4; font-weight: 400; }
+    .todo-list { padding: 1px 13px; }
+    .todo-row { min-height: 40px; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px; border-bottom: 1px solid #eff2f5; }
+    .todo-row:last-child { border-bottom: 0; }
+    .todo-name { color: #4c5a6e; font-size: 10px; font-weight: 600; }
+    .todo-meta { margin-top: 3px; color: #8d98a9; font-size: 8.5px; font-weight: 400; }
+    .todo-action { color: #c97b17; font-size: 9px; font-weight: 600; }
+    .todo-action.red { color: var(--red); }
+    .focus-card .task-list.ops .task { padding: 9px 0 8px; }
+    .machine-detail-card { height: 268px; margin-bottom: 12px; }
+    .hardware-grid { height: 225px; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr); }
+    .hardware-item { padding: 11px 15px 9px; border-right: 1px solid #edf0f5; border-bottom: 1px solid #edf0f5; }
+    .hardware-item:nth-child(3n) { border-right: 0; }
+    .hardware-item:nth-child(n+4) { border-bottom: 0; }
+    .hardware-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; }
+    .hardware-name { display: flex; align-items: center; gap: 7px; color: #334258; font-size: 11px; font-weight: 700; }
+    .hardware-icon { width: 23px; height: 23px; border-radius: 6px; display: grid; place-items: center; color: #3976f6; background: #edf4ff; font-size: 8px; }
+    .hardware-health { color: #13865a; font-size: 8.5px; }
+    .hardware-health.bad { color: var(--red); }
+    .hardware-primary { display: flex; align-items: baseline; gap: 7px; margin-bottom: 7px; }
+    .hardware-primary strong { color: #25354c; font-size: 20px; line-height: 20px; }
+    .hardware-primary span { color: #7f8b9d; font-size: 9px; }
+    .hardware-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .hardware-stat { min-width: 0; padding-left: 7px; border-left: 2px solid #dfe7f5; color: #8490a2; font-size: 8px; }
+    .hardware-stat b { display: block; margin-bottom: 2px; color: #4b5a70; font-size: 9.5px; font-weight: 600; }
+    .hardware-stat.bad b { color: var(--red); }
+    .lower-grid { display: grid; grid-template-columns: minmax(0, 1.68fr) minmax(390px, .82fr); gap: 12px; }
+    .lower-card { height: 550px; }
+    .fault-collapse-hint { height: 31px; padding: 0 14px; display: flex; align-items: center; justify-content: space-between; color: #667389; background: #f7f9fc; border-bottom: 1px solid #edf0f5; font-size: 9px; }
+    .fault-collapse-hint span { color: #13865a; }
+    .lower-card .fault-row { height: 119px; }
+    .lower-card .quick-actions { padding-top: 8px; padding-bottom: 6px; }
+    .lower-card .task-list.ops .task { padding: 7px 0 6px; }
+    .resource-overview-card { height: 202px; margin-bottom: 12px; }
+    .overview-grid { height: 159px; display: grid; grid-template-columns: repeat(5, 1fr); }
+    .overview-item { padding: 13px 14px 10px; border-right: 1px solid #edf0f5; }
+    .overview-item:last-child { border-right: 0; }
+    .overview-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 11px; }
+    .overview-title { display: flex; align-items: center; gap: 7px; color: #344258; font-size: 11px; font-weight: 700; }
+    .overview-state { color: #13865a; font-size: 8px; }
+    .overview-state.bad { color: var(--red); }
+    .overview-dual { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 11px; }
+    .overview-value { min-width: 0; }
+    .overview-value + .overview-value { padding-left: 9px; border-left: 1px solid #edf0f5; }
+    .overview-value small { display: block; margin-bottom: 3px; color: #8793a5; font-size: 8px; }
+    .overview-value strong { color: #25354c; font-size: 21px; line-height: 22px; }
+    .overview-details { display: grid; gap: 5px; color: #788598; font-size: 8.5px; }
+    .overview-detail { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+    .overview-detail b { color: #536176; font-weight: 600; }
+    .overview-detail b.bad { color: var(--red); }
+    .overview-columns { display: grid; grid-template-columns: 1fr 1fr; min-width: 0; }
+    .overview-column { min-width: 0; padding-right: 9px; }
+    .overview-column + .overview-column { padding: 0 0 0 9px; border-left: 1px solid #edf0f5; }
+    .overview-column > small { display: block; margin-bottom: 3px; color: #8793a5; font-size: 8px; }
+    .overview-column > strong { display: block; color: #25354c; font-size: 21px; line-height: 22px; }
+    .overview-column-details { display: grid; gap: 4px; margin-top: 8px; color: #788598; font-size: 8px; }
+    .overview-column-detail { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+    .overview-column-detail b { color: #536176; font-weight: 600; white-space: nowrap; }
+    .overview-column-detail b.bad { color: var(--red); }
+    .overview-column.storage-column .overview-column-details { margin-top: 7px; }
+    .traffic-values { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+    .traffic-value small { display: block; color: #8793a5; font-size: 7.5px; }
+    .traffic-value strong { display: block; margin-top: 2px; color: #25354c; font-size: 16px; line-height: 18px; }
+    .traffic-unit { margin-top: 2px; color: #8a96a8; font-size: 7px; }
+
+    /* ATaaS visual alignment: keep the resource model and page logic unchanged. */
+    :root {
+      --bg: #f7f8fa;
+      --card: #ffffff;
+      --line: #eef0f4;
+      --text: #1d2129;
+      --muted: #86909c;
+      --blue: #5965ff;
+      --blue-soft: #f2f1ff;
+      --green: #12a150;
+      --green-soft: #eaf8f0;
+      --amber: #f59e0b;
+      --amber-soft: #fff7e8;
+      --red: #d92d20;
+      --red-soft: #fff1f0;
+      --nav: #f4f8fc;
+      --nav-text: #303948;
+      --nav-muted: #98a2b3;
+    }
+    body { background: #f7f8fa; color: #1d2129; }
+    .app { grid-template-columns: 240px 260px 1fr; }
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      padding: 18px 0 16px;
+      overflow: hidden;
+      background: #f4f8fc;
+      color: #303948;
+      border-right: 1px solid rgba(196, 205, 218, .58);
+      box-shadow: none;
+    }
+    .brand {
+      height: 40px;
+      flex: 0 0 40px;
+      justify-content: flex-start;
+      margin: 0 0 12px;
+      padding: 0 18px 16px;
+      border-bottom: 1px solid rgba(196, 205, 218, .28);
+    }
+    .brand-logo { display: none; }
+    .brand-mark, .collapse-btn { display: none; }
+    .nav-scroll { flex: 1; min-height: 0; overflow: hidden; }
+    .nav-group { margin-bottom: 12px; }
+    .nav-section {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      height: 29px;
+      padding: 8px 20px 5px 22px;
+      color: #98a2b3;
+      font-size: 11px;
+      line-height: 16px;
+    }
+    .nav-section::after { content: "⌄"; font-size: 10px; }
+    .nav-item {
+      height: 38px;
+      min-height: 38px;
+      flex-direction: row;
+      justify-content: flex-start;
+      gap: 11px;
+      margin: 0 20px 5px 8px;
+      padding: 0 14px;
+      border-radius: 6px;
+      color: #303948;
+      font-size: 13px;
+      font-weight: 400;
+    }
+    .nav-item:hover { color: #1f2633; background: rgba(255,255,255,.72); }
+    .nav-item.active { color: #4f63ff; background: #fff; font-weight: 500; }
+    .nav-item.active::before {
+      left: 0;
+      width: 4px;
+      height: 26px;
+      background: #5965ff;
+      border-radius: 0 4px 4px 0;
+    }
+    .menu-icon {
+      width: 18px;
+      height: 18px;
+      flex: 0 0 18px;
+      display: grid;
+      place-items: center;
+      color: currentColor;
+    }
+    .menu-icon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.55; stroke-linecap: round; stroke-linejoin: round; }
+    .nav-badge {
+      position: static;
+      min-width: 24px;
+      height: 18px;
+      margin-left: auto;
+      color: #d92d20;
+      background: #fff1f0;
+      font-size: 9px;
+    }
+    .sidebar-user {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 46px;
+      padding: 0 14px;
+      color: #1d2129;
+      font-size: 13px;
+    }
+    .sidebar-user-avatar {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(103, 56, 232, .22);
+      border-radius: 50%;
+      background: #fff;
+      color: #6738e8;
+      font-weight: 600;
+    }
+    .sidebar-user-setting { margin-left: auto; color: #6b7280; font-size: 16px; }
+    .resource-tree { border-right-color: rgba(196, 205, 218, .58); }
+    .tree-header { height: 58px; border-bottom-color: #eef0f4; }
+    .tree-title { color: #1d2129; font-size: 15px; font-weight: 600; }
+    .tree-search, .select, .time, .search { border-color: #e5e6eb; border-radius: 6px; }
+    .tree-stats, .tree-unmanaged { background: #f7f8fa; }
+    .tree-cluster-link.active { color: #4f63ff; background: #f2f1ff; }
+    .tree-cluster-link.active > span:first-child { background: #5965ff; box-shadow: 0 0 0 3px rgba(89,101,255,.1); }
+    .workspace { grid-template-rows: 58px 1fr; }
+    .topbar { padding: 0 24px; border-bottom-color: #eef0f4; }
+    .product-context { color: #4e5969; font-weight: 500; }
+    .product-context strong { color: #1d2129; }
+    .avatar { color: #6738e8; background: #f2eeff; border: 1px solid rgba(103,56,232,.16); }
+    .content { padding: 14px 24px 18px; }
+    .page-title { color: #1d2129; }
+    .onboard-action, .primary-btn { background: #6738e8; box-shadow: none; }
+    .module-nav { border-bottom-color: #eef0f4; }
+    .module-tab.active { color: #6738e8; }
+    .module-tab.active::after { background: #6738e8; }
+    .card, .summary-card { border-color: #eef0f4; border-radius: 8px; box-shadow: none; }
+    .card-head { border-bottom-color: #f2f3f5; }
+    .card-title { color: #1d2129; font-weight: 600; }
+    .card-link, .task-status { color: #6738e8; }
+    .hardware-icon { color: #6738e8; background: #f2eeff; }
+    .overview-item, .quick-actions, .asset-list, .ops-section-title, .fault-toolbar, .fault-collapse-hint { border-color: #f2f3f5; }
+    .progress .used, .task-track span { background: #6738e8; }
+    .quick-btn { color: #6738e8; border-color: #ddd5fb; background: #faf8ff; }
+    .fault-status { color: #6738e8; background: #f2eeff; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand" aria-hidden="true"></div>
+      <div class="nav-scroll">
+        <div class="nav-group">
+          <div class="nav-section">概览</div>
+          <div class="nav-item"><span class="menu-icon"><svg viewBox="0 0 20 20"><path d="M3 10a7 7 0 1 1 14 0"/><path d="M10 10l4-3"/><path d="M5 15h10"/></svg></span>数据概览</div>
+        </div>
+        <div class="nav-group">
+          <div class="nav-section">资源管理</div>
+          <div class="nav-item"><span class="menu-icon"><svg viewBox="0 0 20 20"><path d="M4 5.5h12v9H4z"/><path d="M7 5.5V3h6v2.5M7 9h6M7 12h4"/></svg></span>集群管理</div>
+          <div class="nav-item"><span class="menu-icon"><svg viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="5" rx="1.5"/><rect x="3" y="11" width="14" height="5" rx="1.5"/><path d="M6 6.5h.01M6 13.5h.01M9 6.5h5M9 13.5h5"/></svg></span>节点管理</div>
+          <div class="nav-item"><span class="menu-icon"><svg viewBox="0 0 20 20"><path d="m10 3 6 3-6 3-6-3 6-3Z"/><path d="m4 10 6 3 6-3M4 14l6 3 6-3"/></svg></span>镜像管理</div>
+          <div class="nav-item"><span class="menu-icon"><svg viewBox="0 0 20 20"><path d="m10 2.8 6.2 3.6v7.2L10 17.2l-6.2-3.6V6.4L10 2.8Z"/><path d="m3.8 6.4 6.2 3.7 6.2-3.7M10 10.1v7.1"/></svg></span>容器管理</div>
+          <div class="nav-item"><span class="menu-icon"><svg viewBox="0 0 20 20"><circle cx="5" cy="5" r="2"/><circle cx="15" cy="5" r="2"/><circle cx="10" cy="15" r="2"/><path d="M6.7 6.1 9 13M13.3 6.1 11 13M7 5h6"/></svg></span>链路编排</div>
+          <div class="nav-item"><span class="menu-icon"><svg viewBox="0 0 20 20"><path d="M4 3h8l4 4v10H4z"/><path d="M12 3v4h4M7 11h6M7 14h4"/></svg></span>资源文件</div>
+        </div>
+        <div class="nav-group">
+          <div class="nav-section">模型管理</div>
+          <div class="nav-item"><span class="menu-icon"><svg viewBox="0 0 20 20"><ellipse cx="10" cy="5" rx="6" ry="2.5"/><path d="M4 5v5c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V5M4 10v5c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5v-5"/></svg></span>模型仓库</div>
+          <div class="nav-item"><span class="menu-icon"><svg viewBox="0 0 20 20"><path d="M10 3v10M6 7l4-4 4 4"/><path d="M4 12v4h12v-4"/></svg></span>模型部署</div>
+          <div class="nav-item"><span class="menu-icon"><svg viewBox="0 0 20 20"><path d="M4 15V9M10 15V5M16 15v-8"/><path d="M2.5 17h15"/></svg></span>模型监控</div>
+        </div>
+        <div class="nav-group">
+          <div class="nav-section">系统监控</div>
+          <div class="nav-item"><span class="menu-icon"><svg viewBox="0 0 20 20"><path d="M10 3a5 5 0 0 0-5 5v3l-2 3h14l-2-3V8a5 5 0 0 0-5-5Z"/><path d="M8 16h4"/></svg></span>告警详情</div>
+          <div class="nav-item"><span class="menu-icon"><svg viewBox="0 0 20 20"><rect x="4" y="3" width="12" height="14" rx="1.5"/><path d="M7 7h6M7 10h6M7 13h4"/></svg></span>操作日志</div>
+        </div>
+        <div class="nav-group">
+          <div class="nav-item active"><span class="menu-icon"><svg viewBox="0 0 20 20"><rect x="3" y="3" width="6" height="6" rx="1"/><rect x="11" y="3" width="6" height="6" rx="1"/><rect x="3" y="11" width="6" height="6" rx="1"/><rect x="11" y="11" width="6" height="6" rx="1"/></svg></span>集群资源概览<span class="nav-badge">27</span></div>
+        </div>
+      </div>
+      <div class="sidebar-user"><span class="sidebar-user-avatar">A</span><strong>admin</strong><span class="sidebar-user-setting">⚙</span></div>
+    </aside>
+
+    <aside class="resource-tree">
+      <div class="tree-header"><span class="tree-title">资源树</span></div>
+      <div class="tree-controls">
+        <div class="tree-search"><span class="magnify"></span>搜索供应商、数据中心、集群</div>
+      </div>
+      <div class="tree-scroll">
+        <div class="tree-all"><span>⌄ 全部机器</span><span class="tree-all-count">已纳管248台 · 异常5</span></div>
+        <div class="tree-stats"><span>供应商<strong>5</strong></span><span>数据中心<strong>8</strong></span><span>集群<strong>4</strong></span><span>资源段<strong>6</strong></span></div>
+        <div class="tree-provider">
+          <div class="tree-provider-head"><span class="tree-chevron">⌄</span><span>厂商A · xxx科技</span><span class="tree-provider-count">2个中心</span></div>
+          <div class="tree-dc">
+            <div class="tree-dc-head"><span class="tree-chevron">⌄</span><span>上海一号数据中心</span><span class="tree-dc-count">2</span></div>
+            <div class="tree-cluster-link active"><span></span><span>gpu-prod-01<small class="tree-link-meta">上海资源段</small></span><span class="tree-node-count">82台</span></div>
+            <div class="tree-cluster-link"><span></span><span>gpu-test-sh-01</span><span class="tree-node-count">24台</span></div>
+          </div>
+        </div>
+        <div class="tree-provider">
+          <div class="tree-provider-head"><span class="tree-chevron">⌄</span><span>厂商B · 中原算力</span><span class="tree-provider-count">1个中心</span></div>
+          <div class="tree-dc">
+            <div class="tree-dc-head"><span class="tree-chevron">⌄</span><span>郑州高新数据中心</span><span class="tree-dc-count">2</span></div>
+            <div class="tree-cluster-link"><span></span><span>gpu-prod-01<small class="tree-link-meta">郑州资源段 · 点击查看本段</small></span><span class="tree-node-count bad">64台 · 异常2</span></div>
+            <div class="tree-cluster-link"><span></span><span>gpu-dev-zz-01</span><span class="tree-node-count">32台</span></div>
+          </div>
+        </div>
+        <div class="tree-provider">
+          <div class="tree-provider-head"><span class="tree-chevron">⌄</span><span>厂商C · 华北云</span><span class="tree-provider-count">1个中心</span></div>
+          <div class="tree-dc">
+            <div class="tree-dc-head"><span class="tree-chevron">⌄</span><span>北京亦庄数据中心</span><span class="tree-dc-count">1</span></div>
+            <div class="tree-cluster-link"><span></span><span>gpu-prod-01<small class="tree-link-meta">北京资源段 · 点击查看本段</small></span><span class="tree-node-count">40台</span></div>
+          </div>
+        </div>
+        <div class="tree-provider"><div class="tree-provider-head"><span class="tree-chevron">›</span><span>厂商D · 边缘算力</span><span class="tree-provider-count">2个中心</span></div></div>
+        <div class="tree-provider"><div class="tree-provider-head"><span class="tree-chevron">›</span><span>厂商E · 海外云</span><span class="tree-provider-count">2个中心</span></div></div>
+      </div>
+      <div class="tree-footer"><div class="tree-unmanaged"><span>未纳管裸金属</span><strong>8 台 · 去纳管 →</strong></div></div>
+    </aside>
+
+    <section class="workspace">
+      <header class="topbar">
+        <div class="product-context">集群资源概览 <span>/</span> <strong>gpu-prod-01</strong></div>
+        <div class="abnormal-toggle"><span class="switch"></span>只看异常</div>
+        <div class="avatar">运维</div>
+      </header>
+
+      <main class="content">
+        <div class="page-title-row">
+          <div><div class="page-title-line"><div class="page-title">gpu-prod-01</div><span class="cluster-code">上海资源段</span><span class="cluster-running">运行中</span><span class="cluster-health">健康状态：有异常</span></div><div class="page-subtitle"><span>供应商：<b>xxx科技</b></span><span>数据中心：<b>上海一号数据中心</b></span><span>Kubernetes：<b>v1.36.2</b></span><span>裸金属：<b>82</b></span><span>Nodes：<b>80</b></span></div></div>
+          <div class="page-actions">
+            <div class="freshness">数据更新于 10:28:36 · 自动刷新 30s</div>
+            <div class="onboard-action" title="支持通过IP、SSH或软件包方式接入Kubernetes集群"><span>＋</span>纳管集群</div>
+          </div>
+        </div>
+
+        <nav class="module-nav">
+          <div class="module-tab active">总览</div>
+          <div class="module-tab" title="物理服务器及其带外管理、硬件健康与租赁状态">裸金属<span class="count" title="异常1台">1</span></div>
+          <div class="module-tab" title="Kubernetes Node对象及Ready、压力和调度状态">Nodes<span class="count" title="异常2个">2</span></div>
+          <div class="module-tab" title="Deployment、StatefulSet、DaemonSet、Job和CronJob等工作负载">Workloads<span class="count" title="异常2个">2</span></div>
+          <div class="module-tab" title="Pod运行阶段、容器状态、重启和调度情况">Pods<span class="count" title="异常10个">10</span></div>
+          <div class="module-tab" title="展示后端运行在上海资源段的Services；ServiceEntry为集群级配置">Services<span class="count" title="关联服务异常3项">3</span></div>
+          <div class="module-tab group-start" title="当前资源段关联的PV、PVC及StorageClass状态">PV/PVC<span class="count" title="异常2项">2</span></div>
+          <div class="module-tab" title="当前资源段CNI、网卡、链路和流量状态">网络<span class="count" title="异常1项">1</span></div>
+          <div class="module-tab" title="当前资源段kubelet、CNI/CSI和Device Plugin等组件">系统组件<span class="count" title="异常1项">1</span></div>
+          <div class="module-tab group-start" title="当前资源段相关的纳管、上下线、扩缩容、远程部署和软件下发任务">运维任务<span class="count neutral" title="执行中或待确认4项">4</span></div>
+        </nav>
+
+        <section class="card resource-overview-card">
+          <div class="card-head"><div class="card-title">上海资源段资源总览</div><div class="card-link">查看本资源段全部资源 →</div></div>
+          <div class="overview-grid">
+            <div class="overview-item"><div class="overview-head"><span class="overview-title"><i class="hardware-icon">BM</i>裸金属与 Nodes</span><span class="overview-state bad">硬件异常1台</span></div><div class="overview-dual"><div class="overview-value"><small>裸金属总数</small><strong>82</strong></div><div class="overview-value"><small>Node总数</small><strong>80</strong></div></div><div class="overview-details"><div class="overview-detail"><span>在线／Ready</span><b>81台／78个</b></div><div class="overview-detail"><span>未注册／NotReady</span><b class="bad">2台／2个</b></div><div class="overview-detail"><span>BMC异常／维护中</span><b class="bad">1台／1台</b></div></div></div>
+            <div class="overview-item"><div class="overview-head"><span class="overview-title"><i class="hardware-icon">CPU</i>CPU 与内存</span><span class="overview-state bad">高负载2台</span></div><div class="overview-columns"><div class="overview-column"><small>CPU实际使用率</small><strong>61%</strong><div class="overview-column-details"><div class="overview-column-detail"><span>Requests</span><b>67%</b></div><div class="overview-column-detail"><span>可分配</span><b>5,248核</b></div><div class="overview-column-detail"><span>可调度余量</span><b>1,732核</b></div></div></div><div class="overview-column"><small>内存实际使用率</small><strong>69%</strong><div class="overview-column-details"><div class="overview-column-detail"><span>Requests</span><b>74%</b></div><div class="overview-column-detail"><span>可分配</span><b>21.0TB</b></div><div class="overview-column-detail"><span>可调度余量</span><b>5.5TB</b></div></div></div></div></div>
+            <div class="overview-item"><div class="overview-head"><span class="overview-title"><i class="hardware-icon">GPU</i>GPU 与显存</span><span class="overview-state bad">异常GPU 4张</span></div><div class="overview-dual"><div class="overview-value"><small>GPU平均利用率</small><strong>75%</strong></div><div class="overview-value"><small>显存平均使用率</small><strong>80%</strong></div></div><div class="overview-details"><div class="overview-detail"><span>设备总量／已分配</span><b>328／272张</b></div><div class="overview-detail"><span>高温告警</span><b class="bad">2张 ＞85℃</b></div><div class="overview-detail"><span>主要型号</span><b>A100／A800</b></div></div></div>
+            <div class="overview-item"><div class="overview-head"><span class="overview-title"><i class="hardware-icon">I/O</i>存储与网络</span><span class="overview-state bad">磁盘2块／网卡1张异常</span></div><div class="overview-columns"><div class="overview-column storage-column"><small>存储</small><strong>61%</strong><div class="overview-column-details"><div class="overview-column-detail"><span>总容量</span><b>840TB</b></div><div class="overview-column-detail"><span>异常磁盘</span><b class="bad">2块</b></div></div></div><div class="overview-column"><small>网络当前吞吐</small><div class="traffic-values"><span class="traffic-value"><small>接收</small><strong>1.4</strong></span><span class="traffic-value"><small>发送</small><strong>1.2</strong></span></div><div class="traffic-unit">Tbps · 5分钟平均</div><div class="overview-column-details"><div class="overview-column-detail"><span>标称带宽</span><b>8.2Tbps</b></div><div class="overview-column-detail"><span>异常网卡</span><b class="bad">1张</b></div></div></div></div></div>
+            <div class="overview-item"><div class="overview-head"><span class="overview-title"><i class="hardware-icon">K8S</i>Pods 与服务</span><span class="overview-state bad">关联服务异常3项</span></div><div class="overview-dual"><div class="overview-value"><small>本段运行Pods</small><strong>5,420</strong></div><div class="overview-value"><small>关联Services</small><strong>286</strong></div></div><div class="overview-details"><div class="overview-detail"><span>异常Pods／其中Pending</span><b class="bad">10／6</b></div><div class="overview-detail"><span>服务后端就绪率</span><b>99.1%</b></div><div class="overview-detail"><span>统计口径</span><b>后端位于本资源段</b></div></div></div>
+          </div>
+        </section>
+
+        <div class="lower-grid">
+          <section class="card lower-card">
+            <div class="card-head"><div class="card-title">异常与故障定位</div><div class="card-link">查看本资源段聚合故障 9 →</div></div>
+            <div class="fault-collapse-hint"><strong>上海资源段当前有9个聚合故障，优先展示影响最大的4项</strong></div>
+            <div class="fault-list">
+              <div class="fault-row"><div><div class="fault-title-line"><span class="fault-level">严重</span><span class="fault-title">payment-service 服务降级</span></div><div class="fault-context">项目A · 厂商A／上海一号数据中心 · 10分钟前 · 关联7条告警</div><div class="fault-chain-line">Service → EndpointSlice无就绪地址 → Pod NotReady → Node NotReady → <strong>BM-1027物理网卡丢包</strong></div></div><div class="fault-side"><div class="fault-impact">影响5个Pods／2个SVC</div><span class="fault-status">已定位根因 →</span></div></div>
+              <div class="fault-row"><div><div class="fault-title-line"><span class="fault-level amber">重要</span><span class="fault-title">训练任务排队数量持续增加</span></div><div class="fault-context">项目B · 厂商A／上海一号数据中心 · 18分钟前 · 关联5条告警</div><div class="fault-chain-line amber">Pending Jobs → GPU Device Plugin异常 → <strong>2张GPU出现Xid错误</strong></div></div><div class="fault-side"><div class="fault-impact">影响6个训练任务</div><span class="fault-status">已定位根因 →</span></div></div>
+              <div class="fault-row"><div><div class="fault-title-line"><span class="fault-level amber">重要</span><span class="fault-title">外部模型服务调用超时</span></div><div class="fault-context">项目C · 厂商A／上海一号数据中心 · 23分钟前 · 3条原始告警</div><div class="fault-chain-line amber">ServiceEntry → 外部后端探测超时 → 3个业务服务P95升高 → <strong>根因定位中</strong></div></div><div class="fault-side"><div class="fault-impact">影响3个服务</div><span class="fault-status tracking">定位中 →</span></div></div>
+              <div class="fault-row"><div><div class="fault-title-line"><span class="fault-level amber">重要</span><span class="fault-title">本地存储可用容量不足</span></div><div class="fault-context">项目E · 厂商A／上海一号数据中心 · 36分钟前 · 关联4条告警</div><div class="fault-chain-line amber">PVC写入告警 → Local PV容量不足 → 2块硬盘SMART异常 → <strong>需确认更换硬盘</strong></div></div><div class="fault-side"><div class="fault-impact">影响1个StatefulSet</div><span class="fault-status tracking">待人工确认 →</span></div></div>
+            </div>
+          </section>
+
+          <section class="card lower-card">
+            <div class="card-head"><div class="card-title">集群接入、资产待办与运维任务</div><div class="card-link">进入运维任务 →</div></div>
+            <div class="quick-actions">
+              <div class="quick-btn"><span class="quick-main">纳管集群</span><small>接入已有Kubernetes集群</small></div>
+              <div class="quick-btn"><span class="quick-main">启用调度</span><small>验收通过后承载新任务</small></div>
+              <div class="quick-btn"><span class="quick-main">停用调度</span><small>停止新任务并排空Pod</small></div>
+              <div class="quick-btn"><span class="quick-main">节点扩缩容</span><small>新增或移除Nodes</small></div>
+              <div class="quick-btn"><span class="quick-main">远程部署与下发</span><small>组件、驱动和Agent</small></div>
+              <div class="quick-btn danger"><span class="quick-main">取消纳管</span><small>解除连接并保留历史记录</small></div>
+            </div>
+            <div class="ops-section-title">资产待办 <span>3项需要处理</span></div>
+            <div class="todo-list"><div class="todo-row"><div><div class="todo-name">6台裸金属将在30天内到期</div><div class="todo-meta">厂商A · 上海一号数据中心 · 项目A</div></div><span class="todo-action">续租／下线 →</span></div><div class="todo-row"><div><div class="todo-name">新到货2台裸金属尚未纳管</div><div class="todo-meta">厂商A · 上海一号数据中心 · 到货2天</div></div><span class="todo-action">去纳管 →</span></div><div class="todo-row"><div><div class="todo-name">1台裸金属已到计划下线时间</div><div class="todo-meta">厂商A · 上海一号数据中心 · 已完成Node排空</div></div><span class="todo-action red">确认下线 →</span></div></div>
+            <div class="ops-section-title">执行中的任务 <span>4个任务</span></div>
+            <div class="task-list ops"><div class="task"><div class="task-top"><span class="task-name">节点纳管 · gpu-prod-01 · 上海资源段</span><span class="task-status">执行中 60%</span></div><div class="task-track"><span style="width:60%"></span></div><div class="task-meta"><span>SSH连通6／10台</span><span>校验IP并安装接入组件</span></div></div><div class="task"><div class="task-top"><span class="task-name">资源段扩容 · gpu-prod-01 · 上海10台</span><span class="task-status">执行中 82%</span></div><div class="task-track"><span style="width:82%"></span></div><div class="task-meta"><span>网络、存储配置已完成</span><span>等待Node健康验收</span></div></div><div class="task"><div class="task-top"><span class="task-name">节点下线 · bm-sh-018</span><span class="task-status amber">等待确认</span></div><div class="task-track"><span class="amber" style="width:35%"></span></div><div class="task-meta"><span>前置步骤完成35%</span><span>已排空Pod并等待业务确认</span></div></div><div class="task"><div class="task-top"><span class="task-name">平台组件下发 · Node Agent v2.6.1</span><span class="task-status">执行中 42%</span></div><div class="task-track"><span style="width:42%"></span></div><div class="task-meta"><span>已完成34／82台</span><span>灰度安装并验证节点心跳</span></div></div></div>
+          </section>
+        </div>
+      </main>
+    </section>
+  </div>
+</body>
+</html>
