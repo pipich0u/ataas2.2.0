@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>集群资源概览 · ATaaS风格Demo V2.4</title>
+  <title>集群资源概览 · ATaaS风格Demo V2.6</title>
   <style>
     * { box-sizing: border-box; }
     :root {
@@ -562,12 +562,187 @@
     .progress .used, .task-track span { background: #6738e8; }
     .quick-btn { color: #6738e8; border-color: #ddd5fb; background: #faf8ff; }
     .fault-status { color: #6738e8; background: #f2eeff; }
+
+    /* V2.5: restore the native ATaaS navigation and reduce the page to one brand color plus semantic status colors. */
+    :root {
+      --bg: #f7f8fa;
+      --card: #ffffff;
+      --line: #eef0f4;
+      --text: #1d2129;
+      --muted: #86909c;
+      --blue: #6951ff;
+      --blue-soft: #f3f1ff;
+      --green: #00b42a;
+      --green-soft: #e8ffea;
+      --amber: #ff7d00;
+      --amber-soft: #fff7e8;
+      --red: #f53f3f;
+      --red-soft: #fff2f0;
+    }
+    .sidebar { padding: 18px 0; }
+    .brand {
+      height: 40px;
+      flex-basis: 40px;
+      padding: 0 6px 16px;
+    }
+    .brand-logo {
+      display: block;
+      width: 124px;
+      height: auto;
+    }
+    .nav-scroll {
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-width: none;
+    }
+    .nav-scroll::-webkit-scrollbar { display: none; width: 0; height: 0; }
+    .nav-item { font-size: 14px; }
+    .sidebar-extra { flex: 0 0 auto; padding-top: 4px; }
+    .sidebar-extra .nav-item { margin-bottom: 4px; }
+    .sidebar-user { min-height: 50px; }
+
+    body, .content { background: #f7f8fa; }
+    .resource-tree, .topbar, .card, .summary-card { background: #fff; }
+    .resource-tree, .topbar, .card, .summary-card, .module-nav,
+    .card-head, .overview-item, .fault-row, .quick-actions, .asset-list,
+    .asset-line + .asset-line, .ops-section-title, .todo-row, .task,
+    .overview-value + .overview-value, .overview-column + .overview-column {
+      border-color: #eef0f4;
+    }
+    .tree-stats, .tree-unmanaged, .ops-section-title, .fault-collapse-hint {
+      background: #f7f8fa;
+    }
+    .tree-dc-count {
+      color: #4e5969;
+      background: #f2f3f5;
+    }
+    .tree-cluster-link.active {
+      color: #4f63ff;
+      background: #f3f1ff;
+    }
+    .tree-cluster-link.active > span:first-child {
+      background: #00b42a;
+      box-shadow: none;
+    }
+    .tree-cluster-link > span:first-child, .tree-leaf-name::before { background: #00b42a; }
+    .tree-leaf-name::before { box-shadow: none; }
+    .tree-unmanaged strong, .todo-action, .asset-line strong { color: #ff7d00; }
+
+    .avatar {
+      color: #6951ff;
+      background: #f3f1ff;
+      border-color: #ded9ff;
+    }
+    .onboard-action, .primary-btn { background: #6951ff; }
+    .module-tab.active, .card-link, .task-status { color: #6951ff; }
+    .module-tab.active::after, .progress .used, .task-track span { background: #6951ff; }
+    .module-tab .count {
+      color: #f53f3f;
+      background: #fff2f0;
+    }
+    .module-tab .count.neutral {
+      color: #4e5969;
+      background: #f2f3f5;
+    }
+    .hardware-icon, .summary-icon, .region-icon {
+      color: #6951ff;
+      background: #f2f3f5;
+    }
+    .hardware-stat { border-left-color: #e5e6eb; }
+    .cluster-running, .tree-health.ok {
+      color: #00a32a;
+      background: #e8ffea;
+    }
+    .cluster-health, .tree-health, .status-chip, .fault-level {
+      color: #f53f3f;
+      background: #fff2f0;
+    }
+    .cluster-cross, .status-chip.warn-chip, .fault-level.amber,
+    .fault-status.tracking, .asset-reminder, .filter-chip.unlocated {
+      color: #d46b08;
+      background: #fff7e8;
+    }
+    .quick-btn {
+      color: #4e5969;
+      border-color: #e5e6eb;
+      background: #fff;
+    }
+    .quick-btn small { color: #86909c; }
+    .quick-btn.danger {
+      color: #f53f3f;
+      border-color: #ffccc7;
+      background: #fff;
+    }
+    .quick-btn.danger small { color: #86909c; }
+    .fault-chain-line, .fault-chain-line.amber {
+      color: #4e5969;
+      background: #f7f8fa;
+    }
+    .fault-chain-line { border-left-color: #f53f3f; }
+    .fault-chain-line.amber { border-left-color: #ff7d00; }
+    .fault-chain-line strong { color: #f53f3f; }
+    .fault-status {
+      color: #6951ff;
+      background: #f3f1ff;
+    }
+    .task-status.amber { color: #d46b08; }
+    .task-track span.amber { background: #ff7d00; }
+
+    /* V2.6: near-monochrome content area; color is reserved for selection, actions and critical exceptions. */
+    .module-tab .count,
+    .module-tab .count.neutral {
+      color: #86909c;
+      background: #f2f3f5;
+    }
+    .hardware-icon,
+    .summary-icon,
+    .region-icon {
+      color: #4e5969;
+      background: #f2f3f5;
+    }
+    .cluster-running,
+    .tree-health.ok {
+      color: #00a32a;
+      background: #f2f3f5;
+    }
+    .cluster-health,
+    .tree-health,
+    .status-chip,
+    .fault-level {
+      color: #f53f3f;
+      background: #f2f3f5;
+    }
+    .cluster-cross,
+    .status-chip.warn-chip,
+    .fault-level.amber,
+    .fault-status.tracking,
+    .filter-chip.unlocated {
+      color: #4e5969;
+      background: #f2f3f5;
+    }
+    .fault-status {
+      color: #6951ff;
+      background: #f2f3f5;
+    }
+    .fault-chain-line.amber { border-left-color: #c9cdd4; }
+    .tree-unmanaged strong,
+    .todo-action,
+    .asset-line strong { color: #6951ff; }
+    .todo-action.red { color: #f53f3f; }
+    .task-status.amber { color: #d46b08; }
+    .task-track span.amber { background: #86909c; }
+    .asset-reminder {
+      color: #4e5969;
+      background: #f7f8fa;
+    }
+    .asset-reminder strong { color: #6951ff; }
   </style>
 </head>
 <body>
   <div class="app">
     <aside class="sidebar">
-      <div class="brand" aria-hidden="true"></div>
+      <div class="brand"><img class="brand-logo" src="file:///Users/xinxinqu/Desktop/ataas/src/pages/ataasDesign/ataas-logo.png" alt="ATaaS" /></div>
       <div class="nav-scroll">
         <div class="nav-group">
           <div class="nav-section">概览</div>
@@ -585,18 +760,32 @@
         <div class="nav-group">
           <div class="nav-section">模型管理</div>
           <div class="nav-item"><span class="menu-icon"><svg viewBox="0 0 20 20"><ellipse cx="10" cy="5" rx="6" ry="2.5"/><path d="M4 5v5c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V5M4 10v5c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5v-5"/></svg></span>模型仓库</div>
+          <div class="nav-item"><span class="menu-icon"><svg viewBox="0 0 20 20"><ellipse cx="10" cy="5" rx="6" ry="2.5"/><path d="M4 5v10c0 1.4 2.7 2.5 6 2.5s6-1.1 6-2.5V5"/><path d="m6 11 2-2 2 2 3-3 2 2"/></svg></span>性能仓库</div>
           <div class="nav-item"><span class="menu-icon"><svg viewBox="0 0 20 20"><path d="M10 3v10M6 7l4-4 4 4"/><path d="M4 12v4h12v-4"/></svg></span>模型部署</div>
+          <div class="nav-item"><span class="menu-icon"><svg viewBox="0 0 20 20"><rect x="3" y="3" width="5" height="5" rx="1"/><rect x="12" y="3" width="5" height="5" rx="1"/><rect x="3" y="12" width="5" height="5" rx="1"/><rect x="12" y="12" width="5" height="5" rx="1"/><path d="M8 5.5h4M14.5 8v4M12 14.5H8M5.5 12V8"/></svg></span>运营调度</div>
+          <div class="nav-item"><span class="menu-icon"><svg viewBox="0 0 20 20"><rect x="4" y="3" width="12" height="14" rx="1.5"/><path d="M7 7h6M7 10h6M7 13h4"/><path d="m13 13 1 1 2-2"/></svg></span>任务流程</div>
           <div class="nav-item"><span class="menu-icon"><svg viewBox="0 0 20 20"><path d="M4 15V9M10 15V5M16 15v-8"/><path d="M2.5 17h15"/></svg></span>模型监控</div>
+        </div>
+        <div class="nav-group">
+          <div class="nav-section">模型测试</div>
+          <div class="nav-item"><span class="menu-icon"><svg viewBox="0 0 20 20"><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2h7A2.5 2.5 0 0 1 16 4.5v5a2.5 2.5 0 0 1-2.5 2.5H9l-4 3v-2.5A2.5 2.5 0 0 1 4 10.5z"/><path d="M7 6h6M7 9h4"/></svg></span>文本模型</div>
+          <div class="nav-item"><span class="menu-icon"><svg viewBox="0 0 20 20"><path d="M2.5 10s2.8-5 7.5-5 7.5 5 7.5 5-2.8 5-7.5 5-7.5-5-7.5-5Z"/><circle cx="10" cy="10" r="2.5"/></svg></span>视觉模型</div>
+          <div class="nav-item"><span class="menu-icon"><svg viewBox="0 0 20 20"><circle cx="4.5" cy="5" r="2"/><circle cx="15.5" cy="5" r="2"/><circle cx="10" cy="10" r="2"/><circle cx="4.5" cy="15" r="2"/><circle cx="15.5" cy="15" r="2"/><path d="m6 6 2.5 2.5M14 6l-2.5 2.5M6 14l2.5-2.5M14 14l-2.5-2.5"/></svg></span>嵌入模型</div>
+          <div class="nav-item"><span class="menu-icon"><svg viewBox="0 0 20 20"><path d="M3 4.5h10M3 10h14M3 15.5h7"/><path d="m15 3 2 2 2-2M17 5V2"/></svg></span>重排模型</div>
+          <div class="nav-item"><span class="menu-icon"><svg viewBox="0 0 20 20"><path d="M10 2c2 3 4 5 4 8a4 4 0 1 1-8 0c0-2 1-4 4-8Z"/><path d="M10 9c1 1 2 2 2 3a2 2 0 1 1-4 0c0-1 1-2 2-3Z"/><path d="M3 17h14"/></svg></span>性能压测</div>
+        </div>
+        <div class="nav-group">
+          <div class="nav-section">身份权限</div>
+          <div class="nav-item"><span class="menu-icon"><svg viewBox="0 0 20 20"><circle cx="9" cy="7" r="4"/><path d="M9 11v6M9 15h3M12 13v4"/></svg></span>API Key</div>
+          <div class="nav-item"><span class="menu-icon"><svg viewBox="0 0 20 20"><circle cx="10" cy="6" r="3.5"/><path d="M3.5 17c0-3.2 2.9-5 6.5-5s6.5 1.8 6.5 5"/></svg></span>用户管理</div>
         </div>
         <div class="nav-group">
           <div class="nav-section">系统监控</div>
           <div class="nav-item"><span class="menu-icon"><svg viewBox="0 0 20 20"><path d="M10 3a5 5 0 0 0-5 5v3l-2 3h14l-2-3V8a5 5 0 0 0-5-5Z"/><path d="M8 16h4"/></svg></span>告警详情</div>
           <div class="nav-item"><span class="menu-icon"><svg viewBox="0 0 20 20"><rect x="4" y="3" width="12" height="14" rx="1.5"/><path d="M7 7h6M7 10h6M7 13h4"/></svg></span>操作日志</div>
         </div>
-        <div class="nav-group">
-          <div class="nav-item active"><span class="menu-icon"><svg viewBox="0 0 20 20"><rect x="3" y="3" width="6" height="6" rx="1"/><rect x="11" y="3" width="6" height="6" rx="1"/><rect x="3" y="11" width="6" height="6" rx="1"/><rect x="11" y="11" width="6" height="6" rx="1"/></svg></span>集群资源概览<span class="nav-badge">27</span></div>
-        </div>
       </div>
+      <div class="sidebar-extra"><div class="nav-item active"><span class="menu-icon"><svg viewBox="0 0 20 20"><rect x="3" y="3" width="6" height="6" rx="1"/><rect x="11" y="3" width="6" height="6" rx="1"/><rect x="3" y="11" width="6" height="6" rx="1"/><rect x="11" y="11" width="6" height="6" rx="1"/></svg></span>集群资源概览<span class="nav-badge">27</span></div></div>
       <div class="sidebar-user"><span class="sidebar-user-avatar">A</span><strong>admin</strong><span class="sidebar-user-setting">⚙</span></div>
     </aside>
 
