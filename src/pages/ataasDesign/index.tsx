@@ -67,6 +67,7 @@ import { rpc } from '../../lib/bus/rpc';
 import type { ConfigCommitEntry, ConfigTreeNode } from '../../lib/types';
 import ContainerManagementPage from './components/containerManagementPage';
 import RouteWorkbenchPage from './components/routeWorkbenchPage';
+import ClusterOperationsHomepage from './components/clusterOperationsHomepage';
 import './index.less';
 
 type ClusterRecord = {
@@ -6564,6 +6565,7 @@ const LogBoardCard = ({ icon, label, detail, time, status }: { icon: React.React
 
 const AtAasDesign = () => {
   const [activeTab, setActiveTab] = useState(() => {
+    if (window.location.pathname.includes('/cluster-operations')) return 'clusterOperations';
     if (window.location.pathname.includes('/containers')) return 'containerManagement';
     if (window.location.pathname.includes('/route-workbench')) return 'routeWorkbench';
     if (window.location.pathname.includes('/task-flow')) return 'taskFlow';
@@ -10628,6 +10630,7 @@ const AtAasDesign = () => {
 
   const SIDEBAR_ITEMS = [
     { key: 'overview', icon: <SidebarIcon name="dashboard" />, label: '数据概览' },
+    { key: 'clusterOperations', icon: <SidebarIcon name="dashboard" />, label: '集群资源概览' },
     { key: 'clusters', icon: <SidebarIcon name="cluster" />, label: '集群管理' },
     { key: 'nodes', icon: <SidebarIcon name="engineMgr" />, label: '节点管理' },
     { key: 'modelRepo', icon: <SidebarIcon name="modelRepo" />, label: '模型仓库' },
@@ -10654,7 +10657,7 @@ const AtAasDesign = () => {
   ];
   const getSidebarItems = (keys: string[]) => keys.map((key) => SIDEBAR_ITEMS.find((item) => item.key === key)).filter(Boolean) as typeof SIDEBAR_ITEMS;
   const SIDEBAR_GROUPS = [
-    { title: '概览', items: getSidebarItems(['overview']) },
+    { title: '概览', items: getSidebarItems(['overview', 'clusterOperations']) },
     { title: '资源管理', items: getSidebarItems(['clusters', 'nodes', 'engines', 'containerManagement', 'routeWorkbench', 'configCenter']) },
     { title: '模型管理', items: getSidebarItems(['modelRepo', 'startupTemplates', 'deploy', 'modelOps', 'taskFlow', 'monitoring']) },
     { title: '模型测试', items: getSidebarItems(['playgroundChat', 'playgroundVisual', 'playgroundEmbedding', 'playgroundRerank', 'benchmark']) },
@@ -12363,6 +12366,7 @@ const AtAasDesign = () => {
 	          }
       case 'containerManagement': return <ContainerManagementPage />;
       case 'routeWorkbench': return <RouteWorkbenchPage />;
+      case 'clusterOperations': return <ClusterOperationsHomepage />;
       case 'taskFlow': return (
         <div className="ataas-b300-task-page">
           <TasksPage />
@@ -12397,6 +12401,7 @@ const AtAasDesign = () => {
 	                    if (item.key === 'clusters') setClusterPanel('clusters');
 	                    if (item.key === 'nodes') setClusterPanel('nodes');
 	                    const pathMap: Record<string, string> = {
+	                      clusterOperations: '/cluster-operations',
 	                      containerManagement: '/containers',
 	                      routeWorkbench: '/route-workbench',
 	                      taskFlow: '/task-flow',
@@ -12437,7 +12442,7 @@ const AtAasDesign = () => {
             </Popover>
           </div>
         </div>
-        <div className={'ataas-content' + (activeTab === 'configCenter' ? ' ataas-content-config' : '')} ref={contentRef}>
+        <div className={'ataas-content' + (activeTab === 'configCenter' ? ' ataas-content-config' : '') + (activeTab === 'clusterOperations' ? ' ataas-content-cluster-operations' : '')} ref={contentRef}>
           {renderTabContent()}
         </div>
       </div>
