@@ -1772,7 +1772,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
       open={!!mooncakeStatusItem}
       width={1080}
       footer={null}
-      destroyOnClose
+      destroyOnHidden
       onCancel={() => setMooncakeStatusItem(null)}
     >
       {mooncakeStatusItem && (() => {
@@ -1888,7 +1888,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
       ) : '关停 Mooncake Store'}
       open={!!mooncakeShutdownItem}
       width={620}
-      destroyOnClose
+      destroyOnHidden
       okText="确定关停"
       cancelText="取消"
       okButtonProps={{ danger: true }}

@@ -75,7 +75,7 @@ export type K8sResourceState = {
   pods: K8sPodResource[];
 };
 
-const STORE_KEY = 'ataas.k8s.resources.v1';
+const STORE_KEY = 'ataas.k8s.resources.v3';
 const STORE_EVENT = 'ataas-k8s-resources-change';
 
 const nowLabel = () => '2026-07-06 10:00';
@@ -129,19 +129,11 @@ ${entry.endpoints.map((endpoint) => `    - address: ${endpoint.address}
       weight: ${endpoint.weight}`).join('\n')}`;
 
 const getMockServiceEntryId = (name: string, cluster: string, index: number) => {
-  if (cluster === 'beijing-prod') return name.startsWith('bj-') ? 'se-glm-51-beijing-prod-main' : 'se-glm-51-beijing-prod-system';
-  if (cluster === 'guangzhou-test') return index % 3 === 0 ? 'se-glm-51-guangzhou-test-canary' : 'se-glm-51-guangzhou-test-main';
-  if (cluster === 'shanghai-online') return name.endsWith('-3') ? 'se-glm-51-shanghai-online-backup' : 'se-glm-51-shanghai-online-main';
-  if (cluster === 'wuhan-kunpeng') return name.endsWith('-2') ? 'se-glm-51-wuhan-kunpeng-canary' : 'se-glm-51-wuhan-kunpeng-main';
-  return `se-glm-51-${cluster}-main`;
+  return `se-${name}`;
 };
 
 const getMockServiceEntryName = (id: string, cluster: string) => {
-  if (id.endsWith('-system')) return `glm-5.1-${cluster}-system`;
-  if (id.endsWith('-main')) return `glm-5.1-${cluster}-main`;
-  if (id.endsWith('-canary')) return `glm-5.1-${cluster}-canary`;
-  if (id.endsWith('-backup')) return `glm-5.1-${cluster}-backup`;
-  return `glm-5.1-${cluster}`;
+  return id;
 };
 
 const makeService = (index: number): K8sServiceResource => {
@@ -150,7 +142,7 @@ const makeService = (index: number): K8sServiceResource => {
   const cluster = spec.cluster;
   const serviceEntryId = getMockServiceEntryId(spec.name, spec.cluster, index);
   const service: K8sServiceResource = {
-    id: `svc-${name}`,
+    id: `svc-${name}-${cluster}`,
     kind: 'Service',
     name,
     cluster,
@@ -179,18 +171,18 @@ const makePodsForService = (service: K8sServiceResource, index: number): K8sPodR
   const base = {
     cluster: service.cluster,
     namespace: service.namespace,
-    group: 'glm51',
+    group: 'main',
     age: `${2 + (index % 9)}d ${index % 20}h`,
     source: 'model-deploy' as K8sResourceSource,
     serviceId: service.id,
-    trafficSource: 'glm-5.1',
+    trafficSource: 'main',
     nodeGPU: 'B300 192G x 8',
     gpuUtil: 24 + (index % 6) * 5,
     gpuVram: 20 + (index % 5) * 4,
   };
   const router: K8sPodResource = {
     ...base,
-    id: `pod-${service.name}-router-0`,
+    id: `pod-${service.name}-${service.cluster}-router-0`,
     kind: 'Pod',
     name: `${service.name}-router-0`,
     role: 'router',
@@ -209,7 +201,7 @@ const makePodsForService = (service: K8sServiceResource, index: number): K8sPodR
     const ready = podIndex < spec.prefillReady;
     const pod: K8sPodResource = {
       ...base,
-      id: `pod-${service.name}-prefill-${podIndex}`,
+      id: `pod-${service.name}-${service.cluster}-prefill-${podIndex}`,
       kind: 'Pod',
       name: `${service.name}-prefill-${podIndex}`,
       role: 'prefill',
@@ -230,7 +222,7 @@ const makePodsForService = (service: K8sServiceResource, index: number): K8sPodR
     const ready = podIndex < spec.decodeReady;
     const pod: K8sPodResource = {
       ...base,
-      id: `pod-${service.name}-decode-${podIndex}`,
+      id: `pod-${service.name}-${service.cluster}-decode-${podIndex}`,
       kind: 'Pod',
       name: `${service.name}-decode-${podIndex}`,
       role: 'decode',
@@ -254,7 +246,7 @@ export const createInitialK8sResourceState = (): K8sResourceState => {
   const services = MODEL_OPS_RESOURCE_SPECS.map((_, index) => makeService(index));
   const pods = services.flatMap((service, index) => makePodsForService(service, index));
   const serviceEntryGroups = services.reduce<Record<string, K8sServiceResource[]>>((acc, service) => {
-    const serviceEntryId = service.serviceEntryId || `se-glm-51-${service.cluster}-main`;
+    const serviceEntryId = service.serviceEntryId || `se-${service.cluster}-main`;
     acc[serviceEntryId] = [...(acc[serviceEntryId] || []), service];
     return acc;
   }, {});
@@ -294,8 +286,8 @@ const readState = (): K8sResourceState => {
     }
     if (window.localStorage.getItem(`${STORE_KEY}.seed`) !== MODEL_OPS_SEED) {
       const next = createInitialK8sResourceState();
-      writeState(next);
       window.localStorage.setItem(`${STORE_KEY}.seed`, MODEL_OPS_SEED);
+      writeState(next);
       return next;
     }
     const pods = parsed.pods.filter((pod) => pod.source !== 'manual');
@@ -322,8 +314,8 @@ export const useK8sResourceStore = () => {
     window.addEventListener(STORE_EVENT, sync);
     if (!window.localStorage.getItem(STORE_KEY) || window.localStorage.getItem(`${STORE_KEY}.seed`) !== MODEL_OPS_SEED) {
       const next = createInitialK8sResourceState();
-      writeState(next);
       window.localStorage.setItem(`${STORE_KEY}.seed`, MODEL_OPS_SEED);
+      writeState(next);
       setState(next);
     }
     return () => {

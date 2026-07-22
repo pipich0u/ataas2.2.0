@@ -1,6 +1,200 @@
-import { useEffect, useRef } from 'react';
+import { ExportOutlined, FileTextOutlined } from '@ant-design/icons';
+import { ConfigProvider, Drawer, Input, Progress, Table, Tooltip } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { initializeClusterOperations } from './clusterOperationsRuntime';
+import ClusterResourceTables from './clusterResourceTables';
 import './clusterOperationsHomepage.less';
+
+const CpuGauge = () => (
+  <svg width="100" height="60" viewBox="0 0 120 70" style={{ display: 'block', flexShrink: 0 }}>
+    <path d="M 18 55 A 42 42 0 0 1 89.70 25.30" stroke="#52c41a" strokeWidth="13" fill="none" strokeLinecap="butt" />
+    <path d="M 89.70 25.30 A 42 42 0 0 1 101.19 46.81" stroke="#fadb14" strokeWidth="13" fill="none" strokeLinecap="butt" />
+    <path d="M 101.19 46.81 A 42 42 0 0 1 102 55" stroke="#f5222d" strokeWidth="13" fill="none" strokeLinecap="butt" />
+    <line x1="60" y1="55" x2="71.8" y2="22.1" stroke="#1d2129" strokeWidth="2.5" strokeLinecap="round" />
+    <circle cx="60" cy="55" r="4" fill="#1d2129" />
+    <circle cx="60" cy="55" r="1.5" fill="#fff" />
+  </svg>
+);
+
+type FaultData = {
+  severity: 'critical' | 'amber';
+  title: string;
+  time: string;
+  monitorCycle: string;
+  monitorItem: string;
+  abnormalPods: string[];
+  detail: React.ReactNode;
+};
+
+const faultDetails: Record<string, FaultData> = {
+  'router-pd-select': {
+    severity: 'critical',
+    title: '[并行郑州-2集群/GLM-5.2] router_pd_select 异常',
+    time: '2026-07-21 16:14:04',
+    monitorCycle: '每 2 分钟',
+    monitorItem: 'router_pd_select',
+    abnormalPods: ['glm51-router-2-router-0'],
+    detail: (
+      <div style={{ fontSize: 11, lineHeight: 1.6 }}>
+        <div>阈值: 5000 ms</div>
+        <div>glm51-router-2-router-0 (ip=10.25.110.45) (1 个超阈值, worst=5054 ms):</div>
+        <div style={{ fontSize: 10, color: '#86909c', wordBreak: 'break-all' }}>rid=`d4624490...` started=`2026-07-21 08:11:21.948` dur=`5054ms`</div>
+      </div>
+    ),
+  },
+  'router-ttft': {
+    severity: 'critical',
+    title: '[并行郑州-1集群/GLM-5.2] router_ttft 异常',
+    time: '2026-07-21 16:21:05',
+    monitorCycle: '每 3 分钟',
+    monitorItem: 'router_ttft',
+    abnormalPods: ['glm51-router-1-router-0'],
+    detail: (
+      <div style={{ fontSize: 11, lineHeight: 1.6 }}>
+        <div>glm51-router-1-router-0 (ip=10.25.110.35):</div>
+        <div style={{ fontSize: 10, color: '#86909c' }}>ttft&gt;40s: 2次 (min/avg/max=49.28/51.02/52.76s)</div>
+      </div>
+    ),
+  },
+  'sglang-pod-log': {
+    severity: 'critical',
+    title: '[ST-YC 商汤-盐城集群/GLM-5.2] sglang_pod_log 异常',
+    time: '2026-07-21 12:15:39',
+    monitorCycle: '每 3 分钟',
+    monitorItem: 'sglang_pod_log',
+    abnormalPods: ['glm51-router-7-router-0', 'glm51-workers-7-decode-0', 'glm51-workers-7-prefill-0', 'glm51-workers-7-prefill-1', 'glm51-workers-7-prefill-2', 'glm51-workers-7-prefill-3'],
+    detail: (
+      <div style={{ fontSize: 11, lineHeight: 1.6 }}>
+        <div>glm51-router-7-router-0 (ip=10.120.64.137): <span style={{ color: '#f53f3f' }}>KVTransferError</span></div>
+        <div>glm51-workers-7-decode-0 (ip=10.120.64.137): <span style={{ color: '#f53f3f' }}>KVTransferError</span></div>
+        <div style={{ fontSize: 10, color: '#86909c', marginTop: 4 }}>6 个异常 Pods，涉及 KVTransferError 和连接错误</div>
+      </div>
+    ),
+  },
+  'gpu-memory': {
+    severity: 'amber',
+    title: '[ST-YC 商汤-盐城集群/GLM-5.2] gpu_memory 异常',
+    time: '2026-07-21 13:09:00',
+    monitorCycle: '每分钟',
+    monitorItem: 'gpu_memory',
+    abnormalPods: ['10.120.64.16'],
+    detail: (
+      <div style={{ fontSize: 11, lineHeight: 1.6 }}>
+        <div>阈值: low=180000 MiB / high_prefill=270000 MiB / high_decode=274500 MiB</div>
+        <div>10.120.64.16: GPU 3 当前 271202 MiB / 275040 MiB (98%) — 显存占用过高</div>
+      </div>
+    ),
+  },
+  'prefill-load': {
+    severity: 'amber',
+    title: '[ST-YC 商汤-盐城集群/GLM-5.2] prefill_load 异常',
+    time: '2026-07-21 16:15:26',
+    monitorCycle: '每分钟',
+    monitorItem: 'prefill_load',
+    abnormalPods: ['glm51-workers-7-prefill-1', 'glm51-workers-7-prefill-3'],
+    detail: (
+      <div style={{ fontSize: 11, lineHeight: 1.6 }}>
+        <div>glm51-workers-7-prefill-1 (ip=10.120.64.130): prefill_prealloc_queue_reqs=22 (阈值 20)</div>
+        <div>glm51-workers-7-prefill-3 (ip=10.120.64.16): prefill_prealloc_queue_reqs=22 (阈值 20)</div>
+      </div>
+    ),
+  },
+  'decoder-load': {
+    severity: 'amber',
+    title: '[并行郑州-2集群/GLM-5.2] decoder_load 异常',
+    time: '2026-07-21 15:30:12',
+    monitorCycle: '每分钟',
+    monitorItem: 'decoder_load',
+    abnormalPods: ['glm51-workers-2-decode-1'],
+    detail: (
+      <div style={{ fontSize: 11, lineHeight: 1.6 }}>
+        <div>glm51-workers-2-decode-1 (ip=10.25.110.50): decode_queue_reqs=18 (阈值 15)</div>
+      </div>
+    ),
+  },
+  'node-down': {
+    severity: 'critical',
+    title: '[并行郑州-1集群/GLM-5.2] node_status 异常',
+    time: '2026-07-21 11:22:08',
+    monitorCycle: '每分钟',
+    monitorItem: 'node_status',
+    abnormalPods: ['gpu-node-07'],
+    detail: (
+      <div style={{ fontSize: 11, lineHeight: 1.6 }}>
+        <div>gpu-node-07 (ip=10.24.18.107): Kubelet 3 分钟未上报，NotReady</div>
+      </div>
+    ),
+  },
+  'api-latency': {
+    severity: 'amber',
+    title: '[ST-YC 商汤-盐城集群/GLM-5.2] api_latency 异常',
+    time: '2026-07-21 14:45:33',
+    monitorCycle: '每 2 分钟',
+    monitorItem: 'api_latency',
+    abnormalPods: ['glm51-router-7-router-0'],
+    detail: (
+      <div style={{ fontSize: 11, lineHeight: 1.6 }}>
+        <div>glm51-router-7-router-0: p99 延迟 3200ms (阈值 2000ms)</div>
+      </div>
+    ),
+  },
+  'gpu-util': {
+    severity: 'amber',
+    title: '[并行郑州-2集群/GLM-5.2] gpu_util 异常',
+    time: '2026-07-21 10:30:18',
+    monitorCycle: '每 5 分钟',
+    monitorItem: 'gpu_util',
+    abnormalPods: ['glm51-workers-2-decode-2'],
+    detail: (
+      <div style={{ fontSize: 11, lineHeight: 1.6 }}>
+        <div>glm51-workers-2-decode-2: GPU 利用率 12% (阈值 &lt; 20%)，低于预期</div>
+      </div>
+    ),
+  },
+  'disk-pressure': {
+    severity: 'critical',
+    title: '[并行郑州-1集群/GLM-5.2] gpu-node-12 DiskPressure',
+    time: '2026-07-21 09:48:22',
+    monitorCycle: '每分钟',
+    monitorItem: 'node_disk_pressure',
+    abnormalPods: ['gpu-node-12'],
+    detail: (
+      <div style={{ fontSize: 11, lineHeight: 1.6 }}>
+        <div>gpu-node-12 (ip=10.24.18.112): 本地盘使用率 92% (阈值 85%)</div>
+        <div style={{ fontSize: 10, color: '#86909c', marginTop: 4 }}>影响 88 个 Pods 的本地盘读写</div>
+      </div>
+    ),
+  },
+  'network-flap': {
+    severity: 'amber',
+    title: '[ST-YC 商汤-盐城集群/gpu-node-03] network_interface 异常',
+    time: '2026-07-21 08:12:55',
+    monitorCycle: '每 2 分钟',
+    monitorItem: 'network_interface_flap',
+    abnormalPods: ['gpu-node-03'],
+    detail: (
+      <div style={{ fontSize: 11, lineHeight: 1.6 }}>
+        <div>gpu-node-03 (ip=10.120.64.19): bond0 接口 flap 计数 47 次/小时 (阈值 10)</div>
+      </div>
+    ),
+  },
+  'pod-crashloop': {
+    severity: 'amber',
+    title: '[并行郑州-1集群/payment-api] pod_crashloop 异常',
+    time: '2026-07-21 07:35:10',
+    monitorCycle: '每分钟',
+    monitorItem: 'pod_crashloop_backoff',
+    abnormalPods: ['payment-api-7d8f-2kv9f', 'payment-api-7d8f-7sk2h'],
+    detail: (
+      <div style={{ fontSize: 11, lineHeight: 1.6 }}>
+        <div>payment-api-7d8f-2kv9f: CrashLoopBackOff (重启 7 次)</div>
+        <div>payment-api-7d8f-7sk2h: CrashLoopBackOff (重启 5 次)</div>
+        <div style={{ fontSize: 10, color: '#86909c', marginTop: 4 }}>镜像 payment-api:v2.4.1 · 疑似配置错误</div>
+      </div>
+    ),
+  },
+};
 
 const ClusterOperationsHomepage = () => {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -12,264 +206,216 @@ const ClusterOperationsHomepage = () => {
   return (
     <div ref={rootRef} className="cluster-operations-homepage">
     <aside className="resource-tree">
-      <div className="tree-header"><span className="tree-title">资源树</span></div>
+      <div className="tree-header"><span className="tree-title">算力中心</span></div>
       <div className="tree-controls">
         <div className="tree-search"><span className="magnify"></span>搜索供应商、数据中心、集群</div>
       </div>
-      <div className="tree-scroll">
-        <div className="tree-all"><span>⌄ 全部机器</span><span className="tree-all-count">已纳管248台 · 异常5</span></div>
-        <div className="tree-stats"><span>供应商<strong>5</strong></span><span>数据中心<strong>8</strong></span><span>集群<strong>4</strong></span><span>资源段<strong>6</strong></span></div>
-        <div className="tree-provider">
-          <div className="tree-provider-head"><span className="tree-chevron">⌄</span><span>厂商A · xxx科技</span><span className="tree-provider-count">2个中心</span></div>
-          <div className="tree-dc">
-            <div className="tree-dc-head"><span className="tree-chevron">⌄</span><span>上海一号数据中心</span><span className="tree-dc-count">2</span></div>
-            <div className="tree-cluster-link active"><span></span><span>gpu-prod-01<small className="tree-link-meta">上海资源段</small></span><span className="tree-node-count">82台</span></div>
-            <div className="tree-cluster-link"><span></span><span>gpu-test-sh-01</span><span className="tree-node-count">24台</span></div>
-          </div>
-        </div>
-        <div className="tree-provider">
-          <div className="tree-provider-head"><span className="tree-chevron">⌄</span><span>厂商B · 中原算力</span><span className="tree-provider-count">1个中心</span></div>
-          <div className="tree-dc">
-            <div className="tree-dc-head"><span className="tree-chevron">⌄</span><span>郑州高新数据中心</span><span className="tree-dc-count">2</span></div>
-            <div className="tree-cluster-link"><span></span><span>gpu-prod-01<small className="tree-link-meta">郑州资源段 · 点击查看本段</small></span><span className="tree-node-count bad">64台 · 异常2</span></div>
-            <div className="tree-cluster-link"><span></span><span>gpu-dev-zz-01</span><span className="tree-node-count">32台</span></div>
-          </div>
-        </div>
-        <div className="tree-provider">
-          <div className="tree-provider-head"><span className="tree-chevron">⌄</span><span>厂商C · 华北云</span><span className="tree-provider-count">1个中心</span></div>
-          <div className="tree-dc">
-            <div className="tree-dc-head"><span className="tree-chevron">⌄</span><span>北京亦庄数据中心</span><span className="tree-dc-count">1</span></div>
-            <div className="tree-cluster-link"><span></span><span>gpu-prod-01<small className="tree-link-meta">北京资源段 · 点击查看本段</small></span><span className="tree-node-count">40台</span></div>
-          </div>
-        </div>
-        <div className="tree-provider"><div className="tree-provider-head"><span className="tree-chevron">›</span><span>厂商D · 边缘算力</span><span className="tree-provider-count">2个中心</span></div></div>
-        <div className="tree-provider"><div className="tree-provider-head"><span className="tree-chevron">›</span><span>厂商E · 海外云</span><span className="tree-provider-count">2个中心</span></div></div>
+      <div className="tree-scroll" id="resourceTreeContainer">
       </div>
-      <div className="tree-footer"><div className="tree-unmanaged"><span>未纳管裸金属</span><strong>8 台 · 去纳管 →</strong></div></div>
+      <div className="tree-footer"><div className="tree-unmanaged"><span>未纳管节点</span><strong>8 台 · 去纳管 →</strong></div></div>
     </aside>
 
     <section className="workspace">
-      <header className="topbar">
-        <div className="product-context">集群资源概览 <span>/</span> <strong>gpu-prod-01</strong></div>
-        <div className="abnormal-toggle"><span className="switch"></span>只看异常</div>
-        <div className="avatar">运维</div>
-      </header>
 
       <main className="content">
         <div className="page-title-row">
-          <div><div className="page-title-line"><div className="page-title">gpu-prod-01</div><span className="cluster-code">上海资源段</span><span className="cluster-running">运行中</span><span className="cluster-health">健康状态：有异常</span></div><div className="page-subtitle"><span>供应商：<b>xxx科技</b></span><span>数据中心：<b>上海一号数据中心</b></span><span>Kubernetes：<b>v1.36.2</b></span><span>裸金属：<b>82</b></span><span>Nodes：<b>80</b></span></div></div>
+          <div>
+            <div className="page-title" id="clusterTitle">gpu-prod-01</div>
+            <div className="page-title-line">
+              <span className="cluster-running">正常</span>
+              <span className="k8s-badge" id="clusterK8sBadge">Kubernetes v1.36.2</span>
+            </div>
+          </div>
           <div className="page-actions">
-            <div className="freshness">数据更新于 10:28:36 · 自动刷新 30s</div>
-            <div className="onboard-action overview-only-action" title="支持通过IP、SSH或软件包方式接入Kubernetes集群"><span>＋</span>纳管集群</div>
-            <div className="onboard-action nodes-only-action" title="新增、移除或替换当前资源段的节点"><span>＋</span>节点扩缩容</div>
           </div>
         </div>
 
         <nav className="module-nav">
           <div className="module-tab active" data-view="overview">总览</div>
-          <div className="module-tab" data-view="nodes" title="Kubernetes Node对象及Ready、压力和调度状态">Nodes<span className="count" title="异常3个">3</span></div>
-          <div className="module-tab" data-view="workloads" title="Deployment、StatefulSet、DaemonSet、Job和CronJob等工作负载">Workloads<span className="count" title="异常2个">2</span></div>
-          <div className="module-tab" title="Pod运行阶段、容器状态、重启和调度情况">Pods<span className="count" title="异常10个">10</span></div>
-          <div className="module-tab" title="展示后端运行在上海资源段的Services；ServiceEntry为集群级配置">Services<span className="count" title="关联服务异常3项">3</span></div>
-          <div className="module-tab group-start" title="当前资源段关联的PV、PVC及StorageClass状态">PV/PVC<span className="count" title="异常2项">2</span></div>
-          <div className="module-tab" title="当前资源段CNI、网卡、链路和流量状态">网络<span className="count" title="异常1项">1</span></div>
-          <div className="module-tab" title="当前资源段kubelet、CNI/CSI和Device Plugin等组件">系统组件<span className="count" title="异常1项">1</span></div>
-          <div className="module-tab group-start" title="当前资源段相关的纳管、上下线、扩缩容、远程部署和软件下发任务">运维任务<span className="count neutral" title="执行中或待确认4项">4</span></div>
-        </nav>
+          <div className="module-tab" data-view="nodes" title="Kubernetes Node对象及Ready、压力和调度状态">节点</div>
+          <div className="module-tab" data-view="workloads" title="Deployment、StatefulSet、DaemonSet、Job和CronJob等工作负载">Groups</div>
+          <div className="module-tab" data-view="pods" title="Pod运行阶段、容器状态、重启和调度情况">Pods</div>
+          <div className="module-tab" data-view="services" title="展示后端运行在上海资源段的Services；ServiceEntry为集群级配置">Services</div>
+          <div className="module-tab" data-view="serviceentry" title="K8s ServiceEntry资源，用于定义网格出口流量规则">ServiceEntry</div>
+          <div className="module-tab" data-view="pv" title="当前资源段关联的PV、PVC及StorageClass状态">PV/PVC</div>
+	        </nav>
 
         <div className="overview-view">
-        <section className="card resource-overview-card">
-          <div className="card-head"><div className="card-title">上海资源段资源总览</div><div className="card-link">查看本资源段全部资源 →</div></div>
-          <div className="overview-grid">
-            <div className="overview-item"><div className="overview-head"><span className="overview-title"><i className="hardware-icon">BM</i>裸金属与 Nodes</span><span className="overview-state bad">硬件异常1台</span></div><div className="overview-dual"><div className="overview-value"><small>裸金属总数</small><strong>82</strong></div><div className="overview-value"><small>Node总数</small><strong>80</strong></div></div><div className="overview-details"><div className="overview-detail"><span>在线／Ready</span><b>81台／78个</b></div><div className="overview-detail"><span>未注册／NotReady</span><b className="bad">2台／2个</b></div><div className="overview-detail"><span>BMC异常／维护中</span><b className="bad">1台／1台</b></div></div></div>
-            <div className="overview-item"><div className="overview-head"><span className="overview-title"><i className="hardware-icon">CPU</i>CPU 与内存</span><span className="overview-state bad">高负载2台</span></div><div className="overview-columns"><div className="overview-column"><small>CPU实际使用率</small><strong>61%</strong><div className="overview-column-details"><div className="overview-column-detail"><span>Requests</span><b>67%</b></div><div className="overview-column-detail"><span>可分配</span><b>5,248核</b></div><div className="overview-column-detail"><span>可调度余量</span><b>1,732核</b></div></div></div><div className="overview-column"><small>内存实际使用率</small><strong>69%</strong><div className="overview-column-details"><div className="overview-column-detail"><span>Requests</span><b>74%</b></div><div className="overview-column-detail"><span>可分配</span><b>21.0TB</b></div><div className="overview-column-detail"><span>可调度余量</span><b>5.5TB</b></div></div></div></div></div>
-            <div className="overview-item"><div className="overview-head"><span className="overview-title"><i className="hardware-icon">GPU</i>GPU 与显存</span><span className="overview-state bad">异常GPU 4张</span></div><div className="overview-dual"><div className="overview-value"><small>GPU平均利用率</small><strong>75%</strong></div><div className="overview-value"><small>显存平均使用率</small><strong>80%</strong></div></div><div className="overview-details"><div className="overview-detail"><span>设备总量／已分配</span><b>328／272张</b></div><div className="overview-detail"><span>高温告警</span><b className="bad">2张 ＞85℃</b></div><div className="overview-detail"><span>主要型号</span><b>A100／A800</b></div></div></div>
-            <div className="overview-item"><div className="overview-head"><span className="overview-title"><i className="hardware-icon">I/O</i>存储与网络</span><span className="overview-state bad">磁盘2块／网卡1张异常</span></div><div className="overview-columns"><div className="overview-column storage-column"><small>存储</small><strong>61%</strong><div className="overview-column-details"><div className="overview-column-detail"><span>总容量</span><b>840TB</b></div><div className="overview-column-detail"><span>异常磁盘</span><b className="bad">2块</b></div></div></div><div className="overview-column"><small>网络当前吞吐</small><div className="traffic-values"><span className="traffic-value"><small>接收</small><strong>1.4</strong></span><span className="traffic-value"><small>发送</small><strong>1.2</strong></span></div><div className="traffic-unit">Tbps · 5分钟平均</div><div className="overview-column-details"><div className="overview-column-detail"><span>标称带宽</span><b>8.2Tbps</b></div><div className="overview-column-detail"><span>异常网卡</span><b className="bad">1张</b></div></div></div></div></div>
-            <div className="overview-item"><div className="overview-head"><span className="overview-title"><i className="hardware-icon">K8S</i>Pods 与服务</span><span className="overview-state bad">关联服务异常3项</span></div><div className="overview-dual"><div className="overview-value"><small>本段运行Pods</small><strong>5,420</strong></div><div className="overview-value"><small>关联Services</small><strong>286</strong></div></div><div className="overview-details"><div className="overview-detail"><span>异常Pods／其中Pending</span><b className="bad">10／6</b></div><div className="overview-detail"><span>服务后端就绪率</span><b>99.1%</b></div><div className="overview-detail"><span>统计口径</span><b>后端位于本资源段</b></div></div></div>
+        <div className="overview-card-grid">
+
+            <div className="overview-item overview-fault">
+              <div className="overview-fault-head"><span className="overview-title">告警</span><span className="overview-fault-link" style={{ fontSize: 12 }}>查看 →</span></div>
+              <div className="overview-fault-stats">
+                <div className="overview-fault-stat critical">
+                  <span className="overview-fault-stat-value">5</span>
+                  <span className="overview-fault-stat-label">严重告警</span>
+                </div>
+                <div className="overview-fault-stat warning">
+                  <span className="overview-fault-stat-value">7</span>
+                  <span className="overview-fault-stat-label">普通</span>
+                </div>
+                <div className="overview-fault-stat info">
+                  <span className="overview-fault-stat-value">0</span>
+                  <span className="overview-fault-stat-label">轻微</span>
+                </div>
+              </div>
+              <div className="overview-fault-list">
+                {Object.entries(faultDetails).map(([key, fault]) => (
+                  <Tooltip key={key} title={
+                    <div style={{ maxWidth: 480, color: '#1d2129' }}>
+                      <div style={{ fontWeight: 500, marginBottom: 6, fontSize: 12 }}>{fault.title}</div>
+                      <div style={{ fontSize: 11, lineHeight: 1.7 }}>
+                        <div>时间: {fault.time}</div>
+                        <div>监控周期: {fault.monitorCycle}</div>
+                        <div>监控项: 【{fault.monitorItem}】</div>
+                        <div>异常 Pods ({fault.abnormalPods.length}): 【{fault.abnormalPods.join('】, 【')}】</div>
+                        <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid #e5e6eb' }}>
+                          {fault.detail}
+                        </div>
+                      </div>
+                    </div>
+                  } styles={{ root: { maxWidth: 'none' } }} color="#fff">
+                    <div className="overview-fault-row">
+                      <svg width="6" height="6" viewBox="0 0 6 6" style={{ display: 'block', flexShrink: 0, margin: '1px 0 0 8px' }}><circle cx="3" cy="3" r="3" fill={fault.severity === 'critical' ? '#f53f3f' : '#ff7d00'} /></svg>
+                      <span className="overview-fault-title">{fault.title}</span>
+                      <span className="overview-fault-context">{fault.time}</span>
+                    </div>
+                  </Tooltip>
+                ))}
+              </div>
+            </div>
+
+            <div className="overview-card-side">
+            <div className="overview-item overview-cpu">
+              <div className="overview-item-head"><span className="overview-title">CPU</span><span className="overview-head-info">共2317核(5.63 THz) <ExportOutlined /></span></div>
+              <div className="overview-value"><span className="overview-value-group">61%<div className="overview-value-label">CPU使用率</div></span><span className="overview-value-group"><CpuGauge /><div className="overview-value-label gauge-label">1,824/2,432 Core</div></span></div>
+            </div>
+            <div className="overview-item overview-storage">
+              <div className="overview-item-head"><span className="overview-title">存储</span></div>
+              <div className="storage-progress-bar">
+                <div className="storage-progress-segment storage-progress-used" style={{ width: '50%' }} />
+                <div className="storage-progress-segment storage-progress-failed" style={{ width: '10%' }} />
+                <div className="storage-progress-segment storage-progress-free" style={{ flex: 1 }} />
+              </div>
+              <div className="overview-sub">
+                <div className="storage-stat-row"><span className="storage-stat-label"><span className="storage-stat-dot" style={{ visibility: 'hidden' }} />总容量</span><span className="storage-stat-value">840TiB</span><span className="storage-stat-pct">100%</span></div>
+                <div className="storage-stat-row"><span className="storage-stat-label"><span className="storage-stat-dot" style={{ background: '#2468F2' }} />已使用</span><span className="storage-stat-value">420TiB</span><span className="storage-stat-pct">50%</span></div>
+                <div className="storage-stat-row"><span className="storage-stat-label"><span className="storage-stat-dot" style={{ background: '#8c8c8c' }} />失效</span><span className="storage-stat-value">84TiB</span><span className="storage-stat-pct">10%</span></div>
+                <div className="storage-stat-row"><span className="storage-stat-label"><span className="storage-stat-dot" style={{ background: '#e8e8e8' }} />空闲</span><span className="storage-stat-value">336TiB</span><span className="storage-stat-pct">40%</span></div>
+              </div>
+            </div>
+            <div className="overview-item overview-mem">
+              <div className="overview-item-head"><span className="overview-title">内存</span><span className="overview-head-info">共 21.0TiB</span></div>
+              <div className="mem-pct">
+                <span className="mem-pct-value">71%</span>
+                <span className="mem-pct-label">内存使用率</span>
+              </div>
+              <div className="mem-content">
+                <div className="mem-stats">
+                  <div className="mem-stat-row"><span className="mem-stat-dot" style={{ background: '#8c8c8c' }} /><span className="mem-stat-label">可分配</span><span className="mem-stat-value">21.0TiB</span></div>
+                  <div className="mem-stat-row"><span className="mem-stat-dot" style={{ background: '#52c41a' }} /><span className="mem-stat-label">活跃分配</span><span className="mem-stat-value">15.0TiB</span></div>
+                  <div className="mem-stat-row"><span className="mem-stat-dot" style={{ background: '#fadb14' }} /><span className="mem-stat-label">系统占用</span><span className="mem-stat-value">2.0TiB</span></div>
+                </div>
+                <div className="mem-vertical-bar">
+                  <div className="mem-vbar-segment" style={{ height: '71%', background: '#52c41a' }} />
+                  <div className="mem-vbar-segment" style={{ height: '10%', background: '#fadb14' }} />
+                  <div className="mem-vbar-segment" style={{ flex: 1, background: '#e8e8e8' }} />
+                </div>
+              </div>
+            </div>
+            <div className="overview-item overview-disk">
+              <div className="overview-item-head"><span className="overview-title">物理盘</span><span className="overview-head-info">共36块</span></div>
+              <div className="overview-sub">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
+                  <img src="/ssd-icon.png" width="50" height="50" alt="" />
+                  <div><b>24块</b> SSD  <svg width="8" height="8" viewBox="0 0 8 8" style={{ verticalAlign: 'middle', marginRight: 2, marginTop: -2 }}><circle cx="4" cy="4" r="4" fill="#00b42a" /></svg>正常 22块 <span className="bad">异常 2块</span></div>
+                </div>
+                <div style={{ height: 1, background: '#f0f0f0', margin: '6px 0' }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
+                  <img src="/hdd-icon.png" width="50" height="50" alt="" />
+                  <div><b>12块</b> HDD  <svg width="8" height="8" viewBox="0 0 8 8" style={{ verticalAlign: 'middle', marginRight: 2, marginTop: -2 }}><circle cx="4" cy="4" r="4" fill="#00b42a" /></svg>正常 12块</div>
+                </div>
+              </div>
+            </div>
           </div>
-        </section>
-
-        <div className="lower-grid">
-          <section className="card lower-card">
-            <div className="card-head"><div className="card-title">异常与故障定位</div><div className="card-link">查看本资源段聚合故障 9 →</div></div>
-            <div className="fault-collapse-hint"><strong>上海资源段当前有9个聚合故障，优先展示影响最大的4项</strong></div>
-            <div className="fault-list">
-              <div className="fault-row"><div><div className="fault-title-line"><span className="fault-level">严重</span><span className="fault-title">payment-service 服务降级</span></div><div className="fault-context">项目A · 厂商A／上海一号数据中心 · 10分钟前 · 关联7条告警</div><div className="fault-chain-line">Service → EndpointSlice无就绪地址 → Pod NotReady → Node NotReady → <strong>BM-00001027物理网卡丢包</strong></div></div><div className="fault-side"><div className="fault-impact">影响5个Pods／2个SVC</div><span className="fault-status">已定位根因 →</span></div></div>
-              <div className="fault-row"><div><div className="fault-title-line"><span className="fault-level amber">重要</span><span className="fault-title">训练任务排队数量持续增加</span></div><div className="fault-context">项目B · 厂商A／上海一号数据中心 · 18分钟前 · 关联5条告警</div><div className="fault-chain-line amber">Pending Jobs → GPU Device Plugin异常 → <strong>2张GPU出现Xid错误</strong></div></div><div className="fault-side"><div className="fault-impact">影响6个训练任务</div><span className="fault-status">已定位根因 →</span></div></div>
-              <div className="fault-row"><div><div className="fault-title-line"><span className="fault-level amber">重要</span><span className="fault-title">外部模型服务调用超时</span></div><div className="fault-context">项目C · 厂商A／上海一号数据中心 · 23分钟前 · 3条原始告警</div><div className="fault-chain-line amber">ServiceEntry → 外部后端探测超时 → 3个业务服务P95升高 → <strong>根因定位中</strong></div></div><div className="fault-side"><div className="fault-impact">影响3个服务</div><span className="fault-status tracking">定位中 →</span></div></div>
-              <div className="fault-row"><div><div className="fault-title-line"><span className="fault-level amber">重要</span><span className="fault-title">本地存储可用容量不足</span></div><div className="fault-context">项目E · 厂商A／上海一号数据中心 · 36分钟前 · 关联4条告警</div><div className="fault-chain-line amber">PVC写入告警 → Local PV容量不足 → 2块硬盘SMART异常 → <strong>需确认更换硬盘</strong></div></div><div className="fault-side"><div className="fault-impact">影响1个StatefulSet</div><span className="fault-status tracking">待人工确认 →</span></div></div>
-            </div>
-          </section>
-
-          <section className="card lower-card">
-            <div className="card-head"><div className="card-title">集群接入、资产待办与运维任务</div><div className="card-link">进入运维任务 →</div></div>
-            <div className="quick-actions">
-              <div className="quick-btn"><span className="quick-main">纳管集群</span><small>接入已有Kubernetes集群</small></div>
-              <div className="quick-btn"><span className="quick-main">启用调度</span><small>验收通过后承载新任务</small></div>
-              <div className="quick-btn"><span className="quick-main">停用调度</span><small>停止新任务并排空Pod</small></div>
-              <div className="quick-btn"><span className="quick-main">节点扩缩容</span><small>新增或移除Nodes</small></div>
-              <div className="quick-btn"><span className="quick-main">远程部署与下发</span><small>组件、驱动和Agent</small></div>
-              <div className="quick-btn danger"><span className="quick-main">取消纳管</span><small>解除连接并保留历史记录</small></div>
-            </div>
-            <div className="ops-section-title">资产待办 <span>3项需要处理</span></div>
-            <div className="todo-list"><div className="todo-row"><div><div className="todo-name">6台裸金属将在30天内到期</div><div className="todo-meta">厂商A · 上海一号数据中心 · 项目A</div></div><span className="todo-action">续租／下线 →</span></div><div className="todo-row"><div><div className="todo-name">新到货2台裸金属尚未纳管</div><div className="todo-meta">厂商A · 上海一号数据中心 · 到货2天</div></div><span className="todo-action">去纳管 →</span></div><div className="todo-row"><div><div className="todo-name">1台裸金属已到计划下线时间</div><div className="todo-meta">厂商A · 上海一号数据中心 · 已完成Node排空</div></div><span className="todo-action red">确认下线 →</span></div></div>
-            <div className="ops-section-title">执行中的任务 <span>4个任务</span></div>
-            <div className="task-list ops"><div className="task"><div className="task-top"><span className="task-name">节点纳管 · gpu-prod-01 · 上海资源段</span><span className="task-status">执行中 60%</span></div><div className="task-track"><span style={{ width: '60%' }}></span></div><div className="task-meta"><span>SSH连通6／10台</span><span>校验IP并安装接入组件</span></div></div><div className="task"><div className="task-top"><span className="task-name">资源段扩容 · gpu-prod-01 · 上海10台</span><span className="task-status">执行中 82%</span></div><div className="task-track"><span style={{ width: '82%' }}></span></div><div className="task-meta"><span>网络、存储配置已完成</span><span>等待Node健康验收</span></div></div><div className="task"><div className="task-top"><span className="task-name">节点下线 · BM-00000018</span><span className="task-status amber">等待确认</span></div><div className="task-track"><span className="amber" style={{ width: '35%' }}></span></div><div className="task-meta"><span>前置步骤完成35%</span><span>已排空Pod并等待业务确认</span></div></div><div className="task"><div className="task-top"><span className="task-name">平台组件下发 · Node Agent v2.6.1</span><span className="task-status">执行中 42%</span></div><div className="task-track"><span style={{ width: '42%' }}></span></div><div className="task-meta"><span>已完成34／82台</span><span>灰度安装并验证节点心跳</span></div></div></div>
-          </section>
         </div>
+
+          <div className="metric-grid">
+            <div className="metric-left">
+              <div className="overview-item" style={{ display: 'flex', flexDirection: 'column' }}>
+                <div className="overview-item-head"><span className="overview-title">节点</span><span className="overview-head-info">共3台机器 <span style={{ color: '#6951ff', marginLeft: 8, cursor: 'pointer' }}>查看 →</span></span></div>
+                <div className="overview-value" style={{ flex: 1, justifyContent: 'center', gap: 0 }}>
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#00b42a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8" /><path d="M12 17v4" /></svg>
+                      <span>2</span>
+                    </div>
+                    <span style={{ fontSize: 11, color: '#86909c' }}>正常</span>
+                  </div>
+                  <div style={{ width: 1, background: '#f0f0f0', alignSelf: 'stretch', margin: '4px 0' }} />
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#f53f3f" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v4" /><path d="M12 16h.01" /></svg>
+                      <span style={{ fontSize: 28, fontWeight: 650, lineHeight: 1.2, color: '#f53f3f' }}>1</span>
+                    </div>
+                    <span style={{ fontSize: 11, color: '#86909c' }}>异常</span>
+                  </div>
+                </div>
+              </div>
+              <div className="overview-item">
+                <div className="overview-item-head"><span className="overview-title">网络</span></div>
+                <div className="overview-sub" style={{ padding: '6px 0' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '4px 12px', marginBottom: 12 }}>
+                    <div style={{ fontSize: 11, color: '#86909c', gridColumn: '1 / -1' }}>RDMA</div>
+                    <div><div style={{ fontSize: 22, fontWeight: 650, lineHeight: 1.2 }}>1024</div><div style={{ fontSize: 11, color: '#86909c' }}>总量</div></div>
+                    <div><div style={{ fontSize: 22, fontWeight: 650, lineHeight: 1.2 }}>99.4%</div><div style={{ fontSize: 11, color: '#86909c' }}>健康率</div></div>
+                    <div><div style={{ fontSize: 22, fontWeight: 650, lineHeight: 1.2, color: '#f53f3f' }}>6</div><div style={{ fontSize: 11, color: '#86909c' }}>异常</div></div>
+                  </div>
+                  <div style={{ height: 1, background: '#f0f0f0', margin: '4px 0' }} />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '4px 12px', marginTop: 12 }}>
+                    <div style={{ fontSize: 11, color: '#86909c', gridColumn: '1 / -1' }}>网卡</div>
+                    <div><div style={{ fontSize: 22, fontWeight: 650, lineHeight: 1.2 }}>1024</div><div style={{ fontSize: 11, color: '#86909c' }}>总量</div></div>
+                    <div><div style={{ fontSize: 22, fontWeight: 650, lineHeight: 1.2 }}>99.6%</div><div style={{ fontSize: 11, color: '#86909c' }}>健康率</div></div>
+                    <div><div style={{ fontSize: 22, fontWeight: 650, lineHeight: 1.2, color: '#f53f3f' }}>4</div><div style={{ fontSize: 11, color: '#86909c' }}>异常</div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="metric-mid">
+              <div className="overview-item">
+                <div className="overview-item-head"><span className="overview-title">GPU</span><span className="overview-head-info">共512卡</span></div>
+                <div className="overview-sub" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', padding: '8px 0' }}>
+                  <div><div style={{ fontSize: 22, fontWeight: 650, lineHeight: 1.2 }}>512</div><div style={{ fontSize: 11, color: '#86909c' }}>GPU 总量（张）</div></div>
+                  <div><div style={{ fontSize: 22, fontWeight: 650, lineHeight: 1.2 }}>508</div><div style={{ fontSize: 11, color: '#86909c' }}>在线 GPU（张）</div></div>
+                  <div><div style={{ fontSize: 22, fontWeight: 650, lineHeight: 1.2 }}>76%</div><div style={{ fontSize: 11, color: '#86909c' }}>GPU 利用率</div></div>
+                  <div><div style={{ fontSize: 22, fontWeight: 650, lineHeight: 1.2 }}>99.2%</div><div style={{ fontSize: 11, color: '#86909c' }}>GPU 健康率</div></div>
+                </div>
+              </div>
+              <div className="overview-item">
+                <div className="overview-item-head"><span className="overview-title">显存</span></div>
+                <div className="overview-sub" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', padding: '8px 0' }}>
+                  <div><div style={{ fontSize: 22, fontWeight: 650, lineHeight: 1.2 }}>40</div><div style={{ fontSize: 11, color: '#86909c' }}>显存总量（TB）</div></div>
+                  <div><div style={{ fontSize: 22, fontWeight: 650, lineHeight: 1.2 }}>32</div><div style={{ fontSize: 11, color: '#86909c' }}>已使用显存（TB）</div></div>
+                  <div><div style={{ fontSize: 22, fontWeight: 650, lineHeight: 1.2 }}>80%</div><div style={{ fontSize: 11, color: '#86909c' }}>显存利用率</div></div>
+                  <div><div style={{ fontSize: 22, fontWeight: 650, lineHeight: 1.2, color: '#f53f3f' }}>3</div><div style={{ fontSize: 11, color: '#86909c' }}>OOM 次数</div></div>
+                </div>
+              </div>
+            </div>
+            <div className="overview-item metric-log">
+              <div className="overview-item-head"><span className="overview-title">操作日志</span></div>
+              <div className="overview-sub" style={{ fontSize: 11, gap: 6 }}>
+                <span><span style={{ color: '#86909c' }}>07-22 14:23</span> 节点 gpu-node-07 已标记为维护状态</span>
+                <span><span style={{ color: '#86909c' }}>07-22 11:05</span> 资源段扩容 · 新增 2 台 Worker 节点</span>
+                <span><span style={{ color: '#86909c' }}>07-21 18:42</span> GPU 驱动升级 v550.127.05 → v550.144.03</span>
+                <span><span style={{ color: '#86909c' }}>07-21 09:30</span> 节点 gpu-node-12 触发 DiskPressure 告警</span>
+                <span><span style={{ color: '#86909c' }}>07-20 22:15</span> 平台组件 Node Agent 批量下发完成</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <section className="nodes-view">
-          <div className="card nodes-summary">
-            <div className="node-summary-group runtime"><span className="node-summary-group-title">Kubernetes 运行状态</span>
-              <button type="button" className="node-summary-item node-summary-filter active" data-node-filter="all" data-filter-label="全部 Nodes"><span className="node-summary-label">Node 总数</span><strong className="node-summary-value">80</strong><span className="node-summary-meta">当前资源段</span></button>
-              <button type="button" className="node-summary-item node-summary-filter" data-node-filter="notready" data-filter-label="NotReady" data-filter-total="2"><span className="node-summary-label">K8s 状态</span><strong className="node-summary-value">78 <small className="bad-inline">/ 2</small></strong><span className="node-summary-meta">Ready / NotReady · 点击异常数筛选</span></button>
-              <div className="node-summary-item" title="Ready且未被人工暂停调度的Node；具体Pod能否调度还需检查资源、标签、污点和亲和性等条件"><span className="node-summary-label">可参与调度</span><strong className="node-summary-value">75</strong><span className="node-summary-meta">基础可用 · 另5个不可参与</span></div>
-            </div>
-            <div className="node-summary-group attention">
-              <button type="button" className="node-summary-item node-summary-filter" data-node-filter="attention" data-filter-label="需关注节点" data-filter-total="3"><span className="node-summary-label">需关注节点</span><strong className="node-summary-value bad">3 <small>台</small></strong><span className="node-summary-meta">按 Node 去重</span></button>
-              <button type="button" className="node-summary-item node-summary-filter" data-node-filter="pressure" data-filter-label="DiskPressure" data-filter-total="1"><span className="node-summary-label">节点压力</span><strong className="node-summary-value bad">1 <small>台</small></strong><span className="node-summary-meta">DiskPressure</span></button>
-              <button type="button" className="node-summary-item node-summary-filter" data-node-filter="hardware-gpu" data-filter-label="硬件／GPU异常" data-filter-total="2"><span className="node-summary-label">硬件／GPU 异常</span><strong className="node-summary-value bad">2 <small>台</small></strong><span className="node-summary-meta">物理机1台 · GPU4张</span></button>
-            </div>
-          </div>
-
-          <div className="card nodes-toolbar">
-            <div className="node-search"><span className="magnify"></span>搜索 Node、IP、裸金属或 GPU 序列号</div>
-            <div className="node-filter">全部状态</div>
-            <div className="node-filter">全部角色</div>
-            <div className="node-filter">全部节点类型</div>
-            <div className="node-filter">全部调度状态</div>
-            <div className="node-filter">标签／污点</div>
-          </div>
-
-          <div className="nodes-workspace">
-            <section className="card nodes-list-card">
-              <div className="nodes-list-head"><span className="nodes-list-title">Nodes 列表</span><span id="nodesListMeta" className="nodes-list-meta">按影响优先 · 共 80 个 Node · 3 个需关注</span></div>
-              <div className="nodes-table-header"><span>Node／IP</span><span>K8s 状态</span><span>角色／类型</span><span>运行 Pods</span><span>CPU</span><span>内存</span><span>GPU 分配／利用</span><span>物理机器／硬件</span><span>Kubelet 最近上报</span></div>
-
-              <div className="node-row selected" data-node="gpu-node-07" data-attention="true" data-issues="notready hardware-gpu">
-                <div><span className="node-name">gpu-node-07</span><span className="node-sub">10.24.18.107 · v1.36.2</span></div>
-                <div><span className="node-status bad">NotReady</span><span className="node-sub">节点不可用</span></div>
-                <div className="node-type"><strong>Worker</strong><span className="node-sub">GPU 节点</span></div>
-                <div className="node-pods"><strong>32</strong><span className="node-sub">异常 Pod 5 · 上限110</span></div>
-                <div><div className="node-resource-main"><span>84%</span><small>Req 76%</small></div><div className="node-bar"><span style={{ width: '84%' }}></span></div></div>
-                <div><div className="node-resource-main"><span>71%</span><small>Req 72%</small></div><div className="node-bar"><span style={{ width: '71%' }}></span></div></div>
-                <div><span className="node-gpu bad">7／8 · 92%</span><span className="node-sub">2 张 Xid 异常</span></div>
-                <div className="node-machine"><strong>BM-00001027</strong><span className="node-sub bad">网卡丢包 4.8%</span></div>
-                <div><span className="bad">3分钟前</span><span className="node-sub">Kubelet 无回报</span></div>
-              </div>
-
-              <div className="node-row" data-node="gpu-node-52" data-attention="true" data-issues="notready">
-                <div><span className="node-name">gpu-node-52</span><span className="node-sub">10.24.18.152 · v1.36.2</span></div>
-                <div><span className="node-status bad">NotReady</span><span className="node-sub">节点不可用</span></div>
-                <div className="node-type"><strong>Worker</strong><span className="node-sub">GPU 节点</span></div>
-                <div className="node-pods"><strong>9</strong><span className="node-sub">异常 Pod 9 · 上限110</span></div>
-                <div><div className="node-resource-main"><span>—</span><small>Req 41%</small></div><div className="node-bar"></div></div>
-                <div><div className="node-resource-main"><span>—</span><small>Req 58%</small></div><div className="node-bar"></div></div>
-                <div><span className="node-gpu">4／8 · —</span><span className="node-sub">A100 · 状态未知</span></div>
-                <div className="node-machine"><strong>BM-00001102</strong><span className="node-sub">硬件健康</span></div>
-                <div><span className="bad">18分钟前</span><span className="node-sub">Kubelet 无回报</span></div>
-              </div>
-
-              <div className="node-row" data-node="gpu-node-12" data-attention="true" data-issues="pressure hardware-gpu">
-                <div><span className="node-name">gpu-node-12</span><span className="node-sub">10.24.18.112 · v1.36.2</span></div>
-                <div><span className="node-status">Ready</span><span className="node-sub">节点正常</span></div>
-                <div className="node-type"><strong>Worker</strong><span className="node-sub">GPU 节点 · 调度已暂停</span></div>
-                <div className="node-pods"><strong>88</strong><span className="node-sub">异常 Pod 0 · 上限110</span></div>
-                <div><div className="node-resource-main"><span>77%</span><small>Req 79%</small></div><div className="node-bar"><span style={{ width: '77%' }}></span></div></div>
-                <div><div className="node-resource-main"><span>82%</span><small>Req 84%</small></div><div className="node-bar"><span style={{ width: '82%' }}></span></div></div>
-                <div><span className="node-gpu bad">6／8 · 85%</span><span className="node-sub">2 张高温 · GPU 告警</span></div>
-                <div className="node-machine"><strong>BM-00001032</strong><span className="node-sub bad">DiskPressure · 本地盘 92%</span></div>
-                <div>24秒前<span className="node-sub">心跳正常</span></div>
-              </div>
-
-              <div className="node-row" data-node="gpu-node-18" data-attention="false" data-issues="">
-                <div><span className="node-name">gpu-node-18</span><span className="node-sub">10.24.18.118 · v1.36.2</span></div>
-                <div><span className="node-status">Ready</span><span className="node-sub">节点正常</span></div>
-                <div className="node-type"><strong>Worker</strong><span className="node-sub">GPU 节点</span></div>
-                <div className="node-pods"><strong>96</strong><span className="node-sub">异常 Pod 0 · 上限110</span></div>
-                <div><div className="node-resource-main"><span>68%</span><small>Req 72%</small></div><div className="node-bar"><span style={{ width: '68%' }}></span></div></div>
-                <div><div className="node-resource-main"><span>74%</span><small>Req 76%</small></div><div className="node-bar"><span style={{ width: '74%' }}></span></div></div>
-                <div><span className="node-gpu">8／8 · 81%</span><span className="node-sub">A100 · 健康</span></div>
-                <div className="node-machine"><strong>BM-00001045</strong><span className="node-sub">硬件健康</span></div>
-                <div>18秒前<span className="node-sub">心跳正常</span></div>
-              </div>
-
-              <div className="node-row" data-node="gpu-node-23" data-attention="false" data-issues="">
-                <div><span className="node-name">gpu-node-23</span><span className="node-sub">10.24.18.123 · v1.36.2</span></div>
-                <div><span className="node-status">Ready</span><span className="node-sub">节点正常</span></div>
-                <div className="node-type"><strong>Worker</strong><span className="node-sub">GPU 节点</span></div>
-                <div className="node-pods"><strong>72</strong><span className="node-sub">异常 Pod 0 · 上限110</span></div>
-                <div><div className="node-resource-main"><span>62%</span><small>Req 67%</small></div><div className="node-bar"><span style={{ width: '62%' }}></span></div></div>
-                <div><div className="node-resource-main"><span>69%</span><small>Req 74%</small></div><div className="node-bar"><span style={{ width: '69%' }}></span></div></div>
-                <div><span className="node-gpu">6／8 · 63%</span><span className="node-sub">A100 · 健康</span></div>
-                <div className="node-machine"><strong>BM-00001050</strong><span className="node-sub">硬件健康</span></div>
-                <div>15秒前<span className="node-sub">心跳正常</span></div>
-              </div>
-
-              <div className="node-row" data-node="cpu-node-04" data-attention="false" data-issues="">
-                <div><span className="node-name">cpu-node-04</span><span className="node-sub">10.24.18.204 · v1.36.2</span></div>
-                <div><span className="node-status">Ready</span><span className="node-sub">节点正常</span></div>
-                <div className="node-type"><strong>Worker</strong><span className="node-sub">CPU 节点</span></div>
-                <div className="node-pods"><strong>104</strong><span className="node-sub">异常 Pod 0 · 上限110</span></div>
-                <div><div className="node-resource-main"><span>55%</span><small>Req 60%</small></div><div className="node-bar"><span style={{ width: '55%' }}></span></div></div>
-                <div><div className="node-resource-main"><span>66%</span><small>Req 70%</small></div><div className="node-bar"><span style={{ width: '66%' }}></span></div></div>
-                <div><span className="node-gpu">—</span><span className="node-sub">无 GPU</span></div>
-                <div className="node-machine"><strong>BM-00001093</strong><span className="node-sub">硬件健康</span></div>
-                <div>12秒前<span className="node-sub">心跳正常</span></div>
-              </div>
-
-              <div className="node-row" data-node="gpu-node-31" data-attention="false" data-issues="">
-                <div><span className="node-name">gpu-node-31</span><span className="node-sub">10.24.18.131 · v1.36.2</span></div>
-                <div><span className="node-status">Ready</span><span className="node-sub">节点正常</span></div>
-                <div className="node-type"><strong>Worker</strong><span className="node-sub">GPU 节点</span></div>
-                <div className="node-pods"><strong>90</strong><span className="node-sub">异常 Pod 0 · 上限110</span></div>
-                <div><div className="node-resource-main"><span>49%</span><small>Req 58%</small></div><div className="node-bar"><span style={{ width: '49%' }}></span></div></div>
-                <div><div className="node-resource-main"><span>61%</span><small>Req 68%</small></div><div className="node-bar"><span style={{ width: '61%' }}></span></div></div>
-                <div><span className="node-gpu">8／8 · 78%</span><span className="node-sub">A800 · 健康</span></div>
-                <div className="node-machine"><strong>BM-00001068</strong><span className="node-sub">硬件健康</span></div>
-                <div>21秒前<span className="node-sub">心跳正常</span></div>
-              </div>
-
-              <div className="nodes-pagination"><span id="nodesPaginationMeta">显示 1–7，共 80 个 Nodes</span><span id="nodesPaginationPages"><i className="page-chip">1</i>&nbsp;&nbsp;2&nbsp;&nbsp;3&nbsp;&nbsp;…&nbsp;&nbsp;12&nbsp;&nbsp;›</span></div>
-            </section>
-
-            <aside className="card node-detail-card">
-              <div className="node-detail-head"><div><div className="node-detail-name"><span id="detailNodeName">gpu-node-07</span> <span id="detailNodeStatus" className="node-status bad">NotReady</span></div><div id="detailNodeId" className="node-detail-id">Worker · GPU · 10.24.18.107</div></div><div className="node-detail-links"><span id="detailBmLink" className="node-detail-link">查看物理机器 BM-00001027 →</span></div></div>
-              <div className="node-detail-body">
-                <section className="detail-section"><div className="detail-section-title">基本信息</div><div className="node-basic-grid">
-                  <div className="node-basic-item"><small>Kubernetes</small><strong>v1.36.2</strong></div><div className="node-basic-item"><small>运行时</small><strong>containerd 2.0.2</strong></div>
-                  <div className="node-basic-item"><small>操作系统</small><strong>TencentOS Server 4</strong></div><div className="node-basic-item"><small>内核</small><strong>6.6.30-x86_64</strong></div>
-                  <div className="node-basic-item"><small>数据中心</small><strong>上海一号数据中心</strong></div><div className="node-basic-item"><small>对应物理机器</small><strong id="detailBmValue">BM-00001027</strong></div>
-                </div></section>
-
-                <section className="detail-section"><div className="detail-section-title">Node Conditions</div>
-                  <div className="condition-row"><span>Ready</span><strong id="detailReady" className="condition-state bad">False</strong><span id="detailReadyTime" className="condition-time">3 分钟前</span></div>
-                  <div className="condition-row"><span>MemoryPressure</span><strong id="detailMemoryPressure" className="condition-state">False</strong><span className="condition-time detail-condition-time">3 分钟前</span></div>
-                  <div className="condition-row"><span>DiskPressure</span><strong id="detailDiskPressure" className="condition-state">False</strong><span className="condition-time detail-condition-time">3 分钟前</span></div>
-                  <div className="condition-row"><span>PIDPressure</span><strong id="detailPidPressure" className="condition-state">False</strong><span className="condition-time detail-condition-time">3 分钟前</span></div>
-                  <div className="condition-row"><span>NetworkUnavailable</span><strong id="detailNetworkUnavailable" className="condition-state">False</strong><span className="condition-time detail-condition-time">3 分钟前</span></div>
-                </section>
-
-                <section className="detail-section"><div className="detail-section-title">调度与标识</div><div className="node-context-grid">
-                  <div className="node-context-item"><small>人工调度设置</small><strong id="detailManualSchedule">未禁止调度</strong></div>
-                  <div className="node-context-item"><small>当前调度结果</small><strong id="detailScheduleResult" className="bad">不可参与（NotReady）</strong></div>
-                  <div className="node-context-item"><small>影响调度的污点</small><strong id="detailTaints">unreachable:NoSchedule</strong></div>
-                  <div className="node-context-item"><small>主要标签</small><strong id="detailLabels">worker · gpu · a100</strong></div>
-                </div></section>
-
-                <section className="detail-section"><div className="detail-section-title with-meta"><span>当前 Node 异常与影响</span><span id="detailFreshness" className="node-data-freshness">监控数据停留在 3 分钟前</span></div>
-                  <div id="detailIssueList" className="node-issue-list">
-                    <div className="node-issue-row"><span className="node-issue-source">Kubernetes</span><span className="node-issue-text">NotReady · Kubelet 3 分钟未上报</span></div>
-                    <div className="node-issue-row"><span className="node-issue-source">物理机器</span><span className="node-issue-text">BM-00001027 · bond0 丢包 4.8%</span></div>
-                    <div className="node-issue-row"><span className="node-issue-source">GPU</span><span className="node-issue-text">2 张 A100 出现 Xid</span></div>
-                  </div>
-                  <div id="detailImpact" className="node-impact"><strong>影响范围</strong>：5 个异常 Pods · 影响 2 个 Services。</div>
-                  <div className="node-scope-links"><span id="detailPodsLink" className="node-scope-link">查看 5 个异常 Pods →</span><span id="detailEventsLink" className="node-scope-link">查看 7 条相关事件 →</span><span className="node-scope-link">查看该 Node 资源监控 →</span></div>
-                </section>
-              </div>
-            </aside>
-          </div>
+          <NodeTable />
         </section>
 
         <section className="workloads-view">
@@ -402,10 +548,442 @@ const ClusterOperationsHomepage = () => {
             </aside>
           </div>
         </section>
+        <section className="pods-view">
+          <ClusterResourceTables view="pod" />
+        </section>
+
+        <section className="services-view">
+          <ClusterResourceTables view="svc" />
+        </section>
+
+        <section className="serviceentry-view">
+          <ClusterResourceTables view="se" />
+        </section>
+
+        <section className="pv-view">
+          <ConfigProvider theme={{ token: { colorPrimary: '#6738E8' }, components: { Table: { headerBg: '#f7f8fa' } } }}>
+            <Table dataSource={[]} columns={[
+              { title: '名称', dataIndex: 'name', key: 'name', width: 200 },
+              { title: '类型', dataIndex: 'kind', key: 'kind', width: 100 },
+              { title: '命名空间', dataIndex: 'namespace', key: 'namespace', width: 120 },
+              { title: '容量', dataIndex: 'capacity', key: 'capacity', width: 120 },
+              { title: '状态', dataIndex: 'status', key: 'status', width: 100 },
+              { title: '创建时间', dataIndex: 'age', key: 'age', width: 150 },
+            ]} scroll={{ x: 'max-content' }} pagination={{ pageSize: 10, showTotal: (total) => '共 ' + total + ' 条' }} locale={{ emptyText: '暂无 PV/PVC 数据' }} />
+          </ConfigProvider>
+        </section>
       </main>
     </section>
 
     </div>
+  );
+};
+
+type NodeRow = {
+  key: string;
+  name: string;
+  ip: string;
+  clusterName: string;
+  label: string;
+  tags?: string[];
+  status: 'normal' | 'warning' | 'error';
+  authStatus: 'authorized' | 'unauthorized';
+  modelCount: number;
+  runningInstances: number;
+  cpu: number;
+  cpuUsed: number;
+  cpuModel: string;
+  cpuArch: string;
+  cpuSockets: number;
+  cpuCores: number;
+  cpuThreads: number;
+  cpuFrequency: number;
+  cpuTotalGHz: number;
+  cpuUsedGHz: number;
+  cpuReady: string;
+  cpuLoad: string;
+  gpu: number;
+  gpuCards: Array<{ index: number; model: string; spec: string; memoryTotal: string; memoryUsed: string; memoryFree: string; utilization: number; power: number; temperature: number; status: string }>;
+  gpuMemory: string;
+  gpuMemoryUsed: string;
+  memory: string;
+  memoryUsed: string;
+  memoryType: string;
+  disk: string;
+  diskUsed: string;
+  disks: Array<{ name: string; total: string; used: string; type: string; mountPath: string; status: string }>;
+  networkCards: Array<{ name: string; ip: string; speed: string; status: string }>;
+  pods: Array<{ name: string; status: string; namespace: string; ready: string }>;
+};
+
+const getCapacityPercent = (used: string | number, total: string | number) => {
+  const parseVal = (v: string | number) => {
+    if (typeof v === 'number') return v;
+    const n = Number(String(v).replace(/,/g, '').match(/[\d.]+/)?.[0] || 0);
+    return String(v).toUpperCase().includes('TB') ? n * 1024 : n;
+  };
+  const u = parseVal(used), t = parseVal(total);
+  return t > 0 ? (u / t) * 100 : 0;
+};
+
+const UsageRing = ({ percent, sub }: { percent: number; sub?: string }) => {
+  const p = Math.min(Math.max(Math.round(percent), 0), 100);
+  const color = p > 80 ? '#F53F3F' : p > 60 ? '#FF7D00' : '#4C6EF5';
+  const r = 12, stroke = 3;
+  const c = 2 * Math.PI * r;
+  const offset = c - (p / 100) * c;
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, verticalAlign: 'middle' }}>
+      <svg width={32} height={32} aria-hidden="true" style={{ flexShrink: 0 }}>
+        <circle cx={16} cy={16} r={r} fill="none" stroke="#E5E6EB" strokeWidth={stroke} />
+        <circle cx={16} cy={16} r={r} fill="none" stroke={color} strokeWidth={stroke} strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round" transform="rotate(-90 16 16)" />
+        <text x={16} y={17} textAnchor="middle" dominantBaseline="middle" style={{ fontSize: 9, fill: '#4E5969' }}>{p}%</text>
+      </svg>
+      {sub && <span style={{ fontSize: 11, color: '#4E5969' }}>{sub}</span>}
+    </span>
+  );
+};
+
+const nodeTabs = ['CPU详情', '内存详情', 'GPU', '磁盘详情', '网卡详情', 'Pods列表'];
+
+const mockKernelLogs = (label: string) => [
+  `[${new Date().toLocaleString()}] kernel: ${label} - NVRM: GPU at PCI:0000:01:00.0 is OK`,
+  `[${new Date().toLocaleString()}] kernel: ${label} - mlx5_core 0000:3b:00.0: Link up, 100Gbps, full duplex`,
+  `[${new Date().toLocaleString()}] kernel: ${label} - nvidia-nvlink: link 0 enabled, speed 400 GB/s`,
+  `[${new Date().toLocaleString()}] kernel: ${label} - x86/split lock detection: #AC: process took a split lock`,
+  `[${new Date().toLocaleString()}] kernel: ${label} - nvme nvme0: new device found, PCI:0000:02:00.0`,
+  `[${new Date().toLocaleString()}] kernel: ${label} - scsi 0:0:0:0: Direct-Access NVMe SSD 3.86TB`,
+  `[${new Date().toLocaleString()}] kernel: ${label} - NETDEV: eth0: link becomes ready`,
+  `[${new Date().toLocaleString()}] kernel: ${label} - CPU: frequency scaling enabled (governor: performance)`,
+  `[${new Date().toLocaleString()}] kernel: ${label} - EDAC sbridge: S0 is ready`,
+  `[${new Date().toLocaleString()}] kernel: ${label} - ACPI: button: Power button pressed - entering sleep`,
+];
+
+const NodeExpandContent = ({ node }: { node: NodeRow }) => {
+  const [activeTab, setActiveTab] = useState(nodeTabs[0]);
+  const [diskDetail, setDiskDetail] = useState<{ name: string; total: string; used: string; type: string; mountPath: string; status: string } | null>(null);
+  const [netDetail, setNetDetail] = useState<{ name: string; ip: string; speed: string; status: string } | null>(null);
+  const [gpuDetail, setGpuDetail] = useState<{ index: number; model: string; spec: string; memoryTotal: string; memoryUsed: string; memoryFree: string; utilization: number; power: number; temperature: number; status: string } | null>(null);
+  const [logDetail, setLogDetail] = useState<{ title: string; logs: string[] } | null>(null);
+
+  const cpuUtil = node.cpu > 0 ? Math.round((node.cpuUsed / node.cpu) * 100) : 0;
+  const memUtil = getCapacityPercent(node.memoryUsed, node.memory);
+  const renderTabBar = () => (
+    <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid #E5E6EB', marginBottom: 16 }}>
+      {nodeTabs.map((tab) => (
+        <button key={tab} type="button" onClick={() => setActiveTab(tab)} style={{ padding: '6px 14px', cursor: 'pointer', fontSize: 13, color: activeTab === tab ? '#6738E8' : '#4E5969', fontWeight: activeTab === tab ? 600 : 400, borderBottom: activeTab === tab ? '2px solid #6738E8' : '2px solid transparent', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', whiteSpace: 'nowrap' }}>{tab}</button>
+      ))}
+    </div>
+  );
+
+  if (activeTab === 'CPU详情') {
+    const items = [
+      { label: 'CPU型号', value: node.cpuModel },
+      { label: 'CPU Socket数量', value: `${node.cpuSockets}` },
+      { label: 'CPU核心数(Cores)', value: `${node.cpuCores}` },
+      { label: 'CPU线程数(Threads)', value: `${node.cpuThreads}` },
+      { label: 'CPU频率(GHz)', value: `${node.cpuFrequency.toFixed(1)} GHz` },
+      { label: 'CPU总容量(GHz)', value: `${node.cpuTotalGHz.toFixed(1)} GHz` },
+      { label: 'CPU已使用(GHz)', value: `${node.cpuUsedGHz.toFixed(1)} GHz` },
+      { label: 'CPU利用率(%)', value: `${cpuUtil}%` },
+      { label: 'CPU Ready', value: node.cpuReady },
+      { label: 'CPU负载(Load)', value: node.cpuLoad },
+    ];
+    return (
+      <div>
+        {renderTabBar()}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, padding: 4 }}>
+          {items.map((item) => (
+            <div key={item.label} style={{ width: 'calc(20% - 10px)', minWidth: 160, background: '#F7F8FA', borderRadius: 6, padding: '14px 16px' }}>
+              <div style={{ fontSize: 12, color: '#86909c', marginBottom: 6 }}>{item.label}</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#1d2129', wordBreak: 'break-all' }}>{item.value}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (activeTab === '内存详情') {
+    return (
+      <div>
+        {renderTabBar()}
+        <div style={{ display: 'flex', gap: 24, padding: 8 }}>
+          <UsageRing percent={Math.round(memUtil)} sub={`${node.memoryUsed}/${node.memory}`} />
+          <div style={{ fontSize: 13, lineHeight: '28px' }}>
+            <div><span style={{ color: '#86909c' }}>类型</span> <strong style={{ marginLeft: 8 }}>{node.memoryType}</strong></div>
+            <div><span style={{ color: '#86909c' }}>总量</span> <strong style={{ marginLeft: 8 }}>{node.memory}</strong></div>
+            <div><span style={{ color: '#86909c' }}>已用</span> <strong style={{ marginLeft: 8 }}>{node.memoryUsed}</strong></div>
+            <div><span style={{ color: '#86909c' }}>利用率</span> <strong style={{ marginLeft: 8 }}>{Math.round(memUtil)}%</strong></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (activeTab === 'GPU') {
+    return (
+      <div>
+        {renderTabBar()}
+        <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: '#F7F8FA', color: '#4E5969', textAlign: 'left' }}>
+              <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>#</th>
+              <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>型号</th>
+              <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>显存</th>
+              <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>利用率</th>
+              <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>功耗</th>
+              <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>温度</th>
+              <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>状态</th>
+            </tr>
+          </thead>
+          <tbody>
+            {node.gpuCards.map((card) => (
+              <tr key={card.index}>
+                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5', color: '#4E5969' }}>{card.index}</td>
+                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}><a style={{ cursor: 'pointer', color: '#6738E8', fontWeight: 600 }} onClick={() => setGpuDetail(card)}><strong>{card.model}</strong></a> <em style={{ color: '#86909c', fontStyle: 'normal' }}>{card.spec}</em></td>
+                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5', color: '#4E5969' }}>{card.memoryUsed} / {card.memoryTotal}</td>
+                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}>
+                  <Progress percent={card.utilization} showInfo={false} size="small" strokeColor={card.utilization > 90 ? '#E02D2D' : '#6951FF'} trailColor="#F2F3F5" style={{ width: 80 }} />
+                  <span style={{ marginLeft: 6, fontSize: 12, color: '#4E5969' }}>{card.utilization}%</span>
+                </td>
+                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5', color: '#4E5969' }}>{card.power}W</td>
+                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5', color: '#4E5969' }}>{card.temperature}°C</td>
+                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}>
+                  <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: card.status === 'active' ? '#00A11F' : '#C9CDD4', marginRight: 6 }} />
+                  <span style={{ color: card.status === 'active' ? '#00A11F' : '#86909c' }}>{card.status === 'active' ? '使用中' : '空闲'}</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <Drawer title={'GPU详情 - ' + (gpuDetail ? ('#' + gpuDetail.index + ' ' + gpuDetail.model) : '')} placement="right" open={!!gpuDetail} onClose={() => setGpuDetail(null)} width={420}>
+          {gpuDetail && (
+            <div style={{ fontSize: 13, lineHeight: '36px' }}>
+              <div><span style={{ color: '#86909c' }}>卡序号</span> <strong style={{ marginLeft: 16 }}>#{gpuDetail.index}</strong></div>
+              <div><span style={{ color: '#86909c' }}>型号</span> <strong style={{ marginLeft: 16 }}>{gpuDetail.model}</strong></div>
+              <div><span style={{ color: '#86909c' }}>规格</span> <strong style={{ marginLeft: 16 }}>{gpuDetail.spec}</strong></div>
+              <div><span style={{ color: '#86909c' }}>总显存</span> <strong style={{ marginLeft: 16 }}>{gpuDetail.memoryTotal}</strong></div>
+              <div><span style={{ color: '#86909c' }}>已用显存</span> <strong style={{ marginLeft: 16 }}>{gpuDetail.memoryUsed}</strong></div>
+              <div><span style={{ color: '#86909c' }}>空闲显存</span> <strong style={{ marginLeft: 16 }}>{gpuDetail.memoryFree}</strong></div>
+              <div><span style={{ color: '#86909c' }}>利用率</span> <strong style={{ marginLeft: 16 }}>{gpuDetail.utilization}%</strong></div>
+              <div><span style={{ color: '#86909c' }}>功耗</span> <strong style={{ marginLeft: 16 }}>{gpuDetail.power}W</strong></div>
+              <div><span style={{ color: '#86909c' }}>温度</span> <strong style={{ marginLeft: 16 }}>{gpuDetail.temperature}°C</strong></div>
+              <div><span style={{ color: '#86909c' }}>状态</span> <strong style={{ marginLeft: 16 }}>{gpuDetail.status === 'active' ? '使用中' : '空闲'}</strong></div>
+            </div>
+          )}
+        </Drawer>
+      </div>
+    );
+  }
+
+  if (activeTab === '磁盘详情') {
+    return (
+      <div>
+        {renderTabBar()}
+        <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: '#F7F8FA', color: '#4E5969', textAlign: 'left' }}>
+              <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>名称</th>
+              <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>总量</th>
+              <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>已用</th>
+              <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>类型</th>
+              <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>挂载路径</th>
+              <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>状态</th>
+              <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {node.disks.map((d) => (
+              <tr key={d.name}>
+                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}><a style={{ cursor: 'pointer', color: '#6738E8', fontWeight: 600 }} onClick={() => setDiskDetail(d)}>{d.name}</a></td>
+                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5', color: '#4E5969' }}>{d.total}</td>
+                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5', color: '#4E5969' }}>{d.used}</td>
+                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5', color: '#4E5969' }}>{d.type}</td>
+                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5', color: '#4E5969' }}>{d.mountPath}</td>
+                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}>
+                  <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: d.status === 'normal' ? '#00A11F' : '#FF7D00', marginRight: 6 }} />
+                  <span style={{ color: d.status === 'normal' ? '#00A11F' : '#FF7D00' }}>{d.status === 'normal' ? '正常' : '告警'}</span>
+                </td>
+                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}><FileTextOutlined style={{ cursor: 'pointer', color: '#6738E8', fontSize: 15 }} onClick={() => setLogDetail({ title: d.name + ' 内核日志', logs: mockKernelLogs(d.name) })} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <Drawer title={'磁盘详情 - ' + (diskDetail?.name || '')} placement="right" open={!!diskDetail} onClose={() => setDiskDetail(null)} width={420}>
+          {diskDetail && (
+            <div style={{ fontSize: 13, lineHeight: '36px' }}>
+              <div><span style={{ color: '#86909c' }}>名称</span> <strong style={{ marginLeft: 16 }}>{diskDetail.name}</strong></div>
+              <div><span style={{ color: '#86909c' }}>总容量</span> <strong style={{ marginLeft: 16 }}>{diskDetail.total}</strong></div>
+              <div><span style={{ color: '#86909c' }}>已使用</span> <strong style={{ marginLeft: 16 }}>{diskDetail.used}</strong></div>
+              <div><span style={{ color: '#86909c' }}>类型</span> <strong style={{ marginLeft: 16 }}>{diskDetail.type}</strong></div>
+              <div><span style={{ color: '#86909c' }}>挂载路径</span> <strong style={{ marginLeft: 16 }}>{diskDetail.mountPath}</strong></div>
+              <div><span style={{ color: '#86909c' }}>状态</span> <strong style={{ marginLeft: 16, color: diskDetail.status === 'normal' ? '#00A11F' : '#FF7D00' }}>{diskDetail.status === 'normal' ? '正常' : '告警'}</strong></div>
+            </div>
+          )}
+        </Drawer>
+        <Drawer title={logDetail?.title || ''} placement="right" open={!!logDetail} onClose={() => setLogDetail(null)} width={620}>
+          {logDetail && (
+            <div style={{ background: '#1d2129', color: '#52c41a', fontFamily: 'Menlo, Monaco, monospace', fontSize: 12, lineHeight: '22px', padding: 16, borderRadius: 6, whiteSpace: 'pre-wrap', overflow: 'auto', maxHeight: 'calc(100vh - 200px)' }}>
+              {logDetail.logs.map((line, i) => <div key={i}>{line}</div>)}
+            </div>
+          )}
+        </Drawer>
+      </div>
+    );
+  }
+
+  if (activeTab === '网卡详情') {
+    return (
+      <div>
+        {renderTabBar()}
+        <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: '#F7F8FA', color: '#4E5969', textAlign: 'left' }}>
+              <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>名称</th>
+              <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>IP</th>
+              <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>速率</th>
+              <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>状态</th>
+              <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {node.networkCards.map((card) => (
+              <tr key={card.name}>
+                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}><a style={{ cursor: 'pointer', color: '#6738E8', fontWeight: 600 }} onClick={() => setNetDetail(card)}>{card.name}</a></td>
+                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5', color: '#4E5969' }}>{card.ip}</td>
+                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5', color: '#4E5969' }}>{card.speed}</td>
+                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}>
+                  <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: card.status === 'active' ? '#00A11F' : '#C9CDD4', marginRight: 6 }} />
+                  <span style={{ color: card.status === 'active' ? '#00A11F' : '#86909c' }}>{card.status === 'active' ? '正常' : '异常'}</span>
+                </td>
+                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}><FileTextOutlined style={{ cursor: 'pointer', color: '#6738E8', fontSize: 15 }} onClick={() => setLogDetail({ title: card.name + ' 内核日志', logs: mockKernelLogs(card.name) })} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <Drawer title={'网卡详情 - ' + (netDetail?.name || '')} placement="right" open={!!netDetail} onClose={() => setNetDetail(null)} width={420}>
+          {netDetail && (
+            <div style={{ fontSize: 13, lineHeight: '36px' }}>
+              <div><span style={{ color: '#86909c' }}>名称</span> <strong style={{ marginLeft: 16 }}>{netDetail.name}</strong></div>
+              <div><span style={{ color: '#86909c' }}>IP 地址</span> <strong style={{ marginLeft: 16 }}>{netDetail.ip}</strong></div>
+              <div><span style={{ color: '#86909c' }}>速率</span> <strong style={{ marginLeft: 16 }}>{netDetail.speed}</strong></div>
+              <div><span style={{ color: '#86909c' }}>状态</span> <strong style={{ marginLeft: 16, color: netDetail.status === 'active' ? '#00A11F' : '#86909c' }}>{netDetail.status === 'active' ? '正常' : '异常'}</strong></div>
+            </div>
+          )}
+        </Drawer>
+        <Drawer title={logDetail?.title || ''} placement="right" open={!!logDetail} onClose={() => setLogDetail(null)} width={620}>
+          {logDetail && (
+            <div style={{ background: '#1d2129', color: '#52c41a', fontFamily: 'Menlo, Monaco, monospace', fontSize: 12, lineHeight: '22px', padding: 16, borderRadius: 6, whiteSpace: 'pre-wrap', overflow: 'auto', maxHeight: 'calc(100vh - 200px)' }}>
+              {logDetail.logs.map((line, i) => <div key={i}>{line}</div>)}
+            </div>
+          )}
+        </Drawer>
+      </div>
+    );
+  }
+
+  if (activeTab === 'Pods列表') {
+    return (
+      <div>
+        {renderTabBar()}
+        <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: '#F7F8FA', color: '#4E5969', textAlign: 'left' }}>
+              <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>Pod 名称</th>
+              <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>命名空间</th>
+              <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>就绪</th>
+              <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>状态</th>
+            </tr>
+          </thead>
+          <tbody>
+            {node.pods.length === 0 && <tr><td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: '#C9CDD4' }}>暂无 Pod</td></tr>}
+            {node.pods.map((pod) => (
+              <tr key={pod.name}>
+                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}><strong>{pod.name}</strong></td>
+                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5', color: '#4E5969' }}>{pod.namespace}</td>
+                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}>{pod.ready}</td>
+                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: pod.status === 'Running' ? '#00A11F' : '#F53F3F' }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: pod.status === 'Running' ? '#00A11F' : '#F53F3F' }} />
+                    {pod.status}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  return null;
+};
+
+const nodeData: NodeRow[] = [
+  { key: 'n1', name: 'qujing4', ip: '192.168.110.4', clusterName: 'default', label: 'GPU=RTX_4090', tags: ['deployment=dev', 'zone=shanghai', 'worker=high-performance', 'accelerator=nvidia-rtx'], status: 'normal', authStatus: 'authorized', modelCount: 0, runningInstances: 0, cpu: 128, cpuUsed: 42, cpuModel: 'Intel Xeon Gold 6438M', cpuArch: 'x86_64', cpuSockets: 2, cpuCores: 64, cpuThreads: 128, cpuFrequency: 2.1, cpuTotalGHz: 134.4, cpuUsedGHz: 44.1, cpuReady: '99.2%', cpuLoad: '8.5', gpu: 8, gpuCards: [{ index: 0, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '12.0 GB', memoryFree: '11.99 GB', utilization: 52, power: 315, temperature: 72, status: 'active' }, { index: 1, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 98, power: 425, temperature: 81, status: 'active' }, { index: 2, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 95, power: 410, temperature: 78, status: 'active' }, { index: 3, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 87, power: 380, temperature: 75, status: 'active' }, { index: 4, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '18.5 GB', memoryFree: '5.49 GB', utilization: 72, power: 360, temperature: 73, status: 'active' }, { index: 5, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '4.8 GB', memoryFree: '19.19 GB', utilization: 22, power: 180, temperature: 58, status: 'active' }, { index: 6, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 91, power: 415, temperature: 80, status: 'active' }, { index: 7, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 34, status: 'idle' }], gpuMemory: '383.9 GB', gpuMemoryUsed: '95.9 GB', memory: '1007.56 GB', memoryUsed: '352.6 GB', memoryType: 'DDR5 4800MHz', disk: '3.86 TB', diskUsed: '1.54 TB', disks: [{ name: '/dev/sda', total: '3.86 TB', used: '1.54 TB', type: 'NVMe SSD', mountPath: '/data', status: 'normal' }], networkCards: [{ name: 'eth0', ip: '192.168.110.4', speed: '25Gbps', status: 'active' }, { name: 'eth1', ip: '10.0.0.4', speed: '100Gbps', status: 'active' }, { name: 'ib0', ip: '192.168.200.4', speed: '200Gbps', status: 'active' }], pods: [{ name: 'deepseek-dev-p1', status: 'Running', namespace: 'development', ready: '1/1' }, { name: 'qwen2-demo-p1', status: 'Running', namespace: 'demo', ready: '1/1' }, { name: 'qwen2-demo-p2', status: 'Failed', namespace: 'demo', ready: '0/1' }] },
+  { key: 'n2', name: 'qujing7', ip: '192.168.110.21', clusterName: 'default', label: 'GPU=RTX_4090', status: 'normal', authStatus: 'authorized', modelCount: 0, runningInstances: 0, cpu: 192, cpuUsed: 68, cpuModel: 'AMD EPYC 9654', cpuArch: 'x86_64', cpuSockets: 2, cpuCores: 192, cpuThreads: 384, cpuFrequency: 2.4, cpuTotalGHz: 460.8, cpuUsedGHz: 163.2, cpuReady: '97.8%', cpuLoad: '12.3', gpu: 8, gpuCards: [{ index: 0, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '12.0 GB', memoryFree: '11.99 GB', utilization: 48, power: 300, temperature: 68, status: 'active' }, { index: 1, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 92, power: 400, temperature: 76, status: 'active' }, { index: 2, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 94, power: 405, temperature: 77, status: 'active' }, { index: 3, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 88, power: 385, temperature: 74, status: 'active' }, { index: 4, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '3.2 GB', memoryFree: '20.79 GB', utilization: 14, power: 120, temperature: 48, status: 'active' }, { index: 5, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '19.4 GB', memoryFree: '4.59 GB', utilization: 76, power: 345, temperature: 72, status: 'active' }, { index: 6, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '7.8 GB', memoryFree: '16.19 GB', utilization: 35, power: 210, temperature: 60, status: 'active' }, { index: 7, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 97, power: 430, temperature: 83, status: 'active' }], gpuMemory: '383.9 GB', gpuMemoryUsed: '115.2 GB', memory: '1.48 TB', memoryUsed: '521.3 GB', memoryType: 'DDR5 4800MHz', disk: '12.6 TB', diskUsed: '5.04 TB', disks: [{ name: '/dev/sda', total: '6.3 TB', used: '3.2 TB', type: 'NVMe SSD', mountPath: '/data', status: 'normal' }, { name: '/dev/sdb', total: '6.3 TB', used: '1.84 TB', type: 'NVMe SSD', mountPath: '/models', status: 'normal' }], networkCards: [{ name: 'eth0', ip: '192.168.110.21', speed: '25Gbps', status: 'active' }, { name: 'eth1', ip: '10.0.0.21', speed: '100Gbps', status: 'active' }, { name: 'ib0', ip: '192.168.200.21', speed: '200Gbps', status: 'active' }], pods: [{ name: 'deepseek-dev-p2', status: 'Running', namespace: 'development', ready: '1/1' }] },
+  { key: 'n3', name: 'qujing21', ip: '192.168.109.6', clusterName: 'default', label: 'GPU=RTX_4090', status: 'normal', authStatus: 'unauthorized', modelCount: 0, runningInstances: 0, cpu: 192, cpuUsed: 56, cpuModel: 'Intel Xeon Gold 6438M', cpuArch: 'x86_64', cpuSockets: 2, cpuCores: 96, cpuThreads: 192, cpuFrequency: 2.1, cpuTotalGHz: 201.6, cpuUsedGHz: 58.8, cpuReady: '98.5%', cpuLoad: '9.8', gpu: 8, gpuCards: [{ index: 0, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '19.2 GB', memoryFree: '4.79 GB', utilization: 78, power: 350, temperature: 71, status: 'active' }, { index: 1, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 96, power: 420, temperature: 82, status: 'active' }, { index: 2, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '15.6 GB', memoryFree: '8.39 GB', utilization: 63, power: 325, temperature: 68, status: 'active' }, { index: 3, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0.5 GB', memoryFree: '23.49 GB', utilization: 2, power: 45, temperature: 36, status: 'idle' }, { index: 4, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 93, power: 412, temperature: 79, status: 'active' }, { index: 5, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '11.5 GB', memoryFree: '12.49 GB', utilization: 45, power: 280, temperature: 65, status: 'active' }, { index: 6, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 89, power: 390, temperature: 75, status: 'active' }, { index: 7, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '4.8 GB', memoryFree: '19.19 GB', utilization: 20, power: 160, temperature: 55, status: 'active' }], gpuMemory: '383.9 GB', gpuMemoryUsed: '67.2 GB', memory: '1007.51 GB', memoryUsed: '483.6 GB', memoryType: 'DDR5 4800MHz', disk: '3.86 TB', diskUsed: '2.12 TB', disks: [{ name: '/dev/sda', total: '3.86 TB', used: '2.12 TB', type: 'NVMe SSD', mountPath: '/data', status: 'normal' }], networkCards: [{ name: 'eth0', ip: '192.168.109.6', speed: '25Gbps', status: 'active' }, { name: 'ib0', ip: '192.168.200.6', speed: '200Gbps', status: 'active' }], pods: [] },
+  { key: 'n4', name: 'qujing1', ip: '192.168.200.10', clusterName: 'default', label: 'GPU=RTX_5000', status: 'error', authStatus: 'unauthorized', modelCount: 0, runningInstances: 0, cpu: 192, cpuUsed: 0, cpuModel: 'Intel Xeon Gold 6438M', cpuArch: 'x86_64', cpuSockets: 2, cpuCores: 96, cpuThreads: 192, cpuFrequency: 2.1, cpuTotalGHz: 201.6, cpuUsedGHz: 0, cpuReady: '0%', cpuLoad: '0.0', gpu: 8, gpuCards: [{ index: 0, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 35, status: 'idle' }, { index: 1, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 34, status: 'idle' }, { index: 2, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 33, status: 'idle' }, { index: 3, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 34, status: 'idle' }, { index: 4, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 35, status: 'idle' }, { index: 5, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 34, status: 'idle' }, { index: 6, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 33, status: 'idle' }, { index: 7, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 34, status: 'idle' }], gpuMemory: '383.9 GB', gpuMemoryUsed: '0 GB', memory: '1007.39 GB', memoryUsed: '0 GB', memoryType: 'DDR5 4800MHz', disk: '3.86 TB', diskUsed: '1.89 TB', disks: [{ name: '/dev/sda', total: '3.86 TB', used: '1.89 TB', type: 'NVMe SSD', mountPath: '/data', status: 'warning' }], networkCards: [{ name: 'eth0', ip: '192.168.200.10', speed: '25Gbps', status: 'inactive' }, { name: 'ib0', ip: '192.168.200.100', speed: '200Gbps', status: 'inactive' }], pods: [] },
+  { key: 'n5', name: 'qujing24', ip: '192.168.109.23', clusterName: 'default', label: 'GPU=RTX_4090', status: 'normal', authStatus: 'authorized', modelCount: 0, runningInstances: 0, cpu: 96, cpuUsed: 38, cpuModel: 'Intel Xeon Silver 4416+', cpuArch: 'x86_64', cpuSockets: 2, cpuCores: 40, cpuThreads: 80, cpuFrequency: 2.0, cpuTotalGHz: 80.0, cpuUsedGHz: 31.7, cpuReady: '99.5%', cpuLoad: '5.2', gpu: 8, gpuCards: [{ index: 0, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '14.4 GB', memoryFree: '9.59 GB', utilization: 58, power: 320, temperature: 69, status: 'active' }, { index: 1, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 93, power: 408, temperature: 79, status: 'active' }, { index: 2, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0.2 GB', memoryFree: '23.79 GB', utilization: 1, power: 35, temperature: 32, status: 'idle' }, { index: 3, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '21.6 GB', memoryFree: '2.39 GB', utilization: 85, power: 375, temperature: 74, status: 'active' }, { index: 4, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '9.8 GB', memoryFree: '14.19 GB', utilization: 40, power: 250, temperature: 62, status: 'active' }, { index: 5, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 95, power: 418, temperature: 80, status: 'active' }, { index: 6, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '12.8 GB', memoryFree: '11.19 GB', utilization: 50, power: 295, temperature: 67, status: 'active' }, { index: 7, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 90, power: 398, temperature: 77, status: 'active' }], gpuMemory: '383.9 GB', gpuMemoryUsed: '57.6 GB', memory: '503.35 GB', memoryUsed: '176.2 GB', memoryType: 'DDR5 4800MHz', disk: '5.68 TB', diskUsed: '2.27 TB', disks: [{ name: '/dev/sda', total: '5.68 TB', used: '2.27 TB', type: 'NVMe SSD', mountPath: '/data', status: 'normal' }], networkCards: [{ name: 'eth0', ip: '192.168.109.23', speed: '25Gbps', status: 'active' }, { name: 'ib0', ip: '192.168.200.23', speed: '200Gbps', status: 'active' }], pods: [] },
+  { key: 'n6', name: 'qujing20', ip: '192.168.110.20', clusterName: 'default', label: 'GPU=RTX_4011', status: 'normal', authStatus: 'authorized', modelCount: 0, runningInstances: 0, cpu: 192, cpuUsed: 72, cpuModel: 'AMD EPYC 9654', cpuArch: 'x86_64', cpuSockets: 2, cpuCores: 192, cpuThreads: 384, cpuFrequency: 2.4, cpuTotalGHz: 460.8, cpuUsedGHz: 172.8, cpuReady: '97.2%', cpuLoad: '14.1', gpu: 8, gpuCards: [{ index: 0, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '16.8 GB', memoryFree: '7.19 GB', utilization: 68, power: 340, temperature: 70, status: 'active' }, { index: 1, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 91, power: 395, temperature: 76, status: 'active' }, { index: 2, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '5.6 GB', memoryFree: '18.39 GB', utilization: 25, power: 185, temperature: 56, status: 'active' }, { index: 3, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '22.1 GB', memoryFree: '1.89 GB', utilization: 82, power: 365, temperature: 73, status: 'active' }, { index: 4, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 31, status: 'idle' }, { index: 5, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 96, power: 425, temperature: 81, status: 'active' }, { index: 6, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '18.2 GB', memoryFree: '5.79 GB', utilization: 74, power: 348, temperature: 71, status: 'active' }, { index: 7, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '10.5 GB', memoryFree: '13.49 GB', utilization: 42, power: 265, temperature: 63, status: 'active' }], gpuMemory: '383.9 GB', gpuMemoryUsed: '72.0 GB', memory: '1007.51 GB', memoryUsed: '604.5 GB', memoryType: 'DDR5 4800MHz', disk: '3.86 TB', diskUsed: '1.62 TB', disks: [{ name: '/dev/sda', total: '3.86 TB', used: '1.62 TB', type: 'NVMe SSD', mountPath: '/data', status: 'normal' }], networkCards: [{ name: 'eth0', ip: '192.168.110.20', speed: '25Gbps', status: 'active' }, { name: 'eth1', ip: '10.0.0.20', speed: '100Gbps', status: 'active' }, { name: 'ib0', ip: '192.168.200.20', speed: '200Gbps', status: 'active' }], pods: [] },
+];
+
+const NodeTable = () => {
+  const [keyword, setKeyword] = useState('');
+  const [nodeLog, setNodeLog] = useState<{ title: string; logs: string[] } | null>(null);
+
+  const filteredData = useMemo(() => nodeData.filter((row) => {
+    const text = (row.name + ' ' + row.ip + ' ' + row.clusterName + ' ' + row.label).toLowerCase();
+    return !keyword || text.includes(keyword.toLowerCase());
+  }), [keyword]);
+
+  const columns: ColumnsType<NodeRow> = [
+    { title: '节点名称', key: 'name', width: 120, render: (_, r) => (
+      <strong style={{ fontSize: 13, color: '#1d2129' }}>{r.name}</strong>
+    ) },
+    { title: '状态', key: 'status', width: 80, render: (_, r) => (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+        <span style={{ width: 7, height: 7, borderRadius: '50%', display: 'inline-block', background: r.status === 'normal' ? '#00A11F' : r.status === 'warning' ? '#FF7D00' : '#F53F3F', flexShrink: 0 }} />
+        <span style={{ fontSize: 12, color: '#4E5969' }}>{r.status === 'normal' ? '正常' : r.status === 'warning' ? '警告' : '异常'}</span>
+      </span>
+    ) },
+    { title: '集群名称', dataIndex: 'clusterName', key: 'clusterName', width: 120 },
+    { title: 'Labels', key: 'label', width: 200, render: (_, r) => (
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+        <span style={{ display: 'inline-block', padding: '1px 6px', fontSize: 11, background: '#F0F0FF', color: '#6738E8', borderRadius: 3, border: '1px solid #D9D0FC' }}>{r.label}</span>
+        {r.tags?.filter((tag) => /^(deployment|GPU|worker|controlplane)=/.test(tag)).map((tag) => (
+          <span key={tag} style={{ display: 'inline-block', padding: '1px 6px', fontSize: 11, background: '#F7F8FA', color: '#4E5969', borderRadius: 3, border: '1px solid #E5E6EB' }}>{tag}</span>
+        ))}
+      </div>
+    ) },
+    { title: '授权状态', dataIndex: 'authStatus', key: 'authStatus', width: 95, render: (v: string) => (
+      <span style={{ display: 'inline-block', padding: '1px 8px', fontSize: 12, borderRadius: 4, background: v === 'authorized' ? '#E8F8E8' : '#FFF0F0', color: v === 'authorized' ? '#00A11F' : '#F53F3F' }}>
+        {v === 'authorized' ? '已授权' : '未授权'}
+      </span>
+    ) },
+    { title: '模型数量', key: 'modelCount', width: 90, render: (_, r) => <span style={{ fontSize: 13, fontWeight: 500 }}>{r.modelCount}</span> },
+    { title: '节点 IP', dataIndex: 'ip', key: 'ip', width: 130 },
+    { title: '操作', key: 'action', width: 100, render: (_, r) => <FileTextOutlined style={{ cursor: 'pointer', color: '#6738E8', fontSize: 15 }} onClick={() => setNodeLog({ title: r.name + ' 内核日志', logs: mockKernelLogs(r.name) })} /> },
+  ];
+
+  return (
+    <ConfigProvider theme={{ token: { colorPrimary: '#6738E8' }, components: { Table: { headerBg: '#f7f8fa' } } }}>
+      <div style={{ padding: '8px 0', display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'flex-end' }}>
+        <Input.Search size="small" allowClear value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="搜索节点名称 / IP / 标签" style={{ width: 320 }} />
+      </div>
+      <Table<NodeRow> rowKey="key" columns={columns} dataSource={filteredData} scroll={{ x: 'max-content' }} pagination={{ pageSize: 10, showTotal: (total) => '共 ' + total + ' 个' }} expandable={{
+        expandedRowRender: (r) => <NodeExpandContent node={r} />,
+        rowExpandable: () => true,
+      }} />
+      <Drawer title={nodeLog?.title || ''} placement="right" open={!!nodeLog} onClose={() => setNodeLog(null)} width={620}>
+        {nodeLog && (
+          <div style={{ background: '#1d2129', color: '#52c41a', fontFamily: 'Menlo, Monaco, monospace', fontSize: 12, lineHeight: '22px', padding: 16, borderRadius: 6, whiteSpace: 'pre-wrap', overflow: 'auto', maxHeight: 'calc(100vh - 200px)' }}>
+            {nodeLog.logs.map((line, i) => <div key={i}>{line}</div>)}
+          </div>
+        )}
+      </Drawer>
+    </ConfigProvider>
   );
 };
 

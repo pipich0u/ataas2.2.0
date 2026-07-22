@@ -8,15 +8,165 @@ export const initializeClusterOperations = (root: HTMLElement) => {
   const getById = (id: string) => root.querySelector(`#${id}`);
 
   const tabs = Array.from(root.querySelectorAll('.module-tab[data-view]'));
+  const allModes = ['nodes-mode', 'workloads-mode', 'pods-mode', 'services-mode', 'serviceentry-mode', 'pv-mode', 'se-view-mode'];
   const applyView = (view = 'overview') => {
-    root.classList.toggle('nodes-mode', view === 'nodes');
-    root.classList.toggle('workloads-mode', view === 'workloads');
+    root.classList.remove(...allModes);
     tabs.forEach((tab) => tab.classList.toggle('active', tab.dataset.view === view));
+    if (view === 'nodes') root.classList.add('nodes-mode');
+    else if (view === 'workloads') root.classList.add('workloads-mode');
+    else if (view === 'pods') root.classList.add('pods-mode');
+    else if (view === 'services') root.classList.add('services-mode');
+    else if (view === 'serviceentry') root.classList.add('serviceentry-mode');
+    else if (view === 'pv') root.classList.add('pv-mode');
   };
   tabs.forEach((tab) => tab.addEventListener('click', () => {
     applyView(tab.dataset.view || 'overview');
   }));
   applyView();
+
+  const setText = (id, value) => { const element = getById(id); if (element) element.textContent = value; };
+
+  const clusterData = {
+    'shanghai-online': { name: 'shanghai-online', location: '上海二区', provider: '商汤', dc: '上海外高桥数据中心', k8s: 'v1.36.2', bms: '3', nodes: '3', normal: '2', abnormal: '1', health: '正常', running: true, code: '上海二区' },
+    'guangzhou-test': { name: 'guangzhou-test', location: '广州测试', provider: '并行科技', dc: '广州科学城数据中心', k8s: 'v1.36.0', bms: '1', nodes: '1', normal: '1', abnormal: '0', health: '有异常', running: true, code: '广州测试' },
+    'wuhan-kunpeng': { name: 'wuhan-kunpeng', location: '武汉专区', provider: '并行科技', dc: '武汉光谷数据中心', k8s: 'v1.35.8', bms: '0', nodes: '0', normal: '0', abnormal: '0', health: '正常', running: true, code: '武汉专区' },
+    'beijing-prod': { name: 'beijing-prod', location: '北京一区', provider: '盐城', dc: '北京亦庄数据中心', k8s: 'v1.36.2', bms: '6', nodes: '6', normal: '5', abnormal: '1', health: '正常', running: true, code: '北京一区' },
+  };
+
+  const applyCluster = (clusterKey: string) => {
+    root.querySelectorAll('.tree-cluster-link').forEach((l) => l.classList.remove('active'));
+    const link = root.querySelector(`.tree-cluster-link[data-cluster-key="${clusterKey}"]`);
+    if (link) link.classList.add('active');
+    const data = clusterData[clusterKey] || clusterData['beijing-prod'];
+    setText('clusterBreadcrumbName', data.name);
+    setText('clusterTitle', data.name);
+    setText('clusterCode', data.code);
+    setText('clusterK8sBadge', `Kubernetes ${data.k8s}`);
+    setText('overviewNodeCount', data.bms);
+    setText('overviewNodeNormal', data.normal || data.bms);
+    setText('overviewNodeAbnormal', data.abnormal || '0');
+  };
+
+  // Resource tree data: providers → datacenters → clusters
+  const resourceTreeData = [
+    { name: '商汤', providerFull: '', expanded: true, dcs: [
+      { name: '上海外高桥数据中心', count: '1', expanded: true, clusters: [
+        { key: 'shanghai-online', name: 'shanghai-online', meta: '上海二区', count: '3台' },
+      ]},
+    ]},
+    { name: '并行科技', providerFull: '', expanded: true, dcs: [
+      { name: '广州科学城数据中心', count: '1', expanded: true, clusters: [
+        { key: 'guangzhou-test', name: 'guangzhou-test', meta: '广州测试', count: '1台' },
+      ]},
+      { name: '武汉光谷数据中心', count: '1', expanded: true, clusters: [
+        { key: 'wuhan-kunpeng', name: 'wuhan-kunpeng', meta: '武汉专区', count: '0台' },
+      ]},
+    ]},
+    { name: '盐城', providerFull: '', expanded: true, dcs: [
+      { name: '北京亦庄数据中心', count: '1', expanded: true, clusters: [
+        { key: 'beijing-prod', name: 'beijing-prod', meta: '北京一区', count: '6台' },
+      ]},
+    ]},
+  ];
+
+  // Calculate tree totals
+  let totalBms = 0, totalAbnormal = 0, totalProviders = 0, totalDcs = 0, totalClusters = 0, totalSegments = 0;
+  const segmentSet = new Set();
+  resourceTreeData.forEach((p) => {
+    if (p.dcs.length > 0) totalProviders++;
+    p.dcs.forEach((dc) => {
+      totalDcs++;
+      dc.clusters.forEach((cl) => {
+        totalClusters++;
+        totalBms += parseInt(cl.count) || 0;
+        if (cl.bad) totalAbnormal++;
+        if (cl.meta) segmentSet.add(cl.meta);
+      });
+    });
+  });
+  totalSegments = segmentSet.size;
+
+  const el = (tag, cls, ...children) => {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    children.forEach((ch) => { if (typeof ch === 'string') e.appendChild(document.createTextNode(ch)); else if (ch) e.appendChild(ch); });
+    return e;
+  };
+
+  const buildResourceTree = () => {
+    const container = root.querySelector('#resourceTreeContainer');
+    if (!container) return;
+    container.innerHTML = '';
+
+    // Tree all + stats
+    container.appendChild(el('div', 'tree-all',
+      el('span', null, '全部机器'),
+      el('span', 'tree-all-count', `已纳管${totalBms}台 · 异常${totalAbnormal}`),
+    ));
+    container.appendChild(el('div', 'tree-stats',
+      el('span', null, '供应商', el('strong', null, String(totalProviders))),
+      el('span', null, '数据中心', el('strong', null, String(totalDcs))),
+      el('span', null, '集群', el('strong', null, String(totalClusters))),
+      el('span', null, '节点', el('strong', null, String(totalBms))),
+    ));
+
+    let firstClusterKey = '';
+
+    resourceTreeData.forEach((provider, pi) => {
+      const providerDiv = el('div', 'tree-provider' + (provider.expanded ? '' : ' collapsed'));
+      const head = el('div', 'tree-provider-head',
+        el('span', 'tree-chevron', provider.expanded ? '⌄' : '›'),
+        el('span', null, provider.name),
+        el('span', 'tree-provider-count', `${provider.dcs.length}个中心`),
+      );
+      providerDiv.appendChild(head);
+      head.addEventListener('click', (e) => {
+        e.stopPropagation();
+        providerDiv.classList.toggle('collapsed');
+        const cv = providerDiv.querySelector('.tree-chevron');
+        if (cv) cv.textContent = providerDiv.classList.contains('collapsed') ? '›' : '⌄';
+      });
+
+      provider.dcs.forEach((dc) => {
+        const dcDiv = el('div', 'tree-dc' + (dc.expanded ? '' : ' collapsed'));
+        const dcHead = el('div', 'tree-dc-head',
+          el('span', 'tree-chevron', dc.expanded ? '⌄' : '›'),
+          el('span', null, dc.name),
+          el('span', 'tree-dc-count', String(dc.count)),
+        );
+        dcDiv.appendChild(dcHead);
+        dcHead.addEventListener('click', (e) => {
+          e.stopPropagation();
+          dcDiv.classList.toggle('collapsed');
+          const cv = dcDiv.querySelector('.tree-chevron');
+          if (cv) cv.textContent = dcDiv.classList.contains('collapsed') ? '›' : '⌄';
+        });
+
+        dc.clusters.forEach((cl, ci) => {
+          const isFirst = pi === 0 && ci === 0 && !firstClusterKey;
+          if (isFirst) firstClusterKey = cl.key;
+          const linkCls = 'tree-cluster-link' + (isFirst ? ' active' : '');
+          const countCls = 'tree-node-count' + (cl.bad ? ' bad' : '');
+          const link = el('div', linkCls,
+            el('span', null),
+            el('span', null, cl.name + (cl.meta ? '' : ''), cl.meta ? el('small', 'tree-link-meta', cl.meta) : null),
+            el('span', countCls, cl.count),
+          );
+          link.dataset.clusterKey = cl.key;
+          link.addEventListener('click', () => applyCluster(cl.key));
+          dcDiv.appendChild(link);
+        });
+        providerDiv.appendChild(dcDiv);
+      });
+      container.appendChild(providerDiv);
+    });
+
+    // Initialize with the first cluster
+    if (firstClusterKey) applyCluster(firstClusterKey);
+  };
+
+
+  buildResourceTree();
 
   const nodeDetails = {
     'gpu-node-07': { status: 'NotReady', role: 'Worker', type: 'GPU', ip: '10.24.18.107', bm: 'BM-00001027', time: '3 分钟前', ready: 'False', diskPressure: 'False', cpu: '84%', cpuMeta: 'Requests 76% · 128 核', memory: '71%', memoryMeta: 'Requests 72% · 1.0 TB', gpu: '7／8 · 92%', gpuMeta: '2 张 A100 出现 Xid', gpuBad: true, disk: '68%', diskMeta: '12.8 TB · 无 DiskPressure', network: '1.8／1.2 Gbps', networkMeta: 'bond0 丢包 4.8%', networkBad: true, pods: '32／110', podsMeta: '5 个异常 · 影响 2 Services', podsBad: true, events: 7, freshness: '监控数据停留在 3 分钟前', stale: true, impact: 'Node NotReady → Kubelet 心跳中断 → BM-00001027 物理网卡丢包。<br>已定位到对应物理机器，影响 5 个 Pods／2 个 Services。' },
@@ -45,7 +195,6 @@ export const initializeClusterOperations = (root: HTMLElement) => {
     'cpu-node-04': { manual: '未禁止调度', result: '可参与调度', resultBad: false, taints: '无', labels: 'worker · cpu' },
     'gpu-node-31': { manual: '未禁止调度', result: '可参与调度', resultBad: false, taints: '无', labels: 'worker · gpu · a800' }
   };
-  const setText = (id, value) => { const element = getById(id); if (element) element.textContent = value; };
   const setMeta = (id, value, bad) => { const element = getById(id); if (element) { element.textContent = value; element.classList.toggle('bad', Boolean(bad)); } };
   const renderNodeDetail = (nodeName) => {
     const detail = nodeDetails[nodeName];

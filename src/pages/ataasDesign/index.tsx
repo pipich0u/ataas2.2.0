@@ -6575,7 +6575,7 @@ const AtAasDesign = () => {
     if (window.location.pathname.includes('/playground/embedding')) return 'playgroundEmbedding';
     if (window.location.pathname.includes('/playground/rerank')) return 'playgroundRerank';
     if (window.location.pathname.includes('/benchmark')) return 'benchmark';
-    return 'overview';
+    return 'clusterOperations';
   });
   const [themeSettings, setThemeSettings] = useState<ThemeSettingsState>(defaultThemeSettings);
   const [clusterViewMode, setClusterViewMode] = useState<'cluster' | 'gpu'>('cluster');
@@ -10629,39 +10629,40 @@ const AtAasDesign = () => {
   };
 
   const SIDEBAR_ITEMS = [
-    { key: 'overview', icon: <SidebarIcon name="dashboard" />, label: '数据概览' },
-    { key: 'clusterOperations', icon: <SidebarIcon name="dashboard" />, label: '集群资源概览' },
-    { key: 'clusters', icon: <SidebarIcon name="cluster" />, label: '集群管理' },
-    { key: 'nodes', icon: <SidebarIcon name="engineMgr" />, label: '节点管理' },
+    // { key: 'overview', icon: <SidebarIcon name="dashboard" />, label: '数据概览' },
+    { key: 'clusterOperations', icon: <SidebarIcon name="dashboard" />, label: '算力中心' },
+    // { key: 'clusters', icon: <SidebarIcon name="cluster" />, label: '集群管理' },
+    // { key: 'nodes', icon: <SidebarIcon name="engineMgr" />, label: '节点管理' },
     { key: 'modelRepo', icon: <SidebarIcon name="modelRepo" />, label: '模型仓库' },
-    { key: 'startupTemplates', icon: <SidebarIcon name="template" />, label: '性能仓库' },
+    // { key: 'startupTemplates', icon: <SidebarIcon name="template" />, label: '性能仓库' },
     { key: 'deploy', icon: <SidebarIcon name="deploy" />, label: '模型部署' },
     { key: 'modelOps', icon: <SidebarIcon name="ops" />, label: '运营调度' },
     { key: 'taskFlow', icon: <SidebarIcon name="task" />, label: '任务流程' },
     { key: 'images', icon: <SidebarIcon name="image" />, label: '镜像仓库' },
-    { key: 'monitoring', icon: <SidebarIcon name="monitor" />, label: '模型监控' },
-    { key: 'playgroundChat', icon: <SidebarIcon name="playground" />, label: '文本模型' },
+    // { key: 'monitoring', icon: <SidebarIcon name="monitor" />, label: '模型监控' },
+    // { key: 'playgroundChat', icon: <SidebarIcon name="playground" />, label: '文本模型' },
     // { key: 'playgroundVision', icon: <SidebarIcon name="imageModel" />, label: '图像模型' },
-    { key: 'playgroundVisual', icon: <SidebarIcon name="visionModel" />, label: '视觉模型' },
-    { key: 'playgroundEmbedding', icon: <SidebarIcon name="embedding" />, label: '嵌入模型' },
-    { key: 'playgroundRerank', icon: <SidebarIcon name="rerank" />, label: '重排模型' },
+    // { key: 'playgroundVisual', icon: <SidebarIcon name="visionModel" />, label: '视觉模型' },
+    // { key: 'playgroundEmbedding', icon: <SidebarIcon name="embedding" />, label: '嵌入模型' },
+    // { key: 'playgroundRerank', icon: <SidebarIcon name="rerank" />, label: '重排模型' },
     { key: 'benchmark', icon: <SidebarIcon name="benchmark" />, label: '性能压测' },
+    { key: 'accuracy', icon: <CheckCircleOutlined style={{ fontSize: 15 }} />, label: '精度测试' },
     { key: 'logs', icon: <SidebarIcon name="logs" />, label: '操作日志' },
     { key: 'alerts', icon: <SidebarIcon name="alert" />, label: '告警详情' },
-    { key: 'apiKeys', icon: <SidebarIcon name="apiKey" />, label: 'API Key' },
+    // { key: 'apiKeys', icon: <SidebarIcon name="apiKey" />, label: 'API Key' },
     { key: 'users', icon: <SidebarIcon name="user" />, label: '用户管理' },
     { key: 'engines', icon: <SidebarIcon name="engine" />, label: '镜像管理' },
-    { key: 'containerManagement', icon: <SidebarIcon name="pod" />, label: '容器管理' },
-    { key: 'routeWorkbench', icon: <SidebarIcon name="service" />, label: '链路编排' },
+    // { key: 'containerManagement', icon: <SidebarIcon name="pod" />, label: '容器管理' },
+    // { key: 'routeWorkbench', icon: <SidebarIcon name="service" />, label: '链路编排' },
     { key: 'configCenter', icon: <SidebarIcon name="config" />, label: '资源文件' },
   ];
   const getSidebarItems = (keys: string[]) => keys.map((key) => SIDEBAR_ITEMS.find((item) => item.key === key)).filter(Boolean) as typeof SIDEBAR_ITEMS;
   const SIDEBAR_GROUPS = [
-    { title: '概览', items: getSidebarItems(['overview', 'clusterOperations']) },
-    { title: '资源管理', items: getSidebarItems(['clusters', 'nodes', 'engines', 'containerManagement', 'routeWorkbench', 'configCenter']) },
-    { title: '模型管理', items: getSidebarItems(['modelRepo', 'startupTemplates', 'deploy', 'modelOps', 'taskFlow', 'monitoring']) },
-    { title: '模型测试', items: getSidebarItems(['playgroundChat', 'playgroundVisual', 'playgroundEmbedding', 'playgroundRerank', 'benchmark']) },
-    { title: '身份权限', items: getSidebarItems(['apiKeys', 'users']) },
+    { title: '概览', items: getSidebarItems(['clusterOperations']) },
+    { title: '资源管理', items: getSidebarItems(['images', 'configCenter']) },
+    { title: '模型运维', items: getSidebarItems(['modelRepo', 'deploy', 'modelOps', 'taskFlow']) },
+    { title: '模型测试', items: getSidebarItems(['benchmark', 'accuracy']) },
+    { title: '身份权限', items: getSidebarItems(['users']) },
     { title: '系统监控', items: getSidebarItems(['alerts', 'logs']) },
   ];
 
@@ -11485,6 +11486,14 @@ const AtAasDesign = () => {
       case 'benchmark': return (
             <div className="ataas-section-stack">
               <BenchmarkPage />
+            </div>
+          );
+      case 'accuracy': return (
+            <div className="ataas-section-stack">
+              <div className="ataas-panel" style={{ padding: 32, textAlign: 'center' }}>
+                <h2 style={{ marginBottom: 16, color: '#86909c' }}>精度测试</h2>
+                <p style={{ color: '#C9CDD4' }}>功能开发中，敬请期待</p>
+              </div>
             </div>
           );
       case 'playgroundChat': return (
@@ -12720,7 +12729,7 @@ subjects:
         )}
       </Modal>
 
-      <Drawer className="ataas-schedule-detail-drawer" title="定时任务配置参数" open={!!scheduleDetailTarget} onClose={() => setScheduleDetailTarget(null)} width={560}>
+      <Drawer className="ataas-schedule-detail-drawer" title="定时任务配置参数" open={!!scheduleDetailTarget} onClose={() => setScheduleDetailTarget(null)} size={560}>
         {scheduleDetailTarget && (() => {
           const template = getScheduleDetailTemplate(scheduleDetailTarget);
           const taskNodes = getScheduleDetailNodes(scheduleDetailTarget);
@@ -12779,7 +12788,7 @@ subjects:
         })()}
       </Drawer>
 
-      <Drawer title="导入私有模型" open={modelRepoImportOpen} onClose={() => setModelRepoImportOpen(false)} width={560} className="ataas-private-model-drawer">
+      <Drawer title="导入私有模型" open={modelRepoImportOpen} onClose={() => setModelRepoImportOpen(false)} size={560} className="ataas-private-model-drawer">
         <Form layout="vertical" className="ataas-private-model-form">
           <Form.Item label="模型路径" name="modelPath" rules={[{ required: true, message: '请输入模型路径' }]}>
             <Input placeholder="请输入模型相对路径，例如 qwen2.5" />
@@ -12833,7 +12842,7 @@ subjects:
         </Form>
       </Drawer>
 
-      <Drawer title="模型任务" open={modelRepoTaskOpen} onClose={() => setModelRepoTaskOpen(false)} width={420}>
+      <Drawer title="模型任务" open={modelRepoTaskOpen} onClose={() => setModelRepoTaskOpen(false)} size={420}>
         <div className="ataas-model-task-drawer">
           {[
             ...(modelRepoDownloadTarget ? [{ name: modelRepoDownloadTarget.name, desc: '在线模型下载', status: '进行中', progress: 36 }] : []),
@@ -12898,7 +12907,7 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
         </div>
       </Modal>
 
-      <Drawer className="ataas-startup-template-create-drawer" title={startupTemplateEditing ? '编辑启动模板' : '创建启动模板'} open={startupTemplateCreateOpen} onClose={resetStartupTemplateCreate} width={620}>
+      <Drawer className="ataas-startup-template-create-drawer" title={startupTemplateEditing ? '编辑启动模板' : '创建启动模板'} open={startupTemplateCreateOpen} onClose={resetStartupTemplateCreate} size={620}>
         <Form form={startupTemplateForm} className="ataas-startup-template-create-form" layout="vertical" onFinish={() => {
           const values = startupTemplateForm.getFieldsValue();
           if (!values.name || !templateGpuType.length || !templateYamlContent.trim()) return;
@@ -13088,7 +13097,7 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
 
       <Modal title="镜像详情" open={imageDrawerOpen} onCancel={() => setImageDrawerOpen(false)} footer={null} width={640}>{imageDrawerRecord && <div className="ataas-single-config-summary"><div><span>镜像名称</span><strong>{imageDrawerRecord.name}</strong></div><div><span>标签</span><strong style={{ fontSize: 12 }}>{imageDrawerRecord.tag}</strong></div><div><span>大小</span><strong>{imageDrawerRecord.size}</strong></div><div><span>引擎</span><strong>{imageDrawerRecord.engine}</strong></div><div><span>GPU 类型</span><strong>{imageDrawerRecord.gpuType}</strong></div><div><span>运行时</span><strong style={{ fontSize: 12 }}>{imageDrawerRecord.runtime}</strong></div><div><span>硬件兼容</span><strong style={{ fontSize: 12 }}>{imageDrawerRecord.hardware}</strong></div><div><span>适用模型</span><strong style={{ fontSize: 12 }}>{imageDrawerRecord.models}</strong></div><div><span>导入方式</span><strong>{imageDrawerRecord.importMethod}</strong></div></div>}</Modal>
 
-      <Drawer title="上传镜像" open={imageUploadOpen} onClose={() => setImageUploadOpen(false)} width={480}><Form layout="vertical"><Form.Item label="镜像名称"><Input placeholder="请输入镜像名称" /></Form.Item><Form.Item label="镜像标签"><Input placeholder="registry.example.com/namespace/image:tag" /></Form.Item><Form.Item label="引擎类型"><Select options={[{ value: 'vLLM', label: 'vLLM' }, { value: 'SGLang', label: 'SGLang' }, { value: 'Triton', label: 'Triton' }, { value: 'MindIE', label: 'MindIE' }]} placeholder="请选择引擎" /></Form.Item><Form.Item label="GPU 类型"><Select options={[{ value: 'NVIDIA', label: 'N卡' }, { value: 'Ascend', label: '昇腾' }]} placeholder="请选择 GPU 类型" /></Form.Item><Form.Item label="镜像文件"><Upload.Dragger beforeUpload={() => false} multiple={false} accept=".tar,.tar.gz,.tgz"><p className="ant-upload-drag-icon"><InboxOutlined /></p><p className="ant-upload-text">点击或拖拽 Docker 镜像包到此区域</p><p className="ant-upload-hint">支持 .tar / .tar.gz 格式</p></Upload.Dragger></Form.Item><Form.Item label="描述"><Input.TextArea rows={4} placeholder="请输入镜像描述" /></Form.Item><Button type="primary" block>开始上传</Button></Form></Drawer>
+      <Drawer title="上传镜像" open={imageUploadOpen} onClose={() => setImageUploadOpen(false)} size={480}><Form layout="vertical"><Form.Item label="镜像名称"><Input placeholder="请输入镜像名称" /></Form.Item><Form.Item label="镜像标签"><Input placeholder="registry.example.com/namespace/image:tag" /></Form.Item><Form.Item label="引擎类型"><Select options={[{ value: 'vLLM', label: 'vLLM' }, { value: 'SGLang', label: 'SGLang' }, { value: 'Triton', label: 'Triton' }, { value: 'MindIE', label: 'MindIE' }]} placeholder="请选择引擎" /></Form.Item><Form.Item label="GPU 类型"><Select options={[{ value: 'NVIDIA', label: 'N卡' }, { value: 'Ascend', label: '昇腾' }]} placeholder="请选择 GPU 类型" /></Form.Item><Form.Item label="镜像文件"><Upload.Dragger beforeUpload={() => false} multiple={false} accept=".tar,.tar.gz,.tgz"><p className="ant-upload-drag-icon"><InboxOutlined /></p><p className="ant-upload-text">点击或拖拽 Docker 镜像包到此区域</p><p className="ant-upload-hint">支持 .tar / .tar.gz 格式</p></Upload.Dragger></Form.Item><Form.Item label="描述"><Input.TextArea rows={4} placeholder="请输入镜像描述" /></Form.Item><Button type="primary" block>开始上传</Button></Form></Drawer>
 
       <Modal className="ataas-node-select-modal" title="选择节点" open={singleNodeModal} onCancel={() => setSingleNodeModal(false)} footer={deployMode === 'distributed' ? (() => {
         const currentGpuType = selectedDeployNodes.length > 0 ? deployNodes.find((n) => n.key === selectedDeployNodes[0])?.gpuType : null;
@@ -13265,7 +13274,7 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
         </div>
       </Modal>
 
-<Drawer title={`节点详情 - ${clusterNodeModalTitle}`} open={clusterNodeModal} onClose={() => { setClusterNodeModal(false); setClusterNodeRecord(null); }} width={640}>
+<Drawer title={`节点详情 - ${clusterNodeModalTitle}`} open={clusterNodeModal} onClose={() => { setClusterNodeModal(false); setClusterNodeRecord(null); }} size={640}>
         {clusterNodeRecord && (
           <div>
             <div className="ataas-node-stat-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
@@ -13314,7 +13323,7 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
           </div>
         )}
       </Drawer>
-      <Drawer className="ataas-deploy-drawer" title="模型部署" open={deployDrawerOpen} onClose={() => { setDeployDrawerOpen(false); setProtectedStartupTemplateName(''); }} width={560}>
+      <Drawer className="ataas-deploy-drawer" title="模型部署" open={deployDrawerOpen} onClose={() => { setDeployDrawerOpen(false); setProtectedStartupTemplateName(''); }} size={560}>
         <ConfigProvider theme={{ token: { colorPrimary: '#6738E8', colorPrimaryHover: '#5D30D8', colorPrimaryActive: '#5127C7', controlOutline: 'rgba(103, 56, 232, 0.12)' } }}>
             <div className="ataas-deploy-page">
                       <Form className="ataas-deploy-drawer-form" layout="horizontal" size="middle" labelCol={{ flex: '88px' }} wrapperCol={{ flex: '1' }}>
@@ -14490,7 +14499,7 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
         open={!!mooncakeMonitorItem}
         width={1180}
         footer={null}
-        destroyOnClose
+        destroyOnHidden
         onCancel={() => setMooncakeMonitorItem(null)}
       >
         {mooncakeMonitorItem && renderMooncakeMetricContent(mooncakeMonitorItem)}
@@ -14508,7 +14517,7 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
         open={!!deployLogModal}
         width={1080}
         footer={null}
-        destroyOnClose
+        destroyOnHidden
         onCancel={() => setDeployLogModal(null)}
       >
         {deployLogModal && (

@@ -634,7 +634,7 @@ export default function BenchmarkPage() {
         </Form>
       </Modal>
 
-      <Drawer className="benchmark-detail-drawer" title={detailTask ? `压测任务 #${detailTask.id}` : '压测详情'} open={!!detailTask} width={1120} onClose={() => setDetailTask(null)} extra={detailTask && (
+      <Drawer className="benchmark-detail-drawer" title={detailTask ? `压测任务 #${detailTask.id}` : '压测详情'} open={!!detailTask} size={1120} onClose={() => setDetailTask(null)} extra={detailTask && (
         <Space className="benchmark-drawer-actions">
           <Button icon={<ReloadOutlined />} onClick={handleRefresh}>刷新</Button>
           {!finalStatuses.includes(detailTask.status) && <Popconfirm title="停止压测任务？" okText="停止" cancelText="取消" onConfirm={() => handleStop(detailTask)}><Button danger icon={<StopOutlined />}>停止</Button></Popconfirm>}
