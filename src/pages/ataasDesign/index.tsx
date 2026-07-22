@@ -67,7 +67,8 @@ import { rpc } from '../../lib/bus/rpc';
 import type { ConfigCommitEntry, ConfigTreeNode } from '../../lib/types';
 import ContainerManagementPage from './components/containerManagementPage';
 import RouteWorkbenchPage from './components/routeWorkbenchPage';
-import ClusterOperationsHomepage from './components/clusterOperationsHomepage';
+import ResourceAccessPage from './components/resourceAccessPage';
+import DistributionCenterPage from './components/distributionCenterPage';
 import './index.less';
 
 type ClusterRecord = {
@@ -6567,7 +6568,6 @@ const AtAasDesign = () => {
   const [activeTab, setActiveTab] = useState(() => {
     if (window.location.pathname.includes('/resource-access')) return 'resourceAccess';
     if (window.location.pathname.includes('/distribution-center')) return 'distributionCenter';
-    if (window.location.pathname.includes('/cluster-operations')) return 'clusterOperations';
     if (window.location.pathname.includes('/containers')) return 'containerManagement';
     if (window.location.pathname.includes('/route-workbench')) return 'routeWorkbench';
     if (window.location.pathname.includes('/task-flow')) return 'taskFlow';
@@ -10632,7 +10632,6 @@ const AtAasDesign = () => {
 
   const SIDEBAR_ITEMS = [
     { key: 'overview', icon: <SidebarIcon name="dashboard" />, label: '数据概览' },
-    { key: 'clusterOperations', icon: <SidebarIcon name="dashboard" />, label: '集群资源概览' },
     { key: 'resourceAccess', icon: <SidebarIcon name="config" />, label: '资源接入与管理' },
     { key: 'distributionCenter', icon: <SidebarIcon name="deploy" />, label: '分发中心' },
     { key: 'clusters', icon: <SidebarIcon name="cluster" />, label: '集群管理' },
@@ -10661,7 +10660,7 @@ const AtAasDesign = () => {
   ];
   const getSidebarItems = (keys: string[]) => keys.map((key) => SIDEBAR_ITEMS.find((item) => item.key === key)).filter(Boolean) as typeof SIDEBAR_ITEMS;
   const SIDEBAR_GROUPS = [
-    { title: '概览', items: getSidebarItems(['overview', 'clusterOperations']) },
+    { title: '概览', items: getSidebarItems(['overview']) },
     { title: '资源管理', items: getSidebarItems(['clusters', 'nodes', 'engines', 'containerManagement', 'routeWorkbench', 'configCenter', 'resourceAccess', 'distributionCenter']) },
     { title: '模型管理', items: getSidebarItems(['modelRepo', 'startupTemplates', 'deploy', 'modelOps', 'taskFlow', 'monitoring']) },
     { title: '模型测试', items: getSidebarItems(['playgroundChat', 'playgroundVisual', 'playgroundEmbedding', 'playgroundRerank', 'benchmark']) },
@@ -12370,9 +12369,8 @@ const AtAasDesign = () => {
 	          }
       case 'containerManagement': return <ContainerManagementPage />;
       case 'routeWorkbench': return <RouteWorkbenchPage />;
-      case 'clusterOperations': return <ClusterOperationsHomepage />;
-      case 'resourceAccess': return <ClusterOperationsHomepage initialSection="resource-access" />;
-      case 'distributionCenter': return <ClusterOperationsHomepage initialSection="distribution-center" />;
+      case 'resourceAccess': return <ResourceAccessPage />;
+      case 'distributionCenter': return <DistributionCenterPage />;
       case 'taskFlow': return (
         <div className="ataas-b300-task-page">
           <TasksPage />
@@ -12407,7 +12405,6 @@ const AtAasDesign = () => {
 	                    if (item.key === 'clusters') setClusterPanel('clusters');
 	                    if (item.key === 'nodes') setClusterPanel('nodes');
 	                    const pathMap: Record<string, string> = {
-	                      clusterOperations: '/cluster-operations',
 	                      resourceAccess: '/resource-access',
 	                      distributionCenter: '/distribution-center',
 	                      containerManagement: '/containers',
@@ -12450,7 +12447,7 @@ const AtAasDesign = () => {
             </Popover>
           </div>
         </div>
-        <div className={'ataas-content' + (activeTab === 'configCenter' ? ' ataas-content-config' : '') + (['clusterOperations', 'resourceAccess', 'distributionCenter'].includes(activeTab) ? ' ataas-content-cluster-operations' : '')} ref={contentRef}>
+        <div className={'ataas-content' + (activeTab === 'configCenter' ? ' ataas-content-config' : '') + (['resourceAccess', 'distributionCenter'].includes(activeTab) ? ' ataas-content-resource-pages' : '')} ref={contentRef}>
           {renderTabContent()}
         </div>
       </div>
