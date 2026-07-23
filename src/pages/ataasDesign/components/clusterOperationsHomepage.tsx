@@ -779,11 +779,150 @@ const NetDetailDrawer = ({ card, open, onClose }: { card: NetCardDetail | null; 
   );
 };
 
+type RdmaCardDetail = {
+  name: string; ip: string; speed: string; status: string;
+  type: string; mac: string; driver: string; pcie: string;
+  linkStatus: string; duplex: string; lossRate: string; errors: number;
+  inbound: string; outbound: string; bandwidthUtil: number;
+  pps: string; tcpConns: number; avgLatency: string; connStatus: string;
+  nodeName: string; nodeRole: string; runningPods: number; services: string;
+  firmware: string; port: string; linkHealth: string;
+  errorCount: number; retransmitCount: number;
+  throughput: string; sendRate: string; recvRate: string;
+  gpuDirectRdma: boolean; ncclStatus: string;
+  commLatency: string; p99Latency: string; commErrors: number;
+  rdmaHealth: string; linkErrors: number; dropCount: number; flitErrors: number;
+};
+
+const RdmaDetailDrawer = ({ card, open, onClose }: { card: RdmaCardDetail | null; open: boolean; onClose: () => void }) => {
+  if (!card) return null;
+  const isActive = card.status === 'active';
+  const Row = ({ label, value, color }: { label: string; value: React.ReactNode; color?: string }) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #F2F4F7', fontSize: 13, lineHeight: '22px' }}>
+      <span style={{ color: '#667085' }}>{label}</span>
+      <span style={{ fontWeight: 600, color: color || '#111827' }}>{value}</span>
+    </div>
+  );
+  const GroupTitle = ({ title }: { title: string }) => (
+    <div style={{ fontSize: 12, fontWeight: 700, color: '#111827', padding: '4px 0 2px' }}>{title}</div>
+  );
+  return (
+    <Drawer placement="right" open={open} onClose={onClose} closable width={480}
+      footer={
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', padding: '12px 0', borderTop: 'none' }}>
+          <Button icon={<LineChartOutlined />} style={{ fontSize: 13 }}>查看监控</Button>
+          <Button icon={<ExportOutlined />} style={{ fontSize: 13 }}>诊断链路</Button>
+          <Button type="primary" icon={<SettingOutlined />} style={{ fontSize: 13 }}>更多操作</Button>
+        </div>
+      }>
+      <div style={{ display: 'flex', flexDirection: 'column', fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif', padding: '0 28px' }}>
+        <div style={{ padding: '8px 0' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#7C3AED', letterSpacing: '1.5px', marginBottom: 8 }}>RDMA NETWORK</div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 8 }}>
+            <span style={{ fontSize: 24, fontWeight: 700, color: '#111827', fontFamily: 'SF Mono, Menlo, monospace' }}>{card.name}</span>
+            <span style={{ fontSize: 12, color: '#7C3AED', fontWeight: 600, background: '#F5F3FF', padding: '2px 8px', borderRadius: 4 }}>{card.speed}</span>
+          </div>
+          <div style={{ fontSize: 12, color: '#98A2B3', marginBottom: 14 }}>
+            {card.type} <span style={{ margin: '0 6px', color: '#D0D5DD' }}>·</span> {card.nodeName} <span style={{ margin: '0 6px', color: '#D0D5DD' }}>·</span> GPU通信网络
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 12px 4px 8px', background: isActive ? '#F0FDF4' : '#FEF2F2', borderRadius: 20 }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: isActive ? '#16A34A' : '#F53F3F', display: 'inline-block' }} />
+              <span style={{ fontSize: 12, fontWeight: 600, color: isActive ? '#16A34A' : '#F53F3F' }}>{isActive ? 'Active' : 'Inactive'}</span>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ height: 1, background: '#E5E7EB', margin: '16px 0' }} />
+        <GroupTitle title="设备信息" />
+        <Row label="接口类型" value={card.type} />
+        <Row label="设备名称" value={card.driver} />
+        <Row label="PCIe位置" value={card.pcie} />
+        <Row label="固件版本" value={card.firmware} />
+        <Row label="端口" value={card.port} />
+
+        <div style={{ height: 1, background: '#E5E7EB', margin: '16px 0' }} />
+        <GroupTitle title="RDMA链路状态" />
+        <Row label="Link状态" value={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#16A34A', fontWeight: 700 }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#16A34A', display: 'inline-block' }} />{card.linkStatus}</span>} />
+        <Row label="速率" value={card.speed} />
+        <Row label="链路健康率" value={<span style={{ color: '#16A34A' }}>{card.linkHealth}</span>} />
+        <Row label="错误计数" value={card.errorCount.toString()} />
+        <Row label="重传次数" value={card.retransmitCount.toString()} />
+
+        <div style={{ height: 1, background: '#E5E7EB', margin: '16px 0' }} />
+        <GroupTitle title="RDMA性能" />
+        <div style={{ display: 'flex', gap: 40, padding: '16px 0 8px' }}>
+          <div>
+            <div style={{ fontSize: 11, color: '#98A2B3', marginBottom: 4 }}>带宽利用率</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 24, fontWeight: 700, color: card.bandwidthUtil > 80 ? '#F53F3F' : '#7C3AED', fontFamily: 'SF Mono, Menlo, monospace' }}>{card.bandwidthUtil}%</span>
+            </div>
+            <div style={{ width: 80, height: 4, borderRadius: 2, background: '#E5E7EB', marginTop: 4, overflow: 'hidden' }}>
+              <span style={{ width: card.bandwidthUtil + '%', height: '100%', borderRadius: 2, background: card.bandwidthUtil > 80 ? '#F53F3F' : '#7C3AED', display: 'block' }} />
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, color: '#98A2B3', marginBottom: 4 }}>当前吞吐</div>
+            <div style={{ fontSize: 24, fontWeight: 700, color: '#111827', fontFamily: 'SF Mono, Menlo, monospace' }}>{card.throughput}</div>
+          </div>
+        </div>
+        <Row label="发送速率" value={card.sendRate} />
+        <Row label="接收速率" value={card.recvRate} />
+
+        <div style={{ height: 1, background: '#E5E7EB', margin: '16px 0' }} />
+        <GroupTitle title="GPU通信状态" />
+        <Row label="GPU Direct RDMA" value={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#16A34A', fontWeight: 600 }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: '#16A34A', display: 'inline-block' }} />{card.gpuDirectRdma ? '已开启' : '未开启'}</span>} />
+        <Row label="NCCL通信状态" value={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: card.ncclStatus === '正常' ? '#16A34A' : '#F53F3F' }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: card.ncclStatus === '正常' ? '#16A34A' : '#F53F3F', display: 'inline-block' }} />{card.ncclStatus}</span>} />
+        <Row label="通信延迟" value={card.commLatency} />
+        <Row label="P99延迟" value={card.p99Latency} />
+        <Row label="通信错误" value={card.commErrors.toString()} />
+
+        <div style={{ height: 1, background: '#E5E7EB', margin: '16px 0' }} />
+        <GroupTitle title="网络健康" />
+        <Row label="RDMA健康率" value={<span style={{ color: '#16A34A', fontWeight: 700 }}>{card.rdmaHealth}</span>} />
+        <Row label="链路异常" value={card.linkErrors.toString()} />
+        <Row label="丢包" value={card.dropCount.toString()} />
+        <Row label="Flit错误" value={card.flitErrors.toString()} />
+
+        <div style={{ height: 1, background: '#E5E7EB', margin: '16px 0' }} />
+        <GroupTitle title="趋势监控" />
+        <div style={{ padding: '8px 0 4px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#111827' }}>RDMA 带宽趋势</span>
+            <span style={{ fontSize: 10, color: '#98A2B3' }}>最近 24 小时</span>
+          </div>
+          <svg width="100%" height="60" viewBox="0 0 380 60" style={{ display: 'block' }}>
+            <defs><linearGradient id="rdmaBw" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#7C3AED" /><stop offset="100%" stopColor="#7C3AED" stopOpacity="0" /></linearGradient></defs>
+            <polyline points="0,56 20,52 40,48 60,44 80,46 100,42 120,36 140,30 160,28 180,24 200,22 220,18 240,14 260,16 280,12 300,10 320,6 340,4 360,3 380,2" fill="none" stroke="#7C3AED" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <polyline points="0,56 20,52 40,48 60,44 80,46 100,42 120,36 140,30 160,28 180,24 200,22 220,18 240,14 260,16 280,12 300,10 320,6 340,4 360,3 380,2" fill="url(#rdmaBw)" opacity="0.08" />
+            <text x="0" y="8" style={{ fontSize: 9, fill: '#98A2B3' }}>带宽</text>
+          </svg>
+        </div>
+        <div style={{ padding: '0 0 4px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#111827' }}>通信延迟趋势</span>
+            <span style={{ fontSize: 10, color: '#98A2B3' }}>最近 24 小时</span>
+          </div>
+          <svg width="100%" height="60" viewBox="0 0 380 60" style={{ display: 'block' }}>
+            <defs><linearGradient id="rdmaLat" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#16A34A" /><stop offset="100%" stopColor="#16A34A" stopOpacity="0" /></linearGradient></defs>
+            <polyline points="0,10 20,12 40,14 60,16 80,14 100,18 120,20 140,22 160,24 180,26 200,28 220,30 240,32 260,34 280,36 300,38 320,40 340,42 360,44 380,46" fill="none" stroke="#16A34A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            <polyline points="0,10 20,12 40,14 60,16 80,14 100,18 120,20 140,22 160,24 180,26 200,28 220,30 240,32 260,34 280,36 300,38 320,40 340,42 360,44 380,46" fill="url(#rdmaLat)" opacity="0.08" />
+            <text x="0" y="8" style={{ fontSize: 9, fill: '#98A2B3' }}>延迟</text>
+          </svg>
+        </div>
+
+        <div style={{ height: 24 }} />
+      </div>
+    </Drawer>
+  );
+};
+
 
 const NodeExpandContent = ({ node }: { node: NodeRow }) => {
   const [activeTab, setActiveTab] = useState(nodeTabs[0]);
   const [diskDetail, setDiskDetail] = useState<{ name: string; total: string; used: string; type: string; mountPath: string; status: string; readSpeed: string; writeSpeed: string; iops: string; latency: string; readPressure: number; writePressure: number } | null>(null);
   const [netDetail, setNetDetail] = useState<NetCardDetail | null>(null);
+  const [rdmaDetail, setRdmaDetail] = useState<RdmaCardDetail | null>(null);
   const [gpuDetail, setGpuDetail] = useState<{ index: number; model: string; spec: string; memoryTotal: string; memoryUsed: string; memoryFree: string; utilization: number; power: number; temperature: number; status: string } | null>(null);
   const [logDetail, setLogDetail] = useState<{ title: string; logs: string[] } | null>(null);
 
@@ -983,6 +1122,7 @@ const NodeExpandContent = ({ node }: { node: NodeRow }) => {
           <thead>
             <tr style={{ background: '#F7F8FA', color: '#4E5969', textAlign: 'left' }}>
               <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>名称</th>
+              <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>类型</th>
               <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>IP</th>
               <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>速率</th>
               <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>状态</th>
@@ -992,7 +1132,23 @@ const NodeExpandContent = ({ node }: { node: NodeRow }) => {
           <tbody>
             {node.networkCards.map((card) => (
               <tr key={card.name}>
-                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}><a style={{ cursor: 'pointer', color: '#6738E8', fontWeight: 600 }} onClick={() => setNetDetail({ ...card, nodeName: node.name, nodeRole: '推理节点', runningPods: node.pods.filter((p) => p.status === 'Running').length, services: 'DeepSeek API' })}>{card.name}</a></td>
+                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}><a style={{ cursor: 'pointer', color: '#6738E8', fontWeight: 600 }} onClick={() => {
+                  const base = { nodeName: node.name, nodeRole: '推理节点', runningPods: node.pods.filter((p) => p.status === 'Running').length, services: 'DeepSeek API' };
+                  if (card.type === 'InfiniBand') {
+                    setRdmaDetail({
+                      ...card, ...base,
+                      firmware: '28.39.1002', port: 'Port 1', linkHealth: '99.99%',
+                      errorCount: 0, retransmitCount: 0,
+                      throughput: '130Gbps', sendRate: '80Gbps', recvRate: '50Gbps',
+                      gpuDirectRdma: true, ncclStatus: '正常',
+                      commLatency: '1.2μs', p99Latency: '2.8μs', commErrors: 0,
+                      rdmaHealth: '99.8%', linkErrors: 0, dropCount: 0, flitErrors: 0,
+                    });
+                  } else {
+                    setNetDetail({ ...card, ...base });
+                  }
+                }}>{card.name}</a></td>
+                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5', color: '#4E5969' }}>{card.type}</td>
                 <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5', color: '#4E5969' }}>{card.ip}</td>
                 <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5', color: '#4E5969' }}>{card.speed}</td>
                 <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}>
@@ -1005,6 +1161,7 @@ const NodeExpandContent = ({ node }: { node: NodeRow }) => {
           </tbody>
         </table>
         <NetDetailDrawer card={netDetail} open={!!netDetail} onClose={() => setNetDetail(null)} />
+        <RdmaDetailDrawer card={rdmaDetail} open={!!rdmaDetail} onClose={() => setRdmaDetail(null)} />
         <Drawer title={logDetail?.title || ''} placement="right" open={!!logDetail} onClose={() => setLogDetail(null)} width={620}>
           {logDetail && (
             <div style={{ background: '#1d2129', color: '#52c41a', fontFamily: 'Menlo, Monaco, monospace', fontSize: 12, lineHeight: '22px', padding: 16, borderRadius: 6, whiteSpace: 'pre-wrap', overflow: 'auto', maxHeight: 'calc(100vh - 200px)' }}>
