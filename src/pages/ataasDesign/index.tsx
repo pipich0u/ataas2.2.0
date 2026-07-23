@@ -69,6 +69,7 @@ import ContainerManagementPage from './components/containerManagementPage';
 import RouteWorkbenchPage from './components/routeWorkbenchPage';
 import ClusterOperationsHomepage from './components/clusterOperationsHomepage';
 import SupplierResourcesPage from './components/supplierResourcesPage';
+import ResourceAccessPage from './components/resourceAccessPage';
 import DistributionCenterPage from './components/distributionCenterPage';
 import './index.less';
 
@@ -6569,6 +6570,7 @@ const AtAasDesign = () => {
   const [activeTab, setActiveTab] = useState(() => {
     if (window.location.pathname.includes('/cluster-operations')) return 'clusterOperations';
     if (window.location.pathname.includes('/supplier-resources')) return 'supplierResources';
+    if (window.location.pathname.includes('/resource-access')) return 'resourceAccess';
     if (window.location.pathname.includes('/distribution-center')) return 'distributionCenter';
     if (window.location.pathname.includes('/containers')) return 'containerManagement';
     if (window.location.pathname.includes('/route-workbench')) return 'routeWorkbench';
@@ -12383,6 +12385,7 @@ const AtAasDesign = () => {
       case 'routeWorkbench': return <RouteWorkbenchPage />;
       case 'clusterOperations': return <ClusterOperationsHomepage />;
       case 'supplierResources': return <SupplierResourcesPage />;
+      case 'resourceAccess': return <ResourceAccessPage />;
       case 'distributionCenter': return <DistributionCenterPage />;
       case 'taskFlow': return (
         <div className="ataas-b300-task-page">
@@ -12420,6 +12423,7 @@ const AtAasDesign = () => {
 	                    const pathMap: Record<string, string> = {
 	                      clusterOperations: '/cluster-operations',
 	                      supplierResources: '/supplier-resources',
+	                      resourceAccess: '/resource-access',
 	                      distributionCenter: '/distribution-center',
 	                      containerManagement: '/containers',
 	                      routeWorkbench: '/route-workbench',
@@ -12461,7 +12465,7 @@ const AtAasDesign = () => {
             </Popover>
           </div>
         </div>
-        <div className={'ataas-content' + (activeTab === 'configCenter' ? ' ataas-content-config' : '') + (activeTab === 'clusterOperations' ? ' ataas-content-cluster-operations' : '')} ref={contentRef}>
+        <div className={'ataas-content' + (activeTab === 'configCenter' ? ' ataas-content-config' : '') + (['resourceAccess', 'distributionCenter'].includes(activeTab) ? ' ataas-content-resource-pages' : '')} ref={contentRef}>
           {renderTabContent()}
         </div>
       </div>
