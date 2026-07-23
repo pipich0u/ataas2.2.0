@@ -68,6 +68,8 @@ import type { ConfigCommitEntry, ConfigTreeNode } from '../../lib/types';
 import ContainerManagementPage from './components/containerManagementPage';
 import RouteWorkbenchPage from './components/routeWorkbenchPage';
 import ClusterOperationsHomepage from './components/clusterOperationsHomepage';
+import SupplierResourcesPage from './components/supplierResourcesPage';
+import DistributionCenterPage from './components/distributionCenterPage';
 import './index.less';
 
 type ClusterRecord = {
@@ -6566,6 +6568,8 @@ const LogBoardCard = ({ icon, label, detail, time, status }: { icon: React.React
 const AtAasDesign = () => {
   const [activeTab, setActiveTab] = useState(() => {
     if (window.location.pathname.includes('/cluster-operations')) return 'clusterOperations';
+    if (window.location.pathname.includes('/supplier-resources')) return 'supplierResources';
+    if (window.location.pathname.includes('/distribution-center')) return 'distributionCenter';
     if (window.location.pathname.includes('/containers')) return 'containerManagement';
     if (window.location.pathname.includes('/route-workbench')) return 'routeWorkbench';
     if (window.location.pathname.includes('/task-flow')) return 'taskFlow';
@@ -6581,7 +6585,7 @@ const AtAasDesign = () => {
   const [clusterViewMode, setClusterViewMode] = useState<'cluster' | 'gpu'>('cluster');
   const [callRankMode, setCallRankMode] = useState<'tpm' | 'rpm'>('tpm');
   const [clusterPanel, setClusterPanel] = useState<'clusters' | 'nodes'>('clusters');
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set(['概览', '资源管理', '模型管理', '模型测试', '身份权限', '系统监控']));
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set(['概览', '资源管理', '模型运维', '模型测试', '身份权限', '系统监控']));
   const toggleGroup = (title: string) => {
     setExpandedGroups(prev => {
       const next = new Set(prev);
@@ -10631,9 +10635,11 @@ const AtAasDesign = () => {
   const SIDEBAR_ITEMS = [
     // { key: 'overview', icon: <SidebarIcon name="dashboard" />, label: '数据概览' },
     { key: 'clusterOperations', icon: <SidebarIcon name="dashboard" />, label: '算力中心' },
+    { key: 'supplierResources', icon: <ApartmentOutlined style={{ fontSize: 15 }} />, label: '供应商资源列表与新增' },
     // { key: 'clusters', icon: <SidebarIcon name="cluster" />, label: '集群管理' },
     // { key: 'nodes', icon: <SidebarIcon name="engineMgr" />, label: '节点管理' },
     { key: 'modelRepo', icon: <SidebarIcon name="modelRepo" />, label: '模型仓库' },
+    { key: 'distributionCenter', icon: <SwapRightOutlined style={{ fontSize: 15 }} />, label: '分发中心' },
     // { key: 'startupTemplates', icon: <SidebarIcon name="template" />, label: '性能仓库' },
     { key: 'deploy', icon: <SidebarIcon name="deploy" />, label: '模型部署' },
     { key: 'modelOps', icon: <SidebarIcon name="ops" />, label: '运营调度' },
@@ -10658,9 +10664,9 @@ const AtAasDesign = () => {
   ];
   const getSidebarItems = (keys: string[]) => keys.map((key) => SIDEBAR_ITEMS.find((item) => item.key === key)).filter(Boolean) as typeof SIDEBAR_ITEMS;
   const SIDEBAR_GROUPS = [
-    { title: '概览', items: getSidebarItems(['clusterOperations']) },
+    { title: '概览', items: getSidebarItems(['clusterOperations', 'supplierResources']) },
     { title: '资源管理', items: getSidebarItems(['images', 'configCenter']) },
-    { title: '模型运维', items: getSidebarItems(['modelRepo', 'deploy', 'modelOps', 'taskFlow']) },
+    { title: '模型运维', items: getSidebarItems(['modelRepo', 'deploy', 'distributionCenter', 'modelOps', 'taskFlow']) },
     { title: '模型测试', items: getSidebarItems(['benchmark', 'accuracy']) },
     { title: '身份权限', items: getSidebarItems(['users']) },
     { title: '系统监控', items: getSidebarItems(['alerts', 'logs']) },
@@ -12376,6 +12382,8 @@ const AtAasDesign = () => {
       case 'containerManagement': return <ContainerManagementPage />;
       case 'routeWorkbench': return <RouteWorkbenchPage />;
       case 'clusterOperations': return <ClusterOperationsHomepage />;
+      case 'supplierResources': return <SupplierResourcesPage />;
+      case 'distributionCenter': return <DistributionCenterPage />;
       case 'taskFlow': return (
         <div className="ataas-b300-task-page">
           <TasksPage />
@@ -12411,6 +12419,8 @@ const AtAasDesign = () => {
 	                    if (item.key === 'nodes') setClusterPanel('nodes');
 	                    const pathMap: Record<string, string> = {
 	                      clusterOperations: '/cluster-operations',
+	                      supplierResources: '/supplier-resources',
+	                      distributionCenter: '/distribution-center',
 	                      containerManagement: '/containers',
 	                      routeWorkbench: '/route-workbench',
 	                      taskFlow: '/task-flow',
