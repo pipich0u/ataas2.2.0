@@ -133,10 +133,12 @@ const DistributionCenterPage = () => {
           ) : (
             <div className="distribution-table-wrap">
               <table className="distribution-table">
-                <thead><tr><th>任务／模型</th><th>保存位置／分发目标</th><th>任务进度</th><th>实时速度</th><th>状态</th><th>更新时间</th><th>操作</th></tr></thead>
+                <thead><tr><th>任务／模型</th><th>任务类型</th><th>保存位置／分发目标</th><th>任务进度</th><th>实时速度</th><th>状态</th><th>更新时间</th><th>操作</th></tr></thead>
                 <tbody>{filteredTasks.map((task) => (
                   <tr key={task.id}>
-                    <td><strong>{task.name}</strong><small>{task.type === 'download' ? '模型下载' : task.model}</small></td><td>{task.target}</td>
+                    <td><strong>{task.name}</strong><small>{task.model}</small></td>
+                    <td><span className={'distribution-task-type ' + task.type}>{task.type === 'download' ? '模型下载' : '模型分发'}</span></td>
+                    <td>{task.target}</td>
                     <td><div className="task-progress"><Progress percent={task.progress} size="small" status={task.status === 'failed' ? 'exception' : undefined} showInfo={false} /><span>{task.progress}%</span></div>{task.error && <small className="task-error">{task.error}</small>}</td>
                     <td>{task.speed}</td><td><Tag color={statusColor[task.status]}>{statusText[task.status]}</Tag></td><td>{task.updated}</td>
                     <td><Button type="link" size="small" onClick={() => setTaskDetail(task)}>详情</Button>{task.status === 'running' && <Button type="link" danger size="small">停止</Button>}</td>

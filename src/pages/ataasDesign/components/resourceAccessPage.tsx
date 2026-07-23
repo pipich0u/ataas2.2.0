@@ -1,12 +1,5 @@
-import {
-  ApartmentOutlined,
-  CloudServerOutlined,
-  DatabaseOutlined,
-  DownOutlined,
-  PlusOutlined,
-  SearchOutlined,
-} from '@ant-design/icons';
-import { Button, Dropdown, Input, Modal, Select, Tag, message } from 'antd';
+import { SearchOutlined } from '@ant-design/icons';
+import { Button, Input, Modal, Select, Tag, message } from 'antd';
 import { useMemo, useState } from 'react';
 import './resourceManagementPages.less';
 
@@ -89,30 +82,70 @@ const ResourceStatusTag = ({ status, children }: { status: ResourceStatus; child
   <Tag className="resource-status-tag" color={statusColor[status]}>{children}</Tag>
 );
 
+const supplierContacts: Record<string, { contact: string; phone: string; email: string; hotline: string }> = {
+  'supplier-a': { contact: '李敏', phone: '138 0013 8001', email: 'limin@xxxtech.cn', hotline: '400-880-1024' },
+  'supplier-b': { contact: '王工', phone: '139 0013 9002', email: 'service@zycompute.cn', hotline: '400-660-2096' },
+  'supplier-c': { contact: '赵凯', phone: '137 0013 7003', email: 'zhaokai@northcloud.cn', hotline: '400-550-1040' },
+  'supplier-d': { contact: '陈璐', phone: '136 0013 6004', email: 'chenlu@edgecompute.cn', hotline: '400-330-2006' },
+  'supplier-e': { contact: 'Sofia', phone: '+65 6123 4567', email: 'sofia@globalcloud.example', hotline: '+65 6000 8000' },
+};
+
+type DataCenterProfile = DataCenterArchive & {
+  supplierId: string;
+  supplierName: string;
+  fullLocation: string;
+  timezone: string;
+  management: string;
+  bmc: string;
+  business: string;
+  proxy: string;
+  freeMachines: number;
+};
+
+const dataCenterMeta: Record<string, Omit<DataCenterProfile, keyof DataCenterArchive | 'supplierId' | 'supplierName'>> = {
+  'DC-SH-001': { fullLocation: '上海市浦东新区', timezone: 'UTC+08', management: '10.24.16.0/20', bmc: '172.20.16.0/22', business: '10.28.0.0/16', proxy: '专线出口 · 已配置', freeMachines: 18 },
+  'DC-SH-002': { fullLocation: '上海市临港新片区', timezone: 'UTC+08', management: '10.25.0.0/20', bmc: '172.20.32.0/22', business: '待配置', proxy: '待配置', freeMachines: 0 },
+  'DC-ZZ-001': { fullLocation: '河南省郑州市高新区', timezone: 'UTC+08', management: '10.34.0.0/20', bmc: '172.21.0.0/22', business: '10.38.0.0/16', proxy: '专线出口 · 已配置', freeMachines: 0 },
+  'DC-BJ-001': { fullLocation: '北京市亦庄经济技术开发区', timezone: 'UTC+08', management: '10.44.0.0/20', bmc: '172.22.0.0/22', business: '10.48.0.0/16', proxy: '云专线 · 已配置', freeMachines: 0 },
+  'DC-GZ-001': { fullLocation: '广东省广州市黄埔区', timezone: 'UTC+08', management: '10.54.0.0/24', bmc: '172.23.0.0/26', business: '10.58.0.0/24', proxy: '专线出口 · 已配置', freeMachines: 3 },
+  'DC-CD-001': { fullLocation: '四川省成都市高新区', timezone: 'UTC+08', management: '10.55.0.0/24', bmc: '172.23.1.0/26', business: '10.59.0.0/24', proxy: '专线出口 · 已配置', freeMachines: 3 },
+  'DC-SG-001': { fullLocation: 'Singapore West', timezone: 'UTC+08', management: '待配置', bmc: '待配置', business: '待配置', proxy: '待配置', freeMachines: 0 },
+  'DC-TK-001': { fullLocation: 'Tokyo East', timezone: 'UTC+09', management: '待配置', bmc: '待配置', business: '待配置', proxy: '待配置', freeMachines: 0 },
+};
+
+const dataCenters: DataCenterProfile[] = suppliers.flatMap((supplier) => supplier.dataCenters.map((dataCenter) => ({
+  ...dataCenter,
+  supplierId: supplier.id,
+  supplierName: supplier.name,
+  ...dataCenterMeta[dataCenter.code],
+})));
+
 const ResourceAccessPage = () => {
-  const [keyword, setKeyword] = useState('');
-  const [status, setStatus] = useState<'all' | ResourceStatus>('all');
-  const [expanded, setExpanded] = useState<string[]>(['supplier-a']);
+  const [activeArchive, setActiveArchive] = useState<'supplier' | 'dataCenter'>('supplier');
+  const [supplierKeyword, setSupplierKeyword] = useState('');
+  const [supplierStatus, setSupplierStatus] = useState<'all' | ResourceStatus>('all');
+  const [selectedSupplierId, setSelectedSupplierId] = useState(suppliers[0].id);
+  const [dataCenterKeyword, setDataCenterKeyword] = useState('');
+  const [dataCenterSupplier, setDataCenterSupplier] = useState('all');
+  const [dataCenterStatus, setDataCenterStatus] = useState<'all' | ResourceStatus>('all');
+  const [selectedDataCenterCode, setSelectedDataCenterCode] = useState(dataCenters[0].code);
   const [dialog, setDialog] = useState<ResourceDialog>(null);
 
   const filteredSuppliers = useMemo(() => {
-    const term = keyword.trim().toLowerCase();
-    return suppliers.filter((supplier) => {
-      const searchable = [supplier.name, supplier.code, supplier.region, supplier.coverage, ...supplier.dataCenters.flatMap((dc) => [dc.name, dc.code, ...dc.clusters.map((cluster) => cluster.name)])].join(' ').toLowerCase();
-      return (!term || searchable.includes(term)) && (status === 'all' || supplier.status === status);
-    });
-  }, [keyword, status]);
+    const term = supplierKeyword.trim().toLowerCase();
+    return suppliers.filter((supplier) => (!term || [supplier.name, supplier.code, supplier.region, supplier.coverage].join(' ').toLowerCase().includes(term)) && (supplierStatus === 'all' || supplier.status === supplierStatus));
+  }, [supplierKeyword, supplierStatus]);
 
-  const totals = useMemo(() => ({
-    suppliers: suppliers.length,
-    dataCenters: suppliers.reduce((sum, supplier) => sum + supplier.dataCenters.length, 0),
-    clusters: suppliers.reduce((sum, supplier) => sum + supplier.dataCenters.reduce((dcSum, dc) => dcSum + dc.clusters.length, 0), 0),
-    machines: suppliers.reduce((sum, supplier) => sum + supplier.dataCenters.reduce((dcSum, dc) => dcSum + dc.machines, 0), 0),
-  }), []);
+  const filteredDataCenters = useMemo(() => {
+    const term = dataCenterKeyword.trim().toLowerCase();
+    return dataCenters.filter((dataCenter) => (!term || [dataCenter.name, dataCenter.code, dataCenter.fullLocation].join(' ').toLowerCase().includes(term)) && (dataCenterSupplier === 'all' || dataCenter.supplierId === dataCenterSupplier) && (dataCenterStatus === 'all' || dataCenter.status === dataCenterStatus));
+  }, [dataCenterKeyword, dataCenterStatus, dataCenterSupplier]);
 
-  const toggleSupplier = (id: string) => {
-    setExpanded((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
-  };
+  const selectedSupplier = filteredSuppliers.find((supplier) => supplier.id === selectedSupplierId) || filteredSuppliers[0] || suppliers[0];
+  const selectedDataCenter = filteredDataCenters.find((dataCenter) => dataCenter.code === selectedDataCenterCode) || filteredDataCenters[0] || dataCenters[0];
+  const selectedSupplierDataCenters = dataCenters.filter((dataCenter) => dataCenter.supplierId === selectedSupplier.id);
+  const selectedSupplierTotals = selectedSupplierDataCenters.reduce((totals, dataCenter) => ({ clusters: totals.clusters + dataCenter.clusters.length, machines: totals.machines + dataCenter.machines }), { clusters: 0, machines: 0 });
+  const contact = supplierContacts[selectedSupplier.id];
 
   const finishDialog = () => {
     message.success('操作已创建，可在运维任务中查看进度');
@@ -126,86 +159,76 @@ const ResourceAccessPage = () => {
   return (
     <div className="resource-management-page resource-access-page">
       <header className="resource-page-header">
-        <div>
-          <h1>资源接入与管理</h1>
-          <p>统一管理供应商、数据中心，并完成裸金属纳管与 Kubernetes 集群接入。</p>
-        </div>
-        <Dropdown menu={{ items: [
-          { key: 'supplier', label: '新增供应商', onClick: () => setDialog('supplier') },
-          { key: 'dataCenter', label: '新增数据中心', onClick: () => setDialog('dataCenter') },
-        ] }}>
-          <Button type="primary" icon={<PlusOutlined />}>新增资源 <DownOutlined /></Button>
-        </Dropdown>
+        <div><h1>资源接入与管理</h1><p>分别维护供应商与数据中心档案，并从数据中心发起裸金属纳管和 Kubernetes 集群接入。</p></div>
       </header>
 
-      <section className="resource-summary-grid" aria-label="资源统计">
-        <div><ApartmentOutlined /><span>供应商</span><strong>{totals.suppliers}</strong></div>
-        <div><DatabaseOutlined /><span>数据中心</span><strong>{totals.dataCenters}</strong></div>
-        <div><CloudServerOutlined /><span>Kubernetes 集群</span><strong>{totals.clusters}</strong></div>
-        <div><CloudServerOutlined /><span>已纳管机器</span><strong>{totals.machines}</strong></div>
-      </section>
+      <nav className="resource-archive-tabs" aria-label="资源档案类型">
+        <button type="button" className={activeArchive === 'supplier' ? 'active' : ''} onClick={() => setActiveArchive('supplier')}>供应商 <span>{suppliers.length}</span></button>
+        <button type="button" className={activeArchive === 'dataCenter' ? 'active' : ''} onClick={() => setActiveArchive('dataCenter')}>数据中心 <span>{dataCenters.length}</span></button>
+      </nav>
 
-      <section className="resource-archive-panel">
-        <div className="resource-toolbar">
-          <Input value={keyword} onChange={(event) => setKeyword(event.target.value)} prefix={<SearchOutlined />} placeholder="搜索供应商、数据中心、集群" allowClear />
-          <Select value={status} onChange={setStatus} options={[
-            { value: 'all', label: '全部状态' },
-            { value: 'normal', label: '合作中／运行中' },
-            { value: 'attention', label: '需关注' },
-            { value: 'pending', label: '待接入' },
-          ]} />
-          <span className="resource-result-count">共 {filteredSuppliers.length} 家供应商 · {totals.dataCenters} 个数据中心</span>
-        </div>
-        <div className="resource-columns" aria-hidden="true"><span></span><span>供应商</span><span>服务区域</span><span>数据中心</span><span>集群</span><span>机器</span><span>状态</span></div>
-        <div className="resource-archive-list">
-          {filteredSuppliers.map((supplier) => {
-            const isExpanded = expanded.includes(supplier.id);
-            const clusterCount = supplier.dataCenters.reduce((sum, dc) => sum + dc.clusters.length, 0);
-            const machineCount = supplier.dataCenters.reduce((sum, dc) => sum + dc.machines, 0);
-            return (
-              <article key={supplier.id} className={'resource-supplier-card' + (isExpanded ? ' expanded' : '')}>
-                <button type="button" className="resource-supplier-row" onClick={() => toggleSupplier(supplier.id)} aria-expanded={isExpanded}>
-                  <DownOutlined className="resource-expand-icon" />
-                  <span className="resource-primary-cell"><strong>{supplier.name}</strong><small>{supplier.code} · {supplier.type}</small></span>
+      {activeArchive === 'supplier' ? (
+        <section className="resource-archive-workspace">
+          <div className="resource-archive-list-panel">
+            <div className="resource-toolbar">
+              <Input value={supplierKeyword} onChange={(event) => setSupplierKeyword(event.target.value)} prefix={<SearchOutlined />} placeholder="搜索供应商名称、编码或区域" allowClear />
+              <Select value={supplierStatus} onChange={setSupplierStatus} options={[{ value: 'all', label: '全部状态' }, { value: 'normal', label: '合作中' }, { value: 'attention', label: '需关注' }, { value: 'pending', label: '待接入' }]} />
+              <span className="resource-result-count">共 {filteredSuppliers.length} 家供应商</span>
+              <Button type="primary" onClick={() => setDialog('supplier')}>新增供应商</Button>
+            </div>
+            <div className="resource-table resource-supplier-table">
+              <div className="resource-table-head"><span>供应商</span><span>类型</span><span>服务区域</span><span>数据中心</span><span>状态</span></div>
+              {filteredSuppliers.map((supplier) => (
+                <button key={supplier.id} type="button" className={'resource-table-row' + (selectedSupplier.id === supplier.id ? ' selected' : '')} onClick={() => setSelectedSupplierId(supplier.id)}>
+                  <span className="resource-primary-cell"><strong>{supplier.name}</strong><small>{supplier.code}</small></span>
+                  <span>{supplier.type}</span>
                   <span>{supplier.region}<small>{supplier.coverage}</small></span>
                   <span>{supplier.dataCenters.length} 个</span>
-                  <span>{clusterCount} 个</span>
-                  <span>{machineCount} 台</span>
                   <ResourceStatusTag status={supplier.status}>{supplier.statusText}</ResourceStatusTag>
                 </button>
-                {isExpanded && (
-                  <div className="resource-supplier-body">
-                    <div className="resource-supplier-actions">
-                      <Button size="small">编辑档案</Button>
-                      <Button size="small" type="primary" ghost onClick={() => setDialog('dataCenter')}>在此新建数据中心</Button>
-                    </div>
-                    {supplier.dataCenters.map((dc) => (
-                      <section key={dc.code} className="resource-dc-card">
-                        <div className="resource-dc-row">
-                          <span className="resource-primary-cell"><strong>{dc.name}</strong><small>{dc.code}</small></span>
-                          <span>{dc.location}</span><span>{dc.machines} 台机器</span>
-                          <ResourceStatusTag status={dc.status}>{dc.statusText}</ResourceStatusTag>
-                          <span className="resource-row-actions"><Button size="small" onClick={() => setDialog('machine')}>纳管裸金属</Button><Button size="small" onClick={() => setDialog('cluster')}>接入集群</Button></span>
-                        </div>
-                        <div className="resource-cluster-list">
-                          {dc.clusters.length ? dc.clusters.map((cluster) => (
-                            <div key={`${dc.code}-${cluster.name}`} className="resource-cluster-row">
-                              <CloudServerOutlined /><strong>{cluster.name}</strong><span>Kubernetes {cluster.version}</span><span>{cluster.nodes} Nodes</span>
-                              <ResourceStatusTag status={cluster.status}>{cluster.statusText}</ResourceStatusTag>
-                              <Button type="link" size="small" onClick={() => setDialog('scale')}>节点扩缩容</Button>
-                            </div>
-                          )) : <div className="resource-empty-clusters">暂无集群 <Button type="link" size="small" onClick={() => setDialog('cluster')}>创建／接入 Kubernetes 集群</Button></div>}
-                        </div>
-                      </section>
-                    ))}
-                  </div>
-                )}
-              </article>
-            );
-          })}
-          {!filteredSuppliers.length && <div className="resource-empty-state">没有符合条件的资源档案</div>}
-        </div>
-      </section>
+              ))}
+              {!filteredSuppliers.length && <div className="resource-empty-state">没有符合条件的供应商档案</div>}
+            </div>
+          </div>
+          <aside className="resource-archive-detail">
+            <div className="resource-detail-head"><span>供应商档案</span><ResourceStatusTag status={selectedSupplier.status}>{selectedSupplier.statusText}</ResourceStatusTag><h2>{selectedSupplier.name}</h2><small>{selectedSupplier.code} · {selectedSupplier.type}</small></div>
+            <div className="resource-detail-section"><h3>基础信息</h3><dl><div><dt>服务区域</dt><dd>{selectedSupplier.region} · {selectedSupplier.coverage}</dd></div><div><dt>联系人</dt><dd>{contact.contact}</dd></div><div><dt>联系电话</dt><dd>{contact.phone}</dd></div><div><dt>服务热线</dt><dd>{contact.hotline}</dd></div><div className="full"><dt>邮箱</dt><dd>{contact.email}</dd></div></dl></div>
+            <div className="resource-detail-section"><h3>关联资源</h3><div className="resource-detail-stats"><div><strong>{selectedSupplierDataCenters.length}</strong><span>数据中心</span></div><div><strong>{selectedSupplierTotals.clusters}</strong><span>集群</span></div><div><strong>{selectedSupplierTotals.machines}</strong><span>机器</span></div></div></div>
+            <div className="resource-detail-actions"><Button>编辑档案</Button><Button type="primary" ghost onClick={() => setDialog('dataCenter')}>新建数据中心</Button></div>
+          </aside>
+        </section>
+      ) : (
+        <section className="resource-archive-workspace">
+          <div className="resource-archive-list-panel">
+            <div className="resource-toolbar resource-dc-toolbar">
+              <Input value={dataCenterKeyword} onChange={(event) => setDataCenterKeyword(event.target.value)} prefix={<SearchOutlined />} placeholder="搜索数据中心名称、编码或位置" allowClear />
+              <Select value={dataCenterSupplier} onChange={setDataCenterSupplier} options={[{ value: 'all', label: '全部供应商' }, ...suppliers.map((supplier) => ({ value: supplier.id, label: supplier.name }))]} />
+              <Select value={dataCenterStatus} onChange={setDataCenterStatus} options={[{ value: 'all', label: '全部状态' }, { value: 'normal', label: '运行中' }, { value: 'attention', label: '需关注' }, { value: 'pending', label: '待接入' }]} />
+              <span className="resource-result-count">共 {filteredDataCenters.length} 个数据中心</span>
+              <Button type="primary" onClick={() => setDialog('dataCenter')}>新增数据中心</Button>
+            </div>
+            <div className="resource-table resource-dc-table">
+              <div className="resource-table-head"><span>数据中心</span><span>所属供应商</span><span>位置</span><span>资源</span><span>状态</span></div>
+              {filteredDataCenters.map((dataCenter) => (
+                <button key={dataCenter.code} type="button" className={'resource-table-row' + (selectedDataCenter.code === dataCenter.code ? ' selected' : '')} onClick={() => setSelectedDataCenterCode(dataCenter.code)}>
+                  <span className="resource-primary-cell"><strong>{dataCenter.name}</strong><small>{dataCenter.code}</small></span>
+                  <span>{dataCenter.supplierName}</span>
+                  <span>{dataCenter.fullLocation}<small>{dataCenter.timezone}</small></span>
+                  <span>{dataCenter.clusters.length} 集群<small>{dataCenter.machines} 台机器</small></span>
+                  <ResourceStatusTag status={dataCenter.status}>{dataCenter.statusText}</ResourceStatusTag>
+                </button>
+              ))}
+              {!filteredDataCenters.length && <div className="resource-empty-state">没有符合条件的数据中心档案</div>}
+            </div>
+          </div>
+          <aside className="resource-archive-detail">
+            <div className="resource-detail-head"><span>数据中心档案</span><ResourceStatusTag status={selectedDataCenter.status}>{selectedDataCenter.statusText}</ResourceStatusTag><h2>{selectedDataCenter.name}</h2><small>{selectedDataCenter.code} · {selectedDataCenter.supplierName}</small></div>
+            <div className="resource-detail-section"><h3>位置与网络</h3><dl><div className="full"><dt>位置</dt><dd>{selectedDataCenter.fullLocation} · {selectedDataCenter.timezone}</dd></div><div><dt>管理网段</dt><dd>{selectedDataCenter.management}</dd></div><div><dt>BMC 网段</dt><dd>{selectedDataCenter.bmc}</dd></div><div><dt>业务接入网段</dt><dd>{selectedDataCenter.business}</dd></div><div><dt>代理／出口</dt><dd>{selectedDataCenter.proxy}</dd></div></dl></div>
+            <div className="resource-detail-section"><h3>关联资源</h3><div className="resource-detail-stats"><div><strong>{selectedDataCenter.clusters.length}</strong><span>集群</span></div><div><strong>{selectedDataCenter.machines}</strong><span>机器</span></div><div><strong>{selectedDataCenter.freeMachines}</strong><span>空闲机器</span></div></div></div>
+            <div className="resource-detail-actions"><Button onClick={() => setDialog('machine')}>纳管裸金属</Button><Button type="primary" onClick={() => setDialog('cluster')}>创建／接入集群</Button></div>
+          </aside>
+        </section>
+      )}
 
       <Modal title={dialog ? dialogTitle[dialog] : ''} open={Boolean(dialog)} onCancel={() => setDialog(null)} onOk={finishDialog} okText={dialog === 'machine' ? '开始校验' : '确认创建'} width={720} destroyOnHidden>
         {dialog === 'supplier' && <div className="resource-dialog-grid"><label>供应商名称<Input placeholder="请输入供应商名称" /></label><label>服务类型<Select defaultValue="算力／裸金属供应商" options={[{ value: '算力／裸金属供应商' }, { value: 'IDC 机房服务商' }, { value: '云资源供应商' }]} /></label><label>企业主体名称<Input placeholder="合同或发票上的企业全称" /></label><label>服务地区<Input placeholder="例如：华东、华北" /></label><label>联系人<Input placeholder="联系人姓名" /></label><label>联系电话<Input placeholder="手机或固定电话" /></label></div>}
