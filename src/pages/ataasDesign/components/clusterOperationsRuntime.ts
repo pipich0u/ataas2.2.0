@@ -8,7 +8,7 @@ export const initializeClusterOperations = (root: HTMLElement) => {
   const getById = (id: string) => root.querySelector(`#${id}`);
 
   const tabs = Array.from(root.querySelectorAll('.module-tab[data-view]'));
-  const allModes = ['nodes-mode', 'workloads-mode', 'pods-mode', 'services-mode', 'serviceentry-mode', 'pv-mode', 'se-view-mode'];
+  const allModes = ['nodes-mode', 'workloads-mode', 'pods-mode', 'services-mode', 'serviceentry-mode', 'pv-mode', 'pvc-mode', 'se-view-mode'];
   const applyView = (view = 'overview') => {
     root.classList.remove(...allModes);
     tabs.forEach((tab) => tab.classList.toggle('active', tab.dataset.view === view));
@@ -18,6 +18,7 @@ export const initializeClusterOperations = (root: HTMLElement) => {
     else if (view === 'services') root.classList.add('services-mode');
     else if (view === 'serviceentry') root.classList.add('serviceentry-mode');
     else if (view === 'pv') root.classList.add('pv-mode');
+    else if (view === 'pvc') root.classList.add('pvc-mode');
   };
   tabs.forEach((tab) => tab.addEventListener('click', () => {
     applyView(tab.dataset.view || 'overview');

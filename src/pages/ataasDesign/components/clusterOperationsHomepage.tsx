@@ -237,7 +237,8 @@ const ClusterOperationsHomepage = () => {
           <div className="module-tab" data-view="pods" title="Pod运行阶段、容器状态、重启和调度情况">Pods</div>
           <div className="module-tab" data-view="services" title="展示后端运行在上海资源段的Services；ServiceEntry为集群级配置">Services</div>
           <div className="module-tab" data-view="serviceentry" title="K8s ServiceEntry资源，用于定义网格出口流量规则">ServiceEntry</div>
-          <div className="module-tab" data-view="pv" title="当前资源段关联的PV、PVC及StorageClass状态">PV/PVC</div>
+          <div className="module-tab" data-view="pv" title="PersistentVolume资源状态">PV</div>
+          <div className="module-tab" data-view="pvc" title="PersistentVolumeClaim资源状态">PVC</div>
 	        </nav>
 
         <div className="overview-view">
@@ -419,134 +420,36 @@ const ClusterOperationsHomepage = () => {
         </section>
 
         <section className="workloads-view">
-          <div className="card workloads-summary">
-            <button type="button" className="workload-summary-item workload-summary-filter active" data-workload-filter="all" data-filter-label="全部 Workloads"><span className="workload-summary-label">Workloads 总数</span><strong className="workload-summary-value">126</strong><span className="workload-summary-meta">当前资源段</span></button>
-            <button type="button" className="workload-summary-item workload-summary-filter" data-workload-filter="normal" data-filter-label="状态正常" data-filter-total="122"><span className="workload-summary-label">状态正常</span><strong className="workload-summary-value">122</strong><span className="workload-summary-meta">控制器符合预期状态</span></button>
-            <button type="button" className="workload-summary-item workload-summary-filter" data-workload-filter="progress" data-filter-label="进行中" data-filter-total="2"><span className="workload-summary-label">进行中</span><strong className="workload-summary-value">2</strong><span className="workload-summary-meta">滚动更新1 · Job执行1</span></button>
-            <button type="button" className="workload-summary-item workload-summary-filter" data-workload-filter="problem" data-filter-label="需关注" data-filter-total="2"><span className="workload-summary-label">需关注</span><strong className="workload-summary-value bad">2</strong><span className="workload-summary-meta">按 Workload 去重</span></button>
-          </div>
-
-          <div className="card workloads-toolbar">
-            <div className="workload-search"><span className="magnify"></span>搜索 Workload、项目或 Namespace</div>
-            <div className="workload-filter">全部类型</div>
-            <div className="workload-filter">全部状态</div>
-            <div className="workload-filter">全部项目</div>
-            <div className="workload-filter">全部 Namespace</div>
-          </div>
-
-          <div className="workloads-workspace">
-            <section className="card workloads-list-card">
-              <div className="workloads-list-head"><span className="workloads-list-title">Workloads 列表</span><span id="workloadsListMeta" className="workloads-list-meta">按问题优先 · 共 126 个 · 2 个需关注</span></div>
-              <div className="workloads-table-header"><span>名称／项目·Namespace</span><span>类型</span><span>状态</span><span>副本／执行进度</span><span>Pods</span><span>版本／镜像</span><span>最近变化</span><span>当前问题</span></div>
-
-              <div className="workload-row selected" data-workload="payment-api" data-health="problem">
-                <div><span className="workload-name">payment-api</span><span className="workload-sub">项目A · payment</span></div>
-                <div><span className="workload-kind">Deployment</span><span className="workload-sub">无状态服务</span></div>
-                <div><span className="workload-health bad">需关注</span><span className="workload-sub">发布超时</span></div>
-                <div className="workload-ready"><strong>3／5 Ready</strong><div className="workload-progress-bar"><span style={{ width: '60%' }}></span></div></div>
-                <div className="workload-pods"><strong>5</strong><span className="workload-sub bad">异常 2</span></div>
-                <div><span className="workload-version">v2.4.1</span><span className="workload-sub">payment-api</span></div>
-                <div>10分钟前<span className="workload-sub">配置已更新</span></div>
-                <div className="workload-problem bad">ProgressDeadlineExceeded<span className="workload-sub">2个Pod未就绪</span></div>
+          <ConfigProvider theme={{ token: { colorPrimary: '#6738E8' }, components: { Table: { headerBg: '#f7f8fa' } } }}>
+            <div>
+              <div className="ataas-cm-toolbar" style={{ border: 'none', padding: '8px 0' }}>
+                <div style={{ flex: 1 }} />
+                <Input.Search size="small" allowClear placeholder="搜索 Workload" style={{ width: 320 }} />
               </div>
-
-              <div className="workload-row" data-workload="model-cache" data-health="problem">
-                <div><span className="workload-name">model-cache</span><span className="workload-sub">项目B · inference</span></div>
-                <div><span className="workload-kind">StatefulSet</span><span className="workload-sub">有状态服务</span></div>
-                <div><span className="workload-health bad">需关注</span><span className="workload-sub">副本不足</span></div>
-                <div className="workload-ready"><strong>2／3 Ready</strong><div className="workload-progress-bar"><span style={{ width: '67%' }}></span></div></div>
-                <div className="workload-pods"><strong>3</strong><span className="workload-sub bad">异常 1</span></div>
-                <div><span className="workload-version">7.2.5</span><span className="workload-sub">redis</span></div>
-                <div>18分钟前<span className="workload-sub">Pod重建</span></div>
-                <div className="workload-problem bad">Volume挂载超时<span className="workload-sub">关联PVC不可用</span></div>
-              </div>
-
-              <div className="workload-row" data-workload="training-worker" data-health="progress">
-                <div><span className="workload-name">training-worker</span><span className="workload-sub">项目B · training</span></div>
-                <div><span className="workload-kind">Deployment</span><span className="workload-sub">GPU训练服务</span></div>
-                <div><span className="workload-health progress">更新中</span><span className="workload-sub">滚动发布</span></div>
-                <div className="workload-ready"><strong>10／12 Ready</strong><div className="workload-progress-bar"><span style={{ width: '83%' }}></span></div></div>
-                <div className="workload-pods"><strong>12</strong><span className="workload-sub">2个创建中</span></div>
-                <div><span className="workload-version">v1.8.0</span><span className="workload-sub">trainer</span></div>
-                <div>2分钟前<span className="workload-sub">镜像已更新</span></div>
-                <div className="workload-problem">发布正常推进<span className="workload-sub">尚未产生异常</span></div>
-              </div>
-
-              <div className="workload-row" data-workload="dataset-index" data-health="progress">
-                <div><span className="workload-name">dataset-index</span><span className="workload-sub">项目C · data-pipeline</span></div>
-                <div><span className="workload-kind">Job</span><span className="workload-sub">一次性任务</span></div>
-                <div><span className="workload-health progress">执行中</span><span className="workload-sub">无失败重试</span></div>
-                <div className="workload-ready"><strong>18／24 完成</strong><div className="workload-progress-bar"><span style={{ width: '75%' }}></span></div></div>
-                <div className="workload-pods"><strong>6</strong><span className="workload-sub">运行中</span></div>
-                <div><span className="workload-version">v3.6.2</span><span className="workload-sub">indexer</span></div>
-                <div>6分钟前<span className="workload-sub">任务启动</span></div>
-                <div className="workload-problem">执行进度正常<span className="workload-sub">预计8分钟完成</span></div>
-              </div>
-
-              <div className="workload-row" data-workload="order-api" data-health="normal">
-                <div><span className="workload-name">order-api</span><span className="workload-sub">项目A · order</span></div>
-                <div><span className="workload-kind">Deployment</span><span className="workload-sub">无状态服务</span></div>
-                <div><span className="workload-health">正常</span><span className="workload-sub">副本全部可用</span></div>
-                <div className="workload-ready"><strong>8／8 Ready</strong><div className="workload-progress-bar"><span style={{ width: '100%' }}></span></div></div>
-                <div className="workload-pods"><strong>8</strong><span className="workload-sub">异常 0</span></div>
-                <div><span className="workload-version">v5.3.0</span><span className="workload-sub">order-api</span></div>
-                <div>3天前<span className="workload-sub">发布完成</span></div>
-                <div className="workload-problem">—<span className="workload-sub">运行正常</span></div>
-              </div>
-
-              <div className="workload-row" data-workload="node-exporter" data-health="normal">
-                <div><span className="workload-name">node-exporter</span><span className="workload-sub">平台运维 · monitoring</span></div>
-                <div><span className="workload-kind">DaemonSet</span><span className="workload-sub">节点守护进程</span></div>
-                <div><span className="workload-health">正常</span><span className="workload-sub">目标节点全覆盖</span></div>
-                <div className="workload-ready"><strong>78／78 Ready</strong><div className="workload-progress-bar"><span style={{ width: '100%' }}></span></div></div>
-                <div className="workload-pods"><strong>78</strong><span className="workload-sub">异常 0</span></div>
-                <div><span className="workload-version">v1.8.1</span><span className="workload-sub">node-exporter</span></div>
-                <div>12天前<span className="workload-sub">配置未变化</span></div>
-                <div className="workload-problem">—<span className="workload-sub">运行正常</span></div>
-              </div>
-
-              <div className="workload-row" data-workload="nightly-report" data-health="normal">
-                <div><span className="workload-name">nightly-report</span><span className="workload-sub">项目D · ops</span></div>
-                <div><span className="workload-kind">CronJob</span><span className="workload-sub">定时任务</span></div>
-                <div><span className="workload-health">正常</span><span className="workload-sub">最近执行成功</span></div>
-                <div className="workload-ready"><strong>下次 01:00</strong><span className="workload-sub">最近成功 2小时前</span></div>
-                <div className="workload-pods"><strong>0</strong><span className="workload-sub">当前未执行</span></div>
-                <div><span className="workload-version">v2.1.4</span><span className="workload-sub">reporter</span></div>
-                <div>2小时前<span className="workload-sub">执行成功</span></div>
-                <div className="workload-problem">—<span className="workload-sub">调度正常</span></div>
-              </div>
-
-              <div className="workloads-pagination"><span id="workloadsPaginationMeta">显示 1–7，共 126 个 Workloads</span><span id="workloadsPaginationPages"><i className="page-chip">1</i>&nbsp;&nbsp;2&nbsp;&nbsp;3&nbsp;&nbsp;…&nbsp;&nbsp;18&nbsp;&nbsp;›</span></div>
-            </section>
-
-            <aside className="card workload-detail-card">
-              <div className="workload-detail-head"><div><div className="workload-detail-name" id="workloadDetailName">payment-api</div><div id="workloadDetailMeta" className="workload-detail-meta">Deployment · 项目A／payment</div></div><span id="workloadDetailStatus" className="workload-detail-status">需关注</span></div>
-              <div className="workload-detail-body">
-                <section className="workload-detail-section"><div className="workload-detail-title">基本信息</div><div className="workload-basic-grid">
-                  <div className="workload-basic-item"><small>类型</small><strong id="workloadDetailKind">Deployment</strong></div><div className="workload-basic-item"><small>创建时间</small><strong id="workloadDetailCreated">2026-05-18 14:22</strong></div>
-                  <div className="workload-basic-item"><small>项目／Namespace</small><strong id="workloadDetailScope">项目A／payment</strong></div><div className="workload-basic-item"><small>更新策略</small><strong id="workloadDetailStrategy">RollingUpdate</strong></div>
-                  <div className="workload-basic-item"><small>当前镜像</small><strong id="workloadDetailImage">payment-api:v2.4.1</strong></div><div className="workload-basic-item"><small>最近变化</small><strong id="workloadDetailChanged">10分钟前更新镜像</strong></div>
-                </div></section>
-
-                <section className="workload-detail-section"><div className="workload-detail-title">控制器状态</div><div id="workloadReplicaGrid" className="workload-replica-grid">
-                  <div className="workload-replica-item"><small>期望</small><strong>5</strong></div><div className="workload-replica-item"><small>已更新</small><strong>5</strong></div><div className="workload-replica-item"><small>Ready</small><strong className="bad">3</strong></div><div className="workload-replica-item"><small>Available</small><strong className="bad">3</strong></div>
-                </div></section>
-
-                <section className="workload-detail-section"><div className="workload-detail-title">状态明细</div><div id="workloadConditionList">
-                  <div className="workload-condition-row"><span>Available</span><strong className="workload-condition-state bad">False</strong><span className="workload-condition-reason">MinimumReplicasUnavailable</span></div>
-                  <div className="workload-condition-row"><span>Progressing</span><strong className="workload-condition-state bad">False</strong><span className="workload-condition-reason">ProgressDeadlineExceeded</span></div>
-                </div></section>
-
-                <section className="workload-detail-section"><div className="workload-detail-title">问题定位与影响</div><div id="workloadIssueList">
-                  <div className="workload-issue-row"><span><strong>payment-api-7d8f-2kv9f</strong> · Pod</span><span className="workload-issue-state">NotReady</span></div>
-                  <div className="workload-issue-row"><span><strong>payment-api-7d8f-7sk2h</strong> · Pod</span><span className="workload-issue-state">NotReady</span></div>
-                </div>
-                  <div id="workloadImpact" className="workload-impact">Workload副本不足 → 2个Pods未就绪 → <strong>gpu-node-07 NotReady</strong> → BM-00001027网卡丢包。<br />payment-service 后端就绪 3／5，存在服务降级风险。</div>
-                  <div className="workload-links"><span id="workloadPodsLink" className="workload-link">查看2个异常Pods →</span><span id="workloadNodeLink" className="workload-link workload-go-node" data-node="gpu-node-07">查看gpu-node-07 →</span><span id="workloadEventsLink" className="workload-link">查看6条相关事件 →</span></div>
-                </section>
-              </div>
-            </aside>
-          </div>
+              <Table
+                rowKey="key"
+                columns={[
+                  { title: '名称', dataIndex: 'name', key: 'name', width: 200, fixed: 'left', render: (v: string) => <strong className="ataas-cm-name">{v}</strong> },
+                  { title: '类型', dataIndex: 'kind', key: 'kind', width: 120 },
+                  { title: '命名空间', dataIndex: 'namespace', key: 'namespace', width: 120 },
+                  { title: '状态', dataIndex: 'status', key: 'status', width: 100 },
+                  { title: '副本', dataIndex: 'replicas', key: 'replicas', width: 100 },
+                  { title: '创建时间', dataIndex: 'age', key: 'age', width: 150 },
+                ]}
+                dataSource={[
+                  { key: '1', name: 'payment-api', kind: 'Deployment', namespace: 'payment', status: '需关注', replicas: '3/5', age: '2026-05-18 14:22' },
+                  { key: '2', name: 'model-cache', kind: 'StatefulSet', namespace: 'inference', status: '需关注', replicas: '2/3', age: '2026-06-01 09:15' },
+                  { key: '3', name: 'training-worker', kind: 'Deployment', namespace: 'training', status: '更新中', replicas: '10/12', age: '2026-06-10 11:30' },
+                  { key: '4', name: 'dataset-index', kind: 'Job', namespace: 'data-pipeline', status: '执行中', replicas: '18/24', age: '2026-06-15 08:00' },
+                  { key: '5', name: 'order-api', kind: 'Deployment', namespace: 'order', status: '正常', replicas: '8/8', age: '2026-05-01 10:00' },
+                  { key: '6', name: 'node-exporter', kind: 'DaemonSet', namespace: 'monitoring', status: '正常', replicas: '78/78', age: '2026-04-20 16:00' },
+                  { key: '7', name: 'nightly-report', kind: 'CronJob', namespace: 'ops', status: '正常', replicas: '-', age: '2026-06-01 00:00' },
+                ]}
+                scroll={{ x: 'max-content' }}
+                pagination={{ pageSize: 10, showTotal: (total: number) => '共 ' + total + ' 条' }}
+              />
+            </div>
+          </ConfigProvider>
         </section>
         <section className="pods-view">
           <ClusterResourceTables view="pod" />
@@ -564,12 +467,26 @@ const ClusterOperationsHomepage = () => {
           <ConfigProvider theme={{ token: { colorPrimary: '#6738E8' }, components: { Table: { headerBg: '#f7f8fa' } } }}>
             <Table dataSource={[]} columns={[
               { title: '名称', dataIndex: 'name', key: 'name', width: 200 },
-              { title: '类型', dataIndex: 'kind', key: 'kind', width: 100 },
-              { title: '命名空间', dataIndex: 'namespace', key: 'namespace', width: 120 },
               { title: '容量', dataIndex: 'capacity', key: 'capacity', width: 120 },
+              { title: '存储类型', dataIndex: 'storageType', key: 'storageType', width: 120 },
+              { title: '访问模式', dataIndex: 'accessMode', key: 'accessMode', width: 120 },
               { title: '状态', dataIndex: 'status', key: 'status', width: 100 },
+              { title: '回收策略', dataIndex: 'reclaimPolicy', key: 'reclaimPolicy', width: 100 },
               { title: '创建时间', dataIndex: 'age', key: 'age', width: 150 },
-            ]} scroll={{ x: 'max-content' }} pagination={{ pageSize: 10, showTotal: (total) => '共 ' + total + ' 条' }} locale={{ emptyText: '暂无 PV/PVC 数据' }} />
+            ]} scroll={{ x: 'max-content' }} pagination={{ pageSize: 10, showTotal: (total) => '共 ' + total + ' 条' }} locale={{ emptyText: '暂无 PV 数据' }} />
+          </ConfigProvider>
+        </section>
+        <section className="pvc-view">
+          <ConfigProvider theme={{ token: { colorPrimary: '#6738E8' }, components: { Table: { headerBg: '#f7f8fa' } } }}>
+            <Table dataSource={[]} columns={[
+              { title: '名称', dataIndex: 'name', key: 'name', width: 200 },
+              { title: '命名空间', dataIndex: 'namespace', key: 'namespace', width: 120 },
+              { title: '容量请求', dataIndex: 'requestCapacity', key: 'requestCapacity', width: 120 },
+              { title: '存储类', dataIndex: 'storageClass', key: 'storageClass', width: 120 },
+              { title: '状态', dataIndex: 'status', key: 'status', width: 100 },
+              { title: '绑定 PV', dataIndex: 'boundPV', key: 'boundPV', width: 150 },
+              { title: '创建时间', dataIndex: 'age', key: 'age', width: 150 },
+            ]} scroll={{ x: 'max-content' }} pagination={{ pageSize: 10, showTotal: (total) => '共 ' + total + ' 条' }} locale={{ emptyText: '暂无 PVC 数据' }} />
           </ConfigProvider>
         </section>
       </main>
@@ -609,6 +526,13 @@ type NodeRow = {
   memory: string;
   memoryUsed: string;
   memoryType: string;
+  memoryActive: string;
+  memoryConsumed: string;
+  memoryShared: string;
+  memoryBalloon: string;
+  memoryCompression: string;
+  memorySwap: string;
+  memoryCache: string;
   disk: string;
   diskUsed: string;
   disks: Array<{ name: string; total: string; used: string; type: string; mountPath: string; status: string }>;
@@ -644,7 +568,7 @@ const UsageRing = ({ percent, sub }: { percent: number; sub?: string }) => {
   );
 };
 
-const nodeTabs = ['CPU详情', '内存详情', 'GPU', '磁盘详情', '网卡详情', 'Pods列表'];
+const nodeTabs = ['CPU', '内存', 'GPU', '磁盘详情', '网卡详情', 'Pods列表'];
 
 const mockKernelLogs = (label: string) => [
   `[${new Date().toLocaleString()}] kernel: ${label} - NVRM: GPU at PCI:0000:01:00.0 is OK`,
@@ -676,7 +600,7 @@ const NodeExpandContent = ({ node }: { node: NodeRow }) => {
     </div>
   );
 
-  if (activeTab === 'CPU详情') {
+  if (activeTab === 'CPU') {
     const items = [
       { label: 'CPU型号', value: node.cpuModel },
       { label: 'CPU Socket数量', value: `${node.cpuSockets}` },
@@ -685,36 +609,68 @@ const NodeExpandContent = ({ node }: { node: NodeRow }) => {
       { label: 'CPU频率(GHz)', value: `${node.cpuFrequency.toFixed(1)} GHz` },
       { label: 'CPU总容量(GHz)', value: `${node.cpuTotalGHz.toFixed(1)} GHz` },
       { label: 'CPU已使用(GHz)', value: `${node.cpuUsedGHz.toFixed(1)} GHz` },
-      { label: 'CPU利用率(%)', value: `${cpuUtil}%` },
       { label: 'CPU Ready', value: node.cpuReady },
       { label: 'CPU负载(Load)', value: node.cpuLoad },
     ];
     return (
       <div>
         {renderTabBar()}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, padding: 4 }}>
-          {items.map((item) => (
-            <div key={item.label} style={{ width: 'calc(20% - 10px)', minWidth: 160, background: '#F7F8FA', borderRadius: 6, padding: '14px 16px' }}>
-              <div style={{ fontSize: 12, color: '#86909c', marginBottom: 6 }}>{item.label}</div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#1d2129', wordBreak: 'break-all' }}>{item.value}</div>
-            </div>
-          ))}
+        <div style={{ display: 'flex', gap: 32, padding: 16, alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            <svg width="160" height="160" viewBox="0 0 160 160">
+              <circle cx="80" cy="80" r="65" fill="none" stroke="#E5E6EB" strokeWidth="12" />
+              <circle cx="80" cy="80" r="65" fill="none" stroke={cpuUtil > 80 ? '#F53F3F' : cpuUtil > 60 ? '#FF7D00' : '#4C6EF5'} strokeWidth="12" strokeDasharray="408.4" strokeDashoffset={408.4 - (408.4 * Math.min(Math.max(cpuUtil, 0), 100)) / 100} strokeLinecap="round" transform="rotate(-90 80 80)" />
+              <text x="80" y="74" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: 32, fontWeight: 700, fill: '#1d2129' }}>{cpuUtil}%</text>
+              <text x="80" y="100" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: 12, fill: '#86909c' }}>CPU利用率</text>
+            </svg>
+            <div style={{ fontSize: 12, color: '#4E5969' }}>{node.cpuUsed} / {node.cpu} Core</div>
+          </div>
+          <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 32px', fontSize: 13 }}>
+            {items.map((item) => (
+              <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #f0f0f0' }}>
+                <span style={{ color: '#86909c' }}>{item.label}</span>
+                <strong style={{ color: '#1d2129' }}>{item.value}</strong>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
   }
 
-  if (activeTab === '内存详情') {
+  if (activeTab === '内存') {
+    const memRows: Array<{ label: string; value: string }> = [
+      { label: 'Memory 总容量', value: node.memory },
+      { label: 'Memory 已使用', value: node.memoryUsed },
+      { label: 'Memory 使用率', value: Math.round(memUtil) + '%' },
+      { label: 'Memory 活跃', value: node.memoryActive },
+      { label: 'Memory 已消费', value: node.memoryConsumed },
+      { label: 'Memory 共享', value: node.memoryShared },
+      { label: 'Memory Balloon', value: node.memoryBalloon },
+      { label: 'Memory 压缩', value: node.memoryCompression },
+      { label: 'Memory Swap', value: node.memorySwap },
+      { label: 'Memory 缓存', value: node.memoryCache },
+    ];
     return (
       <div>
         {renderTabBar()}
-        <div style={{ display: 'flex', gap: 24, padding: 8 }}>
-          <UsageRing percent={Math.round(memUtil)} sub={`${node.memoryUsed}/${node.memory}`} />
-          <div style={{ fontSize: 13, lineHeight: '28px' }}>
-            <div><span style={{ color: '#86909c' }}>类型</span> <strong style={{ marginLeft: 8 }}>{node.memoryType}</strong></div>
-            <div><span style={{ color: '#86909c' }}>总量</span> <strong style={{ marginLeft: 8 }}>{node.memory}</strong></div>
-            <div><span style={{ color: '#86909c' }}>已用</span> <strong style={{ marginLeft: 8 }}>{node.memoryUsed}</strong></div>
-            <div><span style={{ color: '#86909c' }}>利用率</span> <strong style={{ marginLeft: 8 }}>{Math.round(memUtil)}%</strong></div>
+        <div style={{ display: 'flex', gap: 32, padding: 16, alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            <svg width="160" height="160" viewBox="0 0 160 160">
+              <circle cx="80" cy="80" r="65" fill="none" stroke="#E5E6EB" strokeWidth="12" />
+              <circle cx="80" cy="80" r="65" fill="none" stroke={memUtil > 80 ? '#F53F3F' : memUtil > 60 ? '#FF7D00' : '#4C6EF5'} strokeWidth="12" strokeDasharray="408.4" strokeDashoffset={408.4 - (408.4 * Math.min(Math.max(memUtil, 0), 100)) / 100} strokeLinecap="round" transform="rotate(-90 80 80)" />
+              <text x="80" y="74" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: 32, fontWeight: 700, fill: '#1d2129' }}>{Math.round(memUtil)}%</text>
+              <text x="80" y="100" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: 12, fill: '#86909c' }}>内存使用率</text>
+            </svg>
+            <div style={{ fontSize: 12, color: '#4E5969' }}>{node.memoryUsed} / {node.memory}</div>
+          </div>
+          <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 32px', fontSize: 13 }}>
+            {memRows.map((row) => (
+              <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #f0f0f0' }}>
+                <span style={{ color: '#86909c' }}>{row.label}</span>
+                <strong style={{ color: '#1d2129' }}>{row.value}</strong>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -921,12 +877,12 @@ const NodeExpandContent = ({ node }: { node: NodeRow }) => {
 };
 
 const nodeData: NodeRow[] = [
-  { key: 'n1', name: 'qujing4', ip: '192.168.110.4', clusterName: 'default', label: 'GPU=RTX_4090', tags: ['deployment=dev', 'zone=shanghai', 'worker=high-performance', 'accelerator=nvidia-rtx'], status: 'normal', authStatus: 'authorized', modelCount: 0, runningInstances: 0, cpu: 128, cpuUsed: 42, cpuModel: 'Intel Xeon Gold 6438M', cpuArch: 'x86_64', cpuSockets: 2, cpuCores: 64, cpuThreads: 128, cpuFrequency: 2.1, cpuTotalGHz: 134.4, cpuUsedGHz: 44.1, cpuReady: '99.2%', cpuLoad: '8.5', gpu: 8, gpuCards: [{ index: 0, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '12.0 GB', memoryFree: '11.99 GB', utilization: 52, power: 315, temperature: 72, status: 'active' }, { index: 1, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 98, power: 425, temperature: 81, status: 'active' }, { index: 2, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 95, power: 410, temperature: 78, status: 'active' }, { index: 3, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 87, power: 380, temperature: 75, status: 'active' }, { index: 4, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '18.5 GB', memoryFree: '5.49 GB', utilization: 72, power: 360, temperature: 73, status: 'active' }, { index: 5, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '4.8 GB', memoryFree: '19.19 GB', utilization: 22, power: 180, temperature: 58, status: 'active' }, { index: 6, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 91, power: 415, temperature: 80, status: 'active' }, { index: 7, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 34, status: 'idle' }], gpuMemory: '383.9 GB', gpuMemoryUsed: '95.9 GB', memory: '1007.56 GB', memoryUsed: '352.6 GB', memoryType: 'DDR5 4800MHz', disk: '3.86 TB', diskUsed: '1.54 TB', disks: [{ name: '/dev/sda', total: '3.86 TB', used: '1.54 TB', type: 'NVMe SSD', mountPath: '/data', status: 'normal' }], networkCards: [{ name: 'eth0', ip: '192.168.110.4', speed: '25Gbps', status: 'active' }, { name: 'eth1', ip: '10.0.0.4', speed: '100Gbps', status: 'active' }, { name: 'ib0', ip: '192.168.200.4', speed: '200Gbps', status: 'active' }], pods: [{ name: 'deepseek-dev-p1', status: 'Running', namespace: 'development', ready: '1/1' }, { name: 'qwen2-demo-p1', status: 'Running', namespace: 'demo', ready: '1/1' }, { name: 'qwen2-demo-p2', status: 'Failed', namespace: 'demo', ready: '0/1' }] },
-  { key: 'n2', name: 'qujing7', ip: '192.168.110.21', clusterName: 'default', label: 'GPU=RTX_4090', status: 'normal', authStatus: 'authorized', modelCount: 0, runningInstances: 0, cpu: 192, cpuUsed: 68, cpuModel: 'AMD EPYC 9654', cpuArch: 'x86_64', cpuSockets: 2, cpuCores: 192, cpuThreads: 384, cpuFrequency: 2.4, cpuTotalGHz: 460.8, cpuUsedGHz: 163.2, cpuReady: '97.8%', cpuLoad: '12.3', gpu: 8, gpuCards: [{ index: 0, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '12.0 GB', memoryFree: '11.99 GB', utilization: 48, power: 300, temperature: 68, status: 'active' }, { index: 1, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 92, power: 400, temperature: 76, status: 'active' }, { index: 2, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 94, power: 405, temperature: 77, status: 'active' }, { index: 3, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 88, power: 385, temperature: 74, status: 'active' }, { index: 4, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '3.2 GB', memoryFree: '20.79 GB', utilization: 14, power: 120, temperature: 48, status: 'active' }, { index: 5, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '19.4 GB', memoryFree: '4.59 GB', utilization: 76, power: 345, temperature: 72, status: 'active' }, { index: 6, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '7.8 GB', memoryFree: '16.19 GB', utilization: 35, power: 210, temperature: 60, status: 'active' }, { index: 7, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 97, power: 430, temperature: 83, status: 'active' }], gpuMemory: '383.9 GB', gpuMemoryUsed: '115.2 GB', memory: '1.48 TB', memoryUsed: '521.3 GB', memoryType: 'DDR5 4800MHz', disk: '12.6 TB', diskUsed: '5.04 TB', disks: [{ name: '/dev/sda', total: '6.3 TB', used: '3.2 TB', type: 'NVMe SSD', mountPath: '/data', status: 'normal' }, { name: '/dev/sdb', total: '6.3 TB', used: '1.84 TB', type: 'NVMe SSD', mountPath: '/models', status: 'normal' }], networkCards: [{ name: 'eth0', ip: '192.168.110.21', speed: '25Gbps', status: 'active' }, { name: 'eth1', ip: '10.0.0.21', speed: '100Gbps', status: 'active' }, { name: 'ib0', ip: '192.168.200.21', speed: '200Gbps', status: 'active' }], pods: [{ name: 'deepseek-dev-p2', status: 'Running', namespace: 'development', ready: '1/1' }] },
-  { key: 'n3', name: 'qujing21', ip: '192.168.109.6', clusterName: 'default', label: 'GPU=RTX_4090', status: 'normal', authStatus: 'unauthorized', modelCount: 0, runningInstances: 0, cpu: 192, cpuUsed: 56, cpuModel: 'Intel Xeon Gold 6438M', cpuArch: 'x86_64', cpuSockets: 2, cpuCores: 96, cpuThreads: 192, cpuFrequency: 2.1, cpuTotalGHz: 201.6, cpuUsedGHz: 58.8, cpuReady: '98.5%', cpuLoad: '9.8', gpu: 8, gpuCards: [{ index: 0, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '19.2 GB', memoryFree: '4.79 GB', utilization: 78, power: 350, temperature: 71, status: 'active' }, { index: 1, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 96, power: 420, temperature: 82, status: 'active' }, { index: 2, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '15.6 GB', memoryFree: '8.39 GB', utilization: 63, power: 325, temperature: 68, status: 'active' }, { index: 3, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0.5 GB', memoryFree: '23.49 GB', utilization: 2, power: 45, temperature: 36, status: 'idle' }, { index: 4, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 93, power: 412, temperature: 79, status: 'active' }, { index: 5, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '11.5 GB', memoryFree: '12.49 GB', utilization: 45, power: 280, temperature: 65, status: 'active' }, { index: 6, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 89, power: 390, temperature: 75, status: 'active' }, { index: 7, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '4.8 GB', memoryFree: '19.19 GB', utilization: 20, power: 160, temperature: 55, status: 'active' }], gpuMemory: '383.9 GB', gpuMemoryUsed: '67.2 GB', memory: '1007.51 GB', memoryUsed: '483.6 GB', memoryType: 'DDR5 4800MHz', disk: '3.86 TB', diskUsed: '2.12 TB', disks: [{ name: '/dev/sda', total: '3.86 TB', used: '2.12 TB', type: 'NVMe SSD', mountPath: '/data', status: 'normal' }], networkCards: [{ name: 'eth0', ip: '192.168.109.6', speed: '25Gbps', status: 'active' }, { name: 'ib0', ip: '192.168.200.6', speed: '200Gbps', status: 'active' }], pods: [] },
-  { key: 'n4', name: 'qujing1', ip: '192.168.200.10', clusterName: 'default', label: 'GPU=RTX_5000', status: 'error', authStatus: 'unauthorized', modelCount: 0, runningInstances: 0, cpu: 192, cpuUsed: 0, cpuModel: 'Intel Xeon Gold 6438M', cpuArch: 'x86_64', cpuSockets: 2, cpuCores: 96, cpuThreads: 192, cpuFrequency: 2.1, cpuTotalGHz: 201.6, cpuUsedGHz: 0, cpuReady: '0%', cpuLoad: '0.0', gpu: 8, gpuCards: [{ index: 0, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 35, status: 'idle' }, { index: 1, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 34, status: 'idle' }, { index: 2, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 33, status: 'idle' }, { index: 3, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 34, status: 'idle' }, { index: 4, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 35, status: 'idle' }, { index: 5, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 34, status: 'idle' }, { index: 6, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 33, status: 'idle' }, { index: 7, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 34, status: 'idle' }], gpuMemory: '383.9 GB', gpuMemoryUsed: '0 GB', memory: '1007.39 GB', memoryUsed: '0 GB', memoryType: 'DDR5 4800MHz', disk: '3.86 TB', diskUsed: '1.89 TB', disks: [{ name: '/dev/sda', total: '3.86 TB', used: '1.89 TB', type: 'NVMe SSD', mountPath: '/data', status: 'warning' }], networkCards: [{ name: 'eth0', ip: '192.168.200.10', speed: '25Gbps', status: 'inactive' }, { name: 'ib0', ip: '192.168.200.100', speed: '200Gbps', status: 'inactive' }], pods: [] },
-  { key: 'n5', name: 'qujing24', ip: '192.168.109.23', clusterName: 'default', label: 'GPU=RTX_4090', status: 'normal', authStatus: 'authorized', modelCount: 0, runningInstances: 0, cpu: 96, cpuUsed: 38, cpuModel: 'Intel Xeon Silver 4416+', cpuArch: 'x86_64', cpuSockets: 2, cpuCores: 40, cpuThreads: 80, cpuFrequency: 2.0, cpuTotalGHz: 80.0, cpuUsedGHz: 31.7, cpuReady: '99.5%', cpuLoad: '5.2', gpu: 8, gpuCards: [{ index: 0, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '14.4 GB', memoryFree: '9.59 GB', utilization: 58, power: 320, temperature: 69, status: 'active' }, { index: 1, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 93, power: 408, temperature: 79, status: 'active' }, { index: 2, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0.2 GB', memoryFree: '23.79 GB', utilization: 1, power: 35, temperature: 32, status: 'idle' }, { index: 3, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '21.6 GB', memoryFree: '2.39 GB', utilization: 85, power: 375, temperature: 74, status: 'active' }, { index: 4, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '9.8 GB', memoryFree: '14.19 GB', utilization: 40, power: 250, temperature: 62, status: 'active' }, { index: 5, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 95, power: 418, temperature: 80, status: 'active' }, { index: 6, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '12.8 GB', memoryFree: '11.19 GB', utilization: 50, power: 295, temperature: 67, status: 'active' }, { index: 7, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 90, power: 398, temperature: 77, status: 'active' }], gpuMemory: '383.9 GB', gpuMemoryUsed: '57.6 GB', memory: '503.35 GB', memoryUsed: '176.2 GB', memoryType: 'DDR5 4800MHz', disk: '5.68 TB', diskUsed: '2.27 TB', disks: [{ name: '/dev/sda', total: '5.68 TB', used: '2.27 TB', type: 'NVMe SSD', mountPath: '/data', status: 'normal' }], networkCards: [{ name: 'eth0', ip: '192.168.109.23', speed: '25Gbps', status: 'active' }, { name: 'ib0', ip: '192.168.200.23', speed: '200Gbps', status: 'active' }], pods: [] },
-  { key: 'n6', name: 'qujing20', ip: '192.168.110.20', clusterName: 'default', label: 'GPU=RTX_4011', status: 'normal', authStatus: 'authorized', modelCount: 0, runningInstances: 0, cpu: 192, cpuUsed: 72, cpuModel: 'AMD EPYC 9654', cpuArch: 'x86_64', cpuSockets: 2, cpuCores: 192, cpuThreads: 384, cpuFrequency: 2.4, cpuTotalGHz: 460.8, cpuUsedGHz: 172.8, cpuReady: '97.2%', cpuLoad: '14.1', gpu: 8, gpuCards: [{ index: 0, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '16.8 GB', memoryFree: '7.19 GB', utilization: 68, power: 340, temperature: 70, status: 'active' }, { index: 1, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 91, power: 395, temperature: 76, status: 'active' }, { index: 2, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '5.6 GB', memoryFree: '18.39 GB', utilization: 25, power: 185, temperature: 56, status: 'active' }, { index: 3, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '22.1 GB', memoryFree: '1.89 GB', utilization: 82, power: 365, temperature: 73, status: 'active' }, { index: 4, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 31, status: 'idle' }, { index: 5, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 96, power: 425, temperature: 81, status: 'active' }, { index: 6, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '18.2 GB', memoryFree: '5.79 GB', utilization: 74, power: 348, temperature: 71, status: 'active' }, { index: 7, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '10.5 GB', memoryFree: '13.49 GB', utilization: 42, power: 265, temperature: 63, status: 'active' }], gpuMemory: '383.9 GB', gpuMemoryUsed: '72.0 GB', memory: '1007.51 GB', memoryUsed: '604.5 GB', memoryType: 'DDR5 4800MHz', disk: '3.86 TB', diskUsed: '1.62 TB', disks: [{ name: '/dev/sda', total: '3.86 TB', used: '1.62 TB', type: 'NVMe SSD', mountPath: '/data', status: 'normal' }], networkCards: [{ name: 'eth0', ip: '192.168.110.20', speed: '25Gbps', status: 'active' }, { name: 'eth1', ip: '10.0.0.20', speed: '100Gbps', status: 'active' }, { name: 'ib0', ip: '192.168.200.20', speed: '200Gbps', status: 'active' }], pods: [] },
+  { key: 'n1', name: 'qujing4', ip: '192.168.110.4', clusterName: 'default', label: 'GPU=RTX_4090', tags: ['deployment=dev', 'zone=shanghai', 'worker=high-performance', 'accelerator=nvidia-rtx'], status: 'normal', authStatus: 'authorized', modelCount: 0, runningInstances: 0, cpu: 128, cpuUsed: 42, cpuModel: 'Intel Xeon Gold 6438M', cpuArch: 'x86_64', cpuSockets: 2, cpuCores: 64, cpuThreads: 128, cpuFrequency: 2.1, cpuTotalGHz: 134.4, cpuUsedGHz: 44.1, cpuReady: '99.2%', cpuLoad: '8.5', gpu: 8, gpuCards: [{ index: 0, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '12.0 GB', memoryFree: '11.99 GB', utilization: 52, power: 315, temperature: 72, status: 'active' }, { index: 1, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 98, power: 425, temperature: 81, status: 'active' }, { index: 2, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 95, power: 410, temperature: 78, status: 'active' }, { index: 3, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 87, power: 380, temperature: 75, status: 'active' }, { index: 4, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '18.5 GB', memoryFree: '5.49 GB', utilization: 72, power: 360, temperature: 73, status: 'active' }, { index: 5, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '4.8 GB', memoryFree: '19.19 GB', utilization: 22, power: 180, temperature: 58, status: 'active' }, { index: 6, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 91, power: 415, temperature: 80, status: 'active' }, { index: 7, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 34, status: 'idle' }], gpuMemory: '383.9 GB', gpuMemoryUsed: '95.9 GB', memory: '1007.56 GB', memoryUsed: '352.6 GB', memoryType: 'DDR5 4800MHz', memoryActive: '286.4 GB', memoryConsumed: '412.8 GB', memoryShared: '12.3 GB', memoryBalloon: '0 GB', memoryCompression: '8.7 GB', memorySwap: '2.1 GB', memoryCache: '156.2 GB', disk: '3.86 TB', diskUsed: '1.54 TB', disks: [{ name: '/dev/sda', total: '3.86 TB', used: '1.54 TB', type: 'NVMe SSD', mountPath: '/data', status: 'normal' }], networkCards: [{ name: 'eth0', ip: '192.168.110.4', speed: '25Gbps', status: 'active' }, { name: 'eth1', ip: '10.0.0.4', speed: '100Gbps', status: 'active' }, { name: 'ib0', ip: '192.168.200.4', speed: '200Gbps', status: 'active' }], pods: [{ name: 'deepseek-dev-p1', status: 'Running', namespace: 'development', ready: '1/1' }, { name: 'qwen2-demo-p1', status: 'Running', namespace: 'demo', ready: '1/1' }, { name: 'qwen2-demo-p2', status: 'Failed', namespace: 'demo', ready: '0/1' }] },
+  { key: 'n2', name: 'qujing7', ip: '192.168.110.21', clusterName: 'default', label: 'GPU=RTX_4090', status: 'normal', authStatus: 'authorized', modelCount: 0, runningInstances: 0, cpu: 192, cpuUsed: 68, cpuModel: 'AMD EPYC 9654', cpuArch: 'x86_64', cpuSockets: 2, cpuCores: 192, cpuThreads: 384, cpuFrequency: 2.4, cpuTotalGHz: 460.8, cpuUsedGHz: 163.2, cpuReady: '97.8%', cpuLoad: '12.3', gpu: 8, gpuCards: [{ index: 0, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '12.0 GB', memoryFree: '11.99 GB', utilization: 48, power: 300, temperature: 68, status: 'active' }, { index: 1, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 92, power: 400, temperature: 76, status: 'active' }, { index: 2, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 94, power: 405, temperature: 77, status: 'active' }, { index: 3, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 88, power: 385, temperature: 74, status: 'active' }, { index: 4, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '3.2 GB', memoryFree: '20.79 GB', utilization: 14, power: 120, temperature: 48, status: 'active' }, { index: 5, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '19.4 GB', memoryFree: '4.59 GB', utilization: 76, power: 345, temperature: 72, status: 'active' }, { index: 6, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '7.8 GB', memoryFree: '16.19 GB', utilization: 35, power: 210, temperature: 60, status: 'active' }, { index: 7, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 97, power: 430, temperature: 83, status: 'active' }], gpuMemory: '383.9 GB', gpuMemoryUsed: '115.2 GB', memory: '1.48 TB', memoryUsed: '521.3 GB', memoryType: 'DDR5 4800MHz', memoryActive: '286.4 GB', memoryConsumed: '412.8 GB', memoryShared: '12.3 GB', memoryBalloon: '0 GB', memoryCompression: '8.7 GB', memorySwap: '2.1 GB', memoryCache: '156.2 GB', disk: '12.6 TB', diskUsed: '5.04 TB', disks: [{ name: '/dev/sda', total: '6.3 TB', used: '3.2 TB', type: 'NVMe SSD', mountPath: '/data', status: 'normal' }, { name: '/dev/sdb', total: '6.3 TB', used: '1.84 TB', type: 'NVMe SSD', mountPath: '/models', status: 'normal' }], networkCards: [{ name: 'eth0', ip: '192.168.110.21', speed: '25Gbps', status: 'active' }, { name: 'eth1', ip: '10.0.0.21', speed: '100Gbps', status: 'active' }, { name: 'ib0', ip: '192.168.200.21', speed: '200Gbps', status: 'active' }], pods: [{ name: 'deepseek-dev-p2', status: 'Running', namespace: 'development', ready: '1/1' }] },
+  { key: 'n3', name: 'qujing21', ip: '192.168.109.6', clusterName: 'default', label: 'GPU=RTX_4090', status: 'normal', authStatus: 'unauthorized', modelCount: 0, runningInstances: 0, cpu: 192, cpuUsed: 56, cpuModel: 'Intel Xeon Gold 6438M', cpuArch: 'x86_64', cpuSockets: 2, cpuCores: 96, cpuThreads: 192, cpuFrequency: 2.1, cpuTotalGHz: 201.6, cpuUsedGHz: 58.8, cpuReady: '98.5%', cpuLoad: '9.8', gpu: 8, gpuCards: [{ index: 0, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '19.2 GB', memoryFree: '4.79 GB', utilization: 78, power: 350, temperature: 71, status: 'active' }, { index: 1, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 96, power: 420, temperature: 82, status: 'active' }, { index: 2, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '15.6 GB', memoryFree: '8.39 GB', utilization: 63, power: 325, temperature: 68, status: 'active' }, { index: 3, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0.5 GB', memoryFree: '23.49 GB', utilization: 2, power: 45, temperature: 36, status: 'idle' }, { index: 4, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 93, power: 412, temperature: 79, status: 'active' }, { index: 5, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '11.5 GB', memoryFree: '12.49 GB', utilization: 45, power: 280, temperature: 65, status: 'active' }, { index: 6, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 89, power: 390, temperature: 75, status: 'active' }, { index: 7, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '4.8 GB', memoryFree: '19.19 GB', utilization: 20, power: 160, temperature: 55, status: 'active' }], gpuMemory: '383.9 GB', gpuMemoryUsed: '67.2 GB', memory: '1007.51 GB', memoryUsed: '483.6 GB', memoryType: 'DDR5 4800MHz', memoryActive: '286.4 GB', memoryConsumed: '412.8 GB', memoryShared: '12.3 GB', memoryBalloon: '0 GB', memoryCompression: '8.7 GB', memorySwap: '2.1 GB', memoryCache: '156.2 GB', disk: '3.86 TB', diskUsed: '2.12 TB', disks: [{ name: '/dev/sda', total: '3.86 TB', used: '2.12 TB', type: 'NVMe SSD', mountPath: '/data', status: 'normal' }], networkCards: [{ name: 'eth0', ip: '192.168.109.6', speed: '25Gbps', status: 'active' }, { name: 'ib0', ip: '192.168.200.6', speed: '200Gbps', status: 'active' }], pods: [] },
+  { key: 'n4', name: 'qujing1', ip: '192.168.200.10', clusterName: 'default', label: 'GPU=RTX_5000', status: 'error', authStatus: 'unauthorized', modelCount: 0, runningInstances: 0, cpu: 192, cpuUsed: 0, cpuModel: 'Intel Xeon Gold 6438M', cpuArch: 'x86_64', cpuSockets: 2, cpuCores: 96, cpuThreads: 192, cpuFrequency: 2.1, cpuTotalGHz: 201.6, cpuUsedGHz: 0, cpuReady: '0%', cpuLoad: '0.0', gpu: 8, gpuCards: [{ index: 0, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 35, status: 'idle' }, { index: 1, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 34, status: 'idle' }, { index: 2, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 33, status: 'idle' }, { index: 3, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 34, status: 'idle' }, { index: 4, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 35, status: 'idle' }, { index: 5, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 34, status: 'idle' }, { index: 6, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 33, status: 'idle' }, { index: 7, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 34, status: 'idle' }], gpuMemory: '383.9 GB', gpuMemoryUsed: '0 GB', memory: '1007.39 GB', memoryUsed: '0 GB', memoryType: 'DDR5 4800MHz', memoryActive: '286.4 GB', memoryConsumed: '412.8 GB', memoryShared: '12.3 GB', memoryBalloon: '0 GB', memoryCompression: '8.7 GB', memorySwap: '2.1 GB', memoryCache: '156.2 GB', disk: '3.86 TB', diskUsed: '1.89 TB', disks: [{ name: '/dev/sda', total: '3.86 TB', used: '1.89 TB', type: 'NVMe SSD', mountPath: '/data', status: 'warning' }], networkCards: [{ name: 'eth0', ip: '192.168.200.10', speed: '25Gbps', status: 'inactive' }, { name: 'ib0', ip: '192.168.200.100', speed: '200Gbps', status: 'inactive' }], pods: [] },
+  { key: 'n5', name: 'qujing24', ip: '192.168.109.23', clusterName: 'default', label: 'GPU=RTX_4090', status: 'normal', authStatus: 'authorized', modelCount: 0, runningInstances: 0, cpu: 96, cpuUsed: 38, cpuModel: 'Intel Xeon Silver 4416+', cpuArch: 'x86_64', cpuSockets: 2, cpuCores: 40, cpuThreads: 80, cpuFrequency: 2.0, cpuTotalGHz: 80.0, cpuUsedGHz: 31.7, cpuReady: '99.5%', cpuLoad: '5.2', gpu: 8, gpuCards: [{ index: 0, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '14.4 GB', memoryFree: '9.59 GB', utilization: 58, power: 320, temperature: 69, status: 'active' }, { index: 1, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 93, power: 408, temperature: 79, status: 'active' }, { index: 2, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0.2 GB', memoryFree: '23.79 GB', utilization: 1, power: 35, temperature: 32, status: 'idle' }, { index: 3, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '21.6 GB', memoryFree: '2.39 GB', utilization: 85, power: 375, temperature: 74, status: 'active' }, { index: 4, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '9.8 GB', memoryFree: '14.19 GB', utilization: 40, power: 250, temperature: 62, status: 'active' }, { index: 5, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 95, power: 418, temperature: 80, status: 'active' }, { index: 6, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '12.8 GB', memoryFree: '11.19 GB', utilization: 50, power: 295, temperature: 67, status: 'active' }, { index: 7, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 90, power: 398, temperature: 77, status: 'active' }], gpuMemory: '383.9 GB', gpuMemoryUsed: '57.6 GB', memory: '503.35 GB', memoryUsed: '176.2 GB', memoryType: 'DDR5 4800MHz', memoryActive: '286.4 GB', memoryConsumed: '412.8 GB', memoryShared: '12.3 GB', memoryBalloon: '0 GB', memoryCompression: '8.7 GB', memorySwap: '2.1 GB', memoryCache: '156.2 GB', disk: '5.68 TB', diskUsed: '2.27 TB', disks: [{ name: '/dev/sda', total: '5.68 TB', used: '2.27 TB', type: 'NVMe SSD', mountPath: '/data', status: 'normal' }], networkCards: [{ name: 'eth0', ip: '192.168.109.23', speed: '25Gbps', status: 'active' }, { name: 'ib0', ip: '192.168.200.23', speed: '200Gbps', status: 'active' }], pods: [] },
+  { key: 'n6', name: 'qujing20', ip: '192.168.110.20', clusterName: 'default', label: 'GPU=RTX_4011', status: 'normal', authStatus: 'authorized', modelCount: 0, runningInstances: 0, cpu: 192, cpuUsed: 72, cpuModel: 'AMD EPYC 9654', cpuArch: 'x86_64', cpuSockets: 2, cpuCores: 192, cpuThreads: 384, cpuFrequency: 2.4, cpuTotalGHz: 460.8, cpuUsedGHz: 172.8, cpuReady: '97.2%', cpuLoad: '14.1', gpu: 8, gpuCards: [{ index: 0, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '16.8 GB', memoryFree: '7.19 GB', utilization: 68, power: 340, temperature: 70, status: 'active' }, { index: 1, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 91, power: 395, temperature: 76, status: 'active' }, { index: 2, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '5.6 GB', memoryFree: '18.39 GB', utilization: 25, power: 185, temperature: 56, status: 'active' }, { index: 3, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '22.1 GB', memoryFree: '1.89 GB', utilization: 82, power: 365, temperature: 73, status: 'active' }, { index: 4, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 31, status: 'idle' }, { index: 5, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 96, power: 425, temperature: 81, status: 'active' }, { index: 6, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '18.2 GB', memoryFree: '5.79 GB', utilization: 74, power: 348, temperature: 71, status: 'active' }, { index: 7, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '10.5 GB', memoryFree: '13.49 GB', utilization: 42, power: 265, temperature: 63, status: 'active' }], gpuMemory: '383.9 GB', gpuMemoryUsed: '72.0 GB', memory: '1007.51 GB', memoryUsed: '604.5 GB', memoryType: 'DDR5 4800MHz', memoryActive: '286.4 GB', memoryConsumed: '412.8 GB', memoryShared: '12.3 GB', memoryBalloon: '0 GB', memoryCompression: '8.7 GB', memorySwap: '2.1 GB', memoryCache: '156.2 GB', disk: '3.86 TB', diskUsed: '1.62 TB', disks: [{ name: '/dev/sda', total: '3.86 TB', used: '1.62 TB', type: 'NVMe SSD', mountPath: '/data', status: 'normal' }], networkCards: [{ name: 'eth0', ip: '192.168.110.20', speed: '25Gbps', status: 'active' }, { name: 'eth1', ip: '10.0.0.20', speed: '100Gbps', status: 'active' }, { name: 'ib0', ip: '192.168.200.20', speed: '200Gbps', status: 'active' }], pods: [] },
 ];
 
 const NodeTable = () => {
@@ -942,13 +898,7 @@ const NodeTable = () => {
     { title: '节点名称', key: 'name', width: 120, render: (_, r) => (
       <strong style={{ fontSize: 13, color: '#1d2129' }}>{r.name}</strong>
     ) },
-    { title: '状态', key: 'status', width: 80, render: (_, r) => (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-        <span style={{ width: 7, height: 7, borderRadius: '50%', display: 'inline-block', background: r.status === 'normal' ? '#00A11F' : r.status === 'warning' ? '#FF7D00' : '#F53F3F', flexShrink: 0 }} />
-        <span style={{ fontSize: 12, color: '#4E5969' }}>{r.status === 'normal' ? '正常' : r.status === 'warning' ? '警告' : '异常'}</span>
-      </span>
-    ) },
-    { title: '集群名称', dataIndex: 'clusterName', key: 'clusterName', width: 120 },
+    { title: '节点 IP', dataIndex: 'ip', key: 'ip', width: 130 },
     { title: 'Labels', key: 'label', width: 200, render: (_, r) => (
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
         <span style={{ display: 'inline-block', padding: '1px 6px', fontSize: 11, background: '#F0F0FF', color: '#6738E8', borderRadius: 3, border: '1px solid #D9D0FC' }}>{r.label}</span>
@@ -957,13 +907,12 @@ const NodeTable = () => {
         ))}
       </div>
     ) },
-    { title: '授权状态', dataIndex: 'authStatus', key: 'authStatus', width: 95, render: (v: string) => (
-      <span style={{ display: 'inline-block', padding: '1px 8px', fontSize: 12, borderRadius: 4, background: v === 'authorized' ? '#E8F8E8' : '#FFF0F0', color: v === 'authorized' ? '#00A11F' : '#F53F3F' }}>
-        {v === 'authorized' ? '已授权' : '未授权'}
+    { title: '状态', key: 'status', width: 80, render: (_, r) => (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+        <span style={{ width: 7, height: 7, borderRadius: '50%', display: 'inline-block', background: r.status === 'normal' ? '#00A11F' : r.status === 'warning' ? '#FF7D00' : '#F53F3F', flexShrink: 0 }} />
+        <span style={{ fontSize: 12, color: '#4E5969' }}>{r.status === 'normal' ? '正常' : r.status === 'warning' ? '警告' : '异常'}</span>
       </span>
     ) },
-    { title: '模型数量', key: 'modelCount', width: 90, render: (_, r) => <span style={{ fontSize: 13, fontWeight: 500 }}>{r.modelCount}</span> },
-    { title: '节点 IP', dataIndex: 'ip', key: 'ip', width: 130 },
     { title: '操作', key: 'action', width: 100, render: (_, r) => <FileTextOutlined style={{ cursor: 'pointer', color: '#6738E8', fontSize: 15 }} onClick={() => setNodeLog({ title: r.name + ' 内核日志', logs: mockKernelLogs(r.name) })} /> },
   ];
 
