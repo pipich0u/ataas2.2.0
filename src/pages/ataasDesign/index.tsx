@@ -6594,6 +6594,23 @@ const AtAasDesign = () => {
       return next;
     });
   };
+
+  useEffect(() => {
+    const handleNavigate = (event: Event) => {
+      const detail = (event as CustomEvent<{ tab?: string }>).detail;
+      const tab = detail?.tab;
+      if (!tab) return;
+      setActiveTab(tab);
+      if (tab === 'alerts' || tab === 'logs') {
+        setExpandedGroups((prev) => new Set(prev).add('系统监控'));
+      }
+      window.history.replaceState(null, '', '/');
+    };
+
+    window.addEventListener('ataas:navigate', handleNavigate);
+    return () => window.removeEventListener('ataas:navigate', handleNavigate);
+  }, []);
+
   const [selectedClusterKey, setSelectedClusterKey] = useState('all');
   const [clusterCreateOpen, setClusterCreateOpen] = useState(false);
   const [clusterCreateName, setClusterCreateName] = useState('');
@@ -10635,7 +10652,7 @@ const AtAasDesign = () => {
   const SIDEBAR_ITEMS = [
     // { key: 'overview', icon: <SidebarIcon name="dashboard" />, label: '数据概览' },
     { key: 'clusterOperations', icon: <SidebarIcon name="dashboard" />, label: '算力中心' },
-    { key: 'supplierResources', icon: <ApartmentOutlined style={{ fontSize: 15 }} />, label: '供应商资源列表与新增' },
+    { key: 'supplierResources', icon: <ApartmentOutlined style={{ fontSize: 15 }} />, label: '供应商列表' },
     // { key: 'clusters', icon: <SidebarIcon name="cluster" />, label: '集群管理' },
     // { key: 'nodes', icon: <SidebarIcon name="engineMgr" />, label: '节点管理' },
     // { key: 'modelRepo', icon: <SidebarIcon name="modelRepo" />, label: '模型仓库' },

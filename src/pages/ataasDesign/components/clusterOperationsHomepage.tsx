@@ -1,20 +1,41 @@
-import { ExportOutlined, FileTextOutlined, LineChartOutlined, SettingOutlined } from '@ant-design/icons';
-import { Button, ConfigProvider, Drawer, Input, Progress, Table, Tooltip } from 'antd';
+import {
+  PlusOutlined,
+  SearchOutlined,
+  WarningOutlined,
+} from '@ant-design/icons';
+import { Button, ConfigProvider, Drawer, Dropdown, Form, Input, Progress, Select, Table, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import { CircleAlert, CircuitBoard, Cpu, Database, FileText, HardDrive, MemoryStick, MonitorCog, Network, Search, Server } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { initializeClusterOperations } from './clusterOperationsRuntime';
+import {
+  CLUSTER_OPERATIONS_CLUSTER_DATA,
+  CLUSTER_OPERATIONS_RESOURCE_TREE,
+  initializeClusterOperations,
+} from './clusterOperationsRuntime';
 import ClusterResourceTables from './clusterResourceTables';
+import {
+  SupplierResourceCreateFlow,
+  supplierResourceCreateMenuItems,
+} from './supplierResourcesPage';
+import type { SupplierResourceCreateKind } from './supplierResourcesPage';
 import './clusterOperationsHomepage.less';
 
-const CpuGauge = () => (
-  <svg width="100" height="60" viewBox="0 0 120 70" style={{ display: 'block', flexShrink: 0 }}>
-    <path d="M 18 55 A 42 42 0 0 1 89.70 25.30" stroke="#52c41a" strokeWidth="13" fill="none" strokeLinecap="butt" />
-    <path d="M 89.70 25.30 A 42 42 0 0 1 101.19 46.81" stroke="#fadb14" strokeWidth="13" fill="none" strokeLinecap="butt" />
-    <path d="M 101.19 46.81 A 42 42 0 0 1 102 55" stroke="#f5222d" strokeWidth="13" fill="none" strokeLinecap="butt" />
-    <line x1="60" y1="55" x2="71.8" y2="22.1" stroke="#1d2129" strokeWidth="2.5" strokeLinecap="round" />
-    <circle cx="60" cy="55" r="4" fill="#1d2129" />
-    <circle cx="60" cy="55" r="1.5" fill="#fff" />
-  </svg>
+const OverviewCardHeader = ({
+  icon,
+  title,
+  meta,
+}: {
+  icon?: React.ReactNode;
+  title: string;
+  meta?: React.ReactNode;
+}) => (
+  <div className="overview-item-head">
+    <div className="overview-item-heading">
+      {icon ? <span className="overview-card-icon">{icon}</span> : null}
+      <span className="overview-title">{title}</span>
+    </div>
+    {meta ? <span className="overview-head-info">{meta}</span> : null}
+  </div>
 );
 
 type FaultData = {
@@ -196,28 +217,537 @@ const faultDetails: Record<string, FaultData> = {
   },
 };
 
-const ClusterOperationsHomepage = () => {
-  const rootRef = useRef<HTMLDivElement>(null);
+type HierarchyScope = {
+  type: 'provider' | 'datacenter';
+  provider: string;
+  datacenter?: string;
+};
 
-  useEffect(() => {
-    if (rootRef.current) initializeClusterOperations(rootRef.current);
-  }, []);
+type HierarchyClusterRow = {
+  key: string;
+  name: string;
+  datacenter: string;
+  location: string;
+  k8s: string;
+  nodes: number;
+  normal: number;
+  abnormal: number;
+  alerts: {
+    critical: number;
+    warning: number;
+  };
+  resources: {
+    cpuTotal: number;
+    cpuUsed: number;
+    gpuTotal: number;
+    gpuUtilization: number;
+    vramTotal: number;
+    vramUsed: number;
+    memoryTotal: number;
+    memoryUsed: number;
+    storageTotal: number;
+    storageUsed: number;
+  };
+};
+
+const HierarchyOverviewPage = ({
+  scope,
+  onSelectDataCenter,
+  onSelectCluster,
+}: {
+  scope: HierarchyScope | null;
+  onSelectDataCenter: (provider: string, datacenter: string) => void;
+  onSelectCluster: (clusterKey: string) => void;
+}) => {
+  if (!scope) return null;
+
+  const provider = CLUSTER_OPERATIONS_RESOURCE_TREE.find((item) => item.name === scope.provider);
+  const datacenters = provider?.dcs.filter((item) => scope.type === 'provider' || item.name === scope.datacenter) || [];
+  const clusters = datacenters.flatMap((datacenter) => datacenter.clusters.map((cluster) => ({
+    ...cluster,
+    datacenter: datacenter.name,
+  })));
+  const clusterRows: HierarchyClusterRow[] = clusters.map((cluster) => {
+    const detail = CLUSTER_OPERATIONS_CLUSTER_DATA[cluster.key];
+    return {
+      key: cluster.key,
+      name: detail?.name || cluster.name,
+      datacenter: cluster.datacenter,
+      location: detail?.location || cluster.meta,
+      k8s: detail?.k8s || '—',
+      nodes: Number(detail?.nodes || 0),
+      normal: Number(detail?.normal || 0),
+      abnormal: Number(detail?.abnormal || 0),
+      alerts: detail?.alerts || { critical: 0, warning: 0 },
+      resources: detail?.resources || {
+        cpuTotal: 0,
+        cpuUsed: 0,
+        gpuTotal: 0,
+        gpuUtilization: 0,
+        vramTotal: 0,
+        vramUsed: 0,
+        memoryTotal: 0,
+        memoryUsed: 0,
+        storageTotal: 0,
+        storageUsed: 0,
+      },
+    };
+  });
+
+  const nodeTotal = clusterRows.reduce((sum, row) => sum + row.nodes, 0);
+  const normalTotal = clusterRows.reduce((sum, row) => sum + row.normal, 0);
+  const abnormalTotal = clusterRows.reduce((sum, row) => sum + row.abnormal, 0);
+  const normalRate = nodeTotal > 0 ? (normalTotal / nodeTotal) * 100 : 0;
+  const normalRateLabel = nodeTotal > 0 ? `${normalRate.toFixed(1)}%` : '—';
+  const aggregateResources = (rows: HierarchyClusterRow[]) => {
+    const totals = rows.reduce((summary, row) => ({
+      cpuTotal: summary.cpuTotal + row.resources.cpuTotal,
+      cpuUsed: summary.cpuUsed + row.resources.cpuUsed,
+      gpuTotal: summary.gpuTotal + row.resources.gpuTotal,
+      gpuWeightedUtilization: summary.gpuWeightedUtilization + (
+        row.resources.gpuUtilization * row.resources.gpuTotal
+      ),
+      vramTotal: summary.vramTotal + row.resources.vramTotal,
+      vramUsed: summary.vramUsed + row.resources.vramUsed,
+      memoryTotal: summary.memoryTotal + row.resources.memoryTotal,
+      memoryUsed: summary.memoryUsed + row.resources.memoryUsed,
+      storageTotal: summary.storageTotal + row.resources.storageTotal,
+      storageUsed: summary.storageUsed + row.resources.storageUsed,
+    }), {
+      cpuTotal: 0,
+      cpuUsed: 0,
+      gpuTotal: 0,
+      gpuWeightedUtilization: 0,
+      vramTotal: 0,
+      vramUsed: 0,
+      memoryTotal: 0,
+      memoryUsed: 0,
+      storageTotal: 0,
+      storageUsed: 0,
+    });
+    return {
+      ...totals,
+      gpuUtilization: totals.gpuTotal > 0 ? totals.gpuWeightedUtilization / totals.gpuTotal : 0,
+    };
+  };
+  const resources = aggregateResources(clusterRows);
+  const percent = (used: number, total: number) => (total > 0 ? (used / total) * 100 : 0);
+  const cpuUsage = percent(resources.cpuUsed, resources.cpuTotal);
+  const vramUsage = percent(resources.vramUsed, resources.vramTotal);
+  const memoryUsage = percent(resources.memoryUsed, resources.memoryTotal);
+  const storageUsage = percent(resources.storageUsed, resources.storageTotal);
+  const alertCriticalTotal = clusterRows.reduce((sum, row) => sum + row.alerts.critical, 0);
+  const alertWarningTotal = clusterRows.reduce((sum, row) => sum + row.alerts.warning, 0);
+  const alertTotal = alertCriticalTotal + alertWarningTotal;
+  const formatTib = (value: number) => {
+    if (value === 0) return '0';
+    if (value >= 10) return value.toFixed(1).replace(/\.0$/, '');
+    return value.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+  };
+  const resourceCards = [
+    {
+      key: 'cpu',
+      title: 'CPU',
+      icon: <Cpu />,
+      usage: cpuUsage,
+      total: `${resources.cpuTotal.toLocaleString()} Core`,
+      facts: [
+        ['已使用', `${resources.cpuUsed.toLocaleString()} Core`],
+        ['可用', `${Math.max(0, resources.cpuTotal - resources.cpuUsed).toLocaleString()} Core`],
+      ],
+    },
+    {
+      key: 'gpu',
+      title: 'GPU',
+      icon: <MonitorCog />,
+      usage: resources.gpuUtilization,
+      total: `${resources.gpuTotal.toLocaleString()} 卡`,
+      facts: [
+        ['平均利用率', `${resources.gpuUtilization.toFixed(1)}%`],
+        ['覆盖节点', `${nodeTotal} 个`],
+      ],
+    },
+    {
+      key: 'vram',
+      title: '显存',
+      icon: <CircuitBoard />,
+      usage: vramUsage,
+      total: `${formatTib(resources.vramTotal)} TiB`,
+      facts: [
+        ['已使用', `${formatTib(resources.vramUsed)} TiB`],
+        ['可用', `${formatTib(Math.max(0, resources.vramTotal - resources.vramUsed))} TiB`],
+      ],
+    },
+    {
+      key: 'memory',
+      title: '内存',
+      icon: <MemoryStick />,
+      usage: memoryUsage,
+      total: `${formatTib(resources.memoryTotal)} TiB`,
+      facts: [
+        ['已使用', `${formatTib(resources.memoryUsed)} TiB`],
+        ['可用', `${formatTib(Math.max(0, resources.memoryTotal - resources.memoryUsed))} TiB`],
+      ],
+    },
+    {
+      key: 'storage',
+      title: '物理盘容量',
+      icon: <HardDrive />,
+      usage: storageUsage,
+      total: `${formatTib(resources.storageTotal)} TiB`,
+      facts: [
+        ['已使用', `${formatTib(resources.storageUsed)} TiB`],
+        ['可用', `${formatTib(Math.max(0, resources.storageTotal - resources.storageUsed))} TiB`],
+      ],
+    },
+  ];
+
+  const childRows = scope.type === 'provider'
+    ? datacenters.map((datacenter) => {
+      const rows = clusterRows.filter((row) => row.datacenter === datacenter.name);
+      return {
+        key: datacenter.name,
+        name: datacenter.name,
+        meta: `${rows.length} 个集群`,
+        clusters: rows.length,
+        nodes: rows.reduce((sum, row) => sum + row.nodes, 0),
+        abnormal: rows.reduce((sum, row) => sum + row.abnormal, 0),
+        alerts: {
+          critical: rows.reduce((sum, row) => sum + row.alerts.critical, 0),
+          warning: rows.reduce((sum, row) => sum + row.alerts.warning, 0),
+        },
+        resources: aggregateResources(rows),
+      };
+    })
+    : clusterRows.map((row) => ({
+      key: row.key,
+      name: row.name,
+      meta: row.location,
+      clusters: 1,
+      nodes: row.nodes,
+      abnormal: row.abnormal,
+      alerts: row.alerts,
+      resources: {
+        ...row.resources,
+        gpuWeightedUtilization: row.resources.gpuUtilization * row.resources.gpuTotal,
+        gpuUtilization: row.resources.gpuUtilization,
+      },
+    }));
+  const clusterAlertRows = clusterRows
+    .map((row) => ({
+      key: row.key,
+      name: row.name,
+      datacenter: row.datacenter,
+      location: row.location,
+      critical: row.alerts.critical,
+      warning: row.alerts.warning,
+      total: row.alerts.critical + row.alerts.warning,
+    }))
+    .filter((row) => row.total > 0)
+    .sort((left, right) => (
+      right.critical - left.critical || right.total - left.total
+    ));
+
+  const title = scope.type === 'provider' ? scope.provider : scope.datacenter || '';
+  const description = scope.type === 'provider'
+    ? `覆盖 ${datacenters.length} 个数据中心、${clusterRows.length} 个集群的资源运行情况`
+    : `所属供应商 ${scope.provider}，当前纳管 ${clusterRows.length} 个集群`;
 
   return (
-    <div ref={rootRef} className="cluster-operations-homepage">
+    <ConfigProvider theme={{ token: { colorPrimary: '#6951FF' }, components: { Table: { headerBg: '#F7F8FA' } } }}>
+      <section className="hierarchy-overview-view">
+        <header className="hierarchy-overview-head">
+          <div className="hierarchy-overview-title">
+            <span>{scope.type === 'provider' ? '供应商总览' : '数据中心总览'}</span>
+            <h2>{title}</h2>
+            <p>{description}</p>
+          </div>
+          <div className="hierarchy-overview-stats">
+            {scope.type === 'provider' && (
+              <span><small>数据中心</small><strong>{datacenters.length}</strong></span>
+            )}
+            {scope.type === 'datacenter' && (
+              <span><small>供应商</small><strong className="is-text">{scope.provider}</strong></span>
+            )}
+            <span><small>集群</small><strong>{clusterRows.length}</strong></span>
+            <span><small>纳管节点</small><strong>{nodeTotal}</strong></span>
+            <span><small>异常节点</small><strong className={abnormalTotal > 0 ? 'is-warning' : 'is-normal'}>{abnormalTotal}</strong></span>
+          </div>
+        </header>
+
+        <section className="hierarchy-capacity-overview" aria-label="基础资源使用情况">
+          <div className="hierarchy-section-title">
+            <strong>基础资源</strong>
+            <span>{normalRateLabel} 节点运行正常</span>
+          </div>
+          <div className="hierarchy-capacity-grid">
+            {resourceCards.map((card) => (
+              <div key={card.key} className={`hierarchy-capacity-item is-${card.key}`}>
+                <div className="hierarchy-capacity-title">{card.icon}<span>{card.title}</span></div>
+                <div className="hierarchy-capacity-body">
+                  <div
+                    className="hierarchy-capacity-ring"
+                    style={{
+                      background: `conic-gradient(var(--hierarchy-capacity-color) 0 ${Math.min(100, card.usage)}%, #eef0f4 ${Math.min(100, card.usage)}% 100%)`,
+                    }}
+                  >
+                    <span><strong>{card.usage.toFixed(1)}%</strong><small>使用率</small></span>
+                  </div>
+                  <div className="hierarchy-capacity-copy">
+                    <div className="hierarchy-capacity-total"><small>总量</small><b>{card.total}</b></div>
+                    <div className="hierarchy-capacity-facts">
+                      {card.facts.map(([label, value]) => (
+                        <span key={label}><small>{label}</small><b>{value}</b></span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="hierarchy-alert-overview" aria-label="告警概览">
+          <div className="hierarchy-alert-head">
+            <div className="hierarchy-alert-title">
+              <WarningOutlined />
+              <span>告警分布</span>
+            </div>
+            <span>共 {alertTotal} 条 · 涉及 {clusterAlertRows.length} 个集群</span>
+          </div>
+          <div className="hierarchy-alert-body">
+            <div className="hierarchy-alert-summary">
+            <div className="hierarchy-alert-total">
+              <strong className={alertTotal > 0 ? 'is-warning' : ''}>{alertTotal}</strong>
+              <span>当前范围告警总数</span>
+            </div>
+            <div className="hierarchy-alert-distribution" aria-label={`严重告警 ${alertCriticalTotal} 条，普通告警 ${alertWarningTotal} 条`}>
+              <i
+                className="is-critical"
+                style={{ width: `${alertTotal > 0 ? (alertCriticalTotal / alertTotal) * 100 : 0}%` }}
+              />
+              <i
+                className="is-warning"
+                style={{ width: `${alertTotal > 0 ? (alertWarningTotal / alertTotal) * 100 : 0}%` }}
+              />
+            </div>
+            <div className="hierarchy-alert-levels">
+              <span><i className="is-critical" /><small>严重告警</small><b>{alertCriticalTotal}</b></span>
+              <span><i className="is-warning" /><small>普通告警</small><b>{alertWarningTotal}</b></span>
+              <span><i className="is-affected" /><small>涉及集群</small><b>{clusterAlertRows.length}</b></span>
+            </div>
+          </div>
+          <div className="hierarchy-alert-clusters">
+            <div className="hierarchy-section-title">
+              <strong>集群告警</strong>
+              <span>严重告警优先</span>
+            </div>
+            <div className="hierarchy-alert-cluster-list">
+              {clusterAlertRows.length > 0 ? clusterAlertRows.map((row) => (
+                <button
+                  key={row.key}
+                  type="button"
+                  onClick={() => onSelectCluster(row.key)}
+                >
+                  <span>
+                    <strong>{row.name}</strong>
+                    <small>{scope.type === 'provider' ? row.datacenter : row.location}</small>
+                  </span>
+                  <span className="hierarchy-alert-cluster-track">
+                    <i
+                      className="is-critical"
+                      style={{ width: `${row.total > 0 ? (row.critical / row.total) * 100 : 0}%` }}
+                    />
+                    <i
+                      className="is-warning"
+                      style={{ width: `${row.total > 0 ? (row.warning / row.total) * 100 : 0}%` }}
+                    />
+                  </span>
+                  <span><small>严重</small><b className={row.critical > 0 ? 'is-critical' : ''}>{row.critical}</b></span>
+                  <span><small>普通</small><b className={row.warning > 0 ? 'is-warning' : ''}>{row.warning}</b></span>
+                  <span><small>总数</small><b>{row.total}</b></span>
+                  <em>进入集群总览 →</em>
+                </button>
+              )) : (
+                <div className="hierarchy-alert-empty">当前范围暂无告警</div>
+              )}
+            </div>
+          </div>
+          </div>
+        </section>
+
+        <section className="hierarchy-child-resource-section">
+          <div className="hierarchy-section-title">
+            <strong>{scope.type === 'provider' ? '数据中心资源' : '集群资源'}</strong>
+            <span>
+              {scope.type === 'provider'
+                ? `共 ${datacenters.length} 个数据中心`
+                : `共 ${clusterRows.length} 个集群`}
+            </span>
+          </div>
+          <div className="hierarchy-child-resource-table">
+            <div className="hierarchy-child-resource-head">
+              <span>{scope.type === 'provider' ? '数据中心' : '集群'}</span>
+              <span>集群 / 节点</span>
+              <span>CPU</span>
+              <span>GPU</span>
+              <span>显存</span>
+              <span>内存</span>
+              <span>物理盘容量</span>
+            </div>
+            {childRows.map((row) => {
+              const rowCpuUsage = percent(row.resources.cpuUsed, row.resources.cpuTotal);
+              const rowVramUsage = percent(row.resources.vramUsed, row.resources.vramTotal);
+              const rowMemoryUsage = percent(row.resources.memoryUsed, row.resources.memoryTotal);
+              const rowStorageUsage = percent(row.resources.storageUsed, row.resources.storageTotal);
+              return (
+                <div key={row.key} className="hierarchy-child-resource-row">
+                  <div className="hierarchy-child-name">
+                    {scope.type === 'provider' ? (
+                      <button type="button" onClick={() => onSelectDataCenter(scope.provider, row.name)}>
+                        <strong>{row.name}</strong>
+                        <span>{row.meta}</span>
+                      </button>
+                    ) : (
+                      <>
+                        <strong>{row.name}</strong>
+                        <span>{row.meta}</span>
+                      </>
+                    )}
+                  </div>
+                  <div className="hierarchy-child-status">
+                    <span><small>集群</small><b>{row.clusters}</b></span>
+                    <span><small>节点</small><b>{row.nodes}</b></span>
+                    <span className={row.abnormal > 0 ? 'is-warning' : ''}>
+                      <small>异常节点</small><b>{row.abnormal}</b>
+                    </span>
+                  </div>
+                  <div className="hierarchy-child-metric">
+                    <span><b>{rowCpuUsage.toFixed(1)}%</b><small>{row.resources.cpuTotal} Core</small></span>
+                    <i><em style={{ width: `${Math.min(100, rowCpuUsage)}%` }} /></i>
+                  </div>
+                  <div className="hierarchy-child-metric">
+                    <span><b>{row.resources.gpuUtilization.toFixed(1)}%</b><small>{row.resources.gpuTotal} 卡</small></span>
+                    <i><em style={{ width: `${Math.min(100, row.resources.gpuUtilization)}%` }} /></i>
+                  </div>
+                  <div className="hierarchy-child-metric">
+                    <span><b>{rowVramUsage.toFixed(1)}%</b><small>{formatTib(row.resources.vramTotal)} TiB</small></span>
+                    <i><em style={{ width: `${Math.min(100, rowVramUsage)}%` }} /></i>
+                  </div>
+                  <div className="hierarchy-child-metric">
+                    <span><b>{rowMemoryUsage.toFixed(1)}%</b><small>{formatTib(row.resources.memoryTotal)} TiB</small></span>
+                    <i><em style={{ width: `${Math.min(100, rowMemoryUsage)}%` }} /></i>
+                  </div>
+                  <div className="hierarchy-child-metric">
+                    <span><b>{rowStorageUsage.toFixed(1)}%</b><small>{formatTib(row.resources.storageTotal)} TiB</small></span>
+                    <i><em style={{ width: `${Math.min(100, rowStorageUsage)}%` }} /></i>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      </section>
+    </ConfigProvider>
+  );
+};
+
+const ClusterOperationsHomepage = () => {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [hierarchyScope, setHierarchyScope] = useState<HierarchyScope | null>(null);
+  const [resourceCreateKind, setResourceCreateKind] = useState<SupplierResourceCreateKind | null>(null);
+
+  useEffect(() => {
+    const handleHierarchyScopeChange = (event: Event) => {
+      const detail = (event as CustomEvent).detail;
+      if (detail?.type === 'provider') {
+        setHierarchyScope({ type: 'provider', provider: detail.provider });
+      } else if (detail?.type === 'datacenter') {
+        setHierarchyScope({
+          type: 'datacenter',
+          provider: detail.provider,
+          datacenter: detail.datacenter,
+        });
+      } else if (detail?.type === 'cluster') {
+        setHierarchyScope(null);
+      }
+    };
+
+    window.addEventListener('ataas:hierarchy-scope-change', handleHierarchyScopeChange);
+    if (rootRef.current) initializeClusterOperations(rootRef.current);
+    return () => window.removeEventListener('ataas:hierarchy-scope-change', handleHierarchyScopeChange);
+  }, []);
+
+  const focusNodeIssue = (kind: 'node' | 'network' | 'disk') => {
+    rootRef.current?.querySelector<HTMLElement>('.module-tab[data-view="nodes"]')?.click();
+    window.dispatchEvent(new CustomEvent('ataas:cluster-node-focus', {
+      detail: { kind, nodeKey: 'n4' },
+    }));
+  };
+
+  const selectDataCenter = (provider: string, datacenter: string) => {
+    const heads = Array.from(
+      rootRef.current?.querySelectorAll<HTMLElement>('.tree-dc-head') || [],
+    );
+    const target = heads.find((head) => (
+      head.dataset.providerName === provider
+      && head.dataset.datacenterName === datacenter
+    ));
+    if (target) {
+      target.click();
+      return;
+    }
+    setHierarchyScope({ type: 'datacenter', provider, datacenter });
+  };
+
+  const selectCluster = (clusterKey: string) => {
+    const target = rootRef.current?.querySelector<HTMLElement>(
+      `.tree-cluster-link[data-cluster-key="${clusterKey}"]`,
+    );
+    target?.click();
+  };
+
+  return (
+    <div ref={rootRef} className={`cluster-operations-homepage${hierarchyScope ? ' hierarchy-mode' : ''}`}>
     <aside className="resource-tree">
-      <div className="tree-header"><span className="tree-title">算力中心</span></div>
+      <div className="tree-header">
+        <span className="tree-title">算力中心</span>
+        <Dropdown
+          trigger={['click']}
+          placement="bottomRight"
+          menu={{
+            items: supplierResourceCreateMenuItems,
+            onClick: ({ key }) => setResourceCreateKind(key as SupplierResourceCreateKind),
+          }}
+        >
+          <Button
+            className="resource-tree-create-button"
+            icon={<PlusOutlined />}
+            aria-label="新增算力中心资源"
+          >
+            新增
+          </Button>
+        </Dropdown>
+      </div>
       <div className="tree-controls">
-        <div className="tree-search"><span className="magnify"></span>搜索供应商、数据中心、集群</div>
+        <label className="tree-search">
+          <SearchOutlined />
+          <input id="resourceTreeSearch" type="search" placeholder="搜索供应商、数据中心、集群" aria-label="搜索算力中心资源" />
+        </label>
       </div>
       <div className="tree-scroll" id="resourceTreeContainer">
       </div>
-      <div className="tree-footer"><div className="tree-unmanaged"><span>未纳管节点</span><strong>8 台 · 去纳管 →</strong></div></div>
     </aside>
 
     <section className="workspace">
 
       <main className="content">
+        <HierarchyOverviewPage
+          scope={hierarchyScope}
+          onSelectDataCenter={selectDataCenter}
+          onSelectCluster={selectCluster}
+        />
+        <div className="cluster-scope-view">
         <div className="page-title-row">
           <div>
             <div className="page-title" id="clusterTitle">gpu-prod-01</div>
@@ -245,17 +775,29 @@ const ClusterOperationsHomepage = () => {
         <div className="overview-card-grid">
 
             <div className="overview-item overview-fault">
-              <div className="overview-fault-head"><span className="overview-title">告警</span><span className="overview-fault-link" style={{ fontSize: 12 }}>查看 →</span></div>
+              <div className="overview-fault-head">
+                <div className="overview-item-heading">
+                  <span className="overview-card-icon"><WarningOutlined /></span>
+                  <span className="overview-title">告警</span>
+                </div>
+                <button
+                  type="button"
+                  className="overview-fault-link"
+                  onClick={() => window.dispatchEvent(new CustomEvent('ataas:navigate', { detail: { tab: 'alerts' } }))}
+                >
+                  查看全部
+                </button>
+              </div>
               <div className="overview-fault-stats">
-                <div className="overview-fault-stat critical">
+                <div className="overview-fault-stat level-critical">
                   <span className="overview-fault-stat-value">5</span>
                   <span className="overview-fault-stat-label">严重告警</span>
                 </div>
-                <div className="overview-fault-stat warning">
+                <div className="overview-fault-stat level-warning">
                   <span className="overview-fault-stat-value">7</span>
                   <span className="overview-fault-stat-label">普通</span>
                 </div>
-                <div className="overview-fault-stat info">
+                <div className="overview-fault-stat level-info">
                   <span className="overview-fault-stat-value">0</span>
                   <span className="overview-fault-stat-label">轻微</span>
                 </div>
@@ -277,7 +819,7 @@ const ClusterOperationsHomepage = () => {
                     </div>
                   } styles={{ root: { maxWidth: 'none' } }} color="#fff">
                     <div className="overview-fault-row">
-                      <svg width="6" height="6" viewBox="0 0 6 6" style={{ display: 'block', flexShrink: 0, margin: '1px 0 0 8px' }}><circle cx="3" cy="3" r="3" fill={fault.severity === 'critical' ? '#f53f3f' : '#ff7d00'} /></svg>
+                      <i className={`overview-fault-dot ${fault.severity === 'critical' ? 'is-critical' : 'is-warning'}`} />
                       <span className="overview-fault-title">{fault.title}</span>
                       <span className="overview-fault-context">{fault.time}</span>
                     </div>
@@ -286,131 +828,212 @@ const ClusterOperationsHomepage = () => {
               </div>
             </div>
 
-            <div className="overview-card-side">
-            <div className="overview-item overview-cpu">
-              <div className="overview-item-head"><span className="overview-title">CPU</span><span className="overview-head-info">共2317核(5.63 THz) <ExportOutlined /></span></div>
-              <div className="overview-value"><span className="overview-value-group">61%<div className="overview-value-label">CPU使用率</div></span><span className="overview-value-group"><CpuGauge /><div className="overview-value-label gauge-label">1,824/2,432 Core</div></span></div>
-            </div>
-            <div className="overview-item overview-storage">
-              <div className="overview-item-head"><span className="overview-title">存储</span></div>
-              <div className="storage-progress-bar">
-                <div className="storage-progress-segment storage-progress-used" style={{ width: '50%' }} />
-                <div className="storage-progress-segment storage-progress-failed" style={{ width: '10%' }} />
-                <div className="storage-progress-segment storage-progress-free" style={{ flex: 1 }} />
-              </div>
-              <div className="overview-sub">
-                <div className="storage-stat-row"><span className="storage-stat-label"><span className="storage-stat-dot" style={{ visibility: 'hidden' }} />总容量</span><span className="storage-stat-value">840TiB</span><span className="storage-stat-pct">100%</span></div>
-                <div className="storage-stat-row"><span className="storage-stat-label"><span className="storage-stat-dot" style={{ background: '#2468F2' }} />已使用</span><span className="storage-stat-value">420TiB</span><span className="storage-stat-pct">50%</span></div>
-                <div className="storage-stat-row"><span className="storage-stat-label"><span className="storage-stat-dot" style={{ background: '#8c8c8c' }} />失效</span><span className="storage-stat-value">84TiB</span><span className="storage-stat-pct">10%</span></div>
-                <div className="storage-stat-row"><span className="storage-stat-label"><span className="storage-stat-dot" style={{ background: '#e8e8e8' }} />空闲</span><span className="storage-stat-value">336TiB</span><span className="storage-stat-pct">40%</span></div>
-              </div>
-            </div>
-            <div className="overview-item overview-mem">
-              <div className="overview-item-head"><span className="overview-title">内存</span><span className="overview-head-info">共 21.0TiB</span></div>
-              <div className="mem-pct">
-                <span className="mem-pct-value">71%</span>
-                <span className="mem-pct-label">内存使用率</span>
-              </div>
-              <div className="mem-content">
-                <div className="mem-stats">
-                  <div className="mem-stat-row"><span className="mem-stat-dot" style={{ background: '#8c8c8c' }} /><span className="mem-stat-label">可分配</span><span className="mem-stat-value">21.0TiB</span></div>
-                  <div className="mem-stat-row"><span className="mem-stat-dot" style={{ background: '#52c41a' }} /><span className="mem-stat-label">活跃分配</span><span className="mem-stat-value">15.0TiB</span></div>
-                  <div className="mem-stat-row"><span className="mem-stat-dot" style={{ background: '#fadb14' }} /><span className="mem-stat-label">系统占用</span><span className="mem-stat-value">2.0TiB</span></div>
-                </div>
-                <div className="mem-vertical-bar">
-                  <div className="mem-vbar-segment" style={{ height: '71%', background: '#52c41a' }} />
-                  <div className="mem-vbar-segment" style={{ height: '10%', background: '#fadb14' }} />
-                  <div className="mem-vbar-segment" style={{ flex: 1, background: '#e8e8e8' }} />
+            <section className="resource-canvas resource-canvas-refined" aria-label="资源运行">
+              <div className="resource-node-summary">
+                <div className="resource-visual-title module-title"><Server className="module-line-icon" /><span>节点</span></div>
+                <div className="node-summary-body">
+                  <div className="node-summary-primary">
+                    <span><strong id="overviewNodeTotal">3</strong><small>节点总数</small></span>
+                    <span><strong id="overviewNodeNormalRate">66.7%</strong><small>正常率</small></span>
+                  </div>
+                  <div className="node-summary-stats">
+                    <span>
+                      <i className="status-dot ok" />
+                      <small>正常</small>
+                      <b id="overviewNodeNormal">2</b>
+                    </span>
+                    <button type="button" onClick={() => focusNodeIssue('node')}>
+                      <i className="status-dot bad" />
+                      <small>异常</small>
+                      <b id="overviewNodeAbnormal">1</b>
+                      <em>故障定位 →</em>
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="overview-item overview-disk">
-              <div className="overview-item-head"><span className="overview-title">物理盘</span><span className="overview-head-info">共36块</span></div>
-              <div className="overview-sub">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
-                  <img src="/ssd-icon.png" width="50" height="50" alt="" />
-                  <div><b>24块</b> SSD  <svg width="8" height="8" viewBox="0 0 8 8" style={{ verticalAlign: 'middle', marginRight: 2, marginTop: -2 }}><circle cx="4" cy="4" r="4" fill="#00b42a" /></svg>正常 22块 <span className="bad">异常 2块</span></div>
-                </div>
-                <div style={{ height: 1, background: '#f0f0f0', margin: '6px 0' }} />
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0' }}>
-                  <img src="/hdd-icon.png" width="50" height="50" alt="" />
-                  <div><b>12块</b> HDD  <svg width="8" height="8" viewBox="0 0 8 8" style={{ verticalAlign: 'middle', marginRight: 2, marginTop: -2 }}><circle cx="4" cy="4" r="4" fill="#00b42a" /></svg>正常 12块</div>
+
+              <div className="accelerator-summary">
+                <div className="resource-visual-title module-title"><MonitorCog className="module-line-icon" /><span>GPU 与显存</span></div>
+                <div className="accelerator-metrics">
+                  <div className="accelerator-metric is-gpu">
+                    <div className="accelerator-metric-copy">
+                      <span><i />GPU 利用率</span>
+                      <strong>76%</strong>
+                    </div>
+                    <div className="accelerator-scale">
+                      <div className="accelerator-track"><i style={{ width: '76%' }} /></div>
+                      <span><small>0%</small><small>100%</small></span>
+                    </div>
+                    <div className="accelerator-facts">
+                      <span>总量 <b>512 卡</b></span>
+                      <span>在线 <b>508 张</b></span>
+                      <span>健康率 <b>99.2%</b></span>
+                    </div>
+                  </div>
+
+                  <div className="accelerator-metric is-vram">
+                    <div className="accelerator-metric-copy">
+                      <span><i />显存使用率</span>
+                      <strong>80%</strong>
+                    </div>
+                    <div className="accelerator-scale">
+                      <div className="accelerator-track"><i style={{ width: '80%' }} /></div>
+                      <span><small>0%</small><small>100%</small></span>
+                    </div>
+                    <div className="accelerator-facts">
+                      <span>已使用 <b>32 TB</b></span>
+                      <span>总容量 <b>40 TB</b></span>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+
+              <div className="network-summary-refined">
+                <div className="resource-visual-title module-title"><Network className="module-line-icon" /><span>网络</span></div>
+                <div className="network-summary-rows">
+                  <div className="network-summary-row">
+                    <div><strong>RDMA</strong><span>1,024 个端口</span></div>
+                    <div className="network-health-copy">
+                      <strong>99.4%</strong><span>健康率</span>
+                    </div>
+                    <span className="network-abnormal"><b>6</b><span>个异常</span></span>
+                    <button type="button" onClick={() => focusNodeIssue('network')}>查看路径 →</button>
+                  </div>
+                  <div className="network-summary-row">
+                    <div><strong>网卡</strong><span>1,024 张</span></div>
+                    <div className="network-health-copy">
+                      <strong>99.6%</strong><span>健康率</span>
+                    </div>
+                    <span className="network-abnormal"><b>4</b><span>个异常</span></span>
+                    <button type="button" onClick={() => focusNodeIssue('network')}>查看路径 →</button>
+                  </div>
+                </div>
+              </div>
+            </section>
           </div>
-        </div>
 
           <div className="metric-grid">
-            <div className="metric-left">
-              <div className="overview-item" style={{ display: 'flex', flexDirection: 'column' }}>
-                <div className="overview-item-head"><span className="overview-title">节点</span><span className="overview-head-info">共3台机器 <span style={{ color: '#6951ff', marginLeft: 8, cursor: 'pointer' }}>查看 →</span></span></div>
-                <div className="overview-value" style={{ flex: 1, justifyContent: 'center', gap: 0 }}>
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#00b42a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8" /><path d="M12 17v4" /></svg>
-                      <span>2</span>
+            <section className="capacity-canvas" aria-label="容量概览">
+              <div className="capacity-refined-grid">
+                <div className="capacity-widget is-cpu">
+                  <div className="capacity-widget-title module-title"><Cpu className="module-line-icon" /><span>CPU</span></div>
+                  <div className="capacity-widget-body">
+                    <div
+                      className="capacity-donut"
+                      style={{ background: 'conic-gradient(#6951ff 0 61%, #f0edff 61% 100%)' }}
+                    >
+                      <span><strong>61%</strong><small>使用率</small></span>
                     </div>
-                    <span style={{ fontSize: 11, color: '#86909c' }}>正常</span>
-                  </div>
-                  <div style={{ width: 1, background: '#f0f0f0', alignSelf: 'stretch', margin: '4px 0' }} />
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#f53f3f" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v4" /><path d="M12 16h.01" /></svg>
-                      <span style={{ fontSize: 28, fontWeight: 650, lineHeight: 1.2, color: '#f53f3f' }}>1</span>
+                    <div className="capacity-widget-facts">
+                      <span><small>核心用量</small><b>1,824 / 2,432 Core</b></span>
+                      <span><small>总算力</small><b>5.63 THz</b></span>
                     </div>
-                    <span style={{ fontSize: 11, color: '#86909c' }}>异常</span>
+                  </div>
+                </div>
+
+                <div className="capacity-widget is-storage">
+                  <div className="capacity-widget-title module-title"><Database className="module-line-icon" /><span>存储</span></div>
+                  <div className="storage-amount"><strong>840</strong><span>TiB 总容量</span></div>
+                  <div className="storage-segments" aria-label="已使用 50%，失效 10%，空闲 40%">
+                    <i className="is-used" style={{ width: '50%' }} />
+                    <i className="is-failed" style={{ width: '10%' }} />
+                    <i className="is-free" style={{ width: '40%' }} />
+                  </div>
+                  <div className="storage-legend">
+                    <span><i className="is-used" /><small>已使用</small><b>420 TiB</b></span>
+                    <span><i className="is-failed" /><small>失效</small><b>84 TiB</b></span>
+                    <span><i className="is-free" /><small>空闲</small><b>336 TiB</b></span>
+                  </div>
+                </div>
+
+                <div className="capacity-widget is-memory">
+                  <div className="capacity-widget-title module-title"><MemoryStick className="module-line-icon" /><span>内存</span></div>
+                  <div className="memory-summary">
+                    <strong>71%</strong>
+                    <span>内存使用率</span>
+                  </div>
+                  <div className="memory-allocation" aria-label="内存使用情况">
+                    <i className="is-active" style={{ height: '71%' }} />
+                    <i className="is-system" style={{ height: '10%' }} />
+                    <i className="is-free" style={{ height: '19%' }} />
+                  </div>
+                  <div className="memory-details">
+                    <span><i className="is-active" /><small>已使用</small><b>15.0 TiB</b></span>
+                    <span><i className="is-system" /><small>系统占用</small><b>2.0 TiB</b></span>
+                    <span><i className="is-free" /><small>总容量</small><b>21.0 TiB</b></span>
+                  </div>
+                </div>
+
+                <div className="capacity-widget is-disk">
+                  <div className="capacity-widget-title module-title"><HardDrive className="module-line-icon" /><span>物理盘</span></div>
+                  <div className="disk-widget-body">
+                    <div className="disk-widget-total"><strong>36</strong><span>块磁盘</span></div>
+                    <div className="disk-type-list">
+                      <div className="is-ssd">
+                        <span><i /><b>SSD</b></span>
+                        <strong>24</strong>
+                        <small>块磁盘</small>
+                        <button
+                          className="disk-fault-link"
+                          type="button"
+                          onClick={() => focusNodeIssue('disk')}
+                        >
+                          2 块异常 · 定位 →
+                        </button>
+                      </div>
+                      <div className="is-hdd">
+                        <span><i /><b>HDD</b></span>
+                        <strong>12</strong>
+                        <small>块磁盘</small>
+                        <em>全部正常</em>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-              <div className="overview-item">
-                <div className="overview-item-head"><span className="overview-title">网络</span></div>
-                <div className="overview-sub" style={{ padding: '6px 0' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '4px 12px', marginBottom: 12 }}>
-                    <div style={{ fontSize: 11, color: '#86909c', gridColumn: '1 / -1' }}>RDMA</div>
-                    <div><div style={{ fontSize: 22, fontWeight: 650, lineHeight: 1.2 }}>1024</div><div style={{ fontSize: 11, color: '#86909c' }}>总量</div></div>
-                    <div><div style={{ fontSize: 22, fontWeight: 650, lineHeight: 1.2 }}>99.4%</div><div style={{ fontSize: 11, color: '#86909c' }}>健康率</div></div>
-                    <div><div style={{ fontSize: 22, fontWeight: 650, lineHeight: 1.2, color: '#f53f3f' }}>6</div><div style={{ fontSize: 11, color: '#86909c' }}>异常</div></div>
-                  </div>
-                  <div style={{ height: 1, background: '#f0f0f0', margin: '4px 0' }} />
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '4px 12px', marginTop: 12 }}>
-                    <div style={{ fontSize: 11, color: '#86909c', gridColumn: '1 / -1' }}>网卡</div>
-                    <div><div style={{ fontSize: 22, fontWeight: 650, lineHeight: 1.2 }}>1024</div><div style={{ fontSize: 11, color: '#86909c' }}>总量</div></div>
-                    <div><div style={{ fontSize: 22, fontWeight: 650, lineHeight: 1.2 }}>99.6%</div><div style={{ fontSize: 11, color: '#86909c' }}>健康率</div></div>
-                    <div><div style={{ fontSize: 22, fontWeight: 650, lineHeight: 1.2, color: '#f53f3f' }}>4</div><div style={{ fontSize: 11, color: '#86909c' }}>异常</div></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="metric-mid">
-              <div className="overview-item">
-                <div className="overview-item-head"><span className="overview-title">GPU</span><span className="overview-head-info">共512卡</span></div>
-                <div className="overview-sub" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', padding: '8px 0' }}>
-                  <div><div style={{ fontSize: 22, fontWeight: 650, lineHeight: 1.2 }}>512</div><div style={{ fontSize: 11, color: '#86909c' }}>GPU 总量（张）</div></div>
-                  <div><div style={{ fontSize: 22, fontWeight: 650, lineHeight: 1.2 }}>508</div><div style={{ fontSize: 11, color: '#86909c' }}>在线 GPU（张）</div></div>
-                  <div><div style={{ fontSize: 22, fontWeight: 650, lineHeight: 1.2 }}>76%</div><div style={{ fontSize: 11, color: '#86909c' }}>GPU 利用率</div></div>
-                  <div><div style={{ fontSize: 22, fontWeight: 650, lineHeight: 1.2 }}>99.2%</div><div style={{ fontSize: 11, color: '#86909c' }}>GPU 健康率</div></div>
-                </div>
-              </div>
-              <div className="overview-item">
-                <div className="overview-item-head"><span className="overview-title">显存</span></div>
-                <div className="overview-sub" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', padding: '8px 0' }}>
-                  <div><div style={{ fontSize: 22, fontWeight: 650, lineHeight: 1.2 }}>40</div><div style={{ fontSize: 11, color: '#86909c' }}>显存总量（TB）</div></div>
-                  <div><div style={{ fontSize: 22, fontWeight: 650, lineHeight: 1.2 }}>32</div><div style={{ fontSize: 11, color: '#86909c' }}>已使用显存（TB）</div></div>
-                  <div><div style={{ fontSize: 22, fontWeight: 650, lineHeight: 1.2 }}>80%</div><div style={{ fontSize: 11, color: '#86909c' }}>显存利用率</div></div>
-                  <div><div style={{ fontSize: 22, fontWeight: 650, lineHeight: 1.2, color: '#f53f3f' }}>3</div><div style={{ fontSize: 11, color: '#86909c' }}>OOM 次数</div></div>
-                </div>
-              </div>
-            </div>
+            </section>
+
             <div className="overview-item metric-log">
-              <div className="overview-item-head"><span className="overview-title">操作日志</span></div>
-              <div className="overview-sub" style={{ fontSize: 11, gap: 6 }}>
-                <span><span style={{ color: '#86909c' }}>07-22 14:23</span> 节点 gpu-node-07 已标记为维护状态</span>
-                <span><span style={{ color: '#86909c' }}>07-22 11:05</span> 资源段扩容 · 新增 2 台 Worker 节点</span>
-                <span><span style={{ color: '#86909c' }}>07-21 18:42</span> GPU 驱动升级 v550.127.05 → v550.144.03</span>
-                <span><span style={{ color: '#86909c' }}>07-21 09:30</span> 节点 gpu-node-12 触发 DiskPressure 告警</span>
-                <span><span style={{ color: '#86909c' }}>07-20 22:15</span> 平台组件 Node Agent 批量下发完成</span>
+              <OverviewCardHeader icon={<FileText />} title="操作日志" meta="最近更新" />
+              <div className="operation-list">
+                <div className="operation-row">
+                  <span className="operation-time">14:23<small>07-22</small></span>
+                  <i className="operation-dot maintenance" />
+                  <div><strong>节点进入维护状态</strong><span>gpu-node-07</span></div>
+                  <em>节点</em>
+                </div>
+                <div className="operation-row">
+                  <span className="operation-time">11:05<small>07-22</small></span>
+                  <i className="operation-dot success" />
+                  <div><strong>资源段扩容完成</strong><span>新增 2 台 Worker 节点</span></div>
+                  <em>扩容</em>
+                </div>
+                <div className="operation-row">
+                  <span className="operation-time">18:42<small>07-21</small></span>
+                  <i className="operation-dot success" />
+                  <div><strong>GPU 驱动升级完成</strong><span>v550.127.05 → v550.144.03</span></div>
+                  <em>升级</em>
+                </div>
+                <div className="operation-row">
+                  <span className="operation-time">09:30<small>07-21</small></span>
+                  <i className="operation-dot warning" />
+                  <div><strong>触发 DiskPressure 告警</strong><span>节点 gpu-node-12</span></div>
+                  <em>告警</em>
+                </div>
+                <div className="operation-row">
+                  <span className="operation-time">22:15<small>07-20</small></span>
+                  <i className="operation-dot success" />
+                  <div><strong>Node Agent 批量下发完成</strong><span>平台组件</span></div>
+                  <em>组件</em>
+                </div>
               </div>
+              <button
+                className="operation-more"
+                type="button"
+                onClick={() => window.dispatchEvent(new CustomEvent('ataas:navigate', { detail: { tab: 'logs' } }))}
+              >
+                查看全部操作记录
+              </button>
             </div>
           </div>
         </div>
@@ -420,36 +1043,7 @@ const ClusterOperationsHomepage = () => {
         </section>
 
         <section className="workloads-view">
-          <ConfigProvider theme={{ token: { colorPrimary: '#6738E8' }, components: { Table: { headerBg: '#f7f8fa' } } }}>
-            <div>
-              <div className="ataas-cm-toolbar" style={{ border: 'none', padding: '8px 0' }}>
-                <div style={{ flex: 1 }} />
-                <Input.Search size="small" allowClear placeholder="搜索 Workload" style={{ width: 320 }} />
-              </div>
-              <Table
-                rowKey="key"
-                columns={[
-                  { title: '名称', dataIndex: 'name', key: 'name', width: 200, fixed: 'left', render: (v: string) => <strong className="ataas-cm-name">{v}</strong> },
-                  { title: '类型', dataIndex: 'kind', key: 'kind', width: 120 },
-                  { title: '命名空间', dataIndex: 'namespace', key: 'namespace', width: 120 },
-                  { title: '状态', dataIndex: 'status', key: 'status', width: 100 },
-                  { title: '副本', dataIndex: 'replicas', key: 'replicas', width: 100 },
-                  { title: '创建时间', dataIndex: 'age', key: 'age', width: 150 },
-                ]}
-                dataSource={[
-                  { key: '1', name: 'payment-api', kind: 'Deployment', namespace: 'payment', status: '需关注', replicas: '3/5', age: '2026-05-18 14:22' },
-                  { key: '2', name: 'model-cache', kind: 'StatefulSet', namespace: 'inference', status: '需关注', replicas: '2/3', age: '2026-06-01 09:15' },
-                  { key: '3', name: 'training-worker', kind: 'Deployment', namespace: 'training', status: '更新中', replicas: '10/12', age: '2026-06-10 11:30' },
-                  { key: '4', name: 'dataset-index', kind: 'Job', namespace: 'data-pipeline', status: '执行中', replicas: '18/24', age: '2026-06-15 08:00' },
-                  { key: '5', name: 'order-api', kind: 'Deployment', namespace: 'order', status: '正常', replicas: '8/8', age: '2026-05-01 10:00' },
-                  { key: '6', name: 'node-exporter', kind: 'DaemonSet', namespace: 'monitoring', status: '正常', replicas: '78/78', age: '2026-04-20 16:00' },
-                  { key: '7', name: 'nightly-report', kind: 'CronJob', namespace: 'ops', status: '正常', replicas: '-', age: '2026-06-01 00:00' },
-                ]}
-                scroll={{ x: 'max-content' }}
-                pagination={{ pageSize: 10, showTotal: (total: number) => '共 ' + total + ' 条' }}
-              />
-            </div>
-          </ConfigProvider>
+          <GroupTable />
         </section>
         <section className="pods-view">
           <ClusterResourceTables view="pod" />
@@ -464,34 +1058,19 @@ const ClusterOperationsHomepage = () => {
         </section>
 
         <section className="pv-view">
-          <ConfigProvider theme={{ token: { colorPrimary: '#6738E8' }, components: { Table: { headerBg: '#f7f8fa' } } }}>
-            <Table dataSource={[]} columns={[
-              { title: '名称', dataIndex: 'name', key: 'name', width: 200 },
-              { title: '容量', dataIndex: 'capacity', key: 'capacity', width: 120 },
-              { title: '存储类型', dataIndex: 'storageType', key: 'storageType', width: 120 },
-              { title: '访问模式', dataIndex: 'accessMode', key: 'accessMode', width: 120 },
-              { title: '状态', dataIndex: 'status', key: 'status', width: 100 },
-              { title: '回收策略', dataIndex: 'reclaimPolicy', key: 'reclaimPolicy', width: 100 },
-              { title: '创建时间', dataIndex: 'age', key: 'age', width: 150 },
-            ]} scroll={{ x: 'max-content' }} pagination={{ pageSize: 10, showTotal: (total) => '共 ' + total + ' 条' }} locale={{ emptyText: '暂无 PV 数据' }} />
-          </ConfigProvider>
+          <ClusterResourceTables view="pv" />
         </section>
         <section className="pvc-view">
-          <ConfigProvider theme={{ token: { colorPrimary: '#6738E8' }, components: { Table: { headerBg: '#f7f8fa' } } }}>
-            <Table dataSource={[]} columns={[
-              { title: '名称', dataIndex: 'name', key: 'name', width: 200 },
-              { title: '命名空间', dataIndex: 'namespace', key: 'namespace', width: 120 },
-              { title: '容量请求', dataIndex: 'requestCapacity', key: 'requestCapacity', width: 120 },
-              { title: '存储类', dataIndex: 'storageClass', key: 'storageClass', width: 120 },
-              { title: '状态', dataIndex: 'status', key: 'status', width: 100 },
-              { title: '绑定 PV', dataIndex: 'boundPV', key: 'boundPV', width: 150 },
-              { title: '创建时间', dataIndex: 'age', key: 'age', width: 150 },
-            ]} scroll={{ x: 'max-content' }} pagination={{ pageSize: 10, showTotal: (total) => '共 ' + total + ' 条' }} locale={{ emptyText: '暂无 PVC 数据' }} />
-          </ConfigProvider>
+          <ClusterResourceTables view="pvc" />
         </section>
+        </div>
       </main>
     </section>
 
+    <SupplierResourceCreateFlow
+      openKind={resourceCreateKind}
+      onClose={() => setResourceCreateKind(null)}
+    />
     </div>
   );
 };
@@ -503,7 +1082,7 @@ type NodeRow = {
   clusterName: string;
   label: string;
   tags?: string[];
-  status: 'normal' | 'warning' | 'error';
+  status: 'normal' | 'warning' | 'error' | 'pending';
   authStatus: 'authorized' | 'unauthorized';
   modelCount: number;
   runningInstances: number;
@@ -568,7 +1147,7 @@ const UsageRing = ({ percent, sub }: { percent: number; sub?: string }) => {
   );
 };
 
-const nodeTabs = ['CPU', '内存', 'GPU', '磁盘详情', '网卡详情', 'Pods列表'];
+const nodeTabs = ['故障定位', 'CPU', '内存', 'GPU', '磁盘详情', '网卡详情', 'Pods列表'];
 
 const mockKernelLogs = (label: string) => [
   `[${new Date().toLocaleString()}] kernel: ${label} - NVRM: GPU at PCI:0000:01:00.0 is OK`,
@@ -583,77 +1162,145 @@ const mockKernelLogs = (label: string) => [
   `[${new Date().toLocaleString()}] kernel: ${label} - ACPI: button: Power button pressed - entering sleep`,
 ];
 
-const DiskDetailDrawer = ({ disk, open, onClose }: { disk: { name: string; total: string; used: string; type: string; mountPath: string; status: string; readSpeed: string; writeSpeed: string; iops: string; latency: string; readPressure: number; writePressure: number } | null; open: boolean; onClose: () => void }) => {
-  if (!disk) return null;
-  const totalGB = parseFloat(disk.total);
-  const usedGB = parseFloat(disk.used);
-  const freeGB = totalGB - usedGB;
-  const usagePct = totalGB > 0 ? Math.round((usedGB / totalGB) * 100) : 0;
-  const barColor = usagePct > 90 ? '#F53F3F' : usagePct > 80 ? '#FF7D00' : '#16A34A';
-  const isHealthy = disk.status === 'normal';
-  const statusColor = isHealthy ? '#16A34A' : '#F53F3F';
-  const Row = ({ label, value, color }: { label: string; value: React.ReactNode; color?: string }) => (
-    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #F2F4F7', fontSize: 13, lineHeight: '22px' }}>
-      <span style={{ color: '#667085' }}>{label}</span>
-      <span style={{ fontWeight: 600, color: color || '#111827' }}>{value}</span>
-    </div>
-  );
-  const GroupTitle = ({ title }: { title: string }) => (
-    <div style={{ fontSize: 12, fontWeight: 700, color: '#111827', padding: '4px 0 2px' }}>{title}</div>
-  );
-  return (
-    <Drawer title={<span style={{ fontSize: 18, fontWeight: 700, color: '#111827', fontFamily: 'SF Mono, Menlo, monospace' }}>{disk.name}</span>} placement="right" open={open} onClose={onClose} closable width={480}>
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif', padding: '24px 28px', gap: 4 }}>
-        <GroupTitle title="基础信息" />
-        <Row label="类型" value={disk.type || 'NVMe SSD'} />
-        <Row label="节点" value="qujing4" />
-        <Row label="挂载路径" value={disk.mountPath} />
-        <Row label="状态" value={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><span style={{ width: 7, height: 7, borderRadius: '50%', background: statusColor, display: 'inline-block' }} />{isHealthy ? '正常' : '异常'}</span>} color={statusColor} />
-        <Row label="文件系统" value="ext4" />
-        <Row label="角色" value="数据盘" />
-
-        <div style={{ height: 1, background: '#E5E7EB', margin: '16px 0' }} />
-
-        <GroupTitle title="磁盘使用情况" />
-        <Row label="总容量" value={`${totalGB.toFixed(2)} TB`} />
-        <Row label="已使用" value={`${usedGB.toFixed(2)} TB`} />
-        <Row label="可用" value={`${freeGB.toFixed(2)} TB`} />
-        <Row label="使用率" value={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><span style={{ width: 60, height: 6, borderRadius: 3, background: '#E5E7EB', display: 'inline-block', overflow: 'hidden', verticalAlign: 'middle' }}><span style={{ width: usagePct + '%', height: '100%', borderRadius: 3, background: barColor, display: 'block' }} /></span>{usagePct}%</span>} />
-
-        <div style={{ height: 1, background: '#E5E7EB', margin: '16px 0' }} />
-
-        <GroupTitle title="性能指标" />
-        <Row label="读取" value={disk.readSpeed} />
-        <Row label="写入" value={disk.writeSpeed} />
-        <Row label="IOPS" value={disk.iops} />
-        <Row label="延迟" value={disk.latency} />
-
-        <div style={{ height: 1, background: '#E5E7EB', margin: '16px 0' }} />
-
-        <GroupTitle title="I/O 压力" />
-        <Row label="读取压力" value={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><span style={{ width: 60, height: 6, borderRadius: 3, background: '#E5E7EB', display: 'inline-block', overflow: 'hidden' }}><span style={{ width: disk.readPressure + '%', height: '100%', borderRadius: 3, background: '#635BFF', display: 'block' }} /></span>{disk.readPressure}%</span>} />
-        <Row label="写入压力" value={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><span style={{ width: 60, height: 6, borderRadius: 3, background: '#E5E7EB', display: 'inline-block', overflow: 'hidden' }}><span style={{ width: disk.writePressure + '%', height: '100%', borderRadius: 3, background: '#667085', display: 'block' }} /></span>{disk.writePressure}%</span>} />
-
-        <div style={{ height: 1, background: '#E5E7EB', margin: '16px 0' }} />
-
-        <div style={{ padding: '16px 0 40px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#111827' }}>IO 趋势</span>
-            <span style={{ fontSize: 11, color: '#98A2B3' }}>最近 24 小时</span>
+const NodeLogDrawer = ({ detail, onClose }: {
+  detail: { title: string; logs: string[] } | null;
+  onClose: () => void;
+}) => (
+  <Drawer
+    rootClassName="node-log-drawer"
+    title={(
+      <div className="node-log-drawer-title">
+        <strong>{detail?.title || '内核日志'}</strong>
+        <span>按时间顺序展示最近采集记录</span>
+      </div>
+    )}
+    placement="right"
+    open={!!detail}
+    onClose={onClose}
+    width={640}
+  >
+    {detail && (
+      <div className="node-log-stream">
+        {detail.logs.map((line, index) => (
+          <div key={`${index}-${line}`}>
+            <span>{String(index + 1).padStart(2, '0')}</span>
+            <code>{line}</code>
           </div>
-          <svg width="100%" height="70" viewBox="0 0 380 70" style={{ display: 'block' }}>
-            <polyline points="0,60 30,56 60,58 90,46 120,40 150,36 180,38 210,28 240,24 270,32 300,30 340,26 380,28" fill="none" stroke="#635BFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            <polyline points="0,60 30,56 60,58 90,46 120,40 150,36 180,38 210,28 240,24 270,32 300,30 340,26 380,28" fill="url(#tG)" opacity="0.1" />
-            <defs><linearGradient id="tG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#635BFF" /><stop offset="100%" stopColor="#635BFF" stopOpacity="0" /></linearGradient></defs>
-            <text x="0" y="15" style={{ fontSize: 9, fill: '#98A2B3' }}>Throughput</text>
-          </svg>
-          <svg width="100%" height="70" viewBox="0 0 380 70" style={{ display: 'block', marginTop: 4 }}>
-            <polyline points="0,64 30,60 60,62 90,50 120,44 150,38 180,40 210,32 240,20 270,24 300,22 340,18 380,21" fill="none" stroke="#16A34A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            <polyline points="0,64 30,60 60,62 90,50 120,44 150,38 180,40 210,32 240,20 270,24 300,22 340,18 380,21" fill="url(#lG)" opacity="0.1" />
-            <defs><linearGradient id="lG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#16A34A" /><stop offset="100%" stopColor="#16A34A" stopOpacity="0" /></linearGradient></defs>
-            <text x="0" y="15" style={{ fontSize: 9, fill: '#98A2B3' }}>Latency</text>
-          </svg>
+        ))}
+      </div>
+    )}
+  </Drawer>
+);
+
+const DiskDetailDrawer = ({ disk, nodeName, open, onClose }: { disk: { name: string; total: string; used: string; type: string; mountPath: string; status: string; readSpeed: string; writeSpeed: string; iops: string; latency: string; readPressure: number; writePressure: number } | null; nodeName: string; open: boolean; onClose: () => void }) => {
+  if (!disk) return null;
+  const totalValue = Number(disk.total.match(/[\d.]+/)?.[0] || 0);
+  const usedValue = Number(disk.used.match(/[\d.]+/)?.[0] || 0);
+  const capacityUnit = disk.total.match(/[A-Za-z]+/)?.[0] || 'GB';
+  const freeValue = Math.max(totalValue - usedValue, 0);
+  const usagePct = totalValue > 0 ? Math.round((usedValue / totalValue) * 100) : 0;
+  const usageTone = usagePct > 90 ? 'is-danger' : usagePct > 80 ? 'is-warning' : '';
+  const isHealthy = disk.status === 'normal';
+  const readValue = Number(disk.readSpeed.match(/[\d.]+/)?.[0] || 0);
+  const writeValue = Number(disk.writeSpeed.match(/[\d.]+/)?.[0] || 0);
+  const throughputMax = Math.max(readValue, writeValue, 1);
+
+  return (
+    <Drawer
+      rootClassName="disk-detail-drawer"
+      title={(
+        <div className="disk-drawer-title">
+          <strong>{disk.name}</strong>
+          <span>{disk.type} · {nodeName}</span>
         </div>
+      )}
+      placement="right"
+      open={open}
+      onClose={onClose}
+      closable
+      width={540}
+    >
+      <div className="disk-detail-shell">
+        <div className="disk-detail-topline">
+          <span className={`disk-detail-status${isHealthy ? ' is-healthy' : ' is-abnormal'}`}>
+            <i />
+            {isHealthy ? '运行正常' : '存在告警'}
+          </span>
+          <span>{disk.mountPath}</span>
+        </div>
+
+        <section className={`disk-capacity-overview ${usageTone}`}>
+          <div className="disk-capacity-head">
+            <div>
+              <span>容量使用率</span>
+              <strong>{usagePct}%</strong>
+            </div>
+            <small>{usedValue.toFixed(2)} / {totalValue.toFixed(2)} {capacityUnit}</small>
+          </div>
+          <div className="disk-capacity-track">
+            <i style={{ width: `${usagePct}%` }} />
+          </div>
+          <div className="disk-capacity-legend">
+            <div><span>已使用</span><strong>{usedValue.toFixed(2)} {capacityUnit}</strong></div>
+            <div><span>可用</span><strong>{freeValue.toFixed(2)} {capacityUnit}</strong></div>
+            <div><span>总容量</span><strong>{totalValue.toFixed(2)} {capacityUnit}</strong></div>
+          </div>
+        </section>
+
+        <section className="disk-detail-section">
+          <div className="disk-detail-section-head">
+            <strong>基础信息</strong>
+            <span>设备与挂载关系</span>
+          </div>
+          <div className="disk-detail-basic-grid">
+            <div><span>设备类型</span><strong>{disk.type}</strong></div>
+            <div><span>所属节点</span><strong>{nodeName}</strong></div>
+            <div><span>挂载路径</span><strong>{disk.mountPath}</strong></div>
+            <div><span>设备状态</span><strong className={isHealthy ? 'is-healthy' : 'is-abnormal'}>{isHealthy ? '正常' : '告警'}</strong></div>
+          </div>
+        </section>
+
+        <section className="disk-detail-section">
+          <div className="disk-detail-section-head">
+            <strong>实时吞吐</strong>
+            <span>按当前读写速率对比</span>
+          </div>
+          <div className="disk-throughput-list">
+            <div className="disk-throughput-row">
+              <span>读取</span>
+              <i><em style={{ width: `${(readValue / throughputMax) * 100}%` }} /></i>
+              <strong>{disk.readSpeed}</strong>
+            </div>
+            <div className="disk-throughput-row is-write">
+              <span>写入</span>
+              <i><em style={{ width: `${(writeValue / throughputMax) * 100}%` }} /></i>
+              <strong>{disk.writeSpeed}</strong>
+            </div>
+          </div>
+        </section>
+
+        <section className="disk-detail-section">
+          <div className="disk-detail-section-head">
+            <strong>性能与压力</strong>
+            <span>当前采样值</span>
+          </div>
+          <div className="disk-performance-grid">
+            <div><span>IOPS</span><strong>{disk.iops}</strong></div>
+            <div><span>平均延迟</span><strong>{disk.latency}</strong></div>
+          </div>
+          <div className="disk-pressure-list">
+            <div className="disk-pressure-row">
+              <span>读取压力</span>
+              <i><em style={{ width: `${disk.readPressure}%` }} /></i>
+              <strong>{disk.readPressure}%</strong>
+            </div>
+            <div className="disk-pressure-row is-write">
+              <span>写入压力</span>
+              <i><em style={{ width: `${disk.writePressure}%` }} /></i>
+              <strong>{disk.writePressure}%</strong>
+            </div>
+          </div>
+        </section>
       </div>
     </Drawer>
   );
@@ -666,275 +1313,228 @@ type NetCardDetail = {
   linkStatus: string; duplex: string; lossRate: string; errors: number;
   inbound: string; outbound: string; bandwidthUtil: number;
   pps: string; tcpConns: number; avgLatency: string; connStatus: string;
-  nodeName: string; nodeRole: string; runningPods: number; services: string;
+  nodeName: string; runningPods: number;
 };
 
 const NetDetailDrawer = ({ card, open, onClose }: { card: NetCardDetail | null; open: boolean; onClose: () => void }) => {
   if (!card) return null;
   const isActive = card.status === 'active';
-  const Row = ({ label, value, color }: { label: string; value: React.ReactNode; color?: string }) => (
-    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #F2F4F7', fontSize: 13, lineHeight: '22px' }}>
-      <span style={{ color: '#667085' }}>{label}</span>
-      <span style={{ fontWeight: 600, color: color || '#111827' }}>{value}</span>
-    </div>
-  );
-  const GroupTitle = ({ title }: { title: string }) => (
-    <div style={{ fontSize: 12, fontWeight: 700, color: '#111827', padding: '4px 0 2px' }}>{title}</div>
-  );
-  const bwColor = card.bandwidthUtil > 80 ? '#F53F3F' : card.bandwidthUtil > 60 ? '#FF7D00' : '#16A34A';
+  const isRdma = card.type === 'InfiniBand';
+  const bandwidthTone = card.bandwidthUtil > 85 ? 'is-danger' : card.bandwidthUtil > 70 ? 'is-warning' : '';
   return (
-    <Drawer placement="right" open={open} onClose={onClose} closable width={480}
-      footer={
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', padding: '12px 0', borderTop: 'none' }}>
-          <Button icon={<LineChartOutlined />} style={{ fontSize: 13 }}>查看监控</Button>
-          <Button type="primary" icon={<SettingOutlined />} style={{ fontSize: 13 }}>更多操作</Button>
+    <Drawer
+      rootClassName="node-device-drawer"
+      title={(
+        <div className="node-device-drawer-title">
+          <strong>{card.name}</strong>
+          <span>{isRdma ? 'RDMA 网络' : card.type} · {card.nodeName}</span>
         </div>
-      }>
-      <div style={{ display: 'flex', flexDirection: 'column', fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif', padding: '0 28px' }}>
-        {/* Top identity area */}
-        <div style={{ padding: '8px 0' }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#98A2B3', letterSpacing: '1px', marginBottom: 8 }}>NETWORK</div>
-          <div style={{ fontSize: 24, fontWeight: 700, color: '#111827', fontFamily: 'SF Mono, Menlo, monospace', marginBottom: 8 }}>{card.name}</div>
-          <div style={{ fontSize: 12, color: '#98A2B3', marginBottom: 14 }}>
-            {card.type} <span style={{ margin: '0 6px', color: '#D0D5DD' }}>·</span> {card.nodeName} <span style={{ margin: '0 6px', color: '#D0D5DD' }}>·</span> 业务网络
-          </div>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 12px 4px 8px', background: isActive ? '#F0FDF4' : '#FEF2F2', borderRadius: 20 }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: isActive ? '#16A34A' : '#F53F3F', display: 'inline-block' }} />
-            <span style={{ fontSize: 12, fontWeight: 600, color: isActive ? '#16A34A' : '#F53F3F' }}>{isActive ? '正常' : '异常'}</span>
-          </div>
-        </div>
-
-        <div style={{ height: 1, background: '#E5E7EB', margin: '16px 0' }} />
-
-        <GroupTitle title="基础信息" />
-        <Row label="网卡名称" value={card.name} />
-        <Row label="接口类型" value={card.type} />
-        <Row label="IP地址" value={card.ip} />
-        <Row label="MAC地址" value={card.mac} />
-        <Row label="节点" value={card.nodeName} />
-        <Row label="速率" value={card.speed} />
-        <Row label="驱动" value={card.driver} />
-        <Row label="PCIe位置" value={card.pcie} />
-
-        <div style={{ height: 1, background: '#E5E7EB', margin: '16px 0' }} />
-
-        <GroupTitle title="链路状态" />
-        <Row label="Link状态" value={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: card.linkStatus === 'UP' ? '#16A34A' : '#F53F3F', display: 'inline-block' }} />{card.linkStatus}</span>} />
-        <Row label="协商速率" value={card.speed} />
-        <Row label="双工模式" value={card.duplex} />
-        <Row label="丢包率" value={card.lossRate} />
-        <Row label="错误包数量" value={card.errors.toString()} />
-
-        <div style={{ height: 1, background: '#E5E7EB', margin: '16px 0' }} />
-
-        <GroupTitle title="实时流量" />
-        <div style={{ display: 'flex', gap: 40, padding: '16px 0 8px' }}>
-          <div>
-            <div style={{ fontSize: 11, color: '#98A2B3', marginBottom: 4 }}>入方向</div>
-            <div style={{ fontSize: 24, fontWeight: 700, color: '#111827', fontFamily: 'SF Mono, Menlo, monospace' }}>{card.inbound}</div>
-          </div>
-          <div>
-            <div style={{ fontSize: 11, color: '#98A2B3', marginBottom: 4 }}>出方向</div>
-            <div style={{ fontSize: 24, fontWeight: 700, color: '#111827', fontFamily: 'SF Mono, Menlo, monospace' }}>{card.outbound}</div>
-          </div>
-        </div>
-        <Row label="带宽利用率" value={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><span style={{ width: 80, height: 6, borderRadius: 3, background: '#E5E7EB', display: 'inline-block', overflow: 'hidden' }}><span style={{ width: card.bandwidthUtil + '%', height: '100%', borderRadius: 3, background: bwColor, display: 'block' }} /></span><span style={{ fontWeight: 700, color: bwColor }}>{card.bandwidthUtil}%</span></span>} />
-
-        <div style={{ padding: '8px 0 4px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-            <span style={{ fontSize: 11, color: '#98A2B3' }}>24 小时流量趋势</span>
-          </div>
-          <svg width="100%" height="56" viewBox="0 0 380 56" style={{ display: 'block' }}>
-            <defs>
-              <linearGradient id="niG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#635BFF" /><stop offset="100%" stopColor="#635BFF" stopOpacity="0" /></linearGradient>
-              <linearGradient id="noG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#16A34A" /><stop offset="100%" stopColor="#16A34A" stopOpacity="0" /></linearGradient>
-            </defs>
-            <polyline points="0,52 20,48 40,44 60,40 80,42 100,38 120,34 140,30 160,28 180,24 200,22 220,18 240,14 260,16 280,12 300,10 320,6 340,4 360,3 380,2" fill="none" stroke="#635BFF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-            <polyline points="0,52 20,48 40,44 60,40 80,42 100,38 120,34 140,30 160,28 180,24 200,22 220,18 240,14 260,16 280,12 300,10 320,6 340,4 360,3 380,2" fill="url(#niG)" opacity="0.08" />
-            <polyline points="0,55 20,52 40,48 60,44 80,46 100,42 120,36 140,34 160,30 180,28 200,24 220,22 240,20 260,22 280,18 300,16 320,12 340,8 360,6 380,5" fill="none" stroke="#16A34A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="3 2" />
-            <polyline points="0,55 20,52 40,48 60,44 80,46 100,42 120,36 140,34 160,30 180,28 200,24 220,22 240,20 260,22 280,18 300,16 320,12 340,8 360,6 380,5" fill="url(#noG)" opacity="0.06" />
-            <text x="0" y="8" style={{ fontSize: 9, fill: '#98A2B3' }}>入方向</text>
-            <text x="56" y="8" style={{ fontSize: 9, fill: '#98A2B3' }}>出方向</text>
-          </svg>
+      )}
+      placement="right"
+      open={open}
+      onClose={onClose}
+      closable
+      width={540}
+    >
+      <div className="node-device-shell">
+        <div className="node-device-topline">
+          <span className={`node-device-status${isActive ? ' is-healthy' : ' is-abnormal'}`}>
+            <i />
+            {isActive ? '链路正常' : '链路异常'}
+          </span>
+          <span>{card.linkStatus} · {card.speed}</span>
         </div>
 
-        <div style={{ height: 1, background: '#E5E7EB', margin: '16px 0' }} />
+        <section className={`node-device-bandwidth ${bandwidthTone}`}>
+          <div className="node-device-bandwidth-head">
+            <div><span>带宽利用率</span><strong>{card.bandwidthUtil}%</strong></div>
+            <small>{isRdma ? 'RDMA 实时负载' : '接口实时负载'}</small>
+          </div>
+          <div className="node-device-bandwidth-track"><i style={{ width: `${card.bandwidthUtil}%` }} /></div>
+          <div className="node-device-traffic-grid">
+            <div><span>接收</span><strong>{card.inbound}</strong></div>
+            <div><span>发送</span><strong>{card.outbound}</strong></div>
+          </div>
+        </section>
 
-        <GroupTitle title="网络性能" />
-        <Row label="PPS" value={card.pps} />
-        <Row label="TCP连接数" value={card.tcpConns.toLocaleString()} />
-        <Row label="平均延迟" value={card.avgLatency} />
-        <Row label="连接状态" value={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: card.connStatus === '正常' ? '#16A34A' : '#F53F3F', display: 'inline-block' }} />{card.connStatus}</span>} />
+        <section className="node-device-section">
+          <div className="node-device-section-head"><strong>设备信息</strong><span>接口与驱动</span></div>
+          <div className="node-device-info-grid">
+            <div><span>接口类型</span><strong>{card.type}</strong></div>
+            <div><span>IP 地址</span><strong>{card.ip}</strong></div>
+            <div><span>MAC 地址</span><strong>{card.mac}</strong></div>
+            <div><span>驱动</span><strong>{card.driver}</strong></div>
+            <div><span>PCIe 位置</span><strong>{card.pcie}</strong></div>
+            <div><span>双工模式</span><strong>{card.duplex}</strong></div>
+          </div>
+        </section>
 
-        <div style={{ height: 1, background: '#E5E7EB', margin: '16px 0' }} />
-
-        <GroupTitle title="关联资源" />
-        <Row label="运行Pod" value={card.runningPods.toString()} />
-        <Row label="访问服务" value={card.services} />
-        <Row label="节点角色" value={card.nodeRole} />
-
-        <div style={{ height: 24 }} />
+        <section className="node-device-section">
+          <div className="node-device-section-head"><strong>链路质量</strong><span>当前采样值</span></div>
+          <div className="node-device-metric-grid">
+            <div><span>丢包率</span><strong>{card.lossRate}</strong></div>
+            <div><span>错误包</span><strong>{card.errors.toLocaleString()}</strong></div>
+            <div><span>PPS</span><strong>{card.pps}</strong></div>
+            <div><span>TCP 连接</span><strong>{card.tcpConns.toLocaleString()}</strong></div>
+            <div><span>平均延迟</span><strong>{card.avgLatency}</strong></div>
+            <div><span>运行 Pods</span><strong>{card.runningPods}</strong></div>
+          </div>
+        </section>
       </div>
     </Drawer>
   );
 };
 
-type RdmaCardDetail = {
-  name: string; ip: string; speed: string; status: string;
-  type: string; mac: string; driver: string; pcie: string;
-  linkStatus: string; duplex: string; lossRate: string; errors: number;
-  inbound: string; outbound: string; bandwidthUtil: number;
-  pps: string; tcpConns: number; avgLatency: string; connStatus: string;
-  nodeName: string; nodeRole: string; runningPods: number; services: string;
-  firmware: string; port: string; linkHealth: string;
-  errorCount: number; retransmitCount: number;
-  throughput: string; sendRate: string; recvRate: string;
-  gpuDirectRdma: boolean; ncclStatus: string;
-  commLatency: string; p99Latency: string; commErrors: number;
-  rdmaHealth: string; linkErrors: number; dropCount: number; flitErrors: number;
-};
-
-const RdmaDetailDrawer = ({ card, open, onClose }: { card: RdmaCardDetail | null; open: boolean; onClose: () => void }) => {
+const GpuDetailDrawer = ({ card, nodeName, open, onClose }: {
+  card: NodeRow['gpuCards'][number] | null;
+  nodeName: string;
+  open: boolean;
+  onClose: () => void;
+}) => {
   if (!card) return null;
+  const memoryPercent = Math.round(getCapacityPercent(card.memoryUsed, card.memoryTotal));
+  const utilizationTone = card.utilization > 90 ? 'is-danger' : card.utilization > 75 ? 'is-warning' : '';
   const isActive = card.status === 'active';
-  const Row = ({ label, value, color }: { label: string; value: React.ReactNode; color?: string }) => (
-    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #F2F4F7', fontSize: 13, lineHeight: '22px' }}>
-      <span style={{ color: '#667085' }}>{label}</span>
-      <span style={{ fontWeight: 600, color: color || '#111827' }}>{value}</span>
-    </div>
-  );
-  const GroupTitle = ({ title }: { title: string }) => (
-    <div style={{ fontSize: 12, fontWeight: 700, color: '#111827', padding: '4px 0 2px' }}>{title}</div>
-  );
+
   return (
-    <Drawer placement="right" open={open} onClose={onClose} closable width={480}
-      footer={
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', padding: '12px 0', borderTop: 'none' }}>
-          <Button icon={<LineChartOutlined />} style={{ fontSize: 13 }}>查看监控</Button>
-          <Button icon={<ExportOutlined />} style={{ fontSize: 13 }}>诊断链路</Button>
-          <Button type="primary" icon={<SettingOutlined />} style={{ fontSize: 13 }}>更多操作</Button>
+    <Drawer
+      rootClassName="gpu-detail-drawer"
+      title={(
+        <div className="gpu-drawer-title">
+          <strong>GPU #{card.index}</strong>
+          <span>{card.model} · {nodeName}</span>
         </div>
-      }>
-      <div style={{ display: 'flex', flexDirection: 'column', fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif', padding: '0 28px' }}>
-        <div style={{ padding: '8px 0' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#7C3AED', letterSpacing: '1.5px', marginBottom: 8 }}>RDMA NETWORK</div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 8 }}>
-            <span style={{ fontSize: 24, fontWeight: 700, color: '#111827', fontFamily: 'SF Mono, Menlo, monospace' }}>{card.name}</span>
-            <span style={{ fontSize: 12, color: '#7C3AED', fontWeight: 600, background: '#F5F3FF', padding: '2px 8px', borderRadius: 4 }}>{card.speed}</span>
-          </div>
-          <div style={{ fontSize: 12, color: '#98A2B3', marginBottom: 14 }}>
-            {card.type} <span style={{ margin: '0 6px', color: '#D0D5DD' }}>·</span> {card.nodeName} <span style={{ margin: '0 6px', color: '#D0D5DD' }}>·</span> GPU通信网络
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 12px 4px 8px', background: isActive ? '#F0FDF4' : '#FEF2F2', borderRadius: 20 }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: isActive ? '#16A34A' : '#F53F3F', display: 'inline-block' }} />
-              <span style={{ fontSize: 12, fontWeight: 600, color: isActive ? '#16A34A' : '#F53F3F' }}>{isActive ? 'Active' : 'Inactive'}</span>
-            </div>
-          </div>
+      )}
+      placement="right"
+      open={open}
+      onClose={onClose}
+      closable
+      width={520}
+    >
+      <div className="gpu-detail-shell">
+        <div className="gpu-detail-topline">
+          <span className={`gpu-detail-status${isActive ? ' is-active' : ''}`}><i />{isActive ? '使用中' : '空闲'}</span>
+          <span>{card.spec}</span>
         </div>
 
-        <div style={{ height: 1, background: '#E5E7EB', margin: '16px 0' }} />
-        <GroupTitle title="设备信息" />
-        <Row label="接口类型" value={card.type} />
-        <Row label="设备名称" value={card.driver} />
-        <Row label="PCIe位置" value={card.pcie} />
-        <Row label="固件版本" value={card.firmware} />
-        <Row label="端口" value={card.port} />
-
-        <div style={{ height: 1, background: '#E5E7EB', margin: '16px 0' }} />
-        <GroupTitle title="RDMA链路状态" />
-        <Row label="Link状态" value={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#16A34A', fontWeight: 700 }}><span style={{ width: 8, height: 8, borderRadius: '50%', background: '#16A34A', display: 'inline-block' }} />{card.linkStatus}</span>} />
-        <Row label="速率" value={card.speed} />
-        <Row label="链路健康率" value={<span style={{ color: '#16A34A' }}>{card.linkHealth}</span>} />
-        <Row label="错误计数" value={card.errorCount.toString()} />
-        <Row label="重传次数" value={card.retransmitCount.toString()} />
-
-        <div style={{ height: 1, background: '#E5E7EB', margin: '16px 0' }} />
-        <GroupTitle title="RDMA性能" />
-        <div style={{ display: 'flex', gap: 40, padding: '16px 0 8px' }}>
-          <div>
-            <div style={{ fontSize: 11, color: '#98A2B3', marginBottom: 4 }}>带宽利用率</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 24, fontWeight: 700, color: card.bandwidthUtil > 80 ? '#F53F3F' : '#7C3AED', fontFamily: 'SF Mono, Menlo, monospace' }}>{card.bandwidthUtil}%</span>
-            </div>
-            <div style={{ width: 80, height: 4, borderRadius: 2, background: '#E5E7EB', marginTop: 4, overflow: 'hidden' }}>
-              <span style={{ width: card.bandwidthUtil + '%', height: '100%', borderRadius: 2, background: card.bandwidthUtil > 80 ? '#F53F3F' : '#7C3AED', display: 'block' }} />
-            </div>
+        <section className={`gpu-utilization-overview ${utilizationTone}`}>
+          <div className="gpu-utilization-head">
+            <div><span>GPU 利用率</span><strong>{card.utilization}%</strong></div>
+            <small>{card.temperature}°C · {card.power}W</small>
           </div>
-          <div>
-            <div style={{ fontSize: 11, color: '#98A2B3', marginBottom: 4 }}>当前吞吐</div>
-            <div style={{ fontSize: 24, fontWeight: 700, color: '#111827', fontFamily: 'SF Mono, Menlo, monospace' }}>{card.throughput}</div>
+          <div className="gpu-utilization-track"><i style={{ width: `${card.utilization}%` }} /></div>
+        </section>
+
+        <section className="gpu-detail-section">
+          <div className="gpu-detail-section-head"><strong>显存使用</strong><span>{memoryPercent}%</span></div>
+          <div className="gpu-memory-track"><i style={{ width: `${memoryPercent}%` }} /></div>
+          <div className="gpu-memory-grid">
+            <div><span>已使用</span><strong>{card.memoryUsed}</strong></div>
+            <div><span>空闲</span><strong>{card.memoryFree}</strong></div>
+            <div><span>总显存</span><strong>{card.memoryTotal}</strong></div>
           </div>
-        </div>
-        <Row label="发送速率" value={card.sendRate} />
-        <Row label="接收速率" value={card.recvRate} />
+        </section>
 
-        <div style={{ height: 1, background: '#E5E7EB', margin: '16px 0' }} />
-        <GroupTitle title="GPU通信状态" />
-        <Row label="GPU Direct RDMA" value={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#16A34A', fontWeight: 600 }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: '#16A34A', display: 'inline-block' }} />{card.gpuDirectRdma ? '已开启' : '未开启'}</span>} />
-        <Row label="NCCL通信状态" value={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: card.ncclStatus === '正常' ? '#16A34A' : '#F53F3F' }}><span style={{ width: 6, height: 6, borderRadius: '50%', background: card.ncclStatus === '正常' ? '#16A34A' : '#F53F3F', display: 'inline-block' }} />{card.ncclStatus}</span>} />
-        <Row label="通信延迟" value={card.commLatency} />
-        <Row label="P99延迟" value={card.p99Latency} />
-        <Row label="通信错误" value={card.commErrors.toString()} />
-
-        <div style={{ height: 1, background: '#E5E7EB', margin: '16px 0' }} />
-        <GroupTitle title="网络健康" />
-        <Row label="RDMA健康率" value={<span style={{ color: '#16A34A', fontWeight: 700 }}>{card.rdmaHealth}</span>} />
-        <Row label="链路异常" value={card.linkErrors.toString()} />
-        <Row label="丢包" value={card.dropCount.toString()} />
-        <Row label="Flit错误" value={card.flitErrors.toString()} />
-
-        <div style={{ height: 1, background: '#E5E7EB', margin: '16px 0' }} />
-        <GroupTitle title="趋势监控" />
-        <div style={{ padding: '8px 0 4px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#111827' }}>RDMA 带宽趋势</span>
-            <span style={{ fontSize: 10, color: '#98A2B3' }}>最近 24 小时</span>
+        <section className="gpu-detail-section">
+          <div className="gpu-detail-section-head"><strong>运行指标</strong><span>当前采样值</span></div>
+          <div className="gpu-runtime-grid">
+            <div><span>型号</span><strong>{card.model}</strong></div>
+            <div><span>规格</span><strong>{card.spec}</strong></div>
+            <div><span>功耗</span><strong>{card.power} W</strong></div>
+            <div><span>温度</span><strong>{card.temperature} °C</strong></div>
           </div>
-          <svg width="100%" height="60" viewBox="0 0 380 60" style={{ display: 'block' }}>
-            <defs><linearGradient id="rdmaBw" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#7C3AED" /><stop offset="100%" stopColor="#7C3AED" stopOpacity="0" /></linearGradient></defs>
-            <polyline points="0,56 20,52 40,48 60,44 80,46 100,42 120,36 140,30 160,28 180,24 200,22 220,18 240,14 260,16 280,12 300,10 320,6 340,4 360,3 380,2" fill="none" stroke="#7C3AED" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            <polyline points="0,56 20,52 40,48 60,44 80,46 100,42 120,36 140,30 160,28 180,24 200,22 220,18 240,14 260,16 280,12 300,10 320,6 340,4 360,3 380,2" fill="url(#rdmaBw)" opacity="0.08" />
-            <text x="0" y="8" style={{ fontSize: 9, fill: '#98A2B3' }}>带宽</text>
-          </svg>
-        </div>
-        <div style={{ padding: '0 0 4px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#111827' }}>通信延迟趋势</span>
-            <span style={{ fontSize: 10, color: '#98A2B3' }}>最近 24 小时</span>
-          </div>
-          <svg width="100%" height="60" viewBox="0 0 380 60" style={{ display: 'block' }}>
-            <defs><linearGradient id="rdmaLat" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#16A34A" /><stop offset="100%" stopColor="#16A34A" stopOpacity="0" /></linearGradient></defs>
-            <polyline points="0,10 20,12 40,14 60,16 80,14 100,18 120,20 140,22 160,24 180,26 200,28 220,30 240,32 260,34 280,36 300,38 320,40 340,42 360,44 380,46" fill="none" stroke="#16A34A" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            <polyline points="0,10 20,12 40,14 60,16 80,14 100,18 120,20 140,22 160,24 180,26 200,28 220,30 240,32 260,34 280,36 300,38 320,40 340,42 360,44 380,46" fill="url(#rdmaLat)" opacity="0.08" />
-            <text x="0" y="8" style={{ fontSize: 9, fill: '#98A2B3' }}>延迟</text>
-          </svg>
-        </div>
-
-        <div style={{ height: 24 }} />
+        </section>
       </div>
     </Drawer>
   );
 };
 
 
-const NodeExpandContent = ({ node }: { node: NodeRow }) => {
-  const [activeTab, setActiveTab] = useState(nodeTabs[0]);
+const NodeExpandContent = ({ node, initialTab = 'CPU' }: { node: NodeRow; initialTab?: string }) => {
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [diskDetail, setDiskDetail] = useState<{ name: string; total: string; used: string; type: string; mountPath: string; status: string; readSpeed: string; writeSpeed: string; iops: string; latency: string; readPressure: number; writePressure: number } | null>(null);
   const [netDetail, setNetDetail] = useState<NetCardDetail | null>(null);
-  const [rdmaDetail, setRdmaDetail] = useState<RdmaCardDetail | null>(null);
   const [gpuDetail, setGpuDetail] = useState<{ index: number; model: string; spec: string; memoryTotal: string; memoryUsed: string; memoryFree: string; utilization: number; power: number; temperature: number; status: string } | null>(null);
   const [logDetail, setLogDetail] = useState<{ title: string; logs: string[] } | null>(null);
 
   const cpuUtil = node.cpu > 0 ? Math.round((node.cpuUsed / node.cpu) * 100) : 0;
   const memUtil = getCapacityPercent(node.memoryUsed, node.memory);
+  const nodeHasFault = node.status === 'warning' || node.status === 'error';
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
+
   const renderTabBar = () => (
-    <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid #E5E6EB', marginBottom: 16 }}>
+    <div className="node-detail-tabs">
       {nodeTabs.map((tab) => (
-        <button key={tab} type="button" onClick={() => setActiveTab(tab)} style={{ padding: '6px 14px', cursor: 'pointer', fontSize: 13, color: activeTab === tab ? '#6738E8' : '#4E5969', fontWeight: activeTab === tab ? 600 : 400, borderBottom: activeTab === tab ? '2px solid #6738E8' : '2px solid transparent', background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none', whiteSpace: 'nowrap' }}>{tab}</button>
+        <button
+          key={tab}
+          type="button"
+          className={activeTab === tab ? 'active' : ''}
+          onClick={() => setActiveTab(tab)}
+        >
+          <span>{tab}</span>
+          {tab === '故障定位' && nodeHasFault && (
+            <Tooltip title="该节点存在异常，请优先查看故障定位">
+              <span className="node-detail-fault-indicator"><CircleAlert /></span>
+            </Tooltip>
+          )}
+        </button>
       ))}
     </div>
   );
+
+  if (node.status === 'pending') {
+    return (
+      <div className="node-expand-shell">
+        {renderTabBar()}
+        <div className="node-onboarding-state">
+          <strong>节点正在接入</strong>
+          <span>系统正在完成连通性检查、集群注册和硬件资源采集，完成后会自动更新这里的资源详情。</span>
+          <div><i /><span>资源已关联到 {node.clusterName}</span></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (activeTab === '故障定位') {
+    const abnormalNetworks = node.networkCards.filter((card) => card.status !== 'active');
+    const hasFault = nodeHasFault;
+    return (
+      <div className="node-expand-shell">
+        {renderTabBar()}
+        <div className={`node-fault-locator${hasFault ? ' has-fault' : ''}`}>
+          <div className="node-fault-locator-head">
+            <div>
+              <strong>{hasFault ? '已定位节点故障路径' : '当前节点运行正常'}</strong>
+              <span>{node.name} · {node.ip}</span>
+            </div>
+            <span className="node-fault-locator-status">{hasFault ? '异常' : '正常'}</span>
+          </div>
+          {hasFault ? (
+            <>
+              <div className="node-fault-path">
+                <div><small>节点状态</small><strong>{node.name} 异常</strong></div>
+                <span>→</span>
+                <div><small>关联设备</small><strong>{abnormalNetworks.map((card) => card.name).join('、') || '待确认'}</strong></div>
+                <span>→</span>
+                <div><small>定位结果</small><strong>{abnormalNetworks.length ? '网络链路 DOWN' : '节点资源异常'}</strong></div>
+              </div>
+              <div className="node-fault-locator-actions">
+                <span>建议优先检查节点网络链路、交换机端口和主机网络服务。</span>
+                {abnormalNetworks.length > 0 && (
+                  <button type="button" onClick={() => setActiveTab('网卡详情')}>查看网卡详情</button>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="node-fault-empty">未检测到需要定位的节点故障。</div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   if (activeTab === 'CPU') {
     const items = [
@@ -949,23 +1549,21 @@ const NodeExpandContent = ({ node }: { node: NodeRow }) => {
       { label: 'CPU负载(Load)', value: node.cpuLoad },
     ];
     return (
-      <div>
+      <div className="node-expand-shell">
         {renderTabBar()}
-        <div style={{ display: 'flex', gap: 32, padding: 16, alignItems: 'center' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-            <svg width="160" height="160" viewBox="0 0 160 160">
-              <circle cx="80" cy="80" r="65" fill="none" stroke="#E5E6EB" strokeWidth="12" />
-              <circle cx="80" cy="80" r="65" fill="none" stroke={cpuUtil > 80 ? '#F53F3F' : cpuUtil > 60 ? '#FF7D00' : '#4C6EF5'} strokeWidth="12" strokeDasharray="408.4" strokeDashoffset={408.4 - (408.4 * Math.min(Math.max(cpuUtil, 0), 100)) / 100} strokeLinecap="round" transform="rotate(-90 80 80)" />
-              <text x="80" y="74" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: 32, fontWeight: 700, fill: '#1d2129' }}>{cpuUtil}%</text>
-              <text x="80" y="100" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: 12, fill: '#86909c' }}>CPU利用率</text>
-            </svg>
-            <div style={{ fontSize: 12, color: '#4E5969' }}>{node.cpuUsed} / {node.cpu} Core</div>
+        <div className="node-resource-panel">
+          <div className="node-usage-summary">
+            <div className="node-usage-title"><span>CPU 运行状态</span></div>
+            <strong>{cpuUtil}%</strong>
+            <span>CPU 利用率</span>
+            <div className="node-usage-track"><i className={cpuUtil > 80 ? 'is-danger' : cpuUtil > 60 ? 'is-warning' : ''} style={{ width: `${cpuUtil}%` }} /></div>
+            <small>{node.cpuUsed} / {node.cpu} Core</small>
           </div>
-          <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 32px', fontSize: 13 }}>
+          <div className="node-kv-grid">
             {items.map((item) => (
-              <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #f0f0f0' }}>
-                <span style={{ color: '#86909c' }}>{item.label}</span>
-                <strong style={{ color: '#1d2129' }}>{item.value}</strong>
+              <div key={item.label}>
+                <span>{item.label}</span>
+                <strong>{item.value}</strong>
               </div>
             ))}
           </div>
@@ -988,23 +1586,21 @@ const NodeExpandContent = ({ node }: { node: NodeRow }) => {
       { label: 'Memory 缓存', value: node.memoryCache },
     ];
     return (
-      <div>
+      <div className="node-expand-shell">
         {renderTabBar()}
-        <div style={{ display: 'flex', gap: 32, padding: 16, alignItems: 'center' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-            <svg width="160" height="160" viewBox="0 0 160 160">
-              <circle cx="80" cy="80" r="65" fill="none" stroke="#E5E6EB" strokeWidth="12" />
-              <circle cx="80" cy="80" r="65" fill="none" stroke={memUtil > 80 ? '#F53F3F' : memUtil > 60 ? '#FF7D00' : '#4C6EF5'} strokeWidth="12" strokeDasharray="408.4" strokeDashoffset={408.4 - (408.4 * Math.min(Math.max(memUtil, 0), 100)) / 100} strokeLinecap="round" transform="rotate(-90 80 80)" />
-              <text x="80" y="74" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: 32, fontWeight: 700, fill: '#1d2129' }}>{Math.round(memUtil)}%</text>
-              <text x="80" y="100" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: 12, fill: '#86909c' }}>内存使用率</text>
-            </svg>
-            <div style={{ fontSize: 12, color: '#4E5969' }}>{node.memoryUsed} / {node.memory}</div>
+        <div className="node-resource-panel">
+          <div className="node-usage-summary">
+            <div className="node-usage-title"><span>内存运行状态</span></div>
+            <strong>{Math.round(memUtil)}%</strong>
+            <span>内存使用率</span>
+            <div className="node-usage-track"><i className={memUtil > 80 ? 'is-danger' : memUtil > 60 ? 'is-warning' : ''} style={{ width: `${Math.round(memUtil)}%` }} /></div>
+            <small>{node.memoryUsed} / {node.memory}</small>
           </div>
-          <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 32px', fontSize: 13 }}>
+          <div className="node-kv-grid">
             {memRows.map((row) => (
-              <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #f0f0f0' }}>
-                <span style={{ color: '#86909c' }}>{row.label}</span>
-                <strong style={{ color: '#1d2129' }}>{row.value}</strong>
+              <div key={row.label}>
+                <span>{row.label}</span>
+                <strong>{row.value}</strong>
               </div>
             ))}
           </div>
@@ -1015,9 +1611,9 @@ const NodeExpandContent = ({ node }: { node: NodeRow }) => {
 
   if (activeTab === 'GPU') {
     return (
-      <div>
+      <div className="node-expand-shell">
         {renderTabBar()}
-        <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+        <table className="node-detail-table" style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: '#F7F8FA', color: '#4E5969', textAlign: 'left' }}>
               <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>#</th>
@@ -1033,7 +1629,7 @@ const NodeExpandContent = ({ node }: { node: NodeRow }) => {
             {node.gpuCards.map((card) => (
               <tr key={card.index}>
                 <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5', color: '#4E5969' }}>{card.index}</td>
-                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}><a style={{ cursor: 'pointer', color: '#6738E8', fontWeight: 600 }} onClick={() => setGpuDetail(card)}><strong>{card.model}</strong></a> <em style={{ color: '#86909c', fontStyle: 'normal' }}>{card.spec}</em></td>
+                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}><a style={{ cursor: 'pointer', color: '#6951FF', fontWeight: 500 }} onClick={() => setGpuDetail(card)}><strong>{card.model}</strong></a> <em style={{ color: '#86909c', fontStyle: 'normal' }}>{card.spec}</em></td>
                 <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5', color: '#4E5969' }}>{card.memoryUsed} / {card.memoryTotal}</td>
                 <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}>
                   <Progress percent={card.utilization} showInfo={false} size="small" strokeColor={card.utilization > 90 ? '#E02D2D' : '#6951FF'} trailColor="#F2F3F5" style={{ width: 80 }} />
@@ -1042,38 +1638,23 @@ const NodeExpandContent = ({ node }: { node: NodeRow }) => {
                 <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5', color: '#4E5969' }}>{card.power}W</td>
                 <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5', color: '#4E5969' }}>{card.temperature}°C</td>
                 <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}>
-                  <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: card.status === 'active' ? '#00A11F' : '#C9CDD4', marginRight: 6 }} />
-                  <span style={{ color: card.status === 'active' ? '#00A11F' : '#86909c' }}>{card.status === 'active' ? '使用中' : '空闲'}</span>
+                  <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: card.status === 'active' ? '#00B42A' : '#C9CDD4', marginRight: 6 }} />
+                  <span style={{ color: card.status === 'active' ? '#00B42A' : '#86909c' }}>{card.status === 'active' ? '使用中' : '空闲'}</span>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-        <Drawer title={'GPU详情 - ' + (gpuDetail ? ('#' + gpuDetail.index + ' ' + gpuDetail.model) : '')} placement="right" open={!!gpuDetail} onClose={() => setGpuDetail(null)} width={420}>
-          {gpuDetail && (
-            <div style={{ fontSize: 13, lineHeight: '36px' }}>
-              <div><span style={{ color: '#86909c' }}>卡序号</span> <strong style={{ marginLeft: 16 }}>#{gpuDetail.index}</strong></div>
-              <div><span style={{ color: '#86909c' }}>型号</span> <strong style={{ marginLeft: 16 }}>{gpuDetail.model}</strong></div>
-              <div><span style={{ color: '#86909c' }}>规格</span> <strong style={{ marginLeft: 16 }}>{gpuDetail.spec}</strong></div>
-              <div><span style={{ color: '#86909c' }}>总显存</span> <strong style={{ marginLeft: 16 }}>{gpuDetail.memoryTotal}</strong></div>
-              <div><span style={{ color: '#86909c' }}>已用显存</span> <strong style={{ marginLeft: 16 }}>{gpuDetail.memoryUsed}</strong></div>
-              <div><span style={{ color: '#86909c' }}>空闲显存</span> <strong style={{ marginLeft: 16 }}>{gpuDetail.memoryFree}</strong></div>
-              <div><span style={{ color: '#86909c' }}>利用率</span> <strong style={{ marginLeft: 16 }}>{gpuDetail.utilization}%</strong></div>
-              <div><span style={{ color: '#86909c' }}>功耗</span> <strong style={{ marginLeft: 16 }}>{gpuDetail.power}W</strong></div>
-              <div><span style={{ color: '#86909c' }}>温度</span> <strong style={{ marginLeft: 16 }}>{gpuDetail.temperature}°C</strong></div>
-              <div><span style={{ color: '#86909c' }}>状态</span> <strong style={{ marginLeft: 16 }}>{gpuDetail.status === 'active' ? '使用中' : '空闲'}</strong></div>
-            </div>
-          )}
-        </Drawer>
+        <GpuDetailDrawer card={gpuDetail} nodeName={node.name} open={!!gpuDetail} onClose={() => setGpuDetail(null)} />
       </div>
     );
   }
 
   if (activeTab === '磁盘详情') {
     return (
-      <div>
+      <div className="node-expand-shell">
         {renderTabBar()}
-        <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+        <table className="node-detail-table" style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: '#F7F8FA', color: '#4E5969', textAlign: 'left' }}>
               <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>名称</th>
@@ -1088,37 +1669,31 @@ const NodeExpandContent = ({ node }: { node: NodeRow }) => {
           <tbody>
             {node.disks.map((d) => (
               <tr key={d.name}>
-                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}><a style={{ cursor: 'pointer', color: '#6738E8', fontWeight: 600 }} onClick={() => setDiskDetail(d)}>{d.name}</a></td>
+                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}><a style={{ cursor: 'pointer', color: '#6951FF', fontWeight: 500 }} onClick={() => setDiskDetail(d)}>{d.name}</a></td>
                 <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5', color: '#4E5969' }}>{d.total}</td>
                 <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5', color: '#4E5969' }}>{d.used}</td>
                 <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5', color: '#4E5969' }}>{d.type}</td>
                 <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5', color: '#4E5969' }}>{d.mountPath}</td>
                 <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}>
-                  <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: d.status === 'normal' ? '#00A11F' : '#FF7D00', marginRight: 6 }} />
-                  <span style={{ color: d.status === 'normal' ? '#00A11F' : '#FF7D00' }}>{d.status === 'normal' ? '正常' : '告警'}</span>
+                  <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: d.status === 'normal' ? '#00B42A' : '#FF7D00', marginRight: 6 }} />
+                  <span style={{ color: d.status === 'normal' ? '#00B42A' : '#FF7D00' }}>{d.status === 'normal' ? '正常' : '告警'}</span>
                 </td>
-                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}><FileTextOutlined style={{ cursor: 'pointer', color: '#6738E8', fontSize: 15 }} onClick={() => setLogDetail({ title: d.name + ' 内核日志', logs: mockKernelLogs(d.name) })} /></td>
+                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}><FileText className="node-inline-log-icon" onClick={() => setLogDetail({ title: d.name + ' 内核日志', logs: mockKernelLogs(d.name) })} /></td>
               </tr>
             ))}
           </tbody>
         </table>
-                <DiskDetailDrawer disk={diskDetail} open={!!diskDetail} onClose={() => setDiskDetail(null)} />
-        <Drawer title={logDetail?.title || ''} placement="right" open={!!logDetail} onClose={() => setLogDetail(null)} width={620}>
-          {logDetail && (
-            <div style={{ background: '#1d2129', color: '#52c41a', fontFamily: 'Menlo, Monaco, monospace', fontSize: 12, lineHeight: '22px', padding: 16, borderRadius: 6, whiteSpace: 'pre-wrap', overflow: 'auto', maxHeight: 'calc(100vh - 200px)' }}>
-              {logDetail.logs.map((line, i) => <div key={i}>{line}</div>)}
-            </div>
-          )}
-        </Drawer>
+        <DiskDetailDrawer disk={diskDetail} nodeName={node.name} open={!!diskDetail} onClose={() => setDiskDetail(null)} />
+        <NodeLogDrawer detail={logDetail} onClose={() => setLogDetail(null)} />
       </div>
     );
   }
 
   if (activeTab === '网卡详情') {
     return (
-      <div>
+      <div className="node-expand-shell">
         {renderTabBar()}
-        <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+        <table className="node-detail-table" style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: '#F7F8FA', color: '#4E5969', textAlign: 'left' }}>
               <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>名称</th>
@@ -1132,52 +1707,36 @@ const NodeExpandContent = ({ node }: { node: NodeRow }) => {
           <tbody>
             {node.networkCards.map((card) => (
               <tr key={card.name}>
-                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}><a style={{ cursor: 'pointer', color: '#6738E8', fontWeight: 600 }} onClick={() => {
-                  const base = { nodeName: node.name, nodeRole: '推理节点', runningPods: node.pods.filter((p) => p.status === 'Running').length, services: 'DeepSeek API' };
-                  if (card.type === 'InfiniBand') {
-                    setRdmaDetail({
-                      ...card, ...base,
-                      firmware: '28.39.1002', port: 'Port 1', linkHealth: '99.99%',
-                      errorCount: 0, retransmitCount: 0,
-                      throughput: '130Gbps', sendRate: '80Gbps', recvRate: '50Gbps',
-                      gpuDirectRdma: true, ncclStatus: '正常',
-                      commLatency: '1.2μs', p99Latency: '2.8μs', commErrors: 0,
-                      rdmaHealth: '99.8%', linkErrors: 0, dropCount: 0, flitErrors: 0,
-                    });
-                  } else {
-                    setNetDetail({ ...card, ...base });
-                  }
+                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}><a style={{ cursor: 'pointer', color: '#6951FF', fontWeight: 500 }} onClick={() => {
+                  setNetDetail({
+                    ...card,
+                    nodeName: node.name,
+                    runningPods: node.pods.filter((pod) => pod.status === 'Running').length,
+                  });
                 }}>{card.name}</a></td>
                 <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5', color: '#4E5969' }}>{card.type}</td>
                 <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5', color: '#4E5969' }}>{card.ip}</td>
                 <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5', color: '#4E5969' }}>{card.speed}</td>
                 <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}>
-                  <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: card.status === 'active' ? '#00A11F' : '#C9CDD4', marginRight: 6 }} />
-                  <span style={{ color: card.status === 'active' ? '#00A11F' : '#86909c' }}>{card.status === 'active' ? '正常' : '异常'}</span>
+                  <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: card.status === 'active' ? '#00B42A' : '#F53F3F', marginRight: 6 }} />
+                  <span style={{ color: card.status === 'active' ? '#00B42A' : '#F53F3F' }}>{card.status === 'active' ? '正常' : '异常'}</span>
                 </td>
-                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}><FileTextOutlined style={{ cursor: 'pointer', color: '#6738E8', fontSize: 15 }} onClick={() => setLogDetail({ title: card.name + ' 内核日志', logs: mockKernelLogs(card.name) })} /></td>
+                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}><FileText className="node-inline-log-icon" onClick={() => setLogDetail({ title: card.name + ' 内核日志', logs: mockKernelLogs(card.name) })} /></td>
               </tr>
             ))}
           </tbody>
         </table>
         <NetDetailDrawer card={netDetail} open={!!netDetail} onClose={() => setNetDetail(null)} />
-        <RdmaDetailDrawer card={rdmaDetail} open={!!rdmaDetail} onClose={() => setRdmaDetail(null)} />
-        <Drawer title={logDetail?.title || ''} placement="right" open={!!logDetail} onClose={() => setLogDetail(null)} width={620}>
-          {logDetail && (
-            <div style={{ background: '#1d2129', color: '#52c41a', fontFamily: 'Menlo, Monaco, monospace', fontSize: 12, lineHeight: '22px', padding: 16, borderRadius: 6, whiteSpace: 'pre-wrap', overflow: 'auto', maxHeight: 'calc(100vh - 200px)' }}>
-              {logDetail.logs.map((line, i) => <div key={i}>{line}</div>)}
-            </div>
-          )}
-        </Drawer>
+        <NodeLogDrawer detail={logDetail} onClose={() => setLogDetail(null)} />
       </div>
     );
   }
 
   if (activeTab === 'Pods列表') {
     return (
-      <div>
+      <div className="node-expand-shell">
         {renderTabBar()}
-        <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+        <table className="node-detail-table" style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: '#F7F8FA', color: '#4E5969', textAlign: 'left' }}>
               <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>Pod 名称</th>
@@ -1194,8 +1753,8 @@ const NodeExpandContent = ({ node }: { node: NodeRow }) => {
                 <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5', color: '#4E5969' }}>{pod.namespace}</td>
                 <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}>{pod.ready}</td>
                 <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: pod.status === 'Running' ? '#00A11F' : '#F53F3F' }}>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: pod.status === 'Running' ? '#00A11F' : '#F53F3F' }} />
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: pod.status === 'Running' ? '#00B42A' : '#F53F3F' }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: pod.status === 'Running' ? '#00B42A' : '#F53F3F' }} />
                     {pod.status}
                   </span>
                 </td>
@@ -1219,53 +1778,528 @@ const nodeData: NodeRow[] = [
   { key: 'n6', name: 'qujing20', ip: '192.168.110.20', clusterName: 'default', label: 'GPU=RTX_4011', status: 'normal', authStatus: 'authorized', modelCount: 0, runningInstances: 0, cpu: 192, cpuUsed: 72, cpuModel: 'AMD EPYC 9654', cpuArch: 'x86_64', cpuSockets: 2, cpuCores: 192, cpuThreads: 384, cpuFrequency: 2.4, cpuTotalGHz: 460.8, cpuUsedGHz: 172.8, cpuReady: '97.2%', cpuLoad: '14.1', gpu: 8, gpuCards: [{ index: 0, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '16.8 GB', memoryFree: '7.19 GB', utilization: 68, power: 340, temperature: 70, status: 'active' }, { index: 1, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 91, power: 395, temperature: 76, status: 'active' }, { index: 2, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '5.6 GB', memoryFree: '18.39 GB', utilization: 25, power: 185, temperature: 56, status: 'active' }, { index: 3, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '22.1 GB', memoryFree: '1.89 GB', utilization: 82, power: 365, temperature: 73, status: 'active' }, { index: 4, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 31, status: 'idle' }, { index: 5, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 96, power: 425, temperature: 81, status: 'active' }, { index: 6, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '18.2 GB', memoryFree: '5.79 GB', utilization: 74, power: 348, temperature: 71, status: 'active' }, { index: 7, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '10.5 GB', memoryFree: '13.49 GB', utilization: 42, power: 265, temperature: 63, status: 'active' }], gpuMemory: '383.9 GB', gpuMemoryUsed: '72.0 GB', memory: '1007.51 GB', memoryUsed: '604.5 GB', memoryType: 'DDR5 4800MHz', memoryActive: '286.4 GB', memoryConsumed: '412.8 GB', memoryShared: '12.3 GB', memoryBalloon: '0 GB', memoryCompression: '8.7 GB', memorySwap: '2.1 GB', memoryCache: '156.2 GB', disk: '3.86 TB', diskUsed: '1.62 TB', disks: [{ name: '/dev/sda', total: '3.86 TB', used: '1.62 TB', type: 'NVMe SSD', mountPath: '/data', status: 'normal', readSpeed: '680 MB/s', writeSpeed: '350 MB/s', iops: '65K', latency: '1.1 ms', readPressure: 45, writePressure: 30 }], networkCards: [{ name: 'eth0', ip: '192.168.110.20', speed: '25Gbps', status: 'active', type: 'Ethernet', mac: '00:1A:2B:3C:4D:51', driver: 'mlx5_core', pcie: '0000:3b:00.0', linkStatus: 'UP', duplex: 'Full Duplex', lossRate: '0.004%', errors: 1, inbound: '15.2 Gbps', outbound: '18.6 Gbps', bandwidthUtil: 72, pps: '1.5M', tcpConns: 18240, avgLatency: '0.31ms', connStatus: '正常' }, { name: 'eth1', ip: '10.0.0.20', speed: '100Gbps', status: 'active', type: 'Ethernet', mac: '00:1A:2B:3C:4D:52', driver: 'mlx5_core', pcie: '0000:3b:00.1', linkStatus: 'UP', duplex: 'Full Duplex', lossRate: '0.001%', errors: 0, inbound: '52.6 Gbps', outbound: '48.3 Gbps', bandwidthUtil: 52, pps: '2.6M', tcpConns: 12450, avgLatency: '0.25ms', connStatus: '正常' }, { name: 'ib0', ip: '192.168.200.20', speed: '200Gbps', status: 'active', type: 'InfiniBand', mac: 'N/A', driver: 'mlx5_ib', pcie: '0000:3b:00.2', linkStatus: 'UP', duplex: 'Full Duplex', lossRate: '0.000%', errors: 0, inbound: '192.4 Gbps', outbound: '168.7 Gbps', bandwidthUtil: 92, pps: '6.2M', tcpConns: 0, avgLatency: '0.10ms', connStatus: '正常' }], pods: [] },
 ];
 
+const nodeResourceDataCenters = [
+  { value: 'dc-sh-01', label: '上海一号数据中心', code: 'DC-SH-001', availability: '18 台可用' },
+  { value: 'dc-gz-01', label: '广州边缘数据中心', code: 'DC-GZ-001', availability: '3 台可用' },
+  { value: 'dc-cd-01', label: '成都边缘数据中心', code: 'DC-CD-001', availability: '3 台可用' },
+];
+
 const NodeTable = () => {
   const [keyword, setKeyword] = useState('');
   const [nodeLog, setNodeLog] = useState<{ title: string; logs: string[] } | null>(null);
+  const [faultFocus, setFaultFocus] = useState<{ kind: 'node' | 'network' | 'disk'; nodeKey: string } | null>(null);
+  const [expandedRowKeys, setExpandedRowKeys] = useState<string[]>([]);
+  const [addNodeOpen, setAddNodeOpen] = useState(false);
+  const [nodeRows, setNodeRows] = useState<NodeRow[]>(nodeData);
+  const [addNodeForm] = Form.useForm();
+  const normalCount = nodeRows.filter((row) => row.status === 'normal').length;
+  const abnormalCount = nodeRows.filter((row) => row.status === 'warning' || row.status === 'error').length;
+  const totalGpuCount = nodeRows.reduce((total, row) => total + row.gpu, 0);
+  const focusedNode = faultFocus ? nodeRows.find((row) => row.key === faultFocus.nodeKey) : null;
 
-  const filteredData = useMemo(() => nodeData.filter((row) => {
+  const closeAddNodeDrawer = () => {
+    addNodeForm.resetFields();
+    setAddNodeOpen(false);
+  };
+
+  const createNodeJoinTask = (values: {
+    dataCenter: string;
+    cluster: string;
+    role: 'worker' | 'control-plane';
+    name: string;
+    ip: string;
+    credential: string;
+    labels?: string;
+    remark?: string;
+  }) => {
+    const nodeName = values.name.trim();
+    const nodeIp = values.ip.trim();
+    if (nodeRows.some((row) => row.name === nodeName)) {
+      addNodeForm.setFields([{ name: 'name', errors: ['节点名称已存在'] }]);
+      return;
+    }
+    if (nodeRows.some((row) => row.ip === nodeIp)) {
+      addNodeForm.setFields([{ name: 'ip', errors: ['管理 IP 已关联其他节点'] }]);
+      return;
+    }
+
+    const dataCenter = nodeResourceDataCenters.find((item) => item.value === values.dataCenter);
+    const labels = String(values.labels || '')
+      .split(/\r?\n/)
+      .map((label) => label.trim())
+      .filter(Boolean);
+    const roleLabel = values.role === 'control-plane' ? 'controlplane=true' : 'worker=general';
+    const newNode: NodeRow = {
+      key: `node-${Date.now()}`,
+      name: nodeName,
+      ip: nodeIp,
+      clusterName: values.cluster,
+      label: roleLabel,
+      tags: [
+        ...labels,
+        dataCenter ? `data-center=${dataCenter.code}` : '',
+      ].filter(Boolean),
+      status: 'pending',
+      authStatus: 'unauthorized',
+      modelCount: 0,
+      runningInstances: 0,
+      cpu: 0,
+      cpuUsed: 0,
+      cpuModel: '待采集',
+      cpuArch: '待采集',
+      cpuSockets: 0,
+      cpuCores: 0,
+      cpuThreads: 0,
+      cpuFrequency: 0,
+      cpuTotalGHz: 0,
+      cpuUsedGHz: 0,
+      cpuReady: '—',
+      cpuLoad: '—',
+      gpu: 0,
+      gpuCards: [],
+      gpuMemory: '—',
+      gpuMemoryUsed: '—',
+      memory: '—',
+      memoryUsed: '—',
+      memoryType: '待采集',
+      memoryActive: '—',
+      memoryConsumed: '—',
+      memoryShared: '—',
+      memoryBalloon: '—',
+      memoryCompression: '—',
+      memorySwap: '—',
+      memoryCache: '—',
+      disk: '—',
+      diskUsed: '—',
+      disks: [],
+      networkCards: [],
+      pods: [],
+    };
+
+    setNodeRows((rows) => [newNode, ...rows]);
+    setKeyword('');
+    setFaultFocus(null);
+    setExpandedRowKeys([newNode.key]);
+    closeAddNodeDrawer();
+  };
+
+  useEffect(() => {
+    const handleFocus = (event: Event) => {
+      const detail = (event as CustomEvent<{ kind?: 'node' | 'network' | 'disk'; nodeKey?: string }>).detail;
+      if (!detail?.kind || !detail.nodeKey) return;
+      setKeyword('');
+      setFaultFocus({ kind: detail.kind, nodeKey: detail.nodeKey });
+      setExpandedRowKeys([detail.nodeKey]);
+    };
+
+    window.addEventListener('ataas:cluster-node-focus', handleFocus);
+    return () => window.removeEventListener('ataas:cluster-node-focus', handleFocus);
+  }, []);
+
+  const filteredData = useMemo(() => nodeRows.filter((row) => {
+    if (faultFocus) return row.key === faultFocus.nodeKey;
     const text = (row.name + ' ' + row.ip + ' ' + row.clusterName + ' ' + row.label).toLowerCase();
     return !keyword || text.includes(keyword.toLowerCase());
-  }), [keyword]);
+  }), [faultFocus, keyword, nodeRows]);
 
   const columns: ColumnsType<NodeRow> = [
-    { title: '节点名称', key: 'name', width: 120, render: (_, r) => (
-      <strong style={{ fontSize: 13, color: '#1d2129' }}>{r.name}</strong>
+    { title: '节点', key: 'name', width: 250, render: (_, r) => (
+      <div className="node-list-identity">
+        <strong>{r.name}</strong>
+        <span>{r.ip} · {r.clusterName}</span>
+      </div>
     ) },
-    { title: '节点 IP', dataIndex: 'ip', key: 'ip', width: 130 },
-    { title: 'Labels', key: 'label', width: 200, render: (_, r) => (
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-        <span style={{ display: 'inline-block', padding: '1px 6px', fontSize: 11, background: '#F0F0FF', color: '#6738E8', borderRadius: 3, border: '1px solid #D9D0FC' }}>{r.label}</span>
-        {r.tags?.filter((tag) => /^(deployment|GPU|worker|controlplane)=/.test(tag)).map((tag) => (
-          <span key={tag} style={{ display: 'inline-block', padding: '1px 6px', fontSize: 11, background: '#F7F8FA', color: '#4E5969', borderRadius: 3, border: '1px solid #E5E6EB' }}>{tag}</span>
+    { title: '角色与标签', key: 'label', width: 270, render: (_, r) => (
+      <div className="node-list-tags">
+        <span className="is-primary">{r.label}</span>
+        {r.tags?.filter((tag) => /^(deployment|GPU|worker|controlplane)=/.test(tag)).slice(0, 2).map((tag) => (
+          <span key={tag}>{tag}</span>
         ))}
       </div>
     ) },
-    { title: '状态', key: 'status', width: 80, render: (_, r) => (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-        <span style={{ width: 7, height: 7, borderRadius: '50%', display: 'inline-block', background: r.status === 'normal' ? '#00A11F' : r.status === 'warning' ? '#FF7D00' : '#F53F3F', flexShrink: 0 }} />
-        <span style={{ fontSize: 12, color: '#4E5969' }}>{r.status === 'normal' ? '正常' : r.status === 'warning' ? '警告' : '异常'}</span>
+    { title: 'CPU / 内存', key: 'compute', width: 255, render: (_, r) => {
+      if (r.status === 'pending') return <span className="node-list-awaiting">接入后自动采集</span>;
+      const cpuPercent = r.cpu > 0 ? Math.round((r.cpuUsed / r.cpu) * 100) : 0;
+      const memoryPercent = Math.round(getCapacityPercent(r.memoryUsed, r.memory));
+      return (
+        <div className="node-list-resource-stack">
+          <div className="node-list-resource-line">
+            <span>CPU</span>
+            <i><em className={cpuPercent > 80 ? 'is-danger' : cpuPercent > 60 ? 'is-warning' : ''} style={{ width: `${cpuPercent}%` }} /></i>
+            <b>{cpuPercent}%</b>
+          </div>
+          <div className="node-list-resource-line">
+            <span>内存</span>
+            <i><em className={memoryPercent > 80 ? 'is-danger' : memoryPercent > 60 ? 'is-warning' : ''} style={{ width: `${memoryPercent}%` }} /></i>
+            <b>{memoryPercent}%</b>
+          </div>
+        </div>
+      );
+    } },
+    { title: 'GPU / 显存', key: 'accelerator', width: 225, render: (_, r) => (
+      r.status === 'pending'
+        ? <span className="node-list-awaiting">待采集</span>
+        : (
+          <div className="node-list-capacity">
+            <div><span>GPU</span><strong>{r.gpu} 张 · {r.gpuCards[0]?.model || '—'}</strong></div>
+            <div><span>显存</span><strong>{r.gpuMemoryUsed} / {r.gpuMemory}</strong></div>
+          </div>
+        )
+    ) },
+    { title: '本地存储', key: 'disk', width: 180, render: (_, r) => (
+      r.status === 'pending'
+        ? <span className="node-list-awaiting">待采集</span>
+        : (
+          <div className="node-list-capacity">
+            <div><span>已使用</span><strong>{r.diskUsed}</strong></div>
+            <div><span>总容量</span><strong>{r.disk}</strong></div>
+          </div>
+        )
+    ) },
+    { title: '状态', key: 'status', width: 120, render: (_, r) => (
+      <span className={`node-list-status is-${r.status}`}>
+        <i />
+        {r.status === 'normal' ? '正常' : r.status === 'warning' ? '告警' : r.status === 'error' ? '异常' : '接入中'}
       </span>
     ) },
-    { title: '操作', key: 'action', width: 100, render: (_, r) => <FileTextOutlined style={{ cursor: 'pointer', color: '#6738E8', fontSize: 15 }} onClick={() => setNodeLog({ title: r.name + ' 内核日志', logs: mockKernelLogs(r.name) })} /> },
+    { title: '操作', key: 'action', width: 82, fixed: 'right', className: 'node-list-action-cell', align: 'center', render: (_, r) => (
+      <Tooltip title="查看日志" placement="top">
+        <button
+          type="button"
+          className="node-log-action"
+          aria-label={`查看 ${r.name} 日志`}
+          onClick={(event) => {
+            event.stopPropagation();
+            setNodeLog({ title: r.name + ' 内核日志', logs: mockKernelLogs(r.name) });
+          }}
+        >
+          <FileText />
+        </button>
+      </Tooltip>
+    ) },
   ];
 
   return (
-    <ConfigProvider theme={{ token: { colorPrimary: '#6738E8' }, components: { Table: { headerBg: '#f7f8fa' } } }}>
-      <div style={{ padding: '8px 0', display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'flex-end' }}>
-        <Input.Search size="small" allowClear value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="搜索节点名称 / IP / 标签" style={{ width: 320 }} />
+    <ConfigProvider theme={{ token: { colorPrimary: '#6951FF' }, components: { Table: { headerBg: '#F7F8FA' } } }}>
+      <div className="node-page-shell">
+        <div className="node-page-head">
+          <div className="node-page-title">
+            <div>
+              <strong>节点列表</strong>
+              <span>查看集群节点状态与硬件资源</span>
+            </div>
+          </div>
+          <div className="node-page-summary">
+            <span><small>节点总数</small><b>{nodeRows.length}</b></span>
+            <span><small>运行正常</small><b className="is-normal">{normalCount}</b></span>
+            <span><small>告警 / 异常</small><b className={abnormalCount ? 'is-error' : ''}>{abnormalCount}</b></span>
+            <span><small>GPU 总量</small><b>{totalGpuCount} 张</b></span>
+          </div>
+        </div>
+        <div className="node-table-toolbar">
+          <div className="node-table-toolbar-left">
+            <Input
+              size="small"
+              allowClear
+              value={keyword}
+              onChange={(event) => {
+                setFaultFocus(null);
+                setKeyword(event.target.value);
+              }}
+              prefix={<Search className="node-search-icon" />}
+              placeholder="搜索节点名称 / IP / 标签"
+              className="node-search-input"
+              style={{ width: 300 }}
+            />
+            {faultFocus && (
+              <div className="node-focus-path">
+                <span>
+                  {faultFocus.kind === 'network'
+                    ? '网络异常路径'
+                    : faultFocus.kind === 'disk'
+                      ? '物理盘异常定位'
+                      : '节点故障定位'}
+                </span>
+                <strong>{focusedNode?.name || faultFocus.nodeKey}</strong>
+                <button type="button" onClick={() => setFaultFocus(null)}>退出定位</button>
+              </div>
+            )}
+          </div>
+          <Button
+            type="primary"
+            className="node-add-action"
+            icon={<PlusOutlined />}
+            onClick={() => setAddNodeOpen(true)}
+          >
+            新增节点
+          </Button>
+        </div>
+        <div className="node-table-frame">
+          <Table<NodeRow>
+            className="node-list-table"
+            rowKey="key"
+            columns={columns}
+            dataSource={filteredData}
+            scroll={{ x: 1382 }}
+            pagination={{ pageSize: 10, size: 'small', showTotal: (total) => '共 ' + total + ' 个' }}
+            rowClassName={(row) => [
+              faultFocus?.nodeKey === row.key ? 'node-fault-focus-row' : '',
+              expandedRowKeys.includes(row.key) ? 'node-row-expanded' : '',
+            ].filter(Boolean).join(' ')}
+            expandable={{
+              expandedRowKeys,
+              onExpandedRowsChange: (keys) => setExpandedRowKeys(keys.map(String)),
+              showExpandColumn: false,
+              expandRowByClick: true,
+              expandedRowRender: (r) => (
+                <NodeExpandContent
+                  key={`${r.key}-${faultFocus?.kind || 'default'}`}
+                  node={r}
+                  initialTab={
+                    faultFocus?.kind === 'network'
+                      ? '网卡详情'
+                      : faultFocus?.kind === 'disk'
+                        ? '磁盘详情'
+                        : faultFocus?.kind === 'node'
+                          ? '故障定位'
+                          : 'CPU'
+                  }
+                />
+              ),
+              rowExpandable: () => true,
+            }}
+          />
+        </div>
       </div>
-      <Table<NodeRow> rowKey="key" columns={columns} dataSource={filteredData} scroll={{ x: 'max-content' }} pagination={{ pageSize: 10, showTotal: (total) => '共 ' + total + ' 个' }} expandable={{
-        expandedRowRender: (r) => <NodeExpandContent node={r} />,
-        rowExpandable: () => true,
-      }} />
-      <Drawer title={nodeLog?.title || ''} placement="right" open={!!nodeLog} onClose={() => setNodeLog(null)} width={620}>
-        {nodeLog && (
-          <div style={{ background: '#1d2129', color: '#52c41a', fontFamily: 'Menlo, Monaco, monospace', fontSize: 12, lineHeight: '22px', padding: 16, borderRadius: 6, whiteSpace: 'pre-wrap', overflow: 'auto', maxHeight: 'calc(100vh - 200px)' }}>
-            {nodeLog.logs.map((line, i) => <div key={i}>{line}</div>)}
+      <NodeLogDrawer detail={nodeLog} onClose={() => setNodeLog(null)} />
+      <Drawer
+        rootClassName="node-add-drawer"
+        title={(
+          <div className="node-add-drawer-title">
+            <strong>新增节点</strong>
+            <span>将已纳管资源注册为现有集群节点</span>
           </div>
         )}
+        placement="right"
+        open={addNodeOpen}
+        onClose={closeAddNodeDrawer}
+        width={520}
+        footer={(
+          <div className="node-add-drawer-footer">
+            <Button onClick={closeAddNodeDrawer}>取消</Button>
+            <Button type="primary" htmlType="submit" form="node-add-form">创建接入任务</Button>
+          </div>
+        )}
+      >
+        <div className="node-add-guide">
+          <strong>复用资源中心的纳管关系</strong>
+          <span>凭据由资源侧统一维护；这里仅确认资源归属、目标集群和节点身份，避免重复录入敏感信息。</span>
+        </div>
+        <Form
+          id="node-add-form"
+          form={addNodeForm}
+          layout="vertical"
+          className="node-add-form"
+          initialValues={{
+            dataCenter: 'dc-sh-01',
+            cluster: 'default',
+            role: 'worker',
+            credential: 'cluster-default-root-key',
+          }}
+          onFinish={createNodeJoinTask}
+        >
+          <section className="node-add-section">
+            <div className="node-add-section-head">
+              <strong>资源与集群关联</strong>
+              <span>沿用资源新增中的归属关系</span>
+            </div>
+            <div className="node-add-form-grid">
+              <Form.Item label="资源归属" name="dataCenter" rules={[{ required: true, message: '请选择资源归属' }]}>
+                <Select
+                  options={nodeResourceDataCenters.map((item) => ({
+                    value: item.value,
+                    label: `${item.label} · ${item.availability}`,
+                  }))}
+                />
+              </Form.Item>
+              <Form.Item label="所属集群" name="cluster" rules={[{ required: true, message: '请选择所属集群' }]}>
+                <Select
+                  options={[
+                    { value: 'default', label: 'default' },
+                    { value: 'shanghai-online', label: 'shanghai-online' },
+                    { value: 'guangzhou-test', label: 'guangzhou-test' },
+                    { value: 'wuhan-kunpeng', label: 'wuhan-kunpeng' },
+                    { value: 'beijing-prod', label: 'beijing-prod' },
+                  ]}
+                />
+              </Form.Item>
+              <Form.Item label="节点名称" name="name" rules={[{ required: true, message: '请输入节点名称' }]}>
+                <Input placeholder="例如：gpu-node-07" />
+              </Form.Item>
+              <Form.Item label="节点角色" name="role" rules={[{ required: true, message: '请选择节点角色' }]}>
+                <Select
+                  options={[
+                    { value: 'worker', label: '计算节点（Worker）' },
+                    { value: 'control-plane', label: '控制节点（Control Plane）' },
+                  ]}
+                />
+              </Form.Item>
+            </div>
+          </section>
+
+          <section className="node-add-section">
+            <div className="node-add-section-head">
+              <strong>接入配置</strong>
+              <span>与资源新增共用连接信息</span>
+            </div>
+            <div className="node-add-form-grid">
+              <Form.Item label="管理 IP" name="ip" rules={[{ required: true, message: '请输入管理 IP' }]}>
+                <Input placeholder="例如：10.24.18.121" />
+              </Form.Item>
+              <Form.Item label="SSH 凭据" name="credential" rules={[{ required: true, message: '请选择 SSH 凭据' }]}>
+                <Select
+                  options={[
+                    { value: 'cluster-default-root-key', label: 'cluster-default-root-key' },
+                    { value: 'sh-dc-root-key-01', label: 'sh-dc-root-key-01' },
+                  ]}
+                />
+              </Form.Item>
+            </div>
+            <p className="node-add-credential-note">登录用户、端口和密钥内容继承所选凭据，不会在节点页面重复保存。</p>
+          </section>
+
+          <section className="node-add-section">
+            <div className="node-add-section-head">
+              <strong>可选配置</strong>
+              <span>可在接入完成后继续维护</span>
+            </div>
+            <Form.Item label="节点标签" name="labels" extra="每行一个标签，格式为 key=value">
+              <Input.TextArea rows={3} placeholder={'例如：\nzone=shanghai\nworker=high-performance'} />
+            </Form.Item>
+            <Form.Item label="备注" name="remark">
+              <Input.TextArea rows={2} placeholder="补充节点用途或维护说明" />
+            </Form.Item>
+          </section>
+        </Form>
       </Drawer>
+    </ConfigProvider>
+  );
+};
+
+type GroupRow = {
+  key: string;
+  name: string;
+  kind: 'Deployment' | 'StatefulSet' | 'DaemonSet' | 'Job' | 'CronJob';
+  namespace: string;
+  status: '需关注' | '更新中' | '执行中' | '正常';
+  replicas: string;
+  age: string;
+};
+
+const groupData: GroupRow[] = [
+  { key: '1', name: 'payment-api', kind: 'Deployment', namespace: 'payment', status: '需关注', replicas: '3/5', age: '2026-05-18 14:22' },
+  { key: '2', name: 'model-cache', kind: 'StatefulSet', namespace: 'inference', status: '需关注', replicas: '2/3', age: '2026-06-01 09:15' },
+  { key: '3', name: 'training-worker', kind: 'Deployment', namespace: 'training', status: '更新中', replicas: '10/12', age: '2026-06-10 11:30' },
+  { key: '4', name: 'dataset-index', kind: 'Job', namespace: 'data-pipeline', status: '执行中', replicas: '18/24', age: '2026-06-15 08:00' },
+  { key: '5', name: 'order-api', kind: 'Deployment', namespace: 'order', status: '正常', replicas: '8/8', age: '2026-05-01 10:00' },
+  { key: '6', name: 'node-exporter', kind: 'DaemonSet', namespace: 'monitoring', status: '正常', replicas: '78/78', age: '2026-04-20 16:00' },
+  { key: '7', name: 'nightly-report', kind: 'CronJob', namespace: 'ops', status: '正常', replicas: '-', age: '2026-06-01 00:00' },
+];
+
+const GroupTable = () => {
+  const [keyword, setKeyword] = useState('');
+  const healthyCount = groupData.filter((group) => group.status === '正常').length;
+  const attentionCount = groupData.filter((group) => group.status === '需关注').length;
+  const processingCount = groupData.filter((group) => group.status === '更新中' || group.status === '执行中').length;
+  const filteredGroups = useMemo(() => {
+    const normalizedKeyword = keyword.trim().toLowerCase();
+    if (!normalizedKeyword) return groupData;
+    return groupData.filter((group) => (
+      `${group.name} ${group.kind} ${group.namespace} ${group.status}`
+        .toLowerCase()
+        .includes(normalizedKeyword)
+    ));
+  }, [keyword]);
+
+  const columns: ColumnsType<GroupRow> = [
+    {
+      title: 'Group',
+      key: 'name',
+      width: 190,
+      render: (_, group) => (
+        <div className="group-list-identity">
+          <strong>{group.name}</strong>
+          <span>{group.kind}</span>
+        </div>
+      ),
+    },
+    {
+      title: '类型',
+      dataIndex: 'kind',
+      key: 'kind',
+      width: 150,
+      render: (kind: GroupRow['kind']) => <span className="group-kind-tag">{kind}</span>,
+    },
+    { title: '命名空间', dataIndex: 'namespace', key: 'namespace', width: 170 },
+    {
+      title: '副本',
+      dataIndex: 'replicas',
+      key: 'replicas',
+      width: 150,
+      render: (replicas: string) => <span className="group-replica-value">{replicas}</span>,
+    },
+    {
+      title: '状态',
+      key: 'status',
+      width: 130,
+      render: (_, group) => (
+        <span className={`group-list-status is-${group.status}`}>
+          <i />
+          {group.status}
+        </span>
+      ),
+    },
+    { title: '创建时间', dataIndex: 'age', key: 'age', width: 190 },
+  ];
+
+  return (
+    <ConfigProvider theme={{ token: { colorPrimary: '#6951FF' }, components: { Table: { headerBg: '#F7F8FA' } } }}>
+      <div className="group-page-shell">
+        <div className="group-page-head">
+          <div className="group-page-title">
+            <strong>Groups</strong>
+            <span>查看工作负载组的运行状态与副本就绪情况</span>
+          </div>
+          <div className="group-page-summary">
+            <span><small>Group 总数</small><b>{groupData.length}</b></span>
+            <span><small>运行正常</small><b className="is-normal">{healthyCount}</b></span>
+            <span><small>需关注</small><b className={attentionCount ? 'is-error' : ''}>{attentionCount}</b></span>
+            <span><small>处理中</small><b>{processingCount}</b></span>
+          </div>
+        </div>
+        <div className="group-table-toolbar">
+          <Input
+            size="small"
+            allowClear
+            value={keyword}
+            onChange={(event) => setKeyword(event.target.value)}
+            prefix={<Search className="group-search-icon" />}
+            placeholder="搜索 Group 名称 / 类型 / 命名空间"
+            className="group-search-input"
+            style={{ width: 340 }}
+          />
+        </div>
+        <div className="group-table-frame">
+          <Table<GroupRow>
+            className="group-list-table"
+            rowKey="key"
+            columns={columns}
+            dataSource={filteredGroups}
+            scroll={{ x: 1040 }}
+            pagination={{ pageSize: 10, size: 'small', showTotal: (total) => `共 ${total} 个` }}
+          />
+        </div>
+      </div>
     </ConfigProvider>
   );
 };

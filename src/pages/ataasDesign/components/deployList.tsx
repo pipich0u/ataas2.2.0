@@ -847,36 +847,6 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
       { title: '节点', dataIndex: 'node', key: 'node', width: 160 },
       { title: '状态', dataIndex: 'status', key: 'status', width: 100, render: () => <DetailStatus /> },
     ];
-    const liveGroupReportCount = Math.max(1, opsRoleRows.length);
-    const liveMetricPhase = Math.floor(nowTick / 1000) + item.id;
-    const liveMetricWave = (offset: number, amplitude: number) => Math.sin((liveMetricPhase + offset) / 3) * amplitude;
-    const liveGroupMetrics = {
-      podsTotal: liveGroupReportCount,
-      reporting: liveGroupReportCount,
-      window: '60s',
-      tpsP: Math.max(0, Math.round(43998 + liveMetricWave(0, 620) + (item.id % 5) * 71)),
-      tpsPAvg: Math.max(0, Math.round(60640 + liveMetricWave(4, 420))),
-      tpsD: Math.max(0, Math.round(955 + liveMetricWave(1, 34) + (item.id % 4) * 7)),
-      tpsDAvg: Math.max(0, Math.round(834 + liveMetricWave(6, 18))),
-      inflightP: Number(Math.max(0, 7 + liveMetricWave(2, 0.42)).toFixed(2)),
-      inflightPAvg: Number(Math.max(0, 10.6 + liveMetricWave(7, 0.18)).toFixed(1)),
-      inflightD: Number(Math.max(0, 5 + liveMetricWave(3, 0.32)).toFixed(2)),
-      inflightDAvg: Number(Math.max(0, 2.85 + liveMetricWave(8, 0.12)).toFixed(2)),
-      routerRps: Number(Math.max(0, 8.45 + liveMetricWave(4, 0.28)).toFixed(2)),
-      routerRpsAvg: Number(Math.max(0, 8.45 + liveMetricWave(9, 0.16)).toFixed(2)),
-      ttft: Math.max(0, Math.round(1511 + liveMetricWave(5, 86))),
-      ttftAvg: Math.max(0, Math.round(2548 + liveMetricWave(10, 94))),
-      cacheHit: Number(Math.max(0, 74.4 + liveMetricWave(6, 1.6)).toFixed(1)),
-      cacheHitAvg: Number(Math.max(0, 84 + liveMetricWave(11, 0.8)).toFixed(1)),
-      runningReq: Number(Math.max(0, 19 + liveMetricWave(7, 1.8)).toFixed(1)),
-      runningReqAvg: Number(Math.max(0, 15.8 + liveMetricWave(12, 0.7)).toFixed(1)),
-      queueReq: Number(Math.max(0, 35 + liveMetricWave(8, 2.7)).toFixed(1)),
-      queueReqAvg: Number(Math.max(0, 3.44 + liveMetricWave(13, 0.22)).toFixed(2)),
-      gpuPower: 17836 + item.id * 13,
-      gpuUtil: Number((47 + (item.id % 7) * 0.8).toFixed(1)),
-      tempAvg: Number((46 + (item.id % 6) * 0.3).toFixed(1)),
-      hbmUsed: 10318 + item.id * 9,
-    };
     return (
       <div className="ataas-deploy-inline-detail">
         {mode !== 'modelOps' && (
@@ -945,54 +915,6 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
           )}
           {mode === 'modelOps' ? (
             <div className="ataas-deploy-inline-monitoring">
-              <div className="ataas-model-ops-live-metrics">
-                <div className="ataas-model-ops-live-metrics-grid top">
-                  {[
-                    {
-                      title: 'TPS',
-                      rows: [
-                        { label: 'P', value: String(liveGroupMetrics.tpsP), avg: `avg ${liveGroupMetrics.tpsPAvg}`, color: '#8B48FF' },
-                        { label: 'D', value: String(liveGroupMetrics.tpsD), avg: `avg ${liveGroupMetrics.tpsDAvg}`, color: '#14A0C7' },
-                      ],
-                    },
-                    {
-                      title: 'INFLIGHT / XFER',
-                      rows: [
-                        { label: 'P', value: liveGroupMetrics.inflightP.toFixed(2), avg: `avg ${liveGroupMetrics.inflightPAvg}`, color: '#8B48FF' },
-                        { label: 'D', value: liveGroupMetrics.inflightD.toFixed(2), avg: `avg ${liveGroupMetrics.inflightDAvg}`, color: '#14A0C7' },
-                      ],
-                    },
-                    { title: 'ROUTER RPS', value: liveGroupMetrics.routerRps.toFixed(2), suffix: 'req/s', avg: `avg ${liveGroupMetrics.routerRpsAvg.toFixed(2)}`, color: '#18A957' },
-                    { title: 'TTFT', value: String(liveGroupMetrics.ttft), suffix: 'ms', avg: `avg ${liveGroupMetrics.ttftAvg}`, color: '#18A957' },
-                    { title: 'CACHE HIT', value: liveGroupMetrics.cacheHit.toFixed(1), suffix: '%', avg: `avg ${liveGroupMetrics.cacheHitAvg.toFixed(1)}`, color: '#8B48FF' },
-                    { title: 'RUNNING REQ', value: liveGroupMetrics.runningReq.toFixed(1), suffix: '', avg: `avg ${liveGroupMetrics.runningReqAvg.toFixed(1)}`, color: '#14A0C7' },
-                    { title: 'QUEUE REQ', value: liveGroupMetrics.queueReq.toFixed(1), suffix: '', avg: `avg ${liveGroupMetrics.queueReqAvg.toFixed(2)}`, color: '#8B48FF' },
-                  ].map((card) => (
-                    <div key={card.title} className="ataas-model-ops-live-metric-card">
-                      <div className="ataas-model-ops-live-metric-title">{card.title}</div>
-                      {'rows' in card ? (
-                        <div className="ataas-model-ops-live-metric-pair">
-                          {card.rows?.map((row) => (
-                            <div key={row.label} className="ataas-model-ops-live-metric-row">
-                              <span className="ataas-model-ops-live-metric-role">{row.label}</span>
-                              <strong style={{ color: row.color }}>{row.value}</strong>
-                              <em>{row.avg}</em>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <>
-                          <div className="ataas-model-ops-live-metric-row single">
-                            <strong style={{ color: card.color }}>{card.value}</strong>
-                            {card.suffix ? <span className="ataas-model-ops-live-metric-suffix">{card.suffix}</span> : null}
-                          </div>
-                          {card.avg ? <div className="ataas-model-ops-live-metric-avg">{card.avg}</div> : null}
-                        </>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
               <div className="ataas-deploy-inline-table">
               <table className="ataas-deploy-inline-native-table">
                 <colgroup>
@@ -1226,7 +1148,14 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
 
   const renderModelOpsYamlFile = (fileName: string, item: DeployServiceItem, kind: 'router' | 'worker') => (
     <Tooltip title={fileName}>
-      <button type="button" className="ataas-model-ops-yaml-file" onClick={() => onModelOpsYamlPreview?.(item, kind, fileName)}>
+      <button
+        type="button"
+        className="ataas-model-ops-yaml-file"
+        onClick={(event) => {
+          event.stopPropagation();
+          onModelOpsYamlPreview?.(item, kind, fileName);
+        }}
+      >
         <FileTextOutlined />
         <span>{fileName}</span>
       </button>
@@ -1388,13 +1317,13 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
     { title: '操作', key: 'action', width: 96, fixed: 'right' as const, className: 'ataas-deploy-fixed-action-cell', render: (_, r) => (
       <div className="ataas-model-ops-table-actions">
         <Tooltip title="重建">
-          <button type="button" className="ataas-model-ops-icon-action"><ReloadOutlined /></button>
+          <button type="button" className="ataas-model-ops-icon-action" onClick={(event) => event.stopPropagation()}><ReloadOutlined /></button>
         </Tooltip>
         <Tooltip title="整组下线">
-          <button type="button" className="ataas-model-ops-icon-action danger" onClick={() => onStop(r)}><PoweroffOutlined /></button>
+          <button type="button" className="ataas-model-ops-icon-action danger" onClick={(event) => { event.stopPropagation(); onStop(r); }}><PoweroffOutlined /></button>
         </Tooltip>
         <Tooltip title="扩缩容">
-          <button type="button" className="ataas-model-ops-icon-action" onClick={() => onScalePd?.(r)}><SettingOutlined /></button>
+          <button type="button" className="ataas-model-ops-icon-action" onClick={(event) => { event.stopPropagation(); onScalePd?.(r); }}><SettingOutlined /></button>
         </Tooltip>
       </div>
     ) },
@@ -1617,11 +1546,13 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
             <Table
               dataSource={paginated}
               rowKey="id"
+              rowClassName={() => mode === 'modelOps' ? 'ataas-model-ops-click-row' : ''}
               pagination={{ pageSize: 10, showTotal: (t) => `共 ${t} 条`, showSizeChanger: true }}
               scroll={{ x: mode === 'modelOps' ? 'max-content' : 1180 }}
               expandable={mode === 'modelOps' ? {
-                columnWidth: 40,
                 expandedRowKeys: expandedServiceIds,
+                expandRowByClick: true,
+                showExpandColumn: false,
                 onExpand: (expanded, record) => {
                   setExpandedServiceIds((prev) => (expanded ? [...new Set([...prev, record.id])] : prev.filter((id) => id !== record.id)));
                 },

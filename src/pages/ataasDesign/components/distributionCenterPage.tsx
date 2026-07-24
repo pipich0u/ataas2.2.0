@@ -2,7 +2,6 @@ import {
   CloudDownloadOutlined,
   CloudServerOutlined,
   FileOutlined,
-  InboxOutlined,
   PlusOutlined,
   ReloadOutlined,
   SendOutlined,
@@ -24,6 +23,12 @@ import {
 } from 'antd';
 import { useMemo, useState } from 'react';
 import type { ColumnsType } from 'antd/es/table';
+import bceLogo from '../bce-logo.svg';
+import bgeLogo from '../bge-logo.svg';
+import deepseekLogo from '../deepseek-logo.svg';
+import glmLogo from '../glm-logo.svg';
+import kimiLogo from '../kimi-logo.svg';
+import qwenLogo from '../qwen-logo.svg';
 import './distributionCenterPage.less';
 
 type ModelCopy = {
@@ -39,6 +44,25 @@ type ModelRecord = {
   name: string;
   type: string;
   copies: ModelCopy[];
+};
+
+const modelBrandLogos = {
+  glm: glmLogo,
+  deepseek: deepseekLogo,
+  kimi: kimiLogo,
+  qwen: qwenLogo,
+  bge: bgeLogo,
+  bce: bceLogo,
+};
+
+const getModelBrand = (name: string): keyof typeof modelBrandLogos => {
+  const normalizedName = name.toLowerCase();
+  if (normalizedName.includes('deepseek')) return 'deepseek';
+  if (normalizedName.includes('kimi')) return 'kimi';
+  if (normalizedName.includes('qwen')) return 'qwen';
+  if (normalizedName.includes('bge') || normalizedName.includes('baai')) return 'bge';
+  if (normalizedName.includes('bce')) return 'bce';
+  return 'glm';
 };
 
 type TargetMode = 'cluster' | 'nodes';
@@ -344,6 +368,12 @@ const fileRows = [
 
 const formatSize = (sizeGb: number) => sizeGb < 10 ? `${sizeGb.toFixed(1)} GB` : `${Math.round(sizeGb)} GB`;
 const formatTotalSize = (sizeGb: number) => sizeGb >= 1024 ? `${(sizeGb / 1024).toFixed(1)} TB` : formatSize(sizeGb);
+const getTaskStatusLabel = (status: DistributionTask['status']) => ({
+  running: '执行中',
+  completed: '已完成',
+  failed: '异常',
+  stopped: '已停止',
+}[status]);
 
 const hostFreeSpace: Record<string, number> = {
   'ops-transfer-01': 1860,
@@ -365,6 +395,8 @@ const DistributionCenterPage = () => {
   const [modelSearch, setModelSearch] = useState('');
   const [hostFilter, setHostFilter] = useState('all');
   const [taskSearch, setTaskSearch] = useState('');
+  const [imageSearch, setImageSearch] = useState('');
+  const [fileSearch, setFileSearch] = useState('');
   const [taskTypeFilter, setTaskTypeFilter] = useState<'all' | 'download' | 'distribution'>('all');
   const [taskStatusFilter, setTaskStatusFilter] = useState<'all' | DistributionTask['status']>('all');
   const [expandedModel, setExpandedModel] = useState<string | null>(null);
@@ -436,6 +468,16 @@ const DistributionCenterPage = () => {
         return runningOrder || b.updatedAt - a.updatedAt;
       });
   }, [taskSearch, taskStatusFilter, taskTypeFilter, tasks]);
+
+  const visibleImages = useMemo(() => {
+    const keyword = imageSearch.trim().toLowerCase();
+    return imageRows.filter((image) => !keyword || `${image.name} ${image.desc} ${image.source}`.toLowerCase().includes(keyword));
+  }, [imageSearch]);
+
+  const visibleFiles = useMemo(() => {
+    const keyword = fileSearch.trim().toLowerCase();
+    return fileRows.filter((file) => !keyword || `${file.name} ${file.desc} ${file.type} ${file.source}`.toLowerCase().includes(keyword));
+  }, [fileSearch]);
 
   const selectedDownloadHostCopy = models.flatMap((model) => model.copies).find((copy) => copy.host === watchedDownloadHost);
   const selectedDownloadHostFreeGb = hostFreeSpace[watchedDownloadHost] || 600;
@@ -600,49 +642,51 @@ const DistributionCenterPage = () => {
     {
       title: '任务／模型',
       key: 'task',
-      width: 250,
+      width: 230,
       render: (_, record) => <span className="distribution-table-main"><strong>{record.name}</strong><small>{record.model}</small></span>,
     },
     {
       title: '任务类型',
       dataIndex: 'type',
       key: 'type',
-      width: 100,
+      width: 92,
       render: (value) => <Tag className={`distribution-task-type ${value}`}>{value === 'download' ? '模型下载' : '模型分发'}</Tag>,
     },
     {
       title: '来源／目标',
       key: 'route',
-      width: 220,
+      width: 200,
       render: (_, record) => <span className="distribution-table-main"><strong>{record.source}</strong><small>{record.target}</small></span>,
     },
     {
       title: '任务进度',
       dataIndex: 'progress',
       key: 'progress',
-      width: 210,
+      width: 180,
       render: (value, record) => <div className="distribution-task-progress"><Progress percent={value} size="small" status={record.status === 'failed' ? 'exception' : record.status === 'completed' ? 'success' : 'active'} /><small>{record.type === 'download' ? '单任务下载进度' : '目标节点汇总进度'}</small></div>,
     },
-    { title: '实时速度', dataIndex: 'speed', key: 'speed', width: 110 },
+    { title: '实时速度', dataIndex: 'speed', key: 'speed', width: 92 },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      width: 100,
+      width: 88,
       render: (value) => {
-        const labels = { running: '执行中', completed: '已完成', failed: '异常', stopped: '已停止' };
-        return <span className={`distribution-task-status ${value}`}>{labels[value as DistributionTask['status']]}</span>;
+        return <span className={`distribution-task-status ${value}`}>{getTaskStatusLabel(value as DistributionTask['status'])}</span>;
       },
     },
-    { title: '更新时间', dataIndex: 'updatedText', key: 'updatedText', width: 100 },
+    { title: '更新时间', dataIndex: 'updatedText', key: 'updatedText', width: 88 },
     {
       title: '操作',
       key: 'actions',
-      width: 118,
+      width: 112,
+      fixed: 'right',
+      align: 'center',
+      className: 'distribution-action-column',
       render: (_, record) => (
-        <Space size={10}>
-          <Button type="link" size="small" onClick={() => setTaskDetail(record)}>详情</Button>
-          {record.status === 'running' && <Button type="link" danger size="small" onClick={() => setTasks((items) => items.map((item) => item.id === record.id ? {
+        <div className="distribution-task-actions">
+          <Button className="distribution-table-action" type="link" size="small" onClick={() => setTaskDetail(record)}>详情</Button>
+          {record.status === 'running' && <Button className="distribution-table-action" type="link" danger size="small" onClick={() => setTasks((items) => items.map((item) => item.id === record.id ? {
             ...item,
             status: 'stopped',
             speed: '—',
@@ -650,7 +694,7 @@ const DistributionCenterPage = () => {
             updatedText: '刚刚',
             nodes: item.nodes?.map((node) => node.status === 'running' || node.status === 'pending' ? { ...node, status: 'stopped', speed: '—' } : node),
           } : item))}>停止</Button>}
-        </Space>
+        </div>
       ),
     },
   ];
@@ -669,10 +713,13 @@ const DistributionCenterPage = () => {
         {visibleModels.map((model) => {
           const opened = expandedModel === model.id;
           const extraCopies = Math.max(0, model.copies.length - 3);
+          const modelBrand = getModelBrand(model.name);
           return (
             <article key={model.id} className={`distribution-model-card${opened ? ' expanded' : ''}`}>
               <header>
-                <span className="distribution-model-icon"><InboxOutlined /></span>
+                <span className={`distribution-model-icon ${modelBrand}`}>
+                  <img src={modelBrandLogos[modelBrand]} alt={`${model.name} logo`} />
+                </span>
                 <div><strong title={model.name}>{model.name}</strong><small>{model.type}</small></div>
                 <span className="distribution-model-ready"><i />可分发</span>
               </header>
@@ -701,8 +748,8 @@ const DistributionCenterPage = () => {
                 )}
               </div>
               <footer>
-                <Button type="text" onClick={() => showModelTasks(model)}>查看相关任务</Button>
-                <Button type="primary" onClick={() => openDistribution(model.id)}>分发模型</Button>
+                <Button type="text" size="small" className="distribution-card-action" onClick={() => showModelTasks(model)}>查看相关任务</Button>
+                <Button size="small" className="distribution-card-action primary" onClick={() => openDistribution(model.id)}>分发模型</Button>
               </footer>
             </article>
           );
@@ -731,7 +778,7 @@ const DistributionCenterPage = () => {
         <span />
         <Button icon={<ReloadOutlined />} onClick={() => message.success('任务列表已刷新')} />
       </div>
-      <Table columns={taskColumns} dataSource={visibleTasks} rowKey="id" pagination={{ pageSize: 10, showSizeChanger: false, showTotal: (total) => `共 ${total} 条任务` }} scroll={{ x: 1210 }} />
+      <Table className="distribution-task-table" columns={taskColumns} dataSource={visibleTasks} rowKey="id" pagination={{ pageSize: 10, showSizeChanger: false, showTotal: (total) => `共 ${total} 条任务` }} scroll={{ x: 1078 }} />
     </div>
   );
 
@@ -748,28 +795,38 @@ const DistributionCenterPage = () => {
 
   const imagePane = (
     <div className="distribution-simple-pane">
-      <div className="distribution-pane-head"><div><strong>镜像分发</strong><span>将已登记镜像同步到目标集群的镜像仓库或节点。</span></div><Button type="primary" icon={<PlusOutlined />} onClick={() => message.info('创建镜像分发')}>创建镜像分发</Button></div>
-      <Table dataSource={imageRows} pagination={false} columns={[
-        { title: '镜像', key: 'name', render: (_, record) => <span className="distribution-table-main"><strong>{record.name}</strong><small>{record.desc}</small></span> },
-        { title: '来源', dataIndex: 'source', key: 'source' },
-        { title: '镜像大小', dataIndex: 'size', key: 'size' },
-        { title: '可用状态', key: 'status', render: () => <span className="distribution-task-status completed">可分发</span> },
-        { title: '最近更新', dataIndex: 'updated', key: 'updated' },
-        { title: '操作', key: 'action', render: () => <Button type="link" icon={<SendOutlined />} onClick={() => message.info('创建镜像分发')}>分发</Button> },
+      <div className="distribution-simple-toolbar">
+        <Input.Search value={imageSearch} onChange={(event) => setImageSearch(event.target.value)} allowClear placeholder="搜索镜像名称或来源仓库" />
+        <span />
+        <Button className="distribution-pane-create-button" type="primary" icon={<PlusOutlined />} onClick={() => message.info('创建镜像分发')}>创建镜像分发</Button>
+      </div>
+      <Table tableLayout="fixed" dataSource={visibleImages} pagination={false} columns={[
+        { title: '镜像', key: 'name', width: '22%', render: (_, record) => <span className="distribution-table-main"><strong>{record.name}</strong><small>{record.desc}</small></span> },
+        { title: '来源', dataIndex: 'source', key: 'source', width: '17%' },
+        { title: '镜像大小', dataIndex: 'size', key: 'size', width: '13%' },
+        { title: '可用状态', key: 'status', width: '14%', render: () => <span className="distribution-task-status completed">可分发</span> },
+        { title: '最近更新', dataIndex: 'updated', key: 'updated', width: '16%' },
+        { title: '操作', key: 'action', width: '10%', align: 'center', className: 'distribution-action-column', render: () => <Button className="distribution-table-action" type="link" icon={<SendOutlined />} onClick={() => message.info('创建镜像分发')}>分发</Button> },
+        { title: '', key: 'spacer', width: '8%', className: 'distribution-flex-spacer', render: () => null },
       ]} />
     </div>
   );
 
   const filePane = (
     <div className="distribution-simple-pane">
-      <div className="distribution-pane-head"><div><strong>文件分发</strong><span>将驱动、软件包和配置文件同步到指定集群或主机。</span></div><Button type="primary" icon={<PlusOutlined />} onClick={() => message.info('创建文件分发')}>创建文件分发</Button></div>
-      <Table dataSource={fileRows} pagination={false} columns={[
-        { title: '文件／软件包', key: 'name', render: (_, record) => <span className="distribution-table-main"><strong>{record.name}</strong><small>{record.desc}</small></span> },
-        { title: '类型', dataIndex: 'type', key: 'type' },
-        { title: '文件大小', dataIndex: 'size', key: 'size' },
-        { title: '来源主机', dataIndex: 'source', key: 'source' },
-        { title: '最近更新', dataIndex: 'updated', key: 'updated' },
-        { title: '操作', key: 'action', render: () => <Button type="link" icon={<FileOutlined />} onClick={() => message.info('创建文件分发')}>分发</Button> },
+      <div className="distribution-simple-toolbar">
+        <Input.Search value={fileSearch} onChange={(event) => setFileSearch(event.target.value)} allowClear placeholder="搜索文件、类型或来源主机" />
+        <span />
+        <Button className="distribution-pane-create-button" type="primary" icon={<PlusOutlined />} onClick={() => message.info('创建文件分发')}>创建文件分发</Button>
+      </div>
+      <Table tableLayout="fixed" dataSource={visibleFiles} pagination={false} columns={[
+        { title: '文件／软件包', key: 'name', width: '23%', render: (_, record) => <span className="distribution-table-main"><strong>{record.name}</strong><small>{record.desc}</small></span> },
+        { title: '类型', dataIndex: 'type', key: 'type', width: '12%' },
+        { title: '文件大小', dataIndex: 'size', key: 'size', width: '13%' },
+        { title: '来源主机', dataIndex: 'source', key: 'source', width: '17%' },
+        { title: '最近更新', dataIndex: 'updated', key: 'updated', width: '17%' },
+        { title: '操作', key: 'action', width: '10%', align: 'center', className: 'distribution-action-column', render: () => <Button className="distribution-table-action" type="link" icon={<FileOutlined />} onClick={() => message.info('创建文件分发')}>分发</Button> },
+        { title: '', key: 'spacer', width: '8%', className: 'distribution-flex-spacer', render: () => null },
       ]} />
     </div>
   );
@@ -957,30 +1014,46 @@ const DistributionCenterPage = () => {
         title={taskDetail?.type === 'download' ? '模型下载任务详情' : '模型分发任务详情'}
         open={Boolean(taskDetail)}
         width={900}
+        className="distribution-task-detail-modal"
         footer={<Button onClick={() => setTaskDetail(null)}>关闭</Button>}
         onCancel={() => setTaskDetail(null)}
       >
         {taskDetail && (
           <div className="distribution-task-detail">
+            <div className="distribution-detail-hero">
+              <span className={`distribution-detail-icon ${taskDetail.type}`}>
+                {taskDetail.type === 'download' ? <CloudDownloadOutlined /> : <SendOutlined />}
+              </span>
+              <div>
+                <strong>{taskDetail.name}</strong>
+                <small>{taskDetail.model}</small>
+              </div>
+              <span className={`distribution-task-status ${taskDetail.status}`}>{getTaskStatusLabel(taskDetail.status)}</span>
+            </div>
             <div className="distribution-detail-summary">
-              <div><span>{taskDetail.type === 'download' ? '下载进度' : '总体进度'}</span><strong>{taskDetail.progress}%</strong></div>
+              <div className="progress-metric">
+                <span>{taskDetail.type === 'download' ? '下载进度' : '总体进度'}</span>
+                <strong>{taskDetail.progress}%</strong>
+                <Progress percent={taskDetail.progress} showInfo={false} size="small" status={taskDetail.status === 'failed' ? 'exception' : taskDetail.status === 'completed' ? 'success' : 'active'} />
+              </div>
               <div><span>实时速度</span><strong>{taskDetail.speed}</strong></div>
               <div><span>{taskDetail.type === 'download' ? '文件大小' : '目标 Nodes'}</span><strong>{taskDetail.type === 'download' ? taskDetail.sizeGb ? formatTotalSize(taskDetail.sizeGb) : '预检中' : `${taskDetail.nodes?.length || 0} 个`}</strong></div>
-              <div><span>状态</span><strong className={taskDetail.status === 'failed' ? 'bad' : ''}>{taskDetail.status === 'running' ? '执行中' : taskDetail.status === 'completed' ? '已完成' : taskDetail.status === 'failed' ? '异常' : '已停止'}</strong></div>
+              <div><span>更新时间</span><strong>{taskDetail.updatedText}</strong></div>
             </div>
+            <h3 className="distribution-detail-section-title">任务信息</h3>
             <div className="distribution-detail-info">
               <div><span>任务名称</span><strong>{taskDetail.name}</strong></div>
               <div><span>模型</span><strong>{taskDetail.model}</strong></div>
               {taskDetail.type === 'download' ? (
                 <>
-                  <div><span>模型 URL</span><strong>{taskDetail.url || '—'}</strong></div>
+                  <div className="wide"><span>模型 URL</span><strong>{taskDetail.url || '—'}</strong></div>
                   <div><span>下载位置</span><strong>{taskDetail.target}</strong></div>
                   <div><span>断点续传</span><strong>{taskDetail.resume ? '已启用' : '未启用'}</strong></div>
                   <div><span>完整性校验</span><strong>{taskDetail.verify ? '下载后执行' : '未启用'}</strong></div>
                 </>
               ) : (
                 <>
-                  <div><span>源主机与目录</span><strong>{taskDetail.source} · {taskDetail.sourcePath}</strong></div>
+                  <div className="wide"><span>源主机与目录</span><strong>{taskDetail.source} · {taskDetail.sourcePath}</strong></div>
                   <div><span>目标集群</span><strong>{taskDetail.targetCluster}</strong></div>
                   <div><span>目标方式</span><strong>{taskDetail.targetMode === 'cluster' ? '整个集群（全部 Ready Nodes）' : '指定 Nodes'}</strong></div>
                   <div><span>目标目录</span><strong>{taskDetail.targetPath}</strong></div>
@@ -992,14 +1065,14 @@ const DistributionCenterPage = () => {
             {taskDetail.detail && <div className="distribution-detail-error"><strong>异常信息</strong><span>{taskDetail.detail}</span></div>}
             {taskDetail.type === 'download' ? (
               <div className="distribution-download-stages">
-                <h3>下载阶段</h3>
-                <div><span>URL 与空间预检</span><strong>已完成</strong><small>URL 可访问，目标目录空间充足</small></div>
-                <div><span>文件下载</span><strong>{taskDetail.status === 'completed' ? '已完成' : taskDetail.status === 'failed' ? '异常' : taskDetail.status === 'stopped' ? '已停止' : '下载中'}</strong><small>{taskDetail.progress}% · {taskDetail.speed}</small></div>
-                <div><span>完整性校验</span><strong>{taskDetail.status === 'completed' && taskDetail.verify ? '已完成' : taskDetail.verify ? '等待下载完成' : '未启用'}</strong><small>{taskDetail.verify ? '校验文件大小与校验值' : '本任务未配置校验'}</small></div>
+                <h3>执行阶段</h3>
+                <div className="completed"><span>URL 与空间预检</span><strong>已完成</strong><small>URL 可访问，目标目录空间充足</small></div>
+                <div className={taskDetail.status}><span>文件下载</span><strong>{taskDetail.status === 'completed' ? '已完成' : taskDetail.status === 'failed' ? '异常' : taskDetail.status === 'stopped' ? '已停止' : '下载中'}</strong><small>{taskDetail.progress}% · {taskDetail.speed}</small></div>
+                <div className={taskDetail.status === 'completed' && taskDetail.verify ? 'completed' : 'pending'}><span>完整性校验</span><strong>{taskDetail.status === 'completed' && taskDetail.verify ? '已完成' : taskDetail.verify ? '等待下载完成' : '未启用'}</strong><small>{taskDetail.verify ? '校验文件大小与校验值' : '本任务未配置校验'}</small></div>
               </div>
             ) : (
               <div className="distribution-node-detail">
-                <h3>Node 分发明细</h3>
+                <h3><span>Node 分发明细</span><small>共 {taskDetail.nodes?.length || 0} 个目标节点</small></h3>
                 <Table
                   size="small"
                   rowKey="name"

@@ -1,186 +1,490 @@
 import { ConfigProvider, Input, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import { Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useK8sResourceStore } from './k8sResourceStore';
-import './containerManagementPage.less';
 
+type ResourceView = 'svc' | 'se' | 'pod' | 'pv' | 'pvc';
 type PortInfo = { port: number; targetPort: number; nodePort?: number; protocol: string };
 type EndpointInfo = { address: string; weight?: number };
 
 type ServiceRow = {
-  key: string; name: string; se: string; cluster: string; namespace: string;
-  clusterIP: string; type: string; ports: PortInfo[]; endpoints: EndpointInfo[]; pods: number; age: string;
+  key: string;
+  name: string;
+  se: string;
+  cluster: string;
+  namespace: string;
+  clusterIP: string;
+  type: string;
+  ports: PortInfo[];
+  endpoints: EndpointInfo[];
+  pods: number;
+  age: string;
 };
 
 type PodRow = {
-  key: string; name: string; cluster: string; namespace: string;
-  role: string; status: string; restart: number; image: string; ip: string; node: string; age: string;
+  key: string;
+  name: string;
+  cluster: string;
+  namespace: string;
+  role: string;
+  status: string;
+  restart: number;
+  image: string;
+  ip: string;
+  node: string;
+  age: string;
 };
 
 type RouteEntry = {
-  key: string; name: string; cluster: string; namespace: string;
-  hosts: string[]; ports: PortInfo[];
+  key: string;
+  name: string;
+  cluster: string;
+  namespace: string;
+  hosts: string[];
+  ports: PortInfo[];
   endpoints: { address: string; weight: number }[];
 };
 
-export default function ClusterResourceTables({ className, view: initialView }: { className?: string; view: 'svc' | 'se' | 'pod' }) {
-  const [keyword, setKeyword] = useState('');
+type PVRow = {
+  key: string;
+  name: string;
+  capacity: string;
+  storageType: string;
+  accessMode: string;
+  status: string;
+  reclaimPolicy: string;
+  age: string;
+};
 
+type PVCRow = {
+  key: string;
+  name: string;
+  namespace: string;
+  requestCapacity: string;
+  storageClass: string;
+  status: string;
+  boundPV: string;
+  age: string;
+};
+
+type SummaryItem = {
+  label: string;
+  value: number;
+  tone?: 'is-normal' | 'is-warning' | 'is-error';
+};
+
+const pvRows: PVRow[] = [];
+const pvcRows: PVCRow[] = [];
+
+const includesKeyword = (content: string, keyword: string) => (
+  !keyword || content.toLowerCase().includes(keyword)
+);
+
+export default function ClusterResourceTables({
+  className,
+  view: initialView,
+}: {
+  className?: string;
+  view: ResourceView;
+}) {
+  const [keyword, setKeyword] = useState('');
+  const normalizedKeyword = keyword.trim().toLowerCase();
   const resourceStore = useK8sResourceStore();
   const { serviceEntries, services, pods } = resourceStore.state;
 
   const seNameMap = useMemo(() => {
     const map = new Map<string, string>();
-    serviceEntries.forEach((se) => se.serviceIds.forEach((sid) => map.set(sid, se.name)));
+    serviceEntries.forEach((entry) => entry.serviceIds.forEach((serviceId) => map.set(serviceId, entry.name)));
     return map;
   }, [serviceEntries]);
 
   const serviceEndpointMap = useMemo(() => {
     const map = new Map<string, EndpointInfo[]>();
-    serviceEntries.forEach((se) => se.endpoints.forEach((ep) => {
-      const list = map.get(ep.serviceId) || [];
-      list.push({ address: ep.address, weight: ep.weight });
-      map.set(ep.serviceId, list);
+    serviceEntries.forEach((entry) => entry.endpoints.forEach((endpoint) => {
+      const list = map.get(endpoint.serviceId) || [];
+      list.push({ address: endpoint.address, weight: endpoint.weight });
+      map.set(endpoint.serviceId, list);
     }));
     return map;
   }, [serviceEntries]);
 
-  const storeServiceRows = useMemo<ServiceRow[]>(() => services.map((svc) => ({
-    key: svc.id, name: svc.name, se: seNameMap.get(svc.id) || svc.serviceEntryId || '-',
-    cluster: svc.cluster, namespace: svc.namespace, clusterIP: svc.clusterIP, type: svc.type,
-    ports: svc.ports, endpoints: serviceEndpointMap.get(svc.id) || [], pods: svc.podIds.length, age: svc.createdAt,
+  const storeServiceRows = useMemo<ServiceRow[]>(() => services.map((service) => ({
+    key: service.id,
+    name: service.name,
+    se: seNameMap.get(service.id) || service.serviceEntryId || '-',
+    cluster: service.cluster,
+    namespace: service.namespace,
+    clusterIP: service.clusterIP,
+    type: service.type,
+    ports: service.ports,
+    endpoints: serviceEndpointMap.get(service.id) || [],
+    pods: service.podIds.length,
+    age: service.createdAt,
   })), [services, seNameMap, serviceEndpointMap]);
 
   const storePodRows = useMemo<PodRow[]>(() => pods.map((pod) => ({
-    key: pod.id, name: pod.name, cluster: pod.cluster, namespace: pod.namespace,
-    role: pod.role, status: pod.status === 'Draft' ? 'Pending' : pod.status,
-    restart: pod.restart, image: pod.image, ip: pod.podIP, node: pod.node, age: pod.age,
+    key: pod.id,
+    name: pod.name,
+    cluster: pod.cluster,
+    namespace: pod.namespace,
+    role: pod.role,
+    status: pod.status === 'Draft' ? 'Pending' : pod.status,
+    restart: pod.restart,
+    image: pod.image,
+    ip: pod.podIP,
+    node: pod.node,
+    age: pod.age,
   })), [pods]);
 
-  const storeRouteData = useMemo<RouteEntry[]>(() => serviceEntries.map((se) => {
-    const seServices = services.filter((s) => se.serviceIds.includes(s.id));
+  const storeRouteData = useMemo<RouteEntry[]>(() => serviceEntries.map((entry) => {
+    const entryServices = services.filter((service) => entry.serviceIds.includes(service.id));
     const seen = new Set<string>();
-    const sePorts: PortInfo[] = [];
-    seServices.forEach((s) => s.ports.forEach((p) => {
-      const key = `${p.port}-${p.protocol}`;
-      if (!seen.has(key)) { seen.add(key); sePorts.push(p); }
+    const entryPorts: PortInfo[] = [];
+    entryServices.forEach((service) => service.ports.forEach((port) => {
+      const portKey = `${port.port}-${port.protocol}`;
+      if (!seen.has(portKey)) {
+        seen.add(portKey);
+        entryPorts.push(port);
+      }
     }));
+
+    const endpoints = entry.endpoints.map((endpoint) => ({
+      address: endpoint.address,
+      weight: endpoint.weight,
+    }));
+    const totalWeight = endpoints.reduce((sum, endpoint) => sum + endpoint.weight, 0);
+    if (totalWeight > 0) {
+      endpoints.forEach((endpoint) => {
+        endpoint.weight = Math.round((endpoint.weight / totalWeight) * 100);
+      });
+    }
+
     return {
-      key: se.id, name: se.name, cluster: se.cluster, namespace: se.namespace,
-      hosts: se.hosts, ports: sePorts,
-      endpoints: (() => {
-        const eps = se.endpoints.map((ep) => ({ address: ep.address, weight: ep.weight }));
-        const total = eps.reduce((s, ep) => s + ep.weight, 0);
-        if (total > 0) eps.forEach((ep) => { ep.weight = Math.round(ep.weight / total * 100); });
-        return eps;
-      })(),
+      key: entry.id,
+      name: entry.name,
+      cluster: entry.cluster,
+      namespace: entry.namespace,
+      hosts: entry.hosts,
+      ports: entryPorts,
+      endpoints,
     };
   }), [serviceEntries, services]);
 
-  const filteredSvcs = useMemo(() => storeServiceRows.filter((row) => {
-    const text = (row.name + ' ' + row.se + ' ' + row.namespace + ' ' + row.clusterIP).toLowerCase();
-    return !keyword || text.includes(keyword.toLowerCase());
-  }), [storeServiceRows, keyword]);
+  const filteredServices = useMemo(() => storeServiceRows.filter((row) => includesKeyword(
+    `${row.name} ${row.se} ${row.namespace} ${row.clusterIP} ${row.type}`,
+    normalizedKeyword,
+  )), [storeServiceRows, normalizedKeyword]);
 
-  const filteredPods = useMemo(() => storePodRows.filter((row) => {
-    const text = (row.name + ' ' + row.namespace + ' ' + row.image + ' ' + row.ip + ' ' + row.node).toLowerCase();
-    return !keyword || text.includes(keyword.toLowerCase());
-  }), [storePodRows, keyword]);
+  const filteredPods = useMemo(() => storePodRows.filter((row) => includesKeyword(
+    `${row.name} ${row.namespace} ${row.role} ${row.status} ${row.image} ${row.ip} ${row.node}`,
+    normalizedKeyword,
+  )), [storePodRows, normalizedKeyword]);
 
-  const filteredRoutes = useMemo(() => storeRouteData.filter((r) => {
-    const text = (r.name + ' ' + r.hosts.join(' ')).toLowerCase();
-    return !keyword || text.includes(keyword.toLowerCase());
-  }), [storeRouteData, keyword]);
+  const filteredRoutes = useMemo(() => storeRouteData.filter((row) => includesKeyword(
+    `${row.name} ${row.namespace} ${row.hosts.join(' ')} ${row.endpoints.map((endpoint) => endpoint.address).join(' ')}`,
+    normalizedKeyword,
+  )), [storeRouteData, normalizedKeyword]);
+
+  const filteredPVs = useMemo(() => pvRows.filter((row) => includesKeyword(
+    `${row.name} ${row.storageType} ${row.status}`,
+    normalizedKeyword,
+  )), [normalizedKeyword]);
+
+  const filteredPVCs = useMemo(() => pvcRows.filter((row) => includesKeyword(
+    `${row.name} ${row.namespace} ${row.storageClass} ${row.status} ${row.boundPV}`,
+    normalizedKeyword,
+  )), [normalizedKeyword]);
+
+  const pageConfig = useMemo<{
+    title: string;
+    description: string;
+    placeholder: string;
+    summary: SummaryItem[];
+  }>(() => {
+    if (initialView === 'pod') {
+      const running = storePodRows.filter((row) => row.status === 'Running').length;
+      const pending = storePodRows.filter((row) => row.status === 'Pending').length;
+      const failed = storePodRows.filter((row) => row.status === 'Failed').length;
+      return {
+        title: 'Pods',
+        description: '查看 Pod 的运行状态、调度节点与重启情况',
+        placeholder: '搜索 Pod 名称 / IP / Node',
+        summary: [
+          { label: 'Pod 总数', value: storePodRows.length },
+          { label: '运行中', value: running, tone: 'is-normal' },
+          { label: '等待中', value: pending, tone: pending ? 'is-warning' : undefined },
+          { label: '异常', value: failed, tone: failed ? 'is-error' : undefined },
+        ],
+      };
+    }
+
+    if (initialView === 'svc') {
+      return {
+        title: 'Services',
+        description: '查看 Service 的访问地址、端口与关联后端',
+        placeholder: '搜索 Service / ServiceEntry / Cluster IP',
+        summary: [
+          { label: 'Service 总数', value: storeServiceRows.length },
+          { label: 'ClusterIP', value: storeServiceRows.filter((row) => row.type === 'ClusterIP').length },
+          { label: 'NodePort', value: storeServiceRows.filter((row) => row.type === 'NodePort').length },
+          { label: '关联 Pods', value: storeServiceRows.reduce((sum, row) => sum + row.pods, 0) },
+        ],
+      };
+    }
+
+    if (initialView === 'se') {
+      return {
+        title: 'ServiceEntry',
+        description: '查看网格出口服务、主机与端点配置',
+        placeholder: '搜索 ServiceEntry / Host / Endpoint',
+        summary: [
+          { label: 'ServiceEntry 总数', value: storeRouteData.length },
+          { label: 'Hosts', value: storeRouteData.reduce((sum, row) => sum + row.hosts.length, 0) },
+          { label: 'Ports', value: storeRouteData.reduce((sum, row) => sum + row.ports.length, 0) },
+          { label: 'Endpoints', value: storeRouteData.reduce((sum, row) => sum + row.endpoints.length, 0) },
+        ],
+      };
+    }
+
+    if (initialView === 'pv') {
+      return {
+        title: 'PV',
+        description: '查看当前集群的持久卷资源',
+        placeholder: '搜索 PV 名称 / 存储类型',
+        summary: [{ label: 'PV 总数', value: pvRows.length }],
+      };
+    }
+
+    return {
+      title: 'PVC',
+      description: '查看当前集群的持久卷声明',
+      placeholder: '搜索 PVC 名称 / 命名空间 / 存储类',
+      summary: [{ label: 'PVC 总数', value: pvcRows.length }],
+    };
+  }, [initialView, storePodRows, storeRouteData, storeServiceRows]);
 
   const serviceColumns: ColumnsType<ServiceRow> = [
-    { title: 'SVC', dataIndex: 'name', key: 'name', width: 190, fixed: 'left', render: (v) => <strong className="ataas-cm-name">{v}</strong> },
-    { title: 'SE', dataIndex: 'se', key: 'se', width: 120, render: (v) => <span style={{ color: '#2468F2', whiteSpace: 'nowrap' }}>{v}</span> },
-    { title: '命名空间', dataIndex: 'namespace', key: 'namespace', width: 110 },
-    { title: 'Cluster IP', dataIndex: 'clusterIP', key: 'clusterIP', width: 140, render: (v) => <span className="ataas-cm-code">{v}</span> },
-    { title: '类型', dataIndex: 'type', key: 'type', width: 100 },
+    { title: 'SVC', dataIndex: 'name', key: 'name', width: 190, render: (value) => <span className="resource-list-name">{value}</span> },
+    { title: 'SE', dataIndex: 'se', key: 'se', width: 150, render: (value) => <span className="resource-list-text">{value}</span> },
+    { title: '命名空间', dataIndex: 'namespace', key: 'namespace', width: 140 },
+    { title: 'Cluster IP', dataIndex: 'clusterIP', key: 'clusterIP', width: 160, render: (value) => <span className="resource-list-code">{value}</span> },
+    { title: '类型', dataIndex: 'type', key: 'type', width: 120, render: (value) => <span className="resource-kind-tag">{value}</span> },
     {
-      title: 'Ports', dataIndex: 'ports', key: 'ports', width: 220,
+      title: 'Ports',
+      dataIndex: 'ports',
+      key: 'ports',
+      width: 260,
       render: (ports: PortInfo[]) => (
-        <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', columnGap: 16, rowGap: 2 }}>
-          {ports.map((p, i) => (
-            <span key={i} style={{ fontSize: 11, fontFamily: 'monospace', color: '#4E5969', whiteSpace: 'nowrap' }}>
-              {p.port} → {p.targetPort}{p.nodePort ? ' (node:' + p.nodePort + ')' : ''} / {p.protocol.toLowerCase()}
+        <div className="resource-list-lines is-inline">
+          {ports.map((port, index) => (
+            <span key={`${port.port}-${index}`} className="resource-list-code">
+              {port.port} → {port.targetPort}{port.nodePort ? ` (node:${port.nodePort})` : ''} / {port.protocol.toLowerCase()}
             </span>
           ))}
+          {ports.length === 0 && <span className="resource-list-muted">-</span>}
         </div>
       ),
     },
     {
-      title: 'Endpoints', dataIndex: 'endpoints', key: 'endpoints', width: 350,
+      title: 'Endpoints',
+      dataIndex: 'endpoints',
+      key: 'endpoints',
+      width: 300,
       render: (endpoints: EndpointInfo[]) => (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {endpoints.map((ep, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'nowrap' }}>
-              <span style={{ fontSize: 11, fontFamily: 'monospace', color: '#4E5969', whiteSpace: 'nowrap' }}>{ep.address}</span>
-            </div>
+        <div className="resource-list-lines">
+          {endpoints.map((endpoint, index) => (
+            <span key={`${endpoint.address}-${index}`} className="resource-list-code">{endpoint.address}</span>
           ))}
+          {endpoints.length === 0 && <span className="resource-list-muted">-</span>}
         </div>
       ),
     },
-    { title: 'POD', dataIndex: 'pods', key: 'pods', width: 80, render: (v) => <span>{v}</span> },
-    { title: '运行时间', dataIndex: 'age', key: 'age', width: 100, render: (v) => <span className="ataas-cm-muted" style={{ whiteSpace: 'nowrap' }}>{v}</span> },
+    { title: 'POD', dataIndex: 'pods', key: 'pods', width: 90 },
+    { title: '运行时间', dataIndex: 'age', key: 'age', width: 150, render: (value) => <span className="resource-list-muted is-nowrap">{value}</span> },
   ];
 
   const podColumns: ColumnsType<PodRow> = [
-    { title: 'POD', dataIndex: 'name', key: 'name', width: 220, fixed: 'left', render: (v) => <strong className="ataas-cm-name">{v}</strong> },
-    { title: '命名空间', dataIndex: 'namespace', key: 'namespace', width: 110 },
-    { title: '角色', dataIndex: 'role', key: 'role', width: 90, render: (v) => <span className="ataas-cm-role">{v}</span> },
-    { title: '状态', dataIndex: 'status', key: 'status', width: 100, render: (v) => <span className={'ataas-cm-status ' + String(v).toLowerCase()}><i />{v}</span> },
-    { title: '重启', dataIndex: 'restart', key: 'restart', width: 70, render: (v) => <span className="ataas-cm-muted">{v}</span> },
-    { title: 'IP', dataIndex: 'ip', key: 'ip', width: 120, render: (v) => <span className="ataas-cm-code">{v}</span> },
-    { title: 'Node', dataIndex: 'node', key: 'node', width: 130, render: (v) => <span style={{ whiteSpace: 'nowrap' }}>{v}</span> },
-    { title: '运行时间', dataIndex: 'age', key: 'age', width: 100, render: (v) => <span className="ataas-cm-muted">{v}</span> },
+    { title: 'POD', dataIndex: 'name', key: 'name', width: 190, render: (value) => <span className="resource-list-name">{value}</span> },
+    { title: '命名空间', dataIndex: 'namespace', key: 'namespace', width: 140 },
+    { title: '角色', dataIndex: 'role', key: 'role', width: 110, render: (value) => <span className="resource-kind-tag">{value}</span> },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      width: 120,
+      render: (value) => (
+        <span className={`resource-list-status is-${String(value).toLowerCase()}`}>
+          <i />
+          {value}
+        </span>
+      ),
+    },
+    { title: '重启', dataIndex: 'restart', key: 'restart', width: 90 },
+    { title: 'IP', dataIndex: 'ip', key: 'ip', width: 140, render: (value) => <span className="resource-list-code">{value}</span> },
+    { title: 'Node', dataIndex: 'node', key: 'node', width: 160, render: (value) => <span className="is-nowrap">{value}</span> },
+    { title: '运行时间', dataIndex: 'age', key: 'age', width: 120, render: (value) => <span className="resource-list-muted is-nowrap">{value}</span> },
   ];
 
-  const seColumns: ColumnsType<RouteEntry> = [
-    { title: 'Name', dataIndex: 'name', key: 'name', width: 180, fixed: 'left', render: (v) => <strong className="ataas-cm-name">{v}</strong> },
-    { title: '命名空间', dataIndex: 'namespace', key: 'namespace', width: 110 },
-    { title: 'Hosts', dataIndex: 'hosts', key: 'hosts', width: 240, render: (hosts: string[]) => (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {hosts.map((h, i) => <span key={i} style={{ fontSize: 12, fontFamily: 'monospace', color: '#4E5969' }}>{h}</span>)}
-      </div>
-    ) },
-    { title: 'Ports', dataIndex: 'ports', key: 'ports', width: 140, render: (ports: PortInfo[]) => (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {ports.map((p, i) => (
-          <span key={i} style={{ fontSize: 11, fontFamily: 'monospace', color: '#4E5969', whiteSpace: 'nowrap' }}>
-            {p.port} / {p.protocol.toLowerCase()}
-          </span>
-        ))}
-        {ports.length === 0 && <span style={{ color: '#98a2b3' }}>-</span>}
-      </div>
-    ) },
-    { title: 'Endpoints（SVC）', dataIndex: 'endpoints', key: 'endpoints', width: 280, render: (endpoints: { address: string; weight: number }[]) => (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {endpoints.map((ep, i) => (
-          <span key={i} style={{ fontSize: 11, fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
-            <span style={{ color: '#2468F2' }}>{ep.address}</span>
-            <span style={{ color: '#86909C' }}> ({ep.weight}%)</span>
-          </span>
-        ))}
-      </div>
-    ) },
+  const serviceEntryColumns: ColumnsType<RouteEntry> = [
+    { title: 'Name', dataIndex: 'name', key: 'name', width: 190, render: (value) => <span className="resource-list-name">{value}</span> },
+    { title: '命名空间', dataIndex: 'namespace', key: 'namespace', width: 140 },
+    {
+      title: 'Hosts',
+      dataIndex: 'hosts',
+      key: 'hosts',
+      width: 280,
+      render: (hosts: string[]) => (
+        <div className="resource-list-lines">
+          {hosts.map((host) => <span key={host} className="resource-list-code">{host}</span>)}
+        </div>
+      ),
+    },
+    {
+      title: 'Ports',
+      dataIndex: 'ports',
+      key: 'ports',
+      width: 180,
+      render: (ports: PortInfo[]) => (
+        <div className="resource-list-lines">
+          {ports.map((port, index) => (
+            <span key={`${port.port}-${index}`} className="resource-list-code">{port.port} / {port.protocol.toLowerCase()}</span>
+          ))}
+          {ports.length === 0 && <span className="resource-list-muted">-</span>}
+        </div>
+      ),
+    },
+    {
+      title: 'Endpoints（SVC）',
+      dataIndex: 'endpoints',
+      key: 'endpoints',
+      width: 320,
+      render: (endpoints: { address: string; weight: number }[]) => (
+        <div className="resource-list-lines">
+          {endpoints.map((endpoint, index) => (
+            <span key={`${endpoint.address}-${index}`}>
+              <span className="resource-list-code">{endpoint.address}</span>
+              <small>{endpoint.weight}%</small>
+            </span>
+          ))}
+          {endpoints.length === 0 && <span className="resource-list-muted">-</span>}
+        </div>
+      ),
+    },
   ];
+
+  const pvColumns: ColumnsType<PVRow> = [
+    { title: '名称', dataIndex: 'name', key: 'name', width: 190, render: (value) => <span className="resource-list-name">{value}</span> },
+    { title: '容量', dataIndex: 'capacity', key: 'capacity', width: 130 },
+    { title: '存储类型', dataIndex: 'storageType', key: 'storageType', width: 150 },
+    { title: '访问模式', dataIndex: 'accessMode', key: 'accessMode', width: 150 },
+    { title: '状态', dataIndex: 'status', key: 'status', width: 120 },
+    { title: '回收策略', dataIndex: 'reclaimPolicy', key: 'reclaimPolicy', width: 140 },
+    { title: '创建时间', dataIndex: 'age', key: 'age', width: 180 },
+  ];
+
+  const pvcColumns: ColumnsType<PVCRow> = [
+    { title: '名称', dataIndex: 'name', key: 'name', width: 190, render: (value) => <span className="resource-list-name">{value}</span> },
+    { title: '命名空间', dataIndex: 'namespace', key: 'namespace', width: 150 },
+    { title: '容量请求', dataIndex: 'requestCapacity', key: 'requestCapacity', width: 140 },
+    { title: '存储类', dataIndex: 'storageClass', key: 'storageClass', width: 160 },
+    { title: '状态', dataIndex: 'status', key: 'status', width: 120 },
+    { title: '绑定 PV', dataIndex: 'boundPV', key: 'boundPV', width: 180 },
+    { title: '创建时间', dataIndex: 'age', key: 'age', width: 180 },
+  ];
+
+  const pagination = {
+    pageSize: 10,
+    size: 'small' as const,
+    showTotal: (total: number) => `共 ${total} 条`,
+  };
+
+  const table = initialView === 'se' ? (
+    <Table<RouteEntry>
+      className="group-list-table cluster-resource-list-table"
+      rowKey="key"
+      columns={serviceEntryColumns}
+      dataSource={filteredRoutes}
+      scroll={{ x: 1110 }}
+      pagination={pagination}
+      locale={{ emptyText: '暂无 ServiceEntry 数据' }}
+    />
+  ) : initialView === 'svc' ? (
+    <Table<ServiceRow>
+      className="group-list-table cluster-resource-list-table"
+      rowKey="key"
+      columns={serviceColumns}
+      dataSource={filteredServices}
+      scroll={{ x: 1560 }}
+      pagination={pagination}
+      locale={{ emptyText: '暂无 Service 数据' }}
+    />
+  ) : initialView === 'pod' ? (
+    <Table<PodRow>
+      className="group-list-table cluster-resource-list-table"
+      rowKey="key"
+      columns={podColumns}
+      dataSource={filteredPods}
+      scroll={{ x: 1070 }}
+      pagination={pagination}
+      locale={{ emptyText: '暂无 Pod 数据' }}
+    />
+  ) : initialView === 'pv' ? (
+    <Table<PVRow>
+      className="group-list-table cluster-resource-list-table"
+      rowKey="key"
+      columns={pvColumns}
+      dataSource={filteredPVs}
+      scroll={{ x: 1060 }}
+      pagination={pagination}
+      locale={{ emptyText: '暂无 PV 数据' }}
+    />
+  ) : (
+    <Table<PVCRow>
+      className="group-list-table cluster-resource-list-table"
+      rowKey="key"
+      columns={pvcColumns}
+      dataSource={filteredPVCs}
+      scroll={{ x: 1120 }}
+      pagination={pagination}
+      locale={{ emptyText: '暂无 PVC 数据' }}
+    />
+  );
 
   return (
-    <ConfigProvider theme={{ token: { colorPrimary: '#6738E8' }, components: { Table: { headerBg: '#f7f8fa' } } }}>
-      <div className={className}>
-        <div className="ataas-cm-toolbar" style={{ border: 'none', padding: '8px 0' }}>
-          <div style={{ flex: 1 }} />
-          <Input.Search size="small" allowClear value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder={initialView === 'se' ? '搜索 SE / Host' : initialView === 'svc' ? '搜索 SVC / SE / Cluster IP' : '搜索 POD / IP / Node'} style={{ width: 320 }} />
+    <ConfigProvider theme={{ token: { colorPrimary: '#6951FF' }, components: { Table: { headerBg: '#F7F8FA' } } }}>
+      <div className={['group-page-shell', 'cluster-resource-page', className].filter(Boolean).join(' ')}>
+        <div className="group-page-head">
+          <div className="group-page-title">
+            <strong>{pageConfig.title}</strong>
+            <span>{pageConfig.description}</span>
+          </div>
+          <div className="group-page-summary">
+            {pageConfig.summary.map((item) => (
+              <span key={item.label}>
+                <small>{item.label}</small>
+                <b className={item.tone}>{item.value}</b>
+              </span>
+            ))}
+          </div>
         </div>
-        {initialView === 'se' ? (
-          <Table<RouteEntry> rowKey="key" columns={seColumns} dataSource={filteredRoutes} scroll={{ x: 1000 }} pagination={{ pageSize: 10, showTotal: (total) => '共 ' + total + ' 条路由' }} />
-        ) : initialView === 'svc' ? (
-          <Table<ServiceRow> rowKey="key" columns={serviceColumns} dataSource={filteredSvcs} scroll={{ x: 'max-content' }} pagination={{ pageSize: 10, showTotal: (total) => '共 ' + total + ' 条' }} />
-        ) : (
-          <Table<PodRow> rowKey="key" columns={podColumns} dataSource={filteredPods} scroll={{ x: 'max-content' }} pagination={{ pageSize: 10, showTotal: (total) => '共 ' + total + ' 条' }} />
-        )}
+
+        <div className="group-table-toolbar">
+          <Input
+            size="small"
+            allowClear
+            value={keyword}
+            onChange={(event) => setKeyword(event.target.value)}
+            prefix={<Search className="group-search-icon" />}
+            placeholder={pageConfig.placeholder}
+            className="group-search-input"
+            style={{ width: 340 }}
+          />
+        </div>
+
+        <div className="group-table-frame">
+          {table}
+        </div>
       </div>
     </ConfigProvider>
   );
