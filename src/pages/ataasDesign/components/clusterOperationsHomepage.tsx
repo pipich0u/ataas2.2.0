@@ -13,12 +13,14 @@ import {
   initializeClusterOperations,
 } from './clusterOperationsRuntime';
 import ClusterResourceTables from './clusterResourceTables';
+import PdGroupsPage from './pdGroupsPage';
 import {
   SupplierResourceCreateFlow,
   supplierResourceCreateMenuItems,
 } from './supplierResourcesPage';
 import type { SupplierResourceCreateKind } from './supplierResourcesPage';
 import './clusterOperationsHomepage.less';
+import './pdGroupsPage.less';
 
 const OverviewCardHeader = ({
   icon,
@@ -656,6 +658,7 @@ const ClusterOperationsHomepage = () => {
   const rootRef = useRef<HTMLDivElement>(null);
   const [hierarchyScope, setHierarchyScope] = useState<HierarchyScope | null>(null);
   const [resourceCreateKind, setResourceCreateKind] = useState<SupplierResourceCreateKind | null>(null);
+  const [selectedClusterKey, setSelectedClusterKey] = useState('shanghai-online');
 
   useEffect(() => {
     const handleHierarchyScopeChange = (event: Event) => {
@@ -669,6 +672,7 @@ const ClusterOperationsHomepage = () => {
           datacenter: detail.datacenter,
         });
       } else if (detail?.type === 'cluster') {
+        setSelectedClusterKey(detail.key || 'shanghai-online');
         setHierarchyScope(null);
       }
     };
@@ -1039,29 +1043,29 @@ const ClusterOperationsHomepage = () => {
         </div>
 
         <section className="nodes-view">
-          <NodeTable />
+          <NodeTable selectedClusterKey={selectedClusterKey} />
         </section>
 
         <section className="workloads-view">
-          <GroupTable />
+          <PdGroupsPage selectedClusterKey={selectedClusterKey} />
         </section>
         <section className="pods-view">
-          <ClusterResourceTables view="pod" />
+          <ClusterResourceTables view="pod" selectedClusterKey={selectedClusterKey} />
         </section>
 
         <section className="services-view">
-          <ClusterResourceTables view="svc" />
+          <ClusterResourceTables view="svc" selectedClusterKey={selectedClusterKey} />
         </section>
 
         <section className="serviceentry-view">
-          <ClusterResourceTables view="se" />
+          <ClusterResourceTables view="se" selectedClusterKey={selectedClusterKey} />
         </section>
 
         <section className="pv-view">
-          <ClusterResourceTables view="pv" />
+          <ClusterResourceTables view="pv" selectedClusterKey={selectedClusterKey} />
         </section>
         <section className="pvc-view">
-          <ClusterResourceTables view="pvc" />
+          <ClusterResourceTables view="pvc" selectedClusterKey={selectedClusterKey} />
         </section>
         </div>
       </main>
@@ -1181,12 +1185,12 @@ const NodeLogDrawer = ({ detail, onClose }: {
   >
     {detail && (
       <div className="node-log-stream">
-        {detail.logs.map((line, index) => (
-          <div key={`${index}-${line}`}>
-            <span>{String(index + 1).padStart(2, '0')}</span>
-            <code>{line}</code>
-          </div>
-        ))}
+        <div className="node-log-terminal-head">
+          <span><i /><i /><i /></span>
+          <strong>kernel console</strong>
+          <em>tail -n {detail.logs.length}</em>
+        </div>
+        <pre><code>{detail.logs.join('\n')}</code></pre>
       </div>
     )}
   </Drawer>
@@ -1784,7 +1788,14 @@ const nodeResourceDataCenters = [
   { value: 'dc-cd-01', label: '成都边缘数据中心', code: 'DC-CD-001', availability: '3 台可用' },
 ];
 
-const NodeTable = () => {
+const clusterFixtureNodeKeys: Record<string, string[]> = {
+  'shanghai-online': ['n1', 'n2', 'n4'],
+  'beijing-prod': ['n1', 'n2', 'n3', 'n4', 'n5', 'n6'],
+  'guangzhou-test': ['n3'],
+  'wuhan-kunpeng': [],
+};
+
+const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
   const [keyword, setKeyword] = useState('');
   const [nodeLog, setNodeLog] = useState<{ title: string; logs: string[] } | null>(null);
   const [faultFocus, setFaultFocus] = useState<{ kind: 'node' | 'network' | 'disk'; nodeKey: string } | null>(null);
@@ -1792,10 +1803,24 @@ const NodeTable = () => {
   const [addNodeOpen, setAddNodeOpen] = useState(false);
   const [nodeRows, setNodeRows] = useState<NodeRow[]>(nodeData);
   const [addNodeForm] = Form.useForm();
-  const normalCount = nodeRows.filter((row) => row.status === 'normal').length;
-  const abnormalCount = nodeRows.filter((row) => row.status === 'warning' || row.status === 'error').length;
-  const totalGpuCount = nodeRows.reduce((total, row) => total + row.gpu, 0);
-  const focusedNode = faultFocus ? nodeRows.find((row) => row.key === faultFocus.nodeKey) : null;
+  const scopedNodeRows = useMemo(() => {
+    const fixtureKeys = new Set(clusterFixtureNodeKeys[selectedClusterKey] || []);
+    return nodeRows
+      .filter((row) => (
+        /^n\d+$/.test(row.key)
+          ? fixtureKeys.has(row.key)
+          : row.clusterName === selectedClusterKey
+      ))
+      .map((row) => (
+        /^n\d+$/.test(row.key)
+          ? { ...row, clusterName: selectedClusterKey }
+          : row
+      ));
+  }, [nodeRows, selectedClusterKey]);
+  const normalCount = scopedNodeRows.filter((row) => row.status === 'normal').length;
+  const abnormalCount = scopedNodeRows.filter((row) => row.status === 'warning' || row.status === 'error').length;
+  const totalGpuCount = scopedNodeRows.reduce((total, row) => total + row.gpu, 0);
+  const focusedNode = faultFocus ? scopedNodeRows.find((row) => row.key === faultFocus.nodeKey) : null;
 
   const closeAddNodeDrawer = () => {
     addNodeForm.resetFields();
@@ -1804,7 +1829,6 @@ const NodeTable = () => {
 
   const createNodeJoinTask = (values: {
     dataCenter: string;
-    cluster: string;
     role: 'worker' | 'control-plane';
     name: string;
     ip: string;
@@ -1833,7 +1857,7 @@ const NodeTable = () => {
       key: `node-${Date.now()}`,
       name: nodeName,
       ip: nodeIp,
-      clusterName: values.cluster,
+      clusterName: selectedClusterKey,
       label: roleLabel,
       tags: [
         ...labels,
@@ -1884,6 +1908,14 @@ const NodeTable = () => {
   };
 
   useEffect(() => {
+    setKeyword('');
+    setFaultFocus(null);
+    setExpandedRowKeys([]);
+    setAddNodeOpen(false);
+    addNodeForm.resetFields();
+  }, [addNodeForm, selectedClusterKey]);
+
+  useEffect(() => {
     const handleFocus = (event: Event) => {
       const detail = (event as CustomEvent<{ kind?: 'node' | 'network' | 'disk'; nodeKey?: string }>).detail;
       if (!detail?.kind || !detail.nodeKey) return;
@@ -1896,11 +1928,11 @@ const NodeTable = () => {
     return () => window.removeEventListener('ataas:cluster-node-focus', handleFocus);
   }, []);
 
-  const filteredData = useMemo(() => nodeRows.filter((row) => {
+  const filteredData = useMemo(() => scopedNodeRows.filter((row) => {
     if (faultFocus) return row.key === faultFocus.nodeKey;
     const text = (row.name + ' ' + row.ip + ' ' + row.clusterName + ' ' + row.label).toLowerCase();
     return !keyword || text.includes(keyword.toLowerCase());
-  }), [faultFocus, keyword, nodeRows]);
+  }), [faultFocus, keyword, scopedNodeRows]);
 
   const columns: ColumnsType<NodeRow> = [
     { title: '节点', key: 'name', width: 250, render: (_, r) => (
@@ -1983,14 +2015,8 @@ const NodeTable = () => {
     <ConfigProvider theme={{ token: { colorPrimary: '#6951FF' }, components: { Table: { headerBg: '#F7F8FA' } } }}>
       <div className="node-page-shell">
         <div className="node-page-head">
-          <div className="node-page-title">
-            <div>
-              <strong>节点列表</strong>
-              <span>查看集群节点状态与硬件资源</span>
-            </div>
-          </div>
           <div className="node-page-summary">
-            <span><small>节点总数</small><b>{nodeRows.length}</b></span>
+            <span><small>节点总数</small><b>{scopedNodeRows.length}</b></span>
             <span><small>运行正常</small><b className="is-normal">{normalCount}</b></span>
             <span><small>告警 / 异常</small><b className={abnormalCount ? 'is-error' : ''}>{abnormalCount}</b></span>
             <span><small>GPU 总量</small><b>{totalGpuCount} 张</b></span>
@@ -2102,7 +2128,6 @@ const NodeTable = () => {
           className="node-add-form"
           initialValues={{
             dataCenter: 'dc-sh-01',
-            cluster: 'default',
             role: 'worker',
             credential: 'cluster-default-root-key',
           }}
@@ -2120,17 +2145,6 @@ const NodeTable = () => {
                     value: item.value,
                     label: `${item.label} · ${item.availability}`,
                   }))}
-                />
-              </Form.Item>
-              <Form.Item label="所属集群" name="cluster" rules={[{ required: true, message: '请选择所属集群' }]}>
-                <Select
-                  options={[
-                    { value: 'default', label: 'default' },
-                    { value: 'shanghai-online', label: 'shanghai-online' },
-                    { value: 'guangzhou-test', label: 'guangzhou-test' },
-                    { value: 'wuhan-kunpeng', label: 'wuhan-kunpeng' },
-                    { value: 'beijing-prod', label: 'beijing-prod' },
-                  ]}
                 />
               </Form.Item>
               <Form.Item label="节点名称" name="name" rules={[{ required: true, message: '请输入节点名称' }]}>
@@ -2182,124 +2196,6 @@ const NodeTable = () => {
           </section>
         </Form>
       </Drawer>
-    </ConfigProvider>
-  );
-};
-
-type GroupRow = {
-  key: string;
-  name: string;
-  kind: 'Deployment' | 'StatefulSet' | 'DaemonSet' | 'Job' | 'CronJob';
-  namespace: string;
-  status: '需关注' | '更新中' | '执行中' | '正常';
-  replicas: string;
-  age: string;
-};
-
-const groupData: GroupRow[] = [
-  { key: '1', name: 'payment-api', kind: 'Deployment', namespace: 'payment', status: '需关注', replicas: '3/5', age: '2026-05-18 14:22' },
-  { key: '2', name: 'model-cache', kind: 'StatefulSet', namespace: 'inference', status: '需关注', replicas: '2/3', age: '2026-06-01 09:15' },
-  { key: '3', name: 'training-worker', kind: 'Deployment', namespace: 'training', status: '更新中', replicas: '10/12', age: '2026-06-10 11:30' },
-  { key: '4', name: 'dataset-index', kind: 'Job', namespace: 'data-pipeline', status: '执行中', replicas: '18/24', age: '2026-06-15 08:00' },
-  { key: '5', name: 'order-api', kind: 'Deployment', namespace: 'order', status: '正常', replicas: '8/8', age: '2026-05-01 10:00' },
-  { key: '6', name: 'node-exporter', kind: 'DaemonSet', namespace: 'monitoring', status: '正常', replicas: '78/78', age: '2026-04-20 16:00' },
-  { key: '7', name: 'nightly-report', kind: 'CronJob', namespace: 'ops', status: '正常', replicas: '-', age: '2026-06-01 00:00' },
-];
-
-const GroupTable = () => {
-  const [keyword, setKeyword] = useState('');
-  const healthyCount = groupData.filter((group) => group.status === '正常').length;
-  const attentionCount = groupData.filter((group) => group.status === '需关注').length;
-  const processingCount = groupData.filter((group) => group.status === '更新中' || group.status === '执行中').length;
-  const filteredGroups = useMemo(() => {
-    const normalizedKeyword = keyword.trim().toLowerCase();
-    if (!normalizedKeyword) return groupData;
-    return groupData.filter((group) => (
-      `${group.name} ${group.kind} ${group.namespace} ${group.status}`
-        .toLowerCase()
-        .includes(normalizedKeyword)
-    ));
-  }, [keyword]);
-
-  const columns: ColumnsType<GroupRow> = [
-    {
-      title: 'Group',
-      key: 'name',
-      width: 190,
-      render: (_, group) => (
-        <div className="group-list-identity">
-          <strong>{group.name}</strong>
-          <span>{group.kind}</span>
-        </div>
-      ),
-    },
-    {
-      title: '类型',
-      dataIndex: 'kind',
-      key: 'kind',
-      width: 150,
-      render: (kind: GroupRow['kind']) => <span className="group-kind-tag">{kind}</span>,
-    },
-    { title: '命名空间', dataIndex: 'namespace', key: 'namespace', width: 170 },
-    {
-      title: '副本',
-      dataIndex: 'replicas',
-      key: 'replicas',
-      width: 150,
-      render: (replicas: string) => <span className="group-replica-value">{replicas}</span>,
-    },
-    {
-      title: '状态',
-      key: 'status',
-      width: 130,
-      render: (_, group) => (
-        <span className={`group-list-status is-${group.status}`}>
-          <i />
-          {group.status}
-        </span>
-      ),
-    },
-    { title: '创建时间', dataIndex: 'age', key: 'age', width: 190 },
-  ];
-
-  return (
-    <ConfigProvider theme={{ token: { colorPrimary: '#6951FF' }, components: { Table: { headerBg: '#F7F8FA' } } }}>
-      <div className="group-page-shell">
-        <div className="group-page-head">
-          <div className="group-page-title">
-            <strong>Groups</strong>
-            <span>查看工作负载组的运行状态与副本就绪情况</span>
-          </div>
-          <div className="group-page-summary">
-            <span><small>Group 总数</small><b>{groupData.length}</b></span>
-            <span><small>运行正常</small><b className="is-normal">{healthyCount}</b></span>
-            <span><small>需关注</small><b className={attentionCount ? 'is-error' : ''}>{attentionCount}</b></span>
-            <span><small>处理中</small><b>{processingCount}</b></span>
-          </div>
-        </div>
-        <div className="group-table-toolbar">
-          <Input
-            size="small"
-            allowClear
-            value={keyword}
-            onChange={(event) => setKeyword(event.target.value)}
-            prefix={<Search className="group-search-icon" />}
-            placeholder="搜索 Group 名称 / 类型 / 命名空间"
-            className="group-search-input"
-            style={{ width: 340 }}
-          />
-        </div>
-        <div className="group-table-frame">
-          <Table<GroupRow>
-            className="group-list-table"
-            rowKey="key"
-            columns={columns}
-            dataSource={filteredGroups}
-            scroll={{ x: 1040 }}
-            pagination={{ pageSize: 10, size: 'small', showTotal: (total) => `共 ${total} 个` }}
-          />
-        </div>
-      </div>
     </ConfigProvider>
   );
 };

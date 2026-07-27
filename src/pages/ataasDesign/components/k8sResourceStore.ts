@@ -60,6 +60,10 @@ export type K8sPodResource = {
   gpuVram: number;
   age: string;
   trafficSource?: string;
+  owner?: string;
+  collaborators?: string[];
+  expiresIn?: string;
+  expiresAt?: string;
   source: K8sResourceSource;
   yaml: string;
   tpotP50?: number;
@@ -83,6 +87,13 @@ const MODEL_OPS_SEED = MODEL_OPS_RESOURCE_SPECS
   .map((spec) => `${spec.name}:${spec.cluster}:${spec.routerReady}/${spec.routerTotal}:${spec.prefillReady}/${spec.prefillTotal}:${spec.decodeReady}/${spec.decodeTotal}:${spec.weight}`)
   .join('|') + '|multi-se-v2';
 
+const resolveResourceCluster = (name: string) => {
+  if (/^(sh|zj)-/.test(name)) return 'shanghai-online';
+  if (/^bj-/.test(name)) return 'beijing-prod';
+  if (/^(zz|cd|gy)-/.test(name)) return 'guangzhou-test';
+  return 'wuhan-kunpeng';
+};
+
 export const buildServiceYaml = (service: K8sServiceResource) => `apiVersion: v1
 kind: Service
 metadata:
@@ -100,21 +111,31 @@ ${service.ports.map((port) => `    - name: ${port.name}
       port: ${port.port}
       targetPort: ${port.targetPort}${port.nodePort ? `\n      nodePort: ${port.nodePort}` : ''}`).join('\n')}`;
 
-export const buildPodYaml = (pod: K8sPodResource) => `apiVersion: v1
+export const buildPodYaml = (pod: K8sPodResource) => {
+  const annotations = [
+    pod.owner ? `    ataas.io/owner: ${pod.owner}` : '',
+    pod.collaborators?.length ? `    ataas.io/collaborators: ${pod.collaborators.join(',')}` : '',
+    pod.expiresIn ? `    ataas.io/expires-in: ${pod.expiresIn}` : '',
+  ].filter(Boolean);
+  const nodeName = pod.node && pod.node !== '自动调度'
+    ? `  nodeName: ${pod.node}\n`
+    : '';
+
+  return `apiVersion: v1
 kind: Pod
 metadata:
   name: ${pod.name}
-  namespace: ${pod.namespace}
+  namespace: ${pod.namespace}${annotations.length ? `\n  annotations:\n${annotations.join('\n')}` : ''}
   labels:
     app: ${pod.group || pod.name}
     role: ${pod.role}
 spec:
-  nodeName: ${pod.node}
-  containers:
+${nodeName}  containers:
     - name: ${pod.role}
       image: ${pod.image}
       ports:
         - containerPort: 8000`;
+};
 
 export const buildServiceEntryYaml = (entry: K8sServiceEntryResource) => `apiVersion: networking.istio.io/v1beta1
 kind: ServiceEntry
@@ -139,8 +160,8 @@ const getMockServiceEntryName = (id: string, cluster: string) => {
 const makeService = (index: number): K8sServiceResource => {
   const spec = MODEL_OPS_RESOURCE_SPECS[index];
   const name = spec.name;
-  const cluster = spec.cluster;
-  const serviceEntryId = getMockServiceEntryId(spec.name, spec.cluster, index);
+  const cluster = resolveResourceCluster(name);
+  const serviceEntryId = getMockServiceEntryId(spec.name, cluster, index);
   const service: K8sServiceResource = {
     id: `svc-${name}-${cluster}`,
     kind: 'Service',
@@ -153,9 +174,9 @@ const makeService = (index: number): K8sServiceResource => {
     selector: { 'rolebasedgroup.workloads.x-k8s.io/name': name, 'rolebasedgroup.workloads.x-k8s.io/role': 'router' },
     labels: { monitoring: 'scrape', 'rolebasedgroup.workloads.x-k8s.io/name': name, 'rolebasedgroup.workloads.x-k8s.io/role': 'router' },
     podIds: [
-      `pod-${name}-router-0`,
-      ...Array.from({ length: spec.prefillTotal }, (_, podIndex) => `pod-${name}-prefill-${podIndex}`),
-      ...Array.from({ length: spec.decodeTotal }, (_, podIndex) => `pod-${name}-decode-${podIndex}`),
+      `pod-${name}-${cluster}-router-0`,
+      ...Array.from({ length: spec.prefillTotal }, (_, podIndex) => `pod-${name}-${cluster}-prefill-${podIndex}`),
+      ...Array.from({ length: spec.decodeTotal }, (_, podIndex) => `pod-${name}-${cluster}-decode-${podIndex}`),
     ],
     serviceEntryId,
     source: 'model-deploy',
@@ -290,10 +311,38 @@ const readState = (): K8sResourceState => {
       writeState(next);
       return next;
     }
-    const pods = parsed.pods.filter((pod) => pod.source !== 'manual');
-    const podIds = new Set(pods.map((pod) => pod.id));
-    const services = parsed.services.map((service) => ({ ...service, podIds: service.podIds.filter((podId) => podIds.has(podId)) }));
-    return { ...parsed, services, pods };
+    const normalizedServices = parsed.services.map((service) => (
+      service.source === 'model-deploy'
+        ? { ...service, cluster: resolveResourceCluster(service.name) }
+        : service
+    ));
+    const serviceClusterMap = new Map(normalizedServices.map((service) => [service.id, service.cluster]));
+    const now = Date.now();
+    const pods = parsed.pods
+      .filter((pod) => (
+        pod.source !== 'manual'
+        || !pod.expiresAt
+        || Number.isNaN(Date.parse(pod.expiresAt))
+        || Date.parse(pod.expiresAt) > now
+      ))
+      .map((pod) => (
+        pod.source === 'model-deploy'
+          ? { ...pod, cluster: serviceClusterMap.get(pod.serviceId || '') || resolveResourceCluster(pod.name) }
+          : pod
+      ));
+    const services = normalizedServices.map((service) => ({
+      ...service,
+      podIds: pods
+        .filter((pod) => pod.serviceId === service.id || service.podIds.includes(pod.id))
+        .map((pod) => pod.id),
+    }));
+    const serviceEntries = parsed.serviceEntries.map((entry) => ({
+      ...entry,
+      cluster: entry.serviceIds
+        .map((serviceId) => serviceClusterMap.get(serviceId))
+        .find(Boolean) || entry.cluster,
+    }));
+    return { serviceEntries, services, pods };
   } catch {
     return createInitialK8sResourceState();
   }
@@ -462,4 +511,45 @@ export const createManualServiceEntry = (input: {
     updatedAt: nowLabel(),
   };
   return { ...entry, yaml: entry.yaml || buildServiceEntryYaml(entry) };
+};
+
+export const createManualPod = (input: {
+  name: string;
+  cluster: string;
+  namespace?: string;
+  owner: string;
+  image: string;
+  node?: string;
+  collaborators?: string[];
+  expiresIn?: string;
+}): K8sPodResource => {
+  const expiresIn = input.expiresIn || '24h';
+  const expiresHours = Number.parseInt(expiresIn, 10);
+  const pod: K8sPodResource = {
+    id: `pod-dev-${Date.now()}`,
+    kind: 'Pod',
+    name: input.name,
+    cluster: input.cluster,
+    namespace: input.namespace || 'devpods',
+    role: 'business',
+    group: 'DevPod',
+    ready: '0/1',
+    status: 'Pending',
+    restart: 0,
+    image: input.image,
+    podIP: '待分配',
+    node: input.node || '自动调度',
+    nodeGPU: '按模板申请',
+    gpuUtil: 0,
+    gpuVram: 0,
+    age: '刚刚',
+    owner: input.owner,
+    collaborators: input.collaborators || [],
+    expiresIn,
+    expiresAt: new Date(Date.now() + (Number.isFinite(expiresHours) ? expiresHours : 24) * 60 * 60 * 1000).toISOString(),
+    source: 'manual',
+    yaml: '',
+    load: 0,
+  };
+  return { ...pod, yaml: buildPodYaml(pod) };
 };
