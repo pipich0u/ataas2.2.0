@@ -987,7 +987,6 @@ const PdGroupsPage = ({ selectedClusterKey }: { selectedClusterKey: string }) =>
       title: '状态',
       key: 'status',
       width: 80,
-      fixed: 'right',
       render: (_, group) => (
         <span className={`pd-group-status is-${group.status}`}>
           <i />
