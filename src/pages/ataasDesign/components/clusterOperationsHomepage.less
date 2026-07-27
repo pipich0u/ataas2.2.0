@@ -6309,13 +6309,15 @@
     .network-summary-row {
       min-height: 48px;
       padding: 5px 10px;
-      grid-template-columns: minmax(0, 1fr) auto;
-      grid-template-rows: repeat(2, minmax(18px, auto));
-      grid-template-areas:
-        "identity health"
-        "abnormal action";
-      column-gap: 16px;
-      row-gap: 2px;
+      grid-template-columns:
+        minmax(150px, 1.25fr)
+        minmax(108px, .8fr)
+        minmax(84px, .58fr)
+        minmax(96px, .68fr);
+      grid-template-rows: minmax(38px, auto);
+      grid-template-areas: "identity health abnormal action";
+      column-gap: clamp(12px, 2.2cqw, 22px);
+      row-gap: 0;
     }
 
     .network-summary-row > div:first-child {
@@ -6338,7 +6340,7 @@
       display: flex;
       flex-direction: row;
       align-items: baseline;
-      justify-self: end;
+      justify-self: start;
       gap: 7px;
       white-space: nowrap;
     }
@@ -6350,8 +6352,25 @@
 
     .network-summary-row > button {
       grid-area: action;
-      justify-self: end;
+      justify-self: start;
       white-space: nowrap;
+    }
+  }
+
+  @container network-panel (max-width: 620px) {
+    .network-summary-row {
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-rows: repeat(2, minmax(18px, auto));
+      grid-template-areas:
+        "identity health"
+        "abnormal action";
+      column-gap: 14px;
+      row-gap: 2px;
+    }
+
+    .network-health-copy,
+    .network-summary-row > button {
+      justify-self: end;
     }
   }
 
@@ -8374,10 +8393,31 @@
 
   .hierarchy-child-resource-table {
     min-width: 0;
-    overflow-x: auto;
+    max-height: 390px;
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-color: #c9cdd4 transparent;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
     border: 1px solid #e5e6eb;
     border-radius: 8px;
     background: #fff;
+  }
+
+  .hierarchy-child-resource-table::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .hierarchy-child-resource-table::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .hierarchy-child-resource-table::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 6px;
+    background: #c9cdd4;
+    background-clip: padding-box;
   }
 
   .hierarchy-child-resource-head,
@@ -8389,6 +8429,9 @@
   }
 
   .hierarchy-child-resource-head {
+    position: sticky;
+    top: 0;
+    z-index: 2;
     min-height: 46px;
     color: #4e5969;
     font-size: 11px;
@@ -10706,6 +10749,10 @@
     background: #fafbfc;
   }
 
+  .gpu-memory-overview {
+    margin-top: 12px;
+  }
+
   .gpu-utilization-head {
     display: flex;
     align-items: flex-end;
@@ -10794,7 +10841,9 @@
   }
 
   .gpu-memory-grid {
-    margin-top: 18px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #eef0f4;
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 18px;

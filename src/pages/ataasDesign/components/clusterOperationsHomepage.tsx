@@ -1429,8 +1429,11 @@ const GpuDetailDrawer = ({ card, nodeName, open, onClose }: {
           <div className="gpu-utilization-track"><i style={{ width: `${card.utilization}%` }} /></div>
         </section>
 
-        <section className="gpu-detail-section">
-          <div className="gpu-detail-section-head"><strong>显存使用</strong><span>{memoryPercent}%</span></div>
+        <section className="gpu-utilization-overview gpu-memory-overview">
+          <div className="gpu-utilization-head">
+            <div><span>GPU 显存使用</span><strong>{memoryPercent}%</strong></div>
+            <small>{card.memoryUsed} / {card.memoryTotal}</small>
+          </div>
           <div className="gpu-memory-track"><i style={{ width: `${memoryPercent}%` }} /></div>
           <div className="gpu-memory-grid">
             <div><span>已使用</span><strong>{card.memoryUsed}</strong></div>

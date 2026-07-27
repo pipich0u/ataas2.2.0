@@ -56,6 +56,60 @@ export const CLUSTER_OPERATIONS_CLUSTER_DATA: Record<string, ClusterOperationsCl
     alerts: { critical: 3, warning: 2 },
     resources: { cpuTotal: 512, cpuUsed: 166, gpuTotal: 24, gpuUtilization: 64.5, vramTotal: 1.13, vramUsed: 0.27, memoryTotal: 3.45, memoryUsed: 1.33, storageTotal: 20.32, storageUsed: 8.7 },
   },
+  'shanghai-inference-02': {
+    name: 'shanghai-inference-02', location: '上海三区', provider: '商汤', dc: '上海外高桥数据中心', k8s: 'v1.36.2',
+    bms: '4', nodes: '4', normal: '4', abnormal: '0', health: '正常', running: true, code: '上海三区',
+    alerts: { critical: 0, warning: 1 },
+    resources: { cpuTotal: 640, cpuUsed: 286, gpuTotal: 32, gpuUtilization: 71.8, vramTotal: 1.5, vramUsed: 0.62, memoryTotal: 4.2, memoryUsed: 2.1, storageTotal: 24.8, storageUsed: 10.2 },
+  },
+  'shanghai-inference-03': {
+    name: 'shanghai-inference-03', location: '上海四区', provider: '商汤', dc: '上海外高桥数据中心', k8s: 'v1.36.1',
+    bms: '5', nodes: '5', normal: '4', abnormal: '1', health: '需关注', running: true, code: '上海四区',
+    alerts: { critical: 1, warning: 3 },
+    resources: { cpuTotal: 768, cpuUsed: 402, gpuTotal: 40, gpuUtilization: 78.4, vramTotal: 1.88, vramUsed: 1.02, memoryTotal: 5.4, memoryUsed: 3.1, storageTotal: 30.5, storageUsed: 18.4 },
+  },
+  'shanghai-batch': {
+    name: 'shanghai-batch', location: '离线推理区', provider: '商汤', dc: '上海外高桥数据中心', k8s: 'v1.35.9',
+    bms: '3', nodes: '3', normal: '3', abnormal: '0', health: '正常', running: true, code: '离线推理区',
+    alerts: { critical: 0, warning: 0 },
+    resources: { cpuTotal: 384, cpuUsed: 138, gpuTotal: 16, gpuUtilization: 42.6, vramTotal: 0.75, vramUsed: 0.24, memoryTotal: 2.6, memoryUsed: 0.96, storageTotal: 18.2, storageUsed: 6.7 },
+  },
+  'shanghai-dev': {
+    name: 'shanghai-dev', location: '研发验证区', provider: '商汤', dc: '上海外高桥数据中心', k8s: 'v1.36.0',
+    bms: '2', nodes: '2', normal: '2', abnormal: '0', health: '正常', running: true, code: '研发验证区',
+    alerts: { critical: 0, warning: 2 },
+    resources: { cpuTotal: 256, cpuUsed: 92, gpuTotal: 8, gpuUtilization: 36.2, vramTotal: 0.38, vramUsed: 0.11, memoryTotal: 1.7, memoryUsed: 0.63, storageTotal: 12.4, storageUsed: 4.1 },
+  },
+  'shanghai-canary': {
+    name: 'shanghai-canary', location: '灰度发布区', provider: '商汤', dc: '上海外高桥数据中心', k8s: 'v1.36.2',
+    bms: '2', nodes: '2', normal: '1', abnormal: '1', health: '需关注', running: true, code: '灰度发布区',
+    alerts: { critical: 1, warning: 1 },
+    resources: { cpuTotal: 320, cpuUsed: 174, gpuTotal: 12, gpuUtilization: 68.7, vramTotal: 0.56, vramUsed: 0.31, memoryTotal: 2.1, memoryUsed: 1.22, storageTotal: 14.6, storageUsed: 8.3 },
+  },
+  'shanghai-lingang': {
+    name: 'shanghai-lingang', location: '临港一区', provider: '商汤', dc: '上海临港数据中心', k8s: 'v1.36.2',
+    bms: '4', nodes: '4', normal: '4', abnormal: '0', health: '正常', running: true, code: '临港一区',
+    alerts: { critical: 0, warning: 1 },
+    resources: { cpuTotal: 704, cpuUsed: 318, gpuTotal: 32, gpuUtilization: 73.1, vramTotal: 1.5, vramUsed: 0.74, memoryTotal: 4.8, memoryUsed: 2.22, storageTotal: 28.6, storageUsed: 12.7 },
+  },
+  'shanghai-zhangjiang': {
+    name: 'shanghai-zhangjiang', location: '张江一区', provider: '商汤', dc: '上海张江数据中心', k8s: 'v1.35.9',
+    bms: '3', nodes: '3', normal: '3', abnormal: '0', health: '正常', running: true, code: '张江一区',
+    alerts: { critical: 0, warning: 0 },
+    resources: { cpuTotal: 448, cpuUsed: 185, gpuTotal: 20, gpuUtilization: 58.9, vramTotal: 0.94, vramUsed: 0.36, memoryTotal: 3.1, memoryUsed: 1.28, storageTotal: 19.8, storageUsed: 7.4 },
+  },
+  'suzhou-prod': {
+    name: 'suzhou-prod', location: '苏州一区', provider: '商汤', dc: '苏州工业园数据中心', k8s: 'v1.36.1',
+    bms: '3', nodes: '3', normal: '2', abnormal: '1', health: '需关注', running: true, code: '苏州一区',
+    alerts: { critical: 1, warning: 2 },
+    resources: { cpuTotal: 512, cpuUsed: 244, gpuTotal: 24, gpuUtilization: 69.4, vramTotal: 1.13, vramUsed: 0.58, memoryTotal: 3.6, memoryUsed: 1.74, storageTotal: 22.7, storageUsed: 11.2 },
+  },
+  'hangzhou-online': {
+    name: 'hangzhou-online', location: '杭州一区', provider: '商汤', dc: '杭州萧山数据中心', k8s: 'v1.36.2',
+    bms: '4', nodes: '4', normal: '4', abnormal: '0', health: '正常', running: true, code: '杭州一区',
+    alerts: { critical: 0, warning: 1 },
+    resources: { cpuTotal: 640, cpuUsed: 271, gpuTotal: 32, gpuUtilization: 66.8, vramTotal: 1.5, vramUsed: 0.69, memoryTotal: 4.3, memoryUsed: 1.86, storageTotal: 26.4, storageUsed: 10.9 },
+  },
   'guangzhou-test': {
     name: 'guangzhou-test', location: '广州测试', provider: '并行科技', dc: '广州科学城数据中心', k8s: 'v1.36.0',
     bms: '1', nodes: '1', normal: '1', abnormal: '0', health: '有异常', running: true, code: '广州测试',
@@ -78,8 +132,25 @@ export const CLUSTER_OPERATIONS_CLUSTER_DATA: Record<string, ClusterOperationsCl
 
 export const CLUSTER_OPERATIONS_RESOURCE_TREE: ClusterOperationsResourceTreeProvider[] = [
   { name: '商汤', providerFull: '', expanded: true, dcs: [
-    { name: '上海外高桥数据中心', count: '1', expanded: true, clusters: [
+    { name: '上海外高桥数据中心', count: '6', expanded: true, clusters: [
       { key: 'shanghai-online', name: 'shanghai-online', meta: '上海二区', count: '3台' },
+      { key: 'shanghai-inference-02', name: 'shanghai-inference-02', meta: '上海三区', count: '4台' },
+      { key: 'shanghai-inference-03', name: 'shanghai-inference-03', meta: '上海四区', count: '5台', bad: true },
+      { key: 'shanghai-batch', name: 'shanghai-batch', meta: '离线推理区', count: '3台' },
+      { key: 'shanghai-dev', name: 'shanghai-dev', meta: '研发验证区', count: '2台' },
+      { key: 'shanghai-canary', name: 'shanghai-canary', meta: '灰度发布区', count: '2台', bad: true },
+    ]},
+    { name: '上海临港数据中心', count: '1', expanded: false, clusters: [
+      { key: 'shanghai-lingang', name: 'shanghai-lingang', meta: '临港一区', count: '4台' },
+    ]},
+    { name: '上海张江数据中心', count: '1', expanded: false, clusters: [
+      { key: 'shanghai-zhangjiang', name: 'shanghai-zhangjiang', meta: '张江一区', count: '3台' },
+    ]},
+    { name: '苏州工业园数据中心', count: '1', expanded: false, clusters: [
+      { key: 'suzhou-prod', name: 'suzhou-prod', meta: '苏州一区', count: '3台', bad: true },
+    ]},
+    { name: '杭州萧山数据中心', count: '1', expanded: false, clusters: [
+      { key: 'hangzhou-online', name: 'hangzhou-online', meta: '杭州一区', count: '4台' },
     ]},
   ]},
   { name: '并行科技', providerFull: '', expanded: true, dcs: [

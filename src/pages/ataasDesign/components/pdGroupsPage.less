@@ -57,25 +57,16 @@
     padding: 12px 0;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 18px;
-  }
-
-  .pd-groups-toolbar > div {
-    display: flex;
-    align-items: center;
+    justify-content: flex-start;
     gap: 8px;
   }
 
-  .pd-cluster-select { width: 176px; }
   .pd-status-select { width: 122px; }
 
-  .pd-cluster-select.ant-select-single,
   .pd-status-select.ant-select-single {
     height: 32px;
   }
 
-  .pd-cluster-select.ant-select-single .ant-select-selector,
   .pd-status-select.ant-select-single .ant-select-selector {
     height: 32px !important;
     padding: 0 10px !important;
@@ -84,7 +75,6 @@
     box-shadow: none !important;
   }
 
-  .pd-cluster-select .ant-select-selection-item,
   .pd-status-select .ant-select-selection-item {
     color: #4e5969;
     font-size: 12px;
@@ -168,38 +158,6 @@
 
   .pd-group-table .ant-table-pagination.ant-pagination {
     margin: 16px 18px;
-  }
-
-  .pd-cluster-cell {
-    min-width: 0;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .pd-cluster-cell > span {
-    min-width: 28px;
-    height: 22px;
-    padding: 0 7px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid #e5e6eb;
-    border-radius: 11px;
-    color: #4e5969;
-    background: #fff;
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 11px;
-    line-height: 20px;
-  }
-
-  .pd-cluster-cell > b {
-    overflow: hidden;
-    color: #86909c;
-    font-size: 11px;
-    font-weight: 400;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   .pd-group-name {
@@ -924,6 +882,63 @@
     background: #fff;
   }
 
+  .pd-yaml-file-tabs {
+    margin-top: 12px;
+    display: flex;
+    align-items: stretch;
+    gap: 24px;
+    border-bottom: 1px solid #e5e6eb;
+  }
+
+  .pd-yaml-file-tabs > button {
+    position: relative;
+    min-width: 0;
+    padding: 0 0 10px;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    border: 0;
+    color: #86909c;
+    background: transparent;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .pd-yaml-file-tabs > button::after {
+    position: absolute;
+    right: 0;
+    bottom: -1px;
+    left: 0;
+    height: 2px;
+    background: transparent;
+    content: "";
+  }
+
+  .pd-yaml-file-tabs > button.is-active {
+    color: #4e5969;
+  }
+
+  .pd-yaml-file-tabs > button.is-active::after {
+    background: #6951ff;
+  }
+
+  .pd-yaml-file-tabs strong {
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 20px;
+    white-space: nowrap;
+  }
+
+  .pd-yaml-file-tabs span {
+    overflow: hidden;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 10px;
+    line-height: 18px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .pd-yaml-editor-toolbar {
     height: 38px;
     padding: 0 8px 0 14px;
@@ -1181,9 +1196,7 @@
       flex-direction: column;
     }
 
-    .pd-groups-toolbar > div { width: 100%; }
-    .pd-cluster-select { flex: 1; width: auto; }
-    .pd-status-select { width: 116px; }
+    .pd-status-select { width: 100%; }
 
     .pd-group-search.ant-input-affix-wrapper {
       width: 100%;
@@ -1203,6 +1216,17 @@
     .pd-detail-role-grid,
     .pd-role-config-grid {
       grid-template-columns: 1fr;
+    }
+
+    .pd-yaml-file-tabs {
+      gap: 16px;
+    }
+
+    .pd-yaml-file-tabs > button {
+      flex: 1 1 0;
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 0;
     }
   }
 }

@@ -26,6 +26,7 @@ type PdRoleName = 'router' | 'prefill' | 'decode';
 type PdPodRole = PdRoleName | 'store' | 'master' | 'etcd';
 type GroupStatus = '正常' | '需关注' | '更新中' | '已摘流';
 type TrafficState = 'serving' | 'drained';
+type GroupYamlFileKey = 'router' | 'workers';
 
 type PdPod = {
   key: string;
@@ -82,13 +83,6 @@ const roleLabels: Record<PdPodRole, string> = {
   master: 'MASTER',
   etcd: 'ETCD',
 };
-
-const clusterOptions = [
-  { value: 'shanghai-online', label: 'shanghai-online' },
-  { value: 'beijing-prod', label: 'beijing-prod' },
-  { value: 'guangzhou-test', label: 'guangzhou-test' },
-  { value: 'wuhan-kunpeng', label: 'wuhan-kunpeng' },
-];
 
 const createRole = (
   role: PdRoleName,
@@ -327,14 +321,16 @@ const getNodePreview = (nodes: string[]) => (
   nodes.length > 2 ? `${nodes.slice(0, 2).join('、')} +${nodes.length - 2}` : nodes.join('、')
 );
 
-const buildGroupYaml = (group: PdGroup) => `apiVersion: workloads.x-k8s.io/v1alpha1
+const buildRouterYaml = (group: PdGroup) => `apiVersion: workloads.x-k8s.io/v1alpha1
 kind: RoleBasedGroup
 metadata:
-  name: ${group.name}
+  name: ${group.routerRbg}
   namespace: ${group.namespace}
   labels:
     serving.ataas.io/model: ${group.model.toLowerCase()}
     serving.ataas.io/cluster: ${group.clusterKey}
+    serving.ataas.io/group: ${group.name}
+    serving.ataas.io/component: router
 spec:
   roles:
     - name: router
@@ -369,6 +365,20 @@ spec:
                   path: /health/ready
                   port: http
                 periodSeconds: 5
+`;
+
+const buildWorkersYaml = (group: PdGroup) => `apiVersion: workloads.x-k8s.io/v1alpha1
+kind: RoleBasedGroup
+metadata:
+  name: ${group.workersRbg}
+  namespace: ${group.namespace}
+  labels:
+    serving.ataas.io/model: ${group.model.toLowerCase()}
+    serving.ataas.io/cluster: ${group.clusterKey}
+    serving.ataas.io/group: ${group.name}
+    serving.ataas.io/component: workers
+spec:
+  roles:
     - name: prefill
       replicas: ${group.roles.prefill.desired}
       minReadySeconds: 0
@@ -431,14 +441,6 @@ spec:
             - name: model-volume
               persistentVolumeClaim:
                 claimName: ${group.model.toLowerCase()}-weights
-  exposure:
-    serviceEntry: ${group.exposure.seName}
-    host: ${group.exposure.host}
-    backendService: ${group.exposure.routerService}
-    port: ${group.exposure.port}
-    protocol: ${group.exposure.protocol}
-    policy: ${group.exposure.policy}
-    traffic: ${group.trafficState}
 `;
 
 const RoleCell = ({ role }: { role: PdRole }) => (
@@ -466,6 +468,27 @@ const GroupDetailDrawer = ({
   onViewAllPods: (group: PdGroup) => void;
   onAfterOpenChange: (open: boolean) => void;
 }) => {
+  const [yamlFileKey, setYamlFileKey] = useState<GroupYamlFileKey>('router');
+  const yamlFiles = useMemo(() => group ? [
+    {
+      key: 'router' as const,
+      label: 'Router',
+      filename: `${group.routerRbg}.yaml`,
+      content: buildRouterYaml(group),
+    },
+    {
+      key: 'workers' as const,
+      label: 'Prefill / Decode',
+      filename: `${group.workersRbg}.yaml`,
+      content: buildWorkersYaml(group),
+    },
+  ] : [], [group]);
+  const activeYamlFile = yamlFiles.find((file) => file.key === yamlFileKey) || yamlFiles[0];
+
+  useEffect(() => {
+    setYamlFileKey('router');
+  }, [group?.key]);
+
   const podColumns: ColumnsType<PdPod> = [
     {
       title: 'Pod',
@@ -496,22 +519,22 @@ const GroupDetailDrawer = ({
   ];
 
   const copyYaml = async () => {
-    if (!group) return;
-    await navigator.clipboard?.writeText(buildGroupYaml(group));
-    message.success('YAML 已复制');
+    if (!activeYamlFile) return;
+    await navigator.clipboard?.writeText(activeYamlFile.content);
+    message.success(`${activeYamlFile.filename} 已复制`);
   };
 
   const downloadYaml = () => {
-    if (!group) return;
-    const url = URL.createObjectURL(new Blob([buildGroupYaml(group)], { type: 'application/yaml;charset=utf-8' }));
+    if (!activeYamlFile) return;
+    const url = URL.createObjectURL(new Blob([activeYamlFile.content], { type: 'application/yaml;charset=utf-8' }));
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${group.name}.yaml`;
+    link.download = activeYamlFile.filename;
     document.body.appendChild(link);
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
-    message.success('YAML 已下载');
+    message.success(`${activeYamlFile.filename} 已下载`);
   };
 
   const overview = group ? (
@@ -584,9 +607,24 @@ const GroupDetailDrawer = ({
         <div className="pd-detail-section-head">
           <strong>部署 YAML</strong>
         </div>
+        <div className="pd-yaml-file-tabs" role="tablist" aria-label="YAML 文件">
+          {yamlFiles.map((file) => (
+            <button
+              key={file.key}
+              type="button"
+              role="tab"
+              aria-selected={yamlFileKey === file.key}
+              className={yamlFileKey === file.key ? 'is-active' : ''}
+              onClick={() => setYamlFileKey(file.key)}
+            >
+              <strong>{file.label}</strong>
+              <span>{file.filename}</span>
+            </button>
+          ))}
+        </div>
         <div className="pd-yaml-editor-shell">
           <div className="pd-yaml-editor-toolbar">
-            <span>{group.name}.yaml</span>
+            <span>{activeYamlFile?.filename}</span>
             <div className="pd-yaml-editor-actions">
               <Button
                 type="text"
@@ -608,7 +646,7 @@ const GroupDetailDrawer = ({
           </div>
           <MonacoEditor
             className="pd-yaml-editor"
-            value={buildGroupYaml(group)}
+            value={activeYamlFile?.content || ''}
             language="yaml"
             height={460}
             options={{
@@ -737,12 +775,9 @@ const GroupDetailDrawer = ({
 const PdGroupsPage = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
   const [groups, setGroups] = useState(initialGroups);
   const [keyword, setKeyword] = useState('');
-  const [clusterScope, setClusterScope] = useState(selectedClusterKey);
   const [statusScope, setStatusScope] = useState('all');
   const [detailGroupKey, setDetailGroupKey] = useState<string | null>(null);
   const [pendingPodsNavigation, setPendingPodsNavigation] = useState(false);
-
-  useEffect(() => setClusterScope(selectedClusterKey), [selectedClusterKey]);
 
   useEffect(() => {
     const focusGroup = (event: Event) => {
@@ -750,20 +785,20 @@ const PdGroupsPage = ({ selectedClusterKey }: { selectedClusterKey: string }) =>
       if (!detail?.group) return;
       const matchedGroup = groups.find((group) => (
         group.name === detail.group
+        && group.clusterKey === selectedClusterKey
         && (!detail.cluster || group.clusterName === detail.cluster)
       ));
       if (!matchedGroup) return;
-      setClusterScope(matchedGroup.clusterKey);
       setDetailGroupKey(matchedGroup.key);
     };
     window.addEventListener('ataas:group-focus', focusGroup);
     return () => window.removeEventListener('ataas:group-focus', focusGroup);
-  }, [groups]);
+  }, [groups, selectedClusterKey]);
 
   const filteredGroups = useMemo(() => {
     const normalizedKeyword = keyword.trim().toLowerCase();
     return groups.filter((group) => {
-      if (clusterScope !== 'all' && group.clusterKey !== clusterScope) return false;
+      if (group.clusterKey !== selectedClusterKey) return false;
       if (statusScope !== 'all' && group.status !== statusScope) return false;
       if (!normalizedKeyword) return true;
       const searchText = [
@@ -777,11 +812,11 @@ const PdGroupsPage = ({ selectedClusterKey }: { selectedClusterKey: string }) =>
       ].join(' ').toLowerCase();
       return searchText.includes(normalizedKeyword);
     });
-  }, [clusterScope, groups, keyword, statusScope]);
+  }, [groups, keyword, selectedClusterKey, statusScope]);
 
   const scopedGroups = useMemo(
-    () => groups.filter((group) => clusterScope === 'all' || group.clusterKey === clusterScope),
-    [clusterScope, groups],
+    () => groups.filter((group) => group.clusterKey === selectedClusterKey),
+    [groups, selectedClusterKey],
   );
   const detailGroup = groups.find((group) => group.key === detailGroupKey) || null;
 
@@ -899,16 +934,6 @@ const PdGroupsPage = ({ selectedClusterKey }: { selectedClusterKey: string }) =>
   };
 
   const columns: ColumnsType<PdGroup> = [
-    {
-      title: 'Cluster',
-      key: 'cluster',
-      width: 60,
-      render: (_, group) => (
-        <div className="pd-cluster-cell" title={group.clusterName}>
-          <span>{group.clusterAlias}</span>
-        </div>
-      ),
-    },
     {
       title: 'Group',
       key: 'group',
@@ -1029,26 +1054,6 @@ const PdGroupsPage = ({ selectedClusterKey }: { selectedClusterKey: string }) =>
         </header>
 
         <div className="pd-groups-toolbar">
-          <div>
-            <Select
-              className="pd-cluster-select"
-              value={clusterScope}
-              onChange={setClusterScope}
-              options={[{ value: 'all', label: '全部 Cluster' }, ...clusterOptions]}
-            />
-            <Select
-              className="pd-status-select"
-              value={statusScope}
-              onChange={setStatusScope}
-              options={[
-                { value: 'all', label: '全部状态' },
-                { value: '正常', label: '正常' },
-                { value: '需关注', label: '需关注' },
-                { value: '更新中', label: '更新中' },
-                { value: '已摘流', label: '已摘流' },
-              ]}
-            />
-          </div>
           <Input
             allowClear
             value={keyword}
@@ -1056,6 +1061,18 @@ const PdGroupsPage = ({ selectedClusterKey }: { selectedClusterKey: string }) =>
             prefix={<Search />}
             placeholder="搜索 Group / Model / SE / Node"
             className="pd-group-search"
+          />
+          <Select
+            className="pd-status-select"
+            value={statusScope}
+            onChange={setStatusScope}
+            options={[
+              { value: 'all', label: '全部状态' },
+              { value: '正常', label: '正常' },
+              { value: '需关注', label: '需关注' },
+              { value: '更新中', label: '更新中' },
+              { value: '已摘流', label: '已摘流' },
+            ]}
           />
         </div>
 
@@ -1065,7 +1082,7 @@ const PdGroupsPage = ({ selectedClusterKey }: { selectedClusterKey: string }) =>
             rowKey="key"
             columns={columns}
             dataSource={filteredGroups}
-            scroll={{ x: 1110 }}
+            scroll={{ x: 1050 }}
             pagination={{ pageSize: 10, size: 'small', showTotal: (total) => `共 ${total} 个` }}
             onRow={(group) => ({ onDoubleClick: () => setDetailGroupKey(group.key) })}
           />
