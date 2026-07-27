@@ -6568,6 +6568,7 @@ const LogBoardCard = ({ icon, label, detail, time, status }: { icon: React.React
 const AtAasDesign = () => {
   const [activeTab, setActiveTab] = useState(() => {
     if (window.location.pathname.includes('/cluster-operations')) return 'clusterOperations';
+    if (window.location.pathname.includes('/management-center')) return 'themeSettings';
     if (window.location.pathname.includes('/supplier-resources')) return 'supplierResources';
     if (window.location.pathname.includes('/distribution-center')) return 'distributionCenter';
     if (window.location.pathname.includes('/containers')) return 'containerManagement';
@@ -10648,6 +10649,10 @@ const AtAasDesign = () => {
     setThemeSettings(defaultThemeSettings);
     message.success('已恢复默认主题');
   };
+  const openManagementCenter = () => {
+    setActiveTab('themeSettings');
+    window.history.replaceState(null, '', '/management-center');
+  };
 
   const SIDEBAR_ITEMS = [
     // { key: 'overview', icon: <SidebarIcon name="dashboard" />, label: '数据概览' },
@@ -12465,9 +12470,9 @@ const AtAasDesign = () => {
               overlayClassName="ataas-sidebar-user-popover"
               content={(
                 <div className="ataas-sidebar-user-menu">
+                  <button type="button" onClick={openManagementCenter}>去管理中心</button>
                   <button type="button" onClick={() => {
-                    setActiveTab('themeSettings');
-                    window.history.replaceState(null, '', '/');
+                    openManagementCenter();
                   }}>主题管理</button>
                   <button type="button" onClick={() => message.info('设置')}>设置</button>
                   <button type="button" onClick={() => message.info('退出登录')}>退出登录</button>

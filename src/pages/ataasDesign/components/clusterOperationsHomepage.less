@@ -6490,6 +6490,66 @@
     opacity: .58;
   }
 
+  /* Overview heading icons: one visual scale across alert/resource/capacity/log modules. */
+  .overview-view .module-title > .module-line-icon {
+    width: 20px;
+    height: 20px;
+    flex: 0 0 20px;
+    color: #667085;
+    opacity: .76;
+    stroke-width: 1.15;
+  }
+
+  .overview-view .overview-card-icon {
+    width: 20px;
+    height: 20px;
+    flex: 0 0 20px;
+    color: #667085;
+    background: transparent;
+    font-size: 18px;
+  }
+
+  .overview-view .overview-card-icon .anticon,
+  .overview-view .overview-card-icon svg {
+    width: 18px;
+    height: 18px;
+    color: inherit;
+    opacity: .76;
+    stroke-width: 1.15;
+  }
+
+  .overview-view .overview-fault-head .overview-card-icon {
+    width: 19px;
+    height: 19px;
+    flex-basis: 19px;
+    font-size: 17px;
+  }
+
+  .overview-view .overview-fault-head .overview-card-icon .anticon,
+  .overview-view .overview-fault-head .overview-card-icon svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .overview-view .metric-log .overview-card-icon svg {
+    width: 19px;
+    height: 19px;
+  }
+
+  .overview-view .resource-node-summary .module-title > .module-line-icon,
+  .overview-view .capacity-widget.is-storage .module-title > .module-line-icon {
+    width: 17px;
+    height: 17px;
+    flex-basis: 17px;
+  }
+
+  .overview-view .metric-log .overview-card-icon {
+    width: 21px;
+    height: 21px;
+    flex-basis: 21px;
+    font-size: 19px;
+  }
+
   /* Node workspace: follows the same quiet table and detail rhythm as 运营调度. */
   .nodes-view {
     color: #1d2129;
