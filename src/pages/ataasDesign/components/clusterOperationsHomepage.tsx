@@ -3,9 +3,9 @@ import {
   SearchOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
-import { Button, ConfigProvider, Drawer, Dropdown, Form, Input, Progress, Select, Table, Tooltip } from 'antd';
+import { Button, ConfigProvider, Drawer, Dropdown, Form, Input, message, Modal, Popover, Progress, Select, Table, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { CircleAlert, CircuitBoard, Cpu, Database, FileText, HardDrive, MemoryStick, MonitorCog, Network, Search, Server } from 'lucide-react';
+import { ArrowRightLeft, CircleAlert, CircuitBoard, Cpu, Database, FileText, HardDrive, MemoryStick, MonitorCog, Network, Search, Server, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   CLUSTER_OPERATIONS_CLUSTER_DATA,
@@ -541,7 +541,7 @@ const HierarchyOverviewPage = ({
           </div>
           <div className="hierarchy-alert-clusters">
             <div className="hierarchy-section-title">
-              <strong>集群告警</strong>
+              <strong>各集群告警</strong>
               <span>严重告警优先</span>
             </div>
             <div className="hierarchy-alert-cluster-list">
@@ -771,8 +771,6 @@ const ClusterOperationsHomepage = () => {
           <div className="module-tab" data-view="pods" title="Pod运行阶段、容器状态、重启和调度情况">Pods</div>
           <div className="module-tab" data-view="services" title="展示后端运行在上海资源段的Services；ServiceEntry为集群级配置">Services</div>
           <div className="module-tab" data-view="serviceentry" title="K8s ServiceEntry资源，用于定义网格出口流量规则">ServiceEntry</div>
-          <div className="module-tab" data-view="pv" title="PersistentVolume资源状态">PV</div>
-          <div className="module-tab" data-view="pvc" title="PersistentVolumeClaim资源状态">PVC</div>
 	        </nav>
 
         <div className="overview-view">
@@ -1060,13 +1058,6 @@ const ClusterOperationsHomepage = () => {
         <section className="serviceentry-view">
           <ClusterResourceTables view="se" selectedClusterKey={selectedClusterKey} />
         </section>
-
-        <section className="pv-view">
-          <ClusterResourceTables view="pv" selectedClusterKey={selectedClusterKey} />
-        </section>
-        <section className="pvc-view">
-          <ClusterResourceTables view="pvc" selectedClusterKey={selectedClusterKey} />
-        </section>
         </div>
       </main>
     </section>
@@ -1086,7 +1077,7 @@ type NodeRow = {
   clusterName: string;
   label: string;
   tags?: string[];
-  status: 'normal' | 'warning' | 'error' | 'pending';
+  status: 'normal' | 'warning' | 'error' | 'pending' | 'draining';
   authStatus: 'authorized' | 'unauthorized';
   modelCount: number;
   runningInstances: number;
@@ -1785,17 +1776,33 @@ const nodeData: NodeRow[] = [
   { key: 'n6', name: 'qujing20', ip: '192.168.110.20', clusterName: 'default', label: 'GPU=RTX_4011', status: 'normal', authStatus: 'authorized', modelCount: 0, runningInstances: 0, cpu: 192, cpuUsed: 72, cpuModel: 'AMD EPYC 9654', cpuArch: 'x86_64', cpuSockets: 2, cpuCores: 192, cpuThreads: 384, cpuFrequency: 2.4, cpuTotalGHz: 460.8, cpuUsedGHz: 172.8, cpuReady: '97.2%', cpuLoad: '14.1', gpu: 8, gpuCards: [{ index: 0, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '16.8 GB', memoryFree: '7.19 GB', utilization: 68, power: 340, temperature: 70, status: 'active' }, { index: 1, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 91, power: 395, temperature: 76, status: 'active' }, { index: 2, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '5.6 GB', memoryFree: '18.39 GB', utilization: 25, power: 185, temperature: 56, status: 'active' }, { index: 3, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '22.1 GB', memoryFree: '1.89 GB', utilization: 82, power: 365, temperature: 73, status: 'active' }, { index: 4, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 31, status: 'idle' }, { index: 5, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 96, power: 425, temperature: 81, status: 'active' }, { index: 6, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '18.2 GB', memoryFree: '5.79 GB', utilization: 74, power: 348, temperature: 71, status: 'active' }, { index: 7, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '10.5 GB', memoryFree: '13.49 GB', utilization: 42, power: 265, temperature: 63, status: 'active' }], gpuMemory: '383.9 GB', gpuMemoryUsed: '72.0 GB', memory: '1007.51 GB', memoryUsed: '604.5 GB', memoryType: 'DDR5 4800MHz', memoryActive: '286.4 GB', memoryConsumed: '412.8 GB', memoryShared: '12.3 GB', memoryBalloon: '0 GB', memoryCompression: '8.7 GB', memorySwap: '2.1 GB', memoryCache: '156.2 GB', disk: '3.86 TB', diskUsed: '1.62 TB', disks: [{ name: '/dev/sda', total: '3.86 TB', used: '1.62 TB', type: 'NVMe SSD', mountPath: '/data', status: 'normal', readSpeed: '680 MB/s', writeSpeed: '350 MB/s', iops: '65K', latency: '1.1 ms', readPressure: 45, writePressure: 30 }], networkCards: [{ name: 'eth0', ip: '192.168.110.20', speed: '25Gbps', status: 'active', type: 'Ethernet', mac: '00:1A:2B:3C:4D:51', driver: 'mlx5_core', pcie: '0000:3b:00.0', linkStatus: 'UP', duplex: 'Full Duplex', lossRate: '0.004%', errors: 1, inbound: '15.2 Gbps', outbound: '18.6 Gbps', bandwidthUtil: 72, pps: '1.5M', tcpConns: 18240, avgLatency: '0.31ms', connStatus: '正常' }, { name: 'eth1', ip: '10.0.0.20', speed: '100Gbps', status: 'active', type: 'Ethernet', mac: '00:1A:2B:3C:4D:52', driver: 'mlx5_core', pcie: '0000:3b:00.1', linkStatus: 'UP', duplex: 'Full Duplex', lossRate: '0.001%', errors: 0, inbound: '52.6 Gbps', outbound: '48.3 Gbps', bandwidthUtil: 52, pps: '2.6M', tcpConns: 12450, avgLatency: '0.25ms', connStatus: '正常' }, { name: 'ib0', ip: '192.168.200.20', speed: '200Gbps', status: 'active', type: 'InfiniBand', mac: 'N/A', driver: 'mlx5_ib', pcie: '0000:3b:00.2', linkStatus: 'UP', duplex: 'Full Duplex', lossRate: '0.000%', errors: 0, inbound: '192.4 Gbps', outbound: '168.7 Gbps', bandwidthUtil: 92, pps: '6.2M', tcpConns: 0, avgLatency: '0.10ms', connStatus: '正常' }], pods: [] },
 ];
 
-const nodeResourceDataCenters = [
-  { value: 'dc-sh-01', label: '上海一号数据中心', code: 'DC-SH-001', availability: '18 台可用' },
-  { value: 'dc-gz-01', label: '广州边缘数据中心', code: 'DC-GZ-001', availability: '3 台可用' },
-  { value: 'dc-cd-01', label: '成都边缘数据中心', code: 'DC-CD-001', availability: '3 台可用' },
-];
-
 const clusterFixtureNodeKeys: Record<string, string[]> = {
   'shanghai-online': ['n1', 'n2', 'n4'],
   'beijing-prod': ['n1', 'n2', 'n3', 'n4', 'n5', 'n6'],
   'guangzhou-test': ['n3'],
   'wuhan-kunpeng': [],
+};
+
+const nodeStatusText: Record<NodeRow['status'], string> = {
+  normal: '正常',
+  warning: '告警',
+  error: '异常',
+  pending: '接入中',
+  draining: '驱散中',
+};
+
+const getNodeTags = (node: NodeRow) => [node.label, ...(node.tags || [])]
+  .map((tag) => tag.trim())
+  .filter((tag, index, tags) => tag && tags.indexOf(tag) === index);
+
+const getNodeRunningWorkload = (node: NodeRow) => {
+  const runningPods = node.pods.filter((pod) => pod.status === 'Running').length;
+  const runningInstances = node.runningInstances || 0;
+  return {
+    runningPods,
+    runningInstances,
+    total: runningPods + runningInstances,
+  };
 };
 
 const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
@@ -1831,7 +1838,6 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
   };
 
   const createNodeJoinTask = (values: {
-    dataCenter: string;
     role: 'worker' | 'control-plane';
     name: string;
     ip: string;
@@ -1850,7 +1856,6 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
       return;
     }
 
-    const dataCenter = nodeResourceDataCenters.find((item) => item.value === values.dataCenter);
     const labels = String(values.labels || '')
       .split(/\r?\n/)
       .map((label) => label.trim())
@@ -1862,10 +1867,7 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
       ip: nodeIp,
       clusterName: selectedClusterKey,
       label: roleLabel,
-      tags: [
-        ...labels,
-        dataCenter ? `data-center=${dataCenter.code}` : '',
-      ].filter(Boolean),
+      tags: labels,
       status: 'pending',
       authStatus: 'unauthorized',
       modelCount: 0,
@@ -1910,6 +1912,111 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
     closeAddNodeDrawer();
   };
 
+  const openDrainNodeConfirm = (node: NodeRow) => {
+    if (node.status === 'pending') {
+      message.warning(`${node.name} 仍在接入中，完成后才能执行驱散`);
+      return;
+    }
+    if (node.status === 'draining') {
+      message.info(`${node.name} 已在驱散中`);
+      return;
+    }
+
+    const workload = getNodeRunningWorkload(node);
+    Modal.confirm({
+      rootClassName: 'node-action-confirm-modal is-drain',
+      centered: true,
+      width: 520,
+      icon: null,
+      title: (
+        <div className="node-action-confirm-heading">
+          <span className="node-action-confirm-icon"><ArrowRightLeft /></span>
+          <span>
+            <strong>驱散节点</strong>
+            <small>{node.name}</small>
+          </span>
+        </div>
+      ),
+      content: (
+        <div className="node-action-confirm-content">
+          <p>节点将被标记为不可调度并执行 Kubernetes Drain，可迁移的业务负载会自动转移至其他节点。</p>
+          <div className="node-action-confirm-impact">
+            <span><small>运行 Pod</small><strong>{workload.runningPods}</strong></span>
+            <span><small>业务实例</small><strong>{workload.runningInstances}</strong></span>
+            <span><small>执行方式</small><strong>自动迁移</strong></span>
+          </div>
+          <div className="node-action-confirm-note">
+            <CircleAlert />
+            <span>驱散不会移除节点。执行期间不再向该节点调度新任务，现有负载将逐步迁移。</span>
+          </div>
+        </div>
+      ),
+      okText: '开始驱散',
+      cancelText: '取消',
+      focusable: { autoFocusButton: 'cancel' },
+      onOk: () => {
+        setNodeRows((rows) => rows.map((row) => (
+          row.key === node.key
+            ? {
+              ...row,
+              status: 'draining',
+              tags: [...new Set([...(row.tags || []), 'node.kubernetes.io/unschedulable=true'])],
+            }
+            : row
+        )));
+        message.success(`${node.name} 已提交 Drain，业务负载将自动迁移`);
+      },
+    });
+  };
+
+  const openDeleteNodeConfirm = (node: NodeRow) => {
+    const workload = getNodeRunningWorkload(node);
+
+    Modal.confirm({
+      rootClassName: 'node-action-confirm-modal is-delete',
+      centered: true,
+      width: 520,
+      icon: null,
+      title: (
+        <div className="node-action-confirm-heading">
+          <span className="node-action-confirm-icon"><Trash2 /></span>
+          <span>
+            <strong>删除节点</strong>
+            <small>{node.name}</small>
+          </span>
+        </div>
+      ),
+      content: (
+        <div className="node-action-confirm-content">
+          <p>节点将执行下线及移除流程，系统会在提交前校验运行任务，完成后该节点不再属于当前集群。</p>
+          <div className="node-action-confirm-impact">
+            <span><small>运行 Pod</small><strong>{workload.runningPods}</strong></span>
+            <span><small>业务实例</small><strong>{workload.runningInstances}</strong></span>
+            <span><small>执行方式</small><strong>下线移除</strong></span>
+          </div>
+          <div className={`node-action-confirm-note${workload.total > 0 ? ' is-danger' : ''}`}>
+            <CircleAlert />
+            <span>
+              {workload.total > 0
+                ? '当前检测到运行任务。删除不会自动迁移负载，相关任务可能中断。'
+                : '当前未检测到运行任务，确认后节点将从集群中移除。'}
+            </span>
+          </div>
+        </div>
+      ),
+      okText: '确认删除',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      focusable: { autoFocusButton: 'cancel' },
+      onOk: () => {
+        setNodeRows((rows) => rows.filter((row) => row.key !== node.key));
+        setExpandedRowKeys((keys) => keys.filter((key) => key !== node.key));
+        if (faultFocus?.nodeKey === node.key) setFaultFocus(null);
+        message.success(`${node.name} 已提交下线及移除`);
+      },
+    });
+  };
+
   useEffect(() => {
     setKeyword('');
     setFaultFocus(null);
@@ -1933,25 +2040,68 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
 
   const filteredData = useMemo(() => scopedNodeRows.filter((row) => {
     if (faultFocus) return row.key === faultFocus.nodeKey;
-    const text = (row.name + ' ' + row.ip + ' ' + row.clusterName + ' ' + row.label).toLowerCase();
+    const text = (row.name + ' ' + row.ip + ' ' + row.clusterName + ' ' + getNodeTags(row).join(' ')).toLowerCase();
     return !keyword || text.includes(keyword.toLowerCase());
   }), [faultFocus, keyword, scopedNodeRows]);
 
   const columns: ColumnsType<NodeRow> = [
     { title: '节点', key: 'name', width: 250, render: (_, r) => (
       <div className="node-list-identity">
-        <strong>{r.name}</strong>
+        <div className="node-list-name-line">
+          <strong>{r.name}</strong>
+          {(r.status === 'warning' || r.status === 'error') && (
+            <Tooltip
+              title={r.status === 'error'
+                ? '节点存在故障，点击该行查看故障定位'
+                : '节点存在告警，点击该行查看详情'}
+              placement="top"
+            >
+              <span className={`node-list-fault-badge is-${r.status}`}>
+                <CircleAlert />
+                {r.status === 'error' ? '故障' : '告警'}
+              </span>
+            </Tooltip>
+          )}
+        </div>
         <span>{r.ip} · {r.clusterName}</span>
       </div>
     ) },
-    { title: '角色与标签', key: 'label', width: 270, render: (_, r) => (
-      <div className="node-list-tags">
-        <span className="is-primary">{r.label}</span>
-        {r.tags?.filter((tag) => /^(deployment|GPU|worker|controlplane)=/.test(tag)).slice(0, 2).map((tag) => (
-          <span key={tag}>{tag}</span>
-        ))}
-      </div>
-    ) },
+    { title: '角色与标签', key: 'label', width: 250, render: (_, r) => {
+      const tags = getNodeTags(r);
+      const visibleTags = tags.slice(0, 3);
+      const hiddenTags = tags.slice(3);
+      return (
+        <div className="node-list-tags">
+          {visibleTags.map((tag, index) => (
+            <span key={tag} className={index === 0 ? 'is-primary' : ''} title={tag}>{tag}</span>
+          ))}
+          {hiddenTags.length > 0 && (
+            <Popover
+              trigger="click"
+              placement="bottomLeft"
+              rootClassName="node-list-tags-popover"
+              title={`全部角色与标签（${tags.length}）`}
+              content={(
+                <div className="node-list-tags-popover-content">
+                  {tags.map((tag, index) => (
+                    <span key={tag} className={index === 0 ? 'is-primary' : ''}>{tag}</span>
+                  ))}
+                </div>
+              )}
+            >
+              <button
+                type="button"
+                className="is-more"
+                aria-label={`查看 ${r.name} 的全部角色与标签`}
+                onClick={(event) => event.stopPropagation()}
+              >
+                +{hiddenTags.length}
+              </button>
+            </Popover>
+          )}
+        </div>
+      );
+    } },
     { title: 'CPU / 内存', key: 'compute', width: 255, render: (_, r) => {
       if (r.status === 'pending') return <span className="node-list-awaiting">接入后自动采集</span>;
       const cpuPercent = r.cpu > 0 ? Math.round((r.cpuUsed / r.cpu) * 100) : 0;
@@ -1994,23 +2144,49 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
     { title: '状态', key: 'status', width: 120, render: (_, r) => (
       <span className={`node-list-status is-${r.status}`}>
         <i />
-        {r.status === 'normal' ? '正常' : r.status === 'warning' ? '告警' : r.status === 'error' ? '异常' : '接入中'}
+        {nodeStatusText[r.status]}
       </span>
     ) },
-    { title: '操作', key: 'action', width: 82, fixed: 'right', className: 'node-list-action-cell', align: 'center', render: (_, r) => (
-      <Tooltip title="查看日志" placement="top">
-        <button
-          type="button"
-          className="node-log-action"
-          aria-label={`查看 ${r.name} 日志`}
-          onClick={(event) => {
-            event.stopPropagation();
-            setNodeLog({ title: r.name + ' 内核日志', logs: mockKernelLogs(r.name) });
-          }}
-        >
-          <FileText />
-        </button>
-      </Tooltip>
+    { title: '操作', key: 'action', width: 196, fixed: 'right', className: 'node-list-action-cell', render: (_, r) => (
+      <div className="node-row-actions" onClick={(event) => event.stopPropagation()}>
+        <Tooltip title="执行 Drain，自动迁移业务负载" placement="top">
+          <Button
+            type="link"
+            size="small"
+            className="node-row-action is-drain"
+            aria-label={`驱散 ${r.name}`}
+            icon={<ArrowRightLeft />}
+            onClick={() => openDrainNodeConfirm(r)}
+          >
+            驱散
+          </Button>
+        </Tooltip>
+        <Tooltip title="节点下线并移除，提交前校验运行任务" placement="top">
+          <Button
+            type="link"
+            size="small"
+            danger
+            className="node-row-action is-danger"
+            aria-label={`删除 ${r.name}`}
+            icon={<Trash2 />}
+            onClick={() => openDeleteNodeConfirm(r)}
+          >
+            删除
+          </Button>
+        </Tooltip>
+        <Tooltip title="查看节点内核日志" placement="top">
+          <Button
+            type="link"
+            size="small"
+            className="node-row-action is-log"
+            aria-label={`查看 ${r.name} 日志`}
+            icon={<FileText />}
+            onClick={() => setNodeLog({ title: r.name + ' 内核日志', logs: mockKernelLogs(r.name) })}
+          >
+            日志
+          </Button>
+        </Tooltip>
+      </div>
     ) },
   ];
 
@@ -2069,7 +2245,7 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
             rowKey="key"
             columns={columns}
             dataSource={filteredData}
-            scroll={{ x: 1382 }}
+            scroll={{ x: 1520 }}
             pagination={{ pageSize: 10, size: 'small', showTotal: (total) => '共 ' + total + ' 个' }}
             rowClassName={(row) => [
               faultFocus?.nodeKey === row.key ? 'node-fault-focus-row' : '',
@@ -2106,7 +2282,7 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
         title={(
           <div className="node-add-drawer-title">
             <strong>新增节点</strong>
-            <span>将已纳管资源注册为现有集群节点</span>
+            <span>在当前集群内创建并接入节点</span>
           </div>
         )}
         placement="right"
@@ -2120,17 +2296,12 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
           </div>
         )}
       >
-        <div className="node-add-guide">
-          <strong>复用资源中心的纳管关系</strong>
-          <span>凭据由资源侧统一维护；这里仅确认资源归属、目标集群和节点身份，避免重复录入敏感信息。</span>
-        </div>
         <Form
           id="node-add-form"
           form={addNodeForm}
           layout="vertical"
           className="node-add-form"
           initialValues={{
-            dataCenter: 'dc-sh-01',
             role: 'worker',
             credential: 'cluster-default-root-key',
           }}
@@ -2138,18 +2309,14 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
         >
           <section className="node-add-section">
             <div className="node-add-section-head">
-              <strong>资源与集群关联</strong>
-              <span>沿用资源新增中的归属关系</span>
+              <strong>接入配置</strong>
+              <span>配置节点与连接信息</span>
             </div>
             <div className="node-add-form-grid">
-              <Form.Item label="资源归属" name="dataCenter" rules={[{ required: true, message: '请选择资源归属' }]}>
-                <Select
-                  options={nodeResourceDataCenters.map((item) => ({
-                    value: item.value,
-                    label: `${item.label} · ${item.availability}`,
-                  }))}
-                />
-              </Form.Item>
+              <div className="node-add-cluster-context">
+                <span>当前集群（默认）</span>
+                <strong>{selectedClusterKey}</strong>
+              </div>
               <Form.Item label="节点名称" name="name" rules={[{ required: true, message: '请输入节点名称' }]}>
                 <Input placeholder="例如：gpu-node-07" />
               </Form.Item>
@@ -2161,15 +2328,6 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
                   ]}
                 />
               </Form.Item>
-            </div>
-          </section>
-
-          <section className="node-add-section">
-            <div className="node-add-section-head">
-              <strong>接入配置</strong>
-              <span>与资源新增共用连接信息</span>
-            </div>
-            <div className="node-add-form-grid">
               <Form.Item label="管理 IP" name="ip" rules={[{ required: true, message: '请输入管理 IP' }]}>
                 <Input placeholder="例如：10.24.18.121" />
               </Form.Item>
