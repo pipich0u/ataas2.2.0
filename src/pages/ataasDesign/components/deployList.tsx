@@ -1,7 +1,7 @@
 import { Button, ConfigProvider, Dropdown, Image, Input, InputNumber, message, Modal, Popconfirm, Select, Slider, Table, Tag, Tooltip } from 'antd';
 import type { ThemeConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { AppstoreOutlined, BarChartOutlined, CopyOutlined, DisconnectOutlined, EyeOutlined, FileSearchOutlined, FileTextOutlined, InfoCircleOutlined, LinkOutlined, PlayCircleOutlined, PlusOutlined, PoweroffOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
+import { AppstoreOutlined, BarChartOutlined, CloudDownloadOutlined, CopyOutlined, DisconnectOutlined, EyeOutlined, FileSearchOutlined, FileTextOutlined, InfoCircleOutlined, LinkOutlined, PlayCircleOutlined, PlusOutlined, PoweroffOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import deepseekLogo from '../deepseek-logo.svg';
@@ -226,6 +226,7 @@ interface DeployListProps {
   onAddInstance?: (item: DeployServiceItem) => void;
   onAllocateWeight?: (item: DeployServiceItem) => void;
   onOpenCreate: () => void;
+  onDownloadModel?: () => void;
   onScalePd?: (item: DeployServiceItem) => void;
   onNodeFilter?: (item: DeployServiceItem) => void;
   onScheduleDetail?: (item: DeployServiceItem) => void;
@@ -235,10 +236,13 @@ interface DeployListProps {
   clusterFilterValue?: string;
   onClusterFilterChange?: (value: string) => void;
   getModelOpsRowWeight?: (item: DeployServiceItem) => number;
+  hideToolbar?: boolean;
+  aggregateModelOpsPods?: boolean;
+  defaultExpandAllModelOps?: boolean;
   mode?: 'deploy' | 'modelOps';
 }
 
-export default function DeployList({ data, onDetail, onStop, onMonitor, onMooncakeMonitor, onExperience, onLog, onDeleteInstance, onAddInstance, onAllocateWeight, onOpenCreate, onScalePd, onNodeFilter, onScheduleDetail, onModelOpsYamlPreview, viewModeValue, onViewModeChange, clusterFilterValue, onClusterFilterChange, getModelOpsRowWeight, mode = 'deploy' }: DeployListProps) {
+export default function DeployList({ data, onDetail, onStop, onMonitor, onMooncakeMonitor, onExperience, onLog, onDeleteInstance, onAddInstance, onAllocateWeight, onOpenCreate, onDownloadModel, onScalePd, onNodeFilter, onScheduleDetail, onModelOpsYamlPreview, viewModeValue, onViewModeChange, clusterFilterValue, onClusterFilterChange, getModelOpsRowWeight, hideToolbar = false, aggregateModelOpsPods = false, defaultExpandAllModelOps = false, mode = 'deploy' }: DeployListProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('card');
   const [statusFilter, setStatusFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -295,6 +299,11 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
       return true;
     });
   }, [data, statusFilter, categoryFilter, clusterFilter, searchText]);
+
+  useEffect(() => {
+    if (mode !== 'modelOps' || !defaultExpandAllModelOps) return;
+    setExpandedServiceIds(filtered.map((item) => item.id));
+  }, [defaultExpandAllModelOps, filtered, mode]);
   const clusterOptions = useMemo(() => {
     if (mode !== 'modelOps') return CLUSTER_OPTIONS;
     const clusters = [...new Set(data.map((item) => getDeployClusterName(item)).filter(Boolean))];
@@ -599,16 +608,25 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
       const total = Number(String(value || '').split('/')[1]);
       return Number.isFinite(total) && total > 0 ? total : 1;
     };
+    const parseReadyCount = (value?: string) => {
+      const ready = Number(String(value || '').split('/')[0]);
+      return Number.isFinite(ready) && ready >= 0 ? ready : parseReadyTotal(value);
+    };
     const pdInstanceGroups = pdMode
-      ? detailInstances.map((record) => {
+      ? (aggregateModelOpsPods ? detailInstances.slice(0, 1) : detailInstances).map((record) => {
         const suffix = podSuffix(record.node);
         const routerCount = item.modelOpsRoleSummary ? parseReadyTotal(item.modelOpsRoleSummary.router) : 1;
+        const routerReady = item.modelOpsRoleSummary ? parseReadyCount(item.modelOpsRoleSummary.router) : routerCount;
         const prefillCount = item.modelOpsRoleSummary ? parseReadyTotal(item.modelOpsRoleSummary.prefill) : 1;
+        const prefillReady = item.modelOpsRoleSummary ? parseReadyCount(item.modelOpsRoleSummary.prefill) : prefillCount;
         const decodeCount = item.modelOpsRoleSummary ? parseReadyTotal(item.modelOpsRoleSummary.decode) : 1;
+        const decodeReady = item.modelOpsRoleSummary ? parseReadyCount(item.modelOpsRoleSummary.decode) : decodeCount;
         const routerRows = Array.from({ length: routerCount }, (_, index) => ({
           key: `${record.key}-router-${index}`,
           podName: `router-${suffix}-${index}`,
           comp: 'Router',
+          roleIndex: index,
+          roleReady: routerReady,
           cluster: record.cluster,
           machine: record.node,
           gpu: '-',
@@ -618,6 +636,8 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
           key: `${record.key}-prefill-${index}`,
           podName: `prefill-${suffix}-${index}`,
           comp: 'Prefill',
+          roleIndex: index,
+          roleReady: prefillReady,
           cluster: record.cluster,
           machine: record.node,
           gpu: '8 卡',
@@ -627,6 +647,8 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
           key: `${record.key}-decode-${index}`,
           podName: `decode-${suffix}-${index}`,
           comp: 'Decode',
+          roleIndex: index,
+          roleReady: decodeReady,
           cluster: record.cluster,
           machine: record.node,
           gpu: '8 卡',
@@ -666,6 +688,9 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
       const p99Ttft = Math.max(0, Math.round(avgTtft + 3600 + ((item.id + index) % 6) * 260 + roleMetricWave(3, 260)));
       const avgTpot = Number(Math.max(0, 16 + ((item.id + index) % 9) * 1.4 + roleMetricWave(1, 1.2)).toFixed(1));
       const p99Tpot = Number(Math.max(0, avgTpot + 8 + ((item.id + index) % 5) * 0.7 + roleMetricWave(4, 1.6)).toFixed(1));
+      const roleReady = Number.isFinite(row.roleReady) ? row.roleReady : 1;
+      const roleIndex = Number.isFinite(row.roleIndex) ? row.roleIndex : 0;
+      const isPodWarning = roleIndex >= roleReady;
       const trafficSources = compText.includes('router')
         ? [item.modelInfo.name]
         : [`${item.serviceGroupName || getDeployClusterName(item)}-${item.name}-ha-1`, `${item.serviceGroupName || getDeployClusterName(item)}-${item.name}-router-0`];
@@ -673,10 +698,11 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
         ...row,
         role,
         instanceName,
-        ready: '1/1',
-        statusText: 'Running',
-        restarts: 0,
-        load: 0,
+        ready: isPodWarning ? '0/1' : '1/1',
+        statusText: isPodWarning ? '异常' : 'Running',
+        statusState: isPodWarning ? 'warning' : 'running',
+        restarts: isPodWarning ? 1 : 0,
+        load: isPodWarning ? 8 : 0,
         performance: compText.includes('router')
           ? null
           : compText.includes('prefill')
@@ -924,12 +950,12 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
                   <col style={{ width: 78 }} />
                   <col style={{ width: 138 }} />
                   <col style={{ width: 140 }} />
-                  <col style={{ width: 132 }} />
+                  <col style={{ width: 108 }} />
                   <col style={{ width: 148 }} />
                   <col style={{ width: 180 }} />
                   <col style={{ width: 80 }} />
                   <col style={{ width: 320 }} />
-                  <col style={{ width: 132 }} />
+                  <col style={{ width: 108 }} />
                 </colgroup>
                 <thead>
                   <tr>
@@ -944,7 +970,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
                     <th>NODE GPU</th>
                     <th>运行时间</th>
                     <th>接流来源</th>
-                    <th>操作</th>
+                    <th className="ataas-model-ops-pod-action-cell">操作</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -959,7 +985,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
                           </Tooltip>
                         </div>
                       </td>
-                      <td><span className="ataas-deploy-inline-status-running">{row.statusText}</span></td>
+                      <td><span className={`ataas-deploy-inline-status-running${row.statusState === 'warning' ? ' warning' : ''}`}>{row.statusText}</span></td>
                       <td>{row.restarts}</td>
                       <td><span className="ataas-model-ops-load-pill">{row.load}</span></td>
                       <td>{renderRolePerformance(row.performance)}</td>
@@ -993,7 +1019,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
                           ))}
                         </div>
                       </td>
-                      <td>
+                      <td className="ataas-model-ops-pod-action-cell">
                         <div className="ataas-model-ops-row-actions">
                           <Tooltip title="日志">
                             <Button className="ataas-model-ops-row-action-button" type="text" shape="circle" size="small" icon={<FileSearchOutlined />} onClick={() => onLog(item, row.logId, row.podName)} />
@@ -1015,10 +1041,12 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
                         </div>
                       </td>
                     </tr>
-                    {row.role === 'D' && renderMooncakeSummaryRow()}
-                    {row.role === 'D' && mooncakeExpanded && mooncakeRows.map(renderMooncakeDetailRow)}
+                    {!aggregateModelOpsPods && row.role === 'D' && renderMooncakeSummaryRow()}
+                    {!aggregateModelOpsPods && row.role === 'D' && mooncakeExpanded && mooncakeRows.map(renderMooncakeDetailRow)}
                     </Fragment>
                   ))}
+                  {aggregateModelOpsPods && opsRoleRows.some((row) => row.role === 'D') && renderMooncakeSummaryRow()}
+                  {aggregateModelOpsPods && mooncakeExpanded && mooncakeRows.map(renderMooncakeDetailRow)}
                 </tbody>
               </table>
             </div>
@@ -1308,13 +1336,13 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
     { title: '模型实例', dataIndex: 'name', key: 'name', width: 130, render: (v) => <span className="ataas-deploy-table-main">{v}</span> },
     { title: '当前权重', key: 'weight', width: 86, render: (_, r) => <span className="ataas-model-ops-weight-pill">{getModelOpsRowWeight?.(r) ?? 100}%</span> },
     { title: '状态', key: 'status', width: 86, render: (_, r) => <TableStatus item={r} /> },
-    { title: '集群', key: 'cluster', width: 120, render: (_, r) => <span className="ataas-deploy-table-cluster">{getDeployClusterName(r)}</span> },
+    { title: '集群', key: 'cluster', width: 150, render: (_, r) => <span className="ataas-deploy-table-cluster">{getDeployClusterName(r)}</span> },
     { title: 'Role', key: 'role', width: 180, render: (_, r) => renderModelOpsRoleSummary(r) },
-    { title: 'Routher', key: 'routerYaml', width: 130, render: (_, r) => renderModelOpsYamlFile(`${r.modelInfo.name}/router.yaml`, r, 'router') },
+    { title: 'Router', key: 'routerYaml', width: 130, render: (_, r) => renderModelOpsYamlFile(`${r.modelInfo.name}/router.yaml`, r, 'router') },
     { title: 'Worker', key: 'workerYaml', width: 130, render: (_, r) => renderModelOpsYamlFile(`${r.modelInfo.name}/worker.yaml`, r, 'worker') },
     { title: 'TTFT', key: 'ttft', width: 76, render: (_, r) => renderModelOpsPerfValue(r, 'ttft') },
     { title: 'TPOT', key: 'tpot', width: 76, render: (_, r) => renderModelOpsPerfValue(r, 'tpot') },
-    { title: '操作', key: 'action', width: 96, fixed: 'right' as const, className: 'ataas-deploy-fixed-action-cell', render: (_, r) => (
+    { title: '操作', key: 'action', width: 108, fixed: 'right' as const, className: 'ataas-model-ops-unified-action-cell', render: (_, r) => (
       <div className="ataas-model-ops-table-actions">
         <Tooltip title="重建">
           <button type="button" className="ataas-model-ops-icon-action" onClick={(event) => event.stopPropagation()}><ReloadOutlined /></button>
@@ -1332,8 +1360,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
   return (
     <ConfigProvider theme={DEPLOY_THEME}>
     <div className="ataas-deploy-list">
-      {/* 搜索栏 */}
-      <div className="ataas-deploy-list-toolbar">
+      {!hideToolbar && <div className="ataas-deploy-list-toolbar">
         {mode !== 'modelOps' && (
           <>
             <Select className="ataas-deploy-list-select" value={statusFilter} onChange={setStatusFilter} options={SERVICE_STATUS_OPTIONS} placeholder="服务状态" size="middle" />
@@ -1376,10 +1403,11 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
                 <img className="ataas-deploy-view-mooncake-icon" src={mooncakeLogo} alt="" />Mooncake 卡片
               </button>
             </div>
+            {onDownloadModel && <Button icon={<CloudDownloadOutlined />} onClick={onDownloadModel}>下载模型</Button>}
             <Button className="ataas-deploy-create-button" type="primary" icon={<PlusOutlined />} onClick={onOpenCreate}>创建模型服务</Button>
           </>
         )}
-      </div>
+      </div>}
 
       {effectiveViewMode === 'card' ? (
         <div>
@@ -1547,7 +1575,9 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
               dataSource={paginated}
               rowKey="id"
               rowClassName={() => mode === 'modelOps' ? 'ataas-model-ops-click-row' : ''}
-              pagination={{ pageSize: 10, showTotal: (t) => `共 ${t} 条`, showSizeChanger: true }}
+              pagination={mode === 'modelOps'
+                ? { pageSize: Math.max(filtered.length, 1), showTotal: (t) => `共 ${t} 条`, showSizeChanger: false }
+                : { pageSize: 10, showTotal: (t) => `共 ${t} 条`, showSizeChanger: true }}
               scroll={{ x: mode === 'modelOps' ? 'max-content' : 1180 }}
               expandable={mode === 'modelOps' ? {
                 expandedRowKeys: expandedServiceIds,

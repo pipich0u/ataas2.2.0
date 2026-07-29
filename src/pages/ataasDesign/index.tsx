@@ -70,7 +70,16 @@ import RouteWorkbenchPage from './components/routeWorkbenchPage';
 import ClusterOperationsHomepage from './components/clusterOperationsHomepage';
 import SupplierResourcesPage from './components/supplierResourcesPage';
 import DistributionCenterPage from './components/distributionCenterPage';
+import ModelDownloadTaskModal from './components/modelDownloadTaskModal';
+import ModelOpsPage from './components/modelOpsPage';
 import './index.less';
+
+const DEPLOY_DOWNLOAD_HOST_OPTIONS = [
+  { value: 'model-store-02', label: 'model-store-02 · 10.24.16.32 · 可用 2.1 TiB', ip: '10.24.16.32', freeGb: 2150 },
+  { value: 'ops-transfer-01', label: 'ops-transfer-01 · 10.24.16.21 · 可用 860 GiB', ip: '10.24.16.21', freeGb: 860 },
+  { value: 'gpu-node-02', label: 'gpu-node-02 · 10.24.18.102 · 可用 980 GiB', ip: '10.24.18.102', freeGb: 980 },
+  { value: 'gpu-node-07', label: 'gpu-node-07 · 10.24.18.107 · 可用 760 GiB', ip: '10.24.18.107', freeGb: 760 },
+];
 
 type ClusterRecord = {
   key: string;
@@ -6570,6 +6579,8 @@ const AtAasDesign = () => {
     if (window.location.pathname.includes('/cluster-operations')) return 'clusterOperations';
     if (window.location.pathname.includes('/management-center')) return 'themeSettings';
     if (window.location.pathname.includes('/supplier-resources')) return 'supplierResources';
+    if (window.location.pathname.includes('/model-deploy')) return 'deploy';
+    if (window.location.pathname.includes('/model-ops')) return 'modelOps';
     if (window.location.pathname.includes('/distribution-center')) return 'distributionCenter';
     if (window.location.pathname.includes('/containers')) return 'containerManagement';
     if (window.location.pathname.includes('/route-workbench')) return 'routeWorkbench';
@@ -6605,7 +6616,14 @@ const AtAasDesign = () => {
       if (tab === 'alerts' || tab === 'logs') {
         setExpandedGroups((prev) => new Set(prev).add('系统监控'));
       }
-      window.history.replaceState(null, '', '/');
+      const pathMap: Record<string, string> = {
+        deploy: '/model-deploy',
+        modelOps: '/model-ops',
+        distributionCenter: '/distribution-center',
+        clusterOperations: '/cluster-operations',
+        supplierResources: '/supplier-resources',
+      };
+      window.history.replaceState(null, '', pathMap[tab] || '/');
     };
 
     window.addEventListener('ataas:navigate', handleNavigate);
@@ -6879,6 +6897,7 @@ const AtAasDesign = () => {
   }, [modelRepoSearch, modelRepoCategory, modelRepoFamily, modelRepoSource]);
   const [deployListViewMode, setDeployListViewMode] = useState<ViewMode>('card');
   const [deployListClusterFilter, setDeployListClusterFilter] = useState('');
+  const [deployDownloadOpen, setDeployDownloadOpen] = useState(false);
   const [modelOpsListViewMode, setModelOpsListViewMode] = useState<ViewMode>('table');
   const [modelOpsClusterFilter, setModelOpsClusterFilter] = useState('');
   const [modelOpsSelectedModel, setModelOpsSelectedModel] = useState('');
@@ -6944,6 +6963,7 @@ const AtAasDesign = () => {
     setModelOpsSelectedServiceId(item.id);
     setModelOpsClusterFilter('');
     setActiveTab('modelOps');
+    window.history.replaceState(null, '', '/model-ops');
     setDeployDetailExtraNodes([]);
     setDetailTrafficEnabled(false);
     const works = item.modelInfo.works?.split(',').map((w: string) => w.trim()).filter(Boolean) || [];
@@ -11254,6 +11274,7 @@ const AtAasDesign = () => {
                 onDeleteInstance={handleDeployDeleteInstance}
                 onAddInstance={handleDeployAddInstance}
                 onOpenCreate={handleOpenCreate}
+                onDownloadModel={() => setDeployDownloadOpen(true)}
                 onScalePd={handleScalePd}
                 onNodeFilter={handleDeployNodeFilter}
                 onScheduleDetail={handleScheduleDetail}
@@ -11264,7 +11285,23 @@ const AtAasDesign = () => {
               />
             </div>
           );
-      case 'modelOps': {
+      case 'modelOps': return (
+        <ModelOpsPage
+          selectedModelName={modelOpsSelectedModel}
+          onDetail={handleDeployDetail}
+          onStop={handleDeployStop}
+          onMonitor={handleDeployMonitor}
+          onExperience={handleDeployExperience}
+          onLog={handleDeployLog}
+          onAddInstance={(item) => handleDeployAddInstance(
+            deployServices.find((service) => service.id === (item.modelOpsSourceServiceId || item.id)) || item,
+          )}
+          onScalePd={handleScalePd}
+          onCreateService={handleOpenCreate}
+          onYamlPreview={openModelOpsYamlPreview}
+        />
+      );
+      case '__legacyModelOps': {
             const modelServiceGroups = deployServices.reduce<Array<{ name: string; services: DeployServiceItem[]; instances: number }>>((groups, service) => {
               const name = service.modelInfo.name || service.typeStr || service.name;
               const current = groups.find((group) => group.name === name);
@@ -12436,12 +12473,17 @@ const AtAasDesign = () => {
                 {expandedGroups.has(group.title || 'overview') && group.items.map((item) => (
                   <div key={item.key} className={'ataas-sidebar-item' + (activeTab === item.key ? ' active' : '')} onClick={() => {
                     setActiveTab(item.key);
-	                    if (item.key === 'modelOps') setModelOpsSelectedServiceId(null);
+	                    if (item.key === 'modelOps') {
+                        setModelOpsSelectedServiceId(null);
+                        setModelOpsSelectedModel('');
+                      }
 	                    if (item.key === 'clusters') setClusterPanel('clusters');
 	                    if (item.key === 'nodes') setClusterPanel('nodes');
 	                    const pathMap: Record<string, string> = {
 	                      clusterOperations: '/cluster-operations',
 	                      supplierResources: '/supplier-resources',
+	                      deploy: '/model-deploy',
+	                      modelOps: '/model-ops',
 	                      distributionCenter: '/distribution-center',
 	                      containerManagement: '/containers',
 	                      routeWorkbench: '/route-workbench',
@@ -12487,6 +12529,16 @@ const AtAasDesign = () => {
           {renderTabContent()}
         </div>
       </div>
+
+      <ModelDownloadTaskModal
+        open={deployDownloadOpen}
+        hostOptions={DEPLOY_DOWNLOAD_HOST_OPTIONS}
+        onCancel={() => setDeployDownloadOpen(false)}
+        onSubmit={() => {
+          setDeployDownloadOpen(false);
+          message.success('模型下载任务已创建，可在分发中心的任务列表中查看');
+        }}
+      />
 
       <Modal title="纳管集群" open={clusterCreateOpen} onCancel={() => { setClusterCreateName(''); setClusterCreateUrl(''); setClusterCreateAccessKey(''); setClusterCreateOpen(false); }} onOk={() => { if (clusterCreateName && clusterCreateUrl && clusterCreateAccessKey) { setClusterList((prev) => [...prev, { key: `cluster-${Date.now()}`, name: clusterCreateName, region: '待配置', nodes: 0, gpu: '待同步', gpuTypes: [], gpuUsage: 0, cpu: '-', memory: '-', models: 0, status: 'healthy', authInfo: '0/0' }]); setClusterCreateName(''); setClusterCreateUrl(''); setClusterCreateAccessKey(''); setClusterCreateOpen(false); } }} okText="确认" okButtonProps={{ className: 'ataas-modal-primary-button' }} width={640}>
         <div style={{ marginBottom: 16, padding: '12px 16px', background: '#f7f8fa', borderRadius: 6, fontSize: 13, lineHeight: 1.8 }}>

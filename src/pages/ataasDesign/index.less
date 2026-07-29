@@ -5952,6 +5952,14 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
     background: #00A11F;
     content: "";
   }
+
+  &.warning {
+    color: #E02D2D;
+
+    &::before {
+      background: #E02D2D;
+    }
+  }
 }
 
 .ataas-model-ops-layout {
@@ -23213,6 +23221,177 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   padding: 6px 10px !important;
 }
 
+.model-ops-bulk-weight-modal.ataas-model-ops-allocate-modal-shell {
+  .ant-modal-content {
+    border-radius: 8px !important;
+    box-shadow: 0 16px 42px rgba(29, 33, 41, 0.14) !important;
+  }
+
+  .ant-modal-header {
+    padding: 16px 20px 12px !important;
+    border-bottom: 1px solid #edf0f5 !important;
+  }
+
+  .ant-modal-body {
+    padding: 14px 20px 10px !important;
+  }
+
+  .ant-modal-footer {
+    padding: 12px 20px 16px !important;
+    border-top: 1px solid #edf0f5 !important;
+  }
+
+  .ant-modal-footer .ant-btn {
+    min-width: 74px !important;
+    height: 30px !important;
+    border-radius: 6px !important;
+    font-size: 12px !important;
+    font-weight: 400 !important;
+  }
+
+  .ant-modal-footer .ant-btn-primary {
+    min-width: 84px !important;
+  }
+
+  .ataas-model-ops-weight-modal-title {
+    gap: 8px !important;
+  }
+
+  .ataas-model-ops-weight-modal-title .anticon {
+    width: 24px !important;
+    height: 24px !important;
+    border-radius: 6px !important;
+    font-size: 14px !important;
+  }
+
+  .ataas-model-ops-weight-modal-title strong {
+    font-size: 16px !important;
+    font-weight: 500 !important;
+    line-height: 24px !important;
+  }
+
+  .ataas-model-ops-weight-modal-title em {
+    color: #4e5969 !important;
+    font-size: 13px !important;
+    font-weight: 400 !important;
+    line-height: 20px !important;
+  }
+
+  .ataas-model-ops-weight-modal-toolbar {
+    min-height: 40px !important;
+    margin: 0 0 10px !important;
+    padding: 8px 10px !important;
+    border-radius: 6px !important;
+    background: #f7f8fa !important;
+    color: #4e5969 !important;
+    font-size: 12px !important;
+    font-weight: 400 !important;
+    line-height: 18px !important;
+  }
+
+  .ataas-model-ops-weight-modal-toolbar strong {
+    margin-left: 4px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+  }
+
+  .ataas-model-ops-weight-modal-toolbar > div {
+    gap: 6px !important;
+  }
+
+  .ataas-model-ops-weight-modal-toolbar .ant-btn {
+    height: 26px !important;
+    padding: 0 9px !important;
+    border-radius: 6px !important;
+    font-size: 12px !important;
+    font-weight: 400 !important;
+  }
+
+  .ataas-model-ops-weight-modal-list {
+    gap: 8px !important;
+    max-height: 430px !important;
+    padding-right: 2px !important;
+  }
+
+  .ataas-model-ops-weight-modal-cluster {
+    border-color: #e8ecf3 !important;
+    border-radius: 7px !important;
+  }
+
+  .ataas-model-ops-weight-modal-cluster-head {
+    grid-template-columns: minmax(0, 1fr) auto auto !important;
+    min-height: 38px !important;
+    gap: 8px !important;
+    padding: 7px 10px !important;
+    background: #fafbfc !important;
+  }
+
+  .ataas-model-ops-weight-modal-cluster-title {
+    gap: 8px !important;
+  }
+
+  .ataas-model-ops-weight-modal-cluster-title strong {
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    line-height: 20px !important;
+  }
+
+  .ataas-model-ops-weight-modal-cluster-title span,
+  .ataas-model-ops-weight-modal-cluster-total {
+    font-size: 11.5px !important;
+    font-weight: 400 !important;
+    line-height: 17px !important;
+  }
+
+  .ataas-model-ops-weight-modal-cluster-total em {
+    font-weight: 500 !important;
+  }
+
+  .ataas-model-ops-weight-modal-cluster-head .ant-btn {
+    height: 24px !important;
+    padding: 0 8px !important;
+    border-radius: 5px !important;
+    font-size: 11.5px !important;
+    font-weight: 400 !important;
+  }
+
+  .ataas-model-ops-weight-modal-row {
+    grid-template-columns: minmax(0, 178px) minmax(180px, 1fr) 56px 14px !important;
+    min-height: 38px !important;
+    gap: 8px !important;
+    padding: 5px 10px !important;
+  }
+
+  .ataas-model-ops-weight-modal-row strong {
+    font-size: 12px !important;
+    font-weight: 400 !important;
+    line-height: 18px !important;
+  }
+
+  .ataas-model-ops-weight-modal-row .ant-slider {
+    height: 16px !important;
+    padding-block: 6px !important;
+  }
+
+  .ataas-model-ops-weight-modal-row .ant-input-number {
+    width: 56px !important;
+    height: 26px !important;
+    border-radius: 6px !important;
+  }
+
+  .ataas-model-ops-weight-modal-row .ant-input-number-input {
+    height: 24px !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    line-height: 24px !important;
+  }
+
+  .ataas-model-ops-weight-modal-percent {
+    font-size: 12px !important;
+    line-height: 18px !important;
+  }
+}
+
 .ataas-scale-pd-modal.ataas-model-ops-task-modal .ataas-scale-role-row {
   min-height: 40px !important;
   padding: 5px 0 !important;
@@ -24434,5 +24613,54 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
     border-color: #6D5DFB !important;
     box-shadow: 0 0 0 2px rgba(109, 93, 251, 0.12) !important;
     outline: none;
+  }
+}
+
+.model-ops-page .model-ops-original-table {
+  .ataas-model-ops-detail-table-wrap {
+    .ant-table-cell-fix-right,
+    .ant-table-cell-fix-right-first,
+    .ataas-model-ops-unified-action-cell {
+      border-left: 1px solid #E5EAF2 !important;
+      background: #fff !important;
+      box-shadow: -8px 0 12px -12px rgba(29, 33, 41, 0.42) !important;
+    }
+
+    .ant-table-thead > tr > th.ant-table-cell-fix-right,
+    .ant-table-thead > tr > th.ant-table-cell-fix-right-first,
+    .ant-table-thead > tr > th.ataas-model-ops-unified-action-cell {
+      background: #F7F8FA !important;
+      box-shadow: -8px 0 12px -12px rgba(29, 33, 41, 0.42) !important;
+    }
+
+    .ant-table-cell-fix-right::before,
+    .ant-table-cell-fix-right::after,
+    .ant-table-cell-fix-right-first::before,
+    .ant-table-cell-fix-right-first::after,
+    .ataas-model-ops-unified-action-cell::before,
+    .ataas-model-ops-unified-action-cell::after {
+      display: none !important;
+      box-shadow: none !important;
+    }
+  }
+
+  .ataas-deploy-inline-native-table {
+    th.ataas-model-ops-pod-action-cell,
+    td.ataas-model-ops-pod-action-cell {
+      border-left: 1px solid #E5EAF2 !important;
+      background: #fff !important;
+      box-shadow: -8px 0 12px -12px rgba(29, 33, 41, 0.42) !important;
+
+      &::before,
+      &::after {
+        display: none !important;
+        box-shadow: none !important;
+      }
+    }
+
+    th.ataas-model-ops-pod-action-cell {
+      background: #F7F8FA !important;
+      box-shadow: -8px 0 12px -12px rgba(29, 33, 41, 0.42) !important;
+    }
   }
 }
