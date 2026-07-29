@@ -16,7 +16,6 @@ import {
   Progress,
   Radio,
   Select,
-  Space,
   Table,
   Tabs,
   Tag,
@@ -29,6 +28,7 @@ import deepseekLogo from '../deepseek-logo.svg';
 import glmLogo from '../glm-logo.svg';
 import kimiLogo from '../kimi-logo.svg';
 import qwenLogo from '../qwen-logo.svg';
+import ModelDownloadTaskModal, { type ModelDownloadTaskValues } from './modelDownloadTaskModal';
 import './distributionCenterPage.less';
 
 type ModelCopy = {
@@ -409,9 +409,7 @@ const DistributionCenterPage = () => {
   const [selectedClusterId, setSelectedClusterId] = useState(clusters[0].id);
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>(clusters[0].nodes.filter((node) => node.status === 'Ready').slice(0, 8).map((node) => node.id));
   const [nodeSearch, setNodeSearch] = useState('');
-  const [downloadForm] = Form.useForm();
   const [distributionForm] = Form.useForm();
-  const watchedDownloadHost = Form.useWatch('host', downloadForm);
 
   const hostOptions = useMemo(() => {
     const copies = models.flatMap((model) => model.copies);
@@ -479,8 +477,6 @@ const DistributionCenterPage = () => {
     return fileRows.filter((file) => !keyword || `${file.name} ${file.desc} ${file.type} ${file.source}`.toLowerCase().includes(keyword));
   }, [fileSearch]);
 
-  const selectedDownloadHostCopy = models.flatMap((model) => model.copies).find((copy) => copy.host === watchedDownloadHost);
-  const selectedDownloadHostFreeGb = hostFreeSpace[watchedDownloadHost] || 600;
   const selectedModel = models.find((model) => model.id === selectedModelId) || models[0];
   const selectedCopy = selectedModel.copies.find((copy) => copy.id === selectedCopyId) || selectedModel.copies[0];
   const selectedCluster = clusters.find((cluster) => cluster.id === selectedClusterId) || clusters[0];
@@ -521,16 +517,6 @@ const DistributionCenterPage = () => {
   };
 
   const openDownload = () => {
-    downloadForm.setFieldsValue({
-      taskName: '',
-      modelName: '',
-      url: '',
-      host: 'model-store-02',
-      path: '/data/models/',
-      fileName: '',
-      resume: true,
-      verify: true,
-    });
     setDownloadOpen(true);
   };
 
@@ -559,8 +545,7 @@ const DistributionCenterPage = () => {
     });
   };
 
-  const createDownloadTask = async () => {
-    const values = await downloadForm.validateFields();
+  const createDownloadTask = async (values: ModelDownloadTaskValues) => {
     const task: DistributionTask = {
       id: Date.now(),
       name: values.taskName,
@@ -580,7 +565,6 @@ const DistributionCenterPage = () => {
       fileName: values.fileName,
     };
     setTasks((items) => [task, ...items]);
-    downloadForm.resetFields();
     setDownloadOpen(false);
     setModelSubview('tasks');
     message.success('模型下载任务已创建');
@@ -847,54 +831,20 @@ const DistributionCenterPage = () => {
         ]}
       />
 
-      <Modal title="创建模型下载任务" open={downloadOpen} width={820} okText="开始下载" onOk={createDownloadTask} onCancel={() => setDownloadOpen(false)}>
-        <p className="distribution-modal-note">通过 HTTP／HTTPS 直链将远程模型保存到已纳管的模型主机，下载完成后可直接创建分发任务。</p>
-        <Form form={downloadForm} layout="vertical">
-          <section className="distribution-form-section">
-            <h3>远程模型</h3>
-            <div className="distribution-form-grid">
-              <Form.Item label="任务名称" name="taskName" rules={[{ required: true, message: '请输入任务名称' }]}><Input placeholder="例如：下载 GLM-5.2 至模型主机" /></Form.Item>
-              <Form.Item label="模型名称" name="modelName" rules={[{ required: true, message: '请输入模型名称' }]}><Input placeholder="例如：GLM-5.2" /></Form.Item>
-              <Form.Item className="wide" label="模型 URL" name="url" extra="任务启动前会检查 URL 可访问性和文件大小。" rules={[{ required: true, type: 'url', message: '请输入有效的 HTTP／HTTPS URL' }]}><Input placeholder="https://example.com/models/model.tar.zst" /></Form.Item>
-            </div>
-          </section>
-          <section className="distribution-form-section">
-            <h3>模型保存位置</h3>
-            <div className="distribution-form-grid">
-              <Form.Item label="下载主机" name="host" rules={[{ required: true, message: '请选择下载主机' }]}>
-                <Select
-                  showSearch
-                  optionFilterProp="label"
-                  options={hostOptions.filter((item) => item.value !== 'all')}
-                />
-              </Form.Item>
-              <div className="distribution-host-capacity">
-                <span>主机状态</span>
-                <strong>{selectedDownloadHostCopy?.ip || '等待选择'} · 可用 {formatTotalSize(selectedDownloadHostFreeGb)}</strong>
-                <small>执行下载前会再次检查连通性、目录权限和剩余空间。</small>
-              </div>
-              <Form.Item label="保存目录" name="path" rules={[{ required: true, message: '请输入保存目录' }]}>
-                <Input placeholder="/data/models/" />
-              </Form.Item>
-              <Form.Item label="保存名称（选填）" name="fileName" extra="留空时从 URL 自动识别。">
-                <Input placeholder="例如：GLM-5.2.tar.zst" />
-              </Form.Item>
-              <div className="distribution-path-presets wide">
-                <span>常用目录</span>
-                {['/data/models/', '/mnt/model-cache/', '/opt/ataas/models/'].map((path) => (
-                  <Button key={path} size="small" onClick={() => downloadForm.setFieldValue('path', path)}>{path}</Button>
-                ))}
-              </div>
-              <Form.Item className="wide distribution-checks">
-                <Space size={24} wrap>
-                  <Form.Item name="resume" valuePropName="checked" noStyle><Checkbox>启用断点续传</Checkbox></Form.Item>
-                  <Form.Item name="verify" valuePropName="checked" noStyle><Checkbox>下载完成后校验文件完整性</Checkbox></Form.Item>
-                </Space>
-              </Form.Item>
-            </div>
-          </section>
-        </Form>
-      </Modal>
+      <ModelDownloadTaskModal
+        open={downloadOpen}
+        hostOptions={hostOptions.filter((item) => item.value !== 'all').map((item) => {
+          const copy = models.flatMap((model) => model.copies).find((modelCopy) => modelCopy.host === item.value);
+          return {
+            value: item.value,
+            label: item.label,
+            ip: copy?.ip || '等待选择',
+            freeGb: hostFreeSpace[item.value] || 600,
+          };
+        })}
+        onSubmit={createDownloadTask}
+        onCancel={() => setDownloadOpen(false)}
+      />
 
       <Modal title="创建模型分发" open={distributionOpen} width={900} okText="创建并分发" onOk={createDistributionTask} onCancel={() => setDistributionOpen(false)}>
         <p className="distribution-modal-note">从已有模型副本向目标集群或指定 Nodes 分发。提交前会检查 SSH 连通性、目录权限、节点状态和磁盘空间。</p>
