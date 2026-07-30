@@ -1807,11 +1807,16 @@
   position: sticky !important;
   right: 0 !important;
   z-index: 12 !important;
+  box-sizing: border-box !important;
   width: 108px !important;
   min-width: 108px !important;
-  border-left: 1px solid #e5eaf2 !important;
+  max-width: 108px !important;
+  padding-right: 10px !important;
+  padding-left: 10px !important;
+  border-left: 0 !important;
   background: #fff !important;
-  box-shadow: -8px 0 12px -12px rgba(29, 33, 41, 0.42) !important;
+  box-shadow: none !important;
+  text-align: left !important;
 }
 
 .model-ops-page .model-ops-original-table .ataas-model-ops-detail-table-wrap .ant-table-thead > tr > th.ant-table-cell-fix-right,
@@ -1819,15 +1824,11 @@
 .model-ops-page .model-ops-original-table .ataas-model-ops-detail-table-wrap .ant-table-thead > tr > th.ataas-model-ops-unified-action-cell {
   z-index: 14 !important;
   background: #f7f8fa !important;
-  box-shadow: -8px 0 12px -12px rgba(29, 33, 41, 0.42) !important;
+  box-shadow: none !important;
 }
 
-.model-ops-page .model-ops-original-table .ataas-model-ops-detail-table-wrap .ant-table-cell-fix-right-first::after,
-.model-ops-page .model-ops-original-table .ataas-model-ops-detail-table-wrap .ant-table-cell-fix-right::after,
-.model-ops-page .model-ops-original-table .ataas-model-ops-detail-table-wrap .ataas-model-ops-unified-action-cell::before,
-.model-ops-page .model-ops-original-table .ataas-model-ops-detail-table-wrap .ataas-model-ops-unified-action-cell::after {
-  display: none !important;
-  box-shadow: none !important;
+.model-ops-page .model-ops-original-table .ataas-model-ops-detail-table-wrap .ant-table-expanded-row-fixed {
+  padding-right: 0 !important;
 }
 
 .model-ops-page .model-ops-original-table .ataas-model-ops-detail-table-wrap .ant-table-tbody > tr:hover > .ant-table-cell-fix-right,
@@ -1838,7 +1839,8 @@
 
 .model-ops-page .model-ops-original-table .ataas-model-ops-table-actions,
 .model-ops-page .model-ops-original-table .ataas-model-ops-row-actions {
-  justify-content: center !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
   gap: 4px !important;
 }
 
@@ -1880,17 +1882,18 @@
   width: 108px !important;
   min-width: 108px !important;
   max-width: 108px !important;
-  padding-right: 8px !important;
-  padding-left: 8px !important;
-  border-left: 1px solid #e5eaf2 !important;
+  padding-right: 10px !important;
+  padding-left: 10px !important;
+  border-left: 0 !important;
   background: #fff !important;
-  box-shadow: -8px 0 12px -12px rgba(29, 33, 41, 0.42) !important;
+  box-shadow: none !important;
+  text-align: left !important;
 }
 
 .model-ops-page .model-ops-original-table .ataas-deploy-inline-native-table th.ataas-model-ops-pod-action-cell {
   z-index: 11 !important;
   background: #f7f8fa !important;
-  box-shadow: -8px 0 12px -12px rgba(29, 33, 41, 0.42) !important;
+  box-shadow: none !important;
 }
 
 .model-ops-create-page {
@@ -2037,6 +2040,10 @@
 
 .model-ops-create-field-grid.two {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.model-ops-create-field-grid.service-entry {
+  grid-template-columns: minmax(240px, 420px);
 }
 
 .model-ops-create-runtime-grid {
@@ -2224,6 +2231,10 @@
   scroll-snap-stop: always;
 }
 
+.model-ops-create-node-wrap:has(.model-ops-create-node.disabled) {
+  cursor: not-allowed;
+}
+
 .model-ops-create-node {
   display: flex;
   width: 100%;
@@ -2273,6 +2284,7 @@
 .model-ops-create-node.disabled {
   cursor: not-allowed;
   opacity: 0.52;
+  pointer-events: none;
 }
 
 .model-ops-create-node-main {
@@ -2349,6 +2361,46 @@
   color: rgba(255, 255, 255, 0.82);
   font-size: 9px;
   line-height: 13px;
+}
+
+.model-ops-create-node-tooltip-labels {
+  margin-top: 3px;
+  padding-top: 5px;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.model-ops-create-node-tooltip-labels > em {
+  display: block;
+  margin-bottom: 4px;
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 9px;
+  font-style: normal;
+  line-height: 12px;
+}
+
+.model-ops-create-node-tooltip-labels > div {
+  display: flex;
+  max-width: 220px;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.model-ops-create-node-tooltip-labels code {
+  display: inline-flex;
+  max-width: 100%;
+  min-height: 17px;
+  align-items: center;
+  padding: 1px 4px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-family: inherit;
+  font-size: 8px;
+  line-height: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .model-ops-create-node-tooltip-overlay .ant-tooltip-inner {

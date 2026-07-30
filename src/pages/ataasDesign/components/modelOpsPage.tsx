@@ -322,6 +322,7 @@ type OpsCreateNode = {
   availableCards: number;
   totalCards: number;
   state: 'idle' | 'occupied';
+  labels: string[];
 };
 
 type OpsCreateGroupDraft = {
@@ -338,6 +339,7 @@ type OpsCreateGroupDraft = {
   prefillReplicas: number;
   decodeReplicas: number;
   routerPort: number;
+  serviceEntry: string;
   enableSmokeSingle: boolean;
   enableSmokeBatch: boolean;
   smokePrompt: string;
@@ -361,17 +363,38 @@ const opsCreateClusters = [
   { code: 'zz', name: 'zhengzhou-prod', meta: '郑州一区 / H20', serviceEntry: 'zz-higress-prod' },
 ];
 
+const getCreateServiceEntryOptions = (clusterCode: string) => {
+  const cluster = opsCreateClusters.find((item) => item.code === clusterCode) || opsCreateClusters[0];
+  return [
+    { value: cluster.serviceEntry, label: `${cluster.serviceEntry} · 默认入口` },
+    { value: `${cluster.code}-higress-canary`, label: `${cluster.code}-higress-canary · 灰度入口` },
+    { value: `${cluster.code}-higress-internal`, label: `${cluster.code}-higress-internal · 内部入口` },
+  ];
+};
+
 const opsCreateNodes: OpsCreateNode[] = opsCreateClusters.flatMap((cluster, clusterIndex) => (
-  Array.from({ length: 64 }, (_, index) => ({
-    key: `${cluster.code}-node-${index + 1}`,
-    name: `${cluster.code}-gpu-${String(index + 1).padStart(3, '0')}`,
-    clusterCode: cluster.code,
-    ip: `10.${24 + clusterIndex}.${110 + Math.floor(index / 200)}.${20 + (index % 200)}`,
-    gpu: cluster.code === 'wh' ? 'Ascend 910B' : cluster.code === 'gz' ? (index % 2 ? 'A100' : 'L20') : 'H20',
-    availableCards: index % 3 === 0 ? 8 : index % 3 === 1 ? 6 : 4,
-    totalCards: 8,
-    state: index % 17 === 16 ? 'occupied' : 'idle',
-  }))
+  Array.from({ length: 64 }, (_, index) => {
+    const occupied = index % 17 === 16;
+    const occupiedGroupIndex = Math.floor(index / 17) + 1;
+    const occupiedRole = occupiedGroupIndex % 2 === 0 ? 'decode' : 'prefill';
+    return {
+      key: `${cluster.code}-node-${index + 1}`,
+      name: `${cluster.code}-gpu-${String(index + 1).padStart(3, '0')}`,
+      clusterCode: cluster.code,
+      ip: `10.${24 + clusterIndex}.${110 + Math.floor(index / 200)}.${20 + (index % 200)}`,
+      gpu: cluster.code === 'wh' ? 'Ascend 910B' : cluster.code === 'gz' ? (index % 2 ? 'A100' : 'L20') : 'H20',
+      availableCards: index % 3 === 0 ? 8 : index % 3 === 1 ? 6 : 4,
+      totalCards: 8,
+      state: occupied ? 'occupied' : 'idle',
+      labels: occupied
+        ? [
+          `deployment=glm52_${occupiedGroupIndex}__${occupiedRole}`,
+          'model=GLM-5.2',
+          'managed-by=ataas',
+        ]
+        : [],
+    };
+  })
 ));
 
 const modelSlugMap: Record<string, string> = {
@@ -409,6 +432,7 @@ const makeDefaultCreateDraft = (row?: OpsSeRow | null): OpsCreateGroupDraft => {
     prefillReplicas: 1,
     decodeReplicas: 1,
     routerPort: 30002,
+    serviceEntry: '',
     enableSmokeSingle: true,
     enableSmokeBatch: false,
     smokePrompt: '介绍一下秦始皇',
@@ -476,7 +500,7 @@ const WeightStrip = ({ row, weights }: { row: OpsSeRow; weights: Record<string, 
 type CreateExecutionPhase = 'idle' | 'running' | 'success';
 
 type CreatePlanStep = {
-  key: 'prefill' | 'decode' | 'deploy' | 'ready' | 'smoke-single' | 'smoke-batch';
+  key: 'prefill' | 'decode' | 'deploy' | 'ready' | 'service-entry' | 'smoke-single' | 'smoke-batch';
   title: string;
   desc: string;
   ready: boolean;
@@ -507,6 +531,7 @@ const OpsCreateGroupPage = ({
   const isRunning = executionPhase === 'running';
   const isLocked = executionPhase !== 'idle';
   const clusterNodes = opsCreateNodes.filter((node) => node.clusterCode === draft.clusterCode);
+  const serviceEntryOptions = getCreateServiceEntryOptions(draft.clusterCode);
   const groupName = getGroupNameFromDraft(draft);
   const canExecute = completion.every((step) => step.ready) && draft.confirmed;
   const [expandedPlanKeys, setExpandedPlanKeys] = useState<string[]>(() => completion.map((step) => step.key));
@@ -630,6 +655,14 @@ const OpsCreateGroupPage = ({
             <span>GPU 型号：{node.gpu}</span>
             <span>GPU 空闲：{node.availableCards} / {node.totalCards} 张</span>
             <span>状态：{stateLabel}</span>
+            {node.labels.length > 0 && (
+              <div className="model-ops-create-node-tooltip-labels">
+                <em>节点标签</em>
+                <div>
+                  {node.labels.map((label) => <code key={label}>{label}</code>)}
+                </div>
+              </div>
+            )}
           </div>
         )}
       >
@@ -672,7 +705,12 @@ const OpsCreateGroupPage = ({
                   value={draft.clusterCode}
                   classNames={{ popup: { root: 'model-ops-create-select-popup' } }}
                   disabled={isLocked}
-                  onChange={(value) => onChange({ clusterCode: value, prefillNodes: [], decodeNodes: [] })}
+                  onChange={(value) => onChange({
+                    clusterCode: value,
+                    prefillNodes: [],
+                    decodeNodes: [],
+                    serviceEntry: '',
+                  })}
                   options={opsCreateClusters.map((cluster) => ({ value: cluster.code, label: `${cluster.name} · ${cluster.meta}` }))}
                 />
               </label>
@@ -758,9 +796,30 @@ const OpsCreateGroupPage = ({
             </div>
           </section>
 
-          <section id="create-smoke" className="model-ops-create-section">
+          <section id="create-service-entry" className="model-ops-create-section">
             <div className="model-ops-create-section-head">
               <span>04</span>
+              <div><strong>ServiceEntry</strong><em>选择 Group 就绪后需要更新的流量入口。</em></div>
+            </div>
+            <div className="model-ops-create-field-grid service-entry">
+              <label>
+                <span>ServiceEntry name</span>
+                <Select
+                  allowClear
+                  value={draft.serviceEntry || undefined}
+                  placeholder="选择 ServiceEntry"
+                  classNames={{ popup: { root: 'model-ops-create-select-popup' } }}
+                  disabled={isLocked}
+                  onChange={(value) => onChange({ serviceEntry: value || '' })}
+                  options={serviceEntryOptions}
+                />
+              </label>
+            </div>
+          </section>
+
+          <section id="create-smoke" className="model-ops-create-section">
+            <div className="model-ops-create-section-head">
+              <span>05</span>
               <div><strong>Smoke Test（可选）</strong><em>选择部署完成后需要执行的验证测试，并配置实际请求参数。</em></div>
             </div>
             <div className="model-ops-create-test-switches">
@@ -846,7 +905,10 @@ const OpsCreateGroupPage = ({
                 const executionDone = executionPhase === 'success'
                   || (executionPhase === 'running' && index < executionIndex);
                 const executionRunning = executionPhase === 'running' && index === executionIndex;
-                const isSetupStep = item.key === 'prefill' || item.key === 'decode' || item.key === 'deploy';
+                const isSetupStep = item.key === 'prefill'
+                  || item.key === 'decode'
+                  || item.key === 'deploy'
+                  || item.key === 'service-entry';
                 const visualDone = executionPhase === 'idle' ? item.ready && isSetupStep : executionDone;
                 const stateLabel = executionPhase === 'idle'
                   ? !item.ready ? '待配置' : isSetupStep ? '已就绪' : '待执行'
@@ -1028,9 +1090,11 @@ const ModelOpsPage = ({
     const workersDone = Boolean(createDraft.workersConfig && createDraft.workersYaml.trim())
       && createDraft.prefillReplicas > 0
       && createDraft.decodeReplicas > 0;
+    const serviceEntryDone = Boolean(createDraft.serviceEntry);
     const deployDone = scopeDone && routerDone && workersDone;
     const workflowReady = prefillDone && decodeDone && deployDone;
-    const smokeRequestReady = workflowReady
+    const trafficReady = workflowReady && serviceEntryDone;
+    const smokeRequestReady = trafficReady
       && Boolean(createDraft.smokePrompt.trim())
       && createDraft.smokeMaxTokens > 0;
     const smokeBatchReady = smokeRequestReady
@@ -1089,23 +1153,38 @@ const ModelOpsPage = ({
           { label: 'Timeout', value: '1200s' },
         ],
       },
+      {
+        key: 'service-entry',
+        title: 'Update ServiceEntry',
+        desc: serviceEntryDone
+          ? `Update ${createDraft.serviceEntry} to route ${groupName}-router:${createDraft.routerPort}`
+          : '请选择 Group 创建完成后需要更新的 ServiceEntry',
+        ready: serviceEntryDone,
+        mode: 'manual',
+        targetId: 'create-service-entry',
+        details: [
+          { label: 'ServiceEntry', value: createDraft.serviceEntry || '未选择' },
+          { label: '目标服务', value: `${groupName}-router` },
+          { label: '目标端口', value: String(createDraft.routerPort) },
+        ],
+      },
       ...(createDraft.enableSmokeSingle ? [{
         key: 'smoke-single' as const,
         title: 'Smoke test (single)',
-        desc: workflowReady ? `workflow.smoke_test(model=${createDraft.model}, group_index=${createDraft.groupIndex})` : 'Pods Ready 后执行单请求测试',
+        desc: trafficReady ? `workflow.smoke_test(model=${createDraft.model}, group_index=${createDraft.groupIndex})` : 'ServiceEntry 更新后执行单请求测试',
         ready: smokeRequestReady,
         mode: 'manual' as const,
         targetId: 'create-smoke',
         details: [
           { label: 'Prompt', value: createDraft.smokePrompt || '未填写' },
           { label: 'Max tokens', value: String(createDraft.smokeMaxTokens) },
-          { label: 'ServiceEntry', value: cluster.serviceEntry },
+          { label: 'ServiceEntry', value: createDraft.serviceEntry || '未选择' },
         ],
       }] : []),
       ...(createDraft.enableSmokeBatch ? [{
         key: 'smoke-batch' as const,
         title: `Smoke test (batch ${createDraft.smokeBatchCount}×${createDraft.smokeConcurrency})`,
-        desc: workflowReady ? `workflow.smoke_test_batch(count=${createDraft.smokeBatchCount}, concurrency=${createDraft.smokeConcurrency})` : 'Pods Ready 后执行批量测试',
+        desc: trafficReady ? `workflow.smoke_test_batch(count=${createDraft.smokeBatchCount}, concurrency=${createDraft.smokeConcurrency})` : 'ServiceEntry 更新后执行批量测试',
         ready: smokeBatchReady,
         mode: 'manual' as const,
         targetId: 'create-smoke',
@@ -1114,6 +1193,7 @@ const ModelOpsPage = ({
           { label: 'Count', value: String(createDraft.smokeBatchCount) },
           { label: 'Concurrency', value: String(createDraft.smokeConcurrency) },
           { label: 'Max tokens', value: String(createDraft.smokeMaxTokens) },
+          { label: 'ServiceEntry', value: createDraft.serviceEntry || '未选择' },
         ],
       }] : []),
     ];
@@ -1349,7 +1429,7 @@ const ModelOpsPage = ({
             <strong>模型权重</strong>
             <div className="model-ops-section-actions">
               <Button type="primary" icon={<SettingOutlined />} disabled={!visibleRows.length} onClick={() => setBulkWeightOpen(true)}>分配权重</Button>
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => openCreateGroup(activeDeployRow)}>添加实例</Button>
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => openCreateGroup(activeDeployRow)}>创建 Group 组</Button>
             </div>
           </div>
           {visibleRows.length ? (

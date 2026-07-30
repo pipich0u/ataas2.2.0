@@ -24668,46 +24668,70 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
     .ant-table-cell-fix-right,
     .ant-table-cell-fix-right-first,
     .ataas-model-ops-unified-action-cell {
-      border-left: 1px solid #E5EAF2 !important;
+      border-left: 0 !important;
       background: #fff !important;
-      box-shadow: -8px 0 12px -12px rgba(29, 33, 41, 0.42) !important;
+      box-shadow: none !important;
     }
 
     .ant-table-thead > tr > th.ant-table-cell-fix-right,
     .ant-table-thead > tr > th.ant-table-cell-fix-right-first,
     .ant-table-thead > tr > th.ataas-model-ops-unified-action-cell {
       background: #F7F8FA !important;
-      box-shadow: -8px 0 12px -12px rgba(29, 33, 41, 0.42) !important;
+      box-shadow: none !important;
     }
 
     .ant-table-cell-fix-right::before,
     .ant-table-cell-fix-right::after,
-    .ant-table-cell-fix-right-first::before,
     .ant-table-cell-fix-right-first::after,
-    .ataas-model-ops-unified-action-cell::before,
     .ataas-model-ops-unified-action-cell::after {
       display: none !important;
       box-shadow: none !important;
+    }
+
+    .ant-table-cell-fix-right-first::before,
+    .ataas-model-ops-unified-action-cell::before {
+      display: block !important;
+      position: absolute !important;
+      top: 0 !important;
+      bottom: -1px !important;
+      left: 0 !important;
+      width: 30px !important;
+      transform: translateX(-100%) !important;
+      box-shadow: inset -10px 0 8px -8px rgba(5, 5, 5, 0.15) !important;
+      content: '' !important;
+      pointer-events: none !important;
     }
   }
 
   .ataas-deploy-inline-native-table {
     th.ataas-model-ops-pod-action-cell,
     td.ataas-model-ops-pod-action-cell {
-      border-left: 1px solid #E5EAF2 !important;
+      border-left: 0 !important;
       background: #fff !important;
-      box-shadow: -8px 0 12px -12px rgba(29, 33, 41, 0.42) !important;
+      box-shadow: none !important;
 
-      &::before,
       &::after {
         display: none !important;
         box-shadow: none !important;
+      }
+
+      &::before {
+        display: block !important;
+        position: absolute !important;
+        top: 0 !important;
+        bottom: -1px !important;
+        left: 0 !important;
+        width: 30px !important;
+        transform: translateX(-100%) !important;
+        box-shadow: inset -10px 0 8px -8px rgba(5, 5, 5, 0.15) !important;
+        content: '' !important;
+        pointer-events: none !important;
       }
     }
 
     th.ataas-model-ops-pod-action-cell {
       background: #F7F8FA !important;
-      box-shadow: -8px 0 12px -12px rgba(29, 33, 41, 0.42) !important;
+      box-shadow: none !important;
     }
   }
 }
