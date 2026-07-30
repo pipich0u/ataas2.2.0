@@ -30,7 +30,7 @@ import {
   Upload,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import './softwarePackagePage.less';
 
 type PackageStatus = 'available' | 'verifying' | 'deprecated';
@@ -194,6 +194,18 @@ const initialPackages: SoftwarePackage[] = [
   },
 ];
 
+const PACKAGE_STORAGE_KEY = 'ataas.software-packages.catalog.v1';
+
+const loadPackageRecords = () => {
+  if (typeof window === 'undefined') return initialPackages;
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(PACKAGE_STORAGE_KEY) || '[]') as SoftwarePackage[];
+    return stored.length ? stored : initialPackages;
+  } catch {
+    return initialPackages;
+  }
+};
+
 const initialTasks: DistributionTask[] = [
   {
     key: 'PKG-20260730-0021',
@@ -240,7 +252,7 @@ const taskStatusLabels: Record<TaskStatus, string> = {
 };
 
 const SoftwarePackagePage = () => {
-  const [packageRecords, setPackageRecords] = useState(initialPackages);
+  const [packageRecords, setPackageRecords] = useState<SoftwarePackage[]>(loadPackageRecords);
   const [tasks, setTasks] = useState(initialTasks);
   const [activeTab, setActiveTab] = useState('packages');
   const [keyword, setKeyword] = useState('');
@@ -259,6 +271,30 @@ const SoftwarePackagePage = () => {
   const [installK8s, setInstallK8s] = useState(true);
   const [initControlPlane, setInitControlPlane] = useState(false);
   const [uploadForm] = Form.useForm<UploadPackageValues>();
+
+  useEffect(() => {
+    window.localStorage.setItem(PACKAGE_STORAGE_KEY, JSON.stringify(packageRecords));
+  }, [packageRecords]);
+
+  useEffect(() => {
+    const rawRequest = window.sessionStorage.getItem('ataas.software-package.upload-request');
+    if (!rawRequest) return;
+    try {
+      const request = JSON.parse(rawRequest) as { k8sVersion: string; os: string; arch: string };
+      uploadForm.setFieldsValue({
+        name: 'Kubernetes 离线安装套件',
+        category: 'kubernetes',
+        version: request.k8sVersion,
+        k8sVersions: [request.k8sVersion],
+        os: request.os,
+        arch: request.arch,
+      });
+      setUploadOpen(true);
+      message.info(`请上传适配 ${request.k8sVersion} / ${request.arch} 的 Kubernetes 软件包`);
+    } finally {
+      window.sessionStorage.removeItem('ataas.software-package.upload-request');
+    }
+  }, [uploadForm]);
 
   const selectedDistributionPackage = packageRecords.find((item) => item.key === distributionPackageId) || packageRecords[0];
   const selectedTargetCount = distributionTargets.split(/[\n,]/).map((item) => item.trim()).filter(Boolean).length;
@@ -365,6 +401,20 @@ const SoftwarePackagePage = () => {
     }
     setUploadOpen(false);
     uploadForm.resetFields();
+    window.setTimeout(() => {
+      setPackageRecords((records) => records.map((item) => (
+        item.name.trim().toLowerCase() === values.name.trim().toLowerCase()
+          ? {
+              ...item,
+              status: 'available',
+              versions: item.versions.map((version) => (
+                version.version === values.version ? { ...version, status: 'available' } : version
+              )),
+            }
+          : item
+      )));
+      message.success(`${values.name} ${values.version} 完整性与兼容性校验通过`);
+    }, 1400);
   };
 
   const submitDistribution = () => {

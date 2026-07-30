@@ -5,7 +5,6 @@ import {
 } from '@ant-design/icons';
 import {
   Button,
-  Checkbox,
   Dropdown,
   Form,
   Input,
@@ -16,6 +15,8 @@ import {
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import BareMetalClusterWizard from './bareMetalClusterWizard';
+import type { ClusterCreateTaskSummary } from './bareMetalClusterWizard';
 import './supplierResourcesPage.less';
 
 type ResourceStatus = 'normal' | 'attention' | 'pending';
@@ -247,15 +248,11 @@ export const SupplierResourceCreateFlow = ({
   const { suppliers, dataCenters } = useSupplierResourceSnapshot();
   const [stage, setStage] = useState<CreateStage>(null);
   const [createdDataCenter, setCreatedDataCenter] = useState<DataCenterRecord | null>(null);
-  const [clusterMethod, setClusterMethod] = useState<'existing' | 'deploy'>('existing');
   const [supplierForm] = Form.useForm();
   const [dataCenterForm] = Form.useForm();
   const [machineForm] = Form.useForm();
-  const [clusterForm] = Form.useForm();
   const machineDataCenterKey = Form.useWatch('dataCenterKey', machineForm);
-  const clusterDataCenterKey = Form.useWatch('dataCenterKey', clusterForm);
   const machineDataCenter = dataCenters.find((item) => item.key === machineDataCenterKey);
-  const clusterDataCenter = dataCenters.find((item) => item.key === clusterDataCenterKey);
 
   useEffect(() => {
     if (!openKind) return;
@@ -264,8 +261,7 @@ export const SupplierResourceCreateFlow = ({
     supplierForm.resetFields();
     dataCenterForm.resetFields();
     machineForm.resetFields();
-    clusterForm.resetFields();
-  }, [clusterForm, dataCenterForm, machineForm, openKind, supplierForm]);
+  }, [dataCenterForm, machineForm, openKind, supplierForm]);
 
   const closeFlow = () => {
     setStage(null);
@@ -330,7 +326,6 @@ export const SupplierResourceCreateFlow = ({
     });
     setCreatedDataCenter(next);
     machineForm.setFieldValue('dataCenterKey', next.key);
-    clusterForm.setFieldValue('dataCenterKey', next.key);
     setStage('completed');
     message.success('数据中心档案已创建');
   };
@@ -341,10 +336,36 @@ export const SupplierResourceCreateFlow = ({
     closeFlow();
   };
 
-  const createClusterTask = async () => {
-    await clusterForm.validateFields();
-    message.success('Kubernetes 集群接入任务已创建');
+  const handleClusterTaskCreated = (summary: ClusterCreateTaskSummary) => {
+    const dataCenter = resourceSnapshot.dataCenters.find((item) => item.key === summary.dataCenterKey);
+    if (!dataCenter) return;
+    publishSnapshot({
+      suppliers: resourceSnapshot.suppliers.map((item) => (
+        item.key === dataCenter.supplierKey
+          ? { ...item, clusters: item.clusters + 1, machines: item.machines + summary.machineCount }
+          : item
+      )),
+      dataCenters: resourceSnapshot.dataCenters.map((item) => (
+        item.key === dataCenter.key
+          ? {
+              ...item,
+              clusters: item.clusters + 1,
+              machines: item.machines + summary.machineCount,
+              status: 'pending',
+              statusLabel: '集群创建中',
+            }
+          : item
+      )),
+    });
+    message.success(`集群 ${summary.clusterName} 创建任务已启动`);
+  };
+
+  const openPackageManager = (request: { k8sVersion: string; os: string; arch: string }) => {
+    window.sessionStorage.setItem('ataas.software-package.upload-request', JSON.stringify(request));
     closeFlow();
+    window.dispatchEvent(new CustomEvent('ataas:navigate', {
+      detail: { tab: 'softwarePackages' },
+    }));
   };
 
   return (
@@ -494,84 +515,18 @@ export const SupplierResourceCreateFlow = ({
         </Form>
       </Modal>
 
-      <Modal
-        rootClassName="supplier-resource-create-modal"
-        title="创建／接入 Kubernetes 集群"
+      <BareMetalClusterWizard
         open={stage === 'cluster'}
-        width={720}
-        okText="创建接入任务"
-        cancelText={createdDataCenter ? '返回' : '取消'}
-        onOk={createClusterTask}
+        dataCenters={dataCenters.map((item) => ({
+          key: item.key,
+          name: item.name,
+          supplier: item.supplier,
+        }))}
+        initialDataCenterKey={createdDataCenter?.key}
         onCancel={() => createdDataCenter ? setStage('completed') : closeFlow()}
-      >
-        <p className="supplier-resource-modal-note">
-          集群使用“{clusterDataCenter?.name || '所选数据中心'}”的机器；接入已有集群不会重装或升级 Kubernetes。
-        </p>
-        <Form form={clusterForm} layout="vertical">
-          <Form.Item label="所属数据中心" name="dataCenterKey" rules={[{ required: true, message: '请选择数据中心' }]}>
-            <Select
-              showSearch
-              optionFilterProp="label"
-              placeholder="请选择已有数据中心"
-              options={dataCenters.map((item) => ({
-                value: item.key,
-                label: `${item.name} · ${item.supplier}`,
-              }))}
-            />
-          </Form.Item>
-          <Form.Item label="集群名称" name="name" rules={[{ required: true, message: '请输入集群名称' }]}>
-            <Input placeholder="例如：gpu-prod-02" />
-          </Form.Item>
-          <div className="cluster-method-group">
-            <span className="cluster-method-label">接入方式</span>
-            <div className="cluster-method-options">
-              <label className={['cluster-method-option', clusterMethod === 'existing' ? 'active' : ''].filter(Boolean).join(' ')}>
-                <input type="radio" name="clusterMethod" value="existing" checked={clusterMethod === 'existing'} onChange={() => setClusterMethod('existing')} />
-                <strong>接入已有 Kubernetes</strong>
-                <small>填写 API Server 地址与 Token，直接接入现有集群</small>
-              </label>
-              <label className={['cluster-method-option', clusterMethod === 'deploy' ? 'active' : ''].filter(Boolean).join(' ')}>
-                <input type="radio" name="clusterMethod" value="deploy" checked={clusterMethod === 'deploy'} onChange={() => setClusterMethod('deploy')} />
-                <strong>部署自建集群</strong>
-                <small>使用已纳管机器远程部署一套新 Kubernetes 集群</small>
-              </label>
-            </div>
-          </div>
-
-          {clusterMethod === 'existing' ? (
-            <>
-              <div className="supplier-resource-form-grid">
-                <Form.Item label="API Server 地址" name="endpoint">
-                  <Input placeholder="https://10.24.16.10:6443" />
-                </Form.Item>
-                <Form.Item label="Token" name="token" rules={[{ required: true, message: '请输入集群 Token' }]}>
-                  <Input.Password placeholder="kubernetes.io/cluster-token" />
-                </Form.Item>
-              </div>
-              <Form.Item name="skipTLS" valuePropName="checked">
-                <Checkbox>跳过证书验证（TLS Insecure）</Checkbox>
-              </Form.Item>
-            </>
-          ) : (
-            <div className="supplier-resource-form-grid">
-              <Form.Item label="部署节点数" name="nodeCount" initialValue={3}>
-                <Input type="number" min={1} max={100} placeholder="3" />
-              </Form.Item>
-              <Form.Item label="Kubernetes 版本" name="k8sVersion" initialValue="v1.28">
-                <Select options={[
-                  { value: 'v1.28', label: 'v1.28' },
-                  { value: 'v1.27', label: 'v1.27' },
-                  { value: 'v1.26', label: 'v1.26' },
-                ]} />
-              </Form.Item>
-            </div>
-          )}
-
-          <Form.Item label="说明" name="remark">
-            <Input.TextArea rows={2} placeholder="可选，用于记录接入范围或部署说明" />
-          </Form.Item>
-        </Form>
-      </Modal>
+        onOpenPackageManager={openPackageManager}
+        onTaskCreated={handleClusterTaskCreated}
+      />
     </>
   );
 };

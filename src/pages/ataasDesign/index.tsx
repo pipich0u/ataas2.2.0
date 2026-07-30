@@ -8,6 +8,7 @@ import {
   CheckCircleFilled,
   CheckCircleOutlined,
   CloseCircleOutlined,
+  CodeSandboxOutlined,
   CodeOutlined,
   CopyOutlined,
   DeploymentUnitOutlined,
@@ -6625,6 +6626,7 @@ const AtAasDesign = () => {
         distributionCenter: '/distribution-center',
         clusterOperations: '/cluster-operations',
         supplierResources: '/supplier-resources',
+        softwarePackages: '/software-packages',
       };
       window.history.replaceState(null, '', pathMap[tab] || '/');
     };
@@ -10717,7 +10719,7 @@ const AtAasDesign = () => {
     // { key: 'containerManagement', icon: <SidebarIcon name="pod" />, label: '容器管理' },
     // { key: 'routeWorkbench', icon: <SidebarIcon name="service" />, label: '链路编排' },
     { key: 'configCenter', icon: <SidebarIcon name="config" />, label: '资源文件' },
-    { key: 'softwarePackages', icon: <InboxOutlined />, label: '软件包管理' },
+    { key: 'softwarePackages', icon: <CodeSandboxOutlined className="ataas-sidebar-package-icon" />, label: '软件包管理' },
   ];
   const getSidebarItems = (keys: string[]) => keys.map((key) => SIDEBAR_ITEMS.find((item) => item.key === key)).filter(Boolean) as typeof SIDEBAR_ITEMS;
   const SIDEBAR_GROUPS = [
