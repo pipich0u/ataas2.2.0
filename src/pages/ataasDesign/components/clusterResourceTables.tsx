@@ -6,7 +6,7 @@ import { FileCode2, Pencil, RefreshCw, Search, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { MonacoEditor } from '../../../components/shared/MonacoEditor';
 import { MODEL_OPS_RESOURCE_SPECS } from './modelOpsResourceSpec';
-import { buildPodYaml, buildServiceEntryYaml, buildServiceYaml, clusterGroupNames, createManualPod, createManualService, K8sPodResource, K8sServiceEntryResource, K8sServiceResource, useK8sResourceStore } from './k8sResourceStore';
+import { buildPodYaml, buildServiceEntryYaml, buildServiceYaml, clusterGroupNames, createManualPod, createManualService, createManualServiceEntry, K8sPodResource, K8sServiceEntryResource, K8sServiceResource, useK8sResourceStore } from './k8sResourceStore';
 
 type ResourceView = 'svc' | 'se' | 'pod' | 'pv' | 'pvc';
 type PortInfo = { port: number; targetPort: number; nodePort?: number; protocol: string };
@@ -470,10 +470,12 @@ export default function ClusterResourceTables({
     [namespaceFilter, scopedServiceRows],
   );
   const namespaceOptions = useMemo(() => {
-    const rows = initialView === 'pod' ? effectivePodRows : scopedServiceRows;
+    const values = initialView === 'pod'
+      ? effectivePodRows.map((row) => row.group)
+      : scopedServiceRows.map((row) => row.namespace);
     return [
       { value: 'all', label: initialView === 'pod' ? '全部组' : '全部命名空间' },
-      ...Array.from(new Set(rows.map((row) => initialView === 'pod' ? row.group : row.namespace)))
+      ...Array.from(new Set(values))
         .sort((a, b) => a.localeCompare(b))
         .map((value) => ({ value, label: value })),
     ];
@@ -1133,7 +1135,7 @@ export default function ClusterResourceTables({
       rowKey="key"
       columns={serviceColumns}
       dataSource={filteredServices}
-      scroll={{ x: 1920, scrollbarWidth: 6 }}
+      scroll={{ x: 1920 }}
       pagination={pagination}
       locale={{ emptyText: '暂无 Service 数据' }}
     />

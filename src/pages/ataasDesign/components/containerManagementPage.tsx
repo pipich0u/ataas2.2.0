@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { rpc } from '@/lib/bus/rpc';
 import { MonacoEditor } from '@/components/shared/MonacoEditor';
 import type { ConfigCommitEntry, ConfigTreeNode } from '@/lib/types';
-import { useK8sResourceStore, createManualServiceEntry, createManualService } from './k8sResourceStore';
+import { useK8sResourceStore, createManualServiceEntry, createManualService, type K8sPodRole } from './k8sResourceStore';
 import './containerManagementPage.less';
 
 type PortInfo = { port: number; targetPort: number; nodePort?: number; protocol: string };
@@ -30,7 +30,7 @@ type PodRow = {
   name: string;
   cluster: string;
   namespace: string;
-  role: 'router' | 'prefill' | 'decode' | 'business';
+  role: K8sPodRole;
   status: 'Running' | 'Pending' | 'Failed';
   restart: number;
   image: string;
@@ -637,11 +637,6 @@ export default function ContainerManagementPage({ onNavigateToNodeManagement }: 
                       onOk: () => {
                         resourceStore.removeServiceEntry(route.key);
                         message.success('ServiceEntry「' + route.name + '」已删除');
-                        services.forEach((svc) => {
-                          if (svc.serviceEntryId === route.key) {
-                            resourceStore.updateService(svc.id, { serviceEntryId: undefined });
-                          }
-                        });
                       },
                     });
                   }} danger>删除</Button>
