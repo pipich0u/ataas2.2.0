@@ -50,6 +50,7 @@ type RouteEntry = {
 
 export default function ContainerManagementPage({ onNavigateToNodeManagement }: { onNavigateToNodeManagement?: (nodeName: string) => void } = {}) {
   const [view, setView] = useState<'se' | 'svc' | 'pod'>('se');
+  const [seViewMode, setSeViewMode] = useState<'table' | 'card'>('card');
   const [cluster, setCluster] = useState('全部集群');
   const [keyword, setKeyword] = useState('');
   const [yamlTarget, setYamlTarget] = useState<ServiceRow | PodRow | null>(null);
@@ -566,6 +567,11 @@ export default function ContainerManagementPage({ onNavigateToNodeManagement }: 
           <div className="ataas-cm-toolbar-filters">
             <Select value={cluster} onChange={setCluster} options={storeClusters.map((item) => ({ value: item, label: item }))} />
             <Input.Search size="small" allowClear value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder={view === 'se' ? '搜索 SE / Host' : view === 'svc' ? '搜索 SVC / SE / Cluster IP' : '搜索 POD / IP / Node'} />
+            {view === 'se' && (
+              <Button size="small" type={seViewMode === 'card' ? 'primary' : 'default'} icon={<AppstoreOutlined />} onClick={() => setSeViewMode((v) => v === 'table' ? 'card' : 'table')}>
+                {seViewMode === 'table' ? '卡片' : '列表'}
+              </Button>
+            )}
           </div>
           {view !== 'pod' && (
             <Button type="primary" icon={<PlusOutlined />} onClick={() => view === 'se' ? (resetSeCreateForm(), setSeCreateOpen(true)) : (resetCreateForm(), setCreateOpen(true))}>
@@ -573,7 +579,83 @@ export default function ContainerManagementPage({ onNavigateToNodeManagement }: 
             </Button>
           )}
         </div>
-        {view === 'se' ? (
+        {view === 'se' && seViewMode === 'card' ? (
+          <div className="ataas-cm-se-card-grid">
+            {filteredRoutes.map((route) => (
+              <div key={route.key} className="ataas-cm-se-card">
+                <header>
+                  <span className="ataas-cm-se-card-icon"><FileSearchOutlined /></span>
+                  <div>
+                    <strong>{route.name}</strong>
+                    <small>{route.cluster} · {route.namespace}</small>
+                  </div>
+                </header>
+                <div className="ataas-cm-se-card-body">
+                  <div className="ataas-cm-se-card-summary">
+                    <div className="ataas-cm-se-card-section">
+                      <span className="ataas-cm-se-card-label">Hosts</span>
+                      <div className="ataas-cm-se-card-values">
+                        {route.hosts.map((h, i) => (
+                          <span key={i} className="ataas-cm-se-card-code">{h}</span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="ataas-cm-se-card-section">
+                      <span className="ataas-cm-se-card-label">Ports</span>
+                      <div className="ataas-cm-se-card-values">
+                        {route.ports.length > 0 ? route.ports.map((p, i) => (
+                          <span key={i} className="ataas-cm-se-card-code">{p.port} / {p.protocol.toLowerCase()}</span>
+                        )) : <span className="ataas-cm-se-card-muted">-</span>}
+                      </div>
+                    </div>
+                    <div className="ataas-cm-se-card-section">
+                      <span className="ataas-cm-se-card-label">Endpoints</span>
+                      <div className="ataas-cm-se-card-values">
+                        {route.endpoints.length > 0 ? route.endpoints.map((ep, i) => (
+                          <span key={i} className="ataas-cm-se-card-code">
+                            <a className="ataas-cm-se-card-link"
+                              onClick={() => { const svcName = ep.address.split('.')[0]; setKeyword(svcName); setCluster(route.cluster); setView('svc'); }}
+                            >{ep.address}</a>
+                            <span className="ataas-cm-se-card-muted"> ({ep.weight}%)</span>
+                          </span>
+                        )) : <span className="ataas-cm-se-card-muted">-</span>}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <footer>
+                  <Button className="ataas-deploy-card-action" icon={<FileOutlined />} onClick={() => {
+                    const portsYaml = route.ports.map((p) => `  - number: ${p.port}\n    name: http\n    protocol: ${p.protocol}`).join('\n');
+                    setRouteEditYaml(`apiVersion: networking.istio.io/v1beta1\nkind: ServiceEntry\nmetadata:\n  name: ${route.name}\n  namespace: ${route.namespace}\nspec:\n  hosts:\n${route.hosts.map((h) => '  - ' + h).join('\n')}\n  location: MESH_INTERNAL\n  ports:\n${portsYaml}\n  resolution: DNS\n  endpoints:\n${route.endpoints.map((ep) => '  - address: ' + ep.address + '\n    weight: ' + ep.weight).join('\n')}`);
+                    setRouteEditTarget(route);
+                    setRouteEditOpen(true);
+                  }}>YAML</Button>
+                  <Button className="ataas-deploy-card-action" icon={<DeleteOutlined />} onClick={() => {
+                    Modal.confirm({
+                      title: '删除 ServiceEntry',
+                      content: '确定删除 ' + route.name + ' 吗？',
+                      onOk: () => {
+                        resourceStore.removeServiceEntry(route.key);
+                        message.success('ServiceEntry「' + route.name + '」已删除');
+                        services.forEach((svc) => {
+                          if (svc.serviceEntryId === route.key) {
+                            resourceStore.updateService(svc.id, { serviceEntryId: undefined });
+                          }
+                        });
+                      },
+                    });
+                  }} danger>删除</Button>
+                </footer>
+              </div>
+            ))}
+            {filteredRoutes.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '60px 0', color: '#86909c', gridColumn: '1 / -1' }}>
+                <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.3 }}>◻</div>
+                <div>暂无路由</div>
+              </div>
+            )}
+          </div>
+        ) : view === 'se' && seViewMode === 'table' ? (
           <Table<RouteEntry>
             className="ataas-cm-table"
             rowKey="key"

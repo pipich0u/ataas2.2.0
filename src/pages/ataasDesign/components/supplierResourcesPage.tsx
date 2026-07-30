@@ -5,6 +5,7 @@ import {
 } from '@ant-design/icons';
 import {
   Button,
+  Checkbox,
   Dropdown,
   Form,
   Input,
@@ -46,10 +47,6 @@ type DataCenterRecord = {
   managerPhone: string;
   location: string;
   timezone: string;
-  managementCidr: string;
-  bmcCidr: string;
-  businessCidr: string;
-  proxy: string;
   clusters: number;
   machines: number;
   freeMachines: number;
@@ -124,10 +121,6 @@ const initialSnapshot: ResourceSnapshot = {
       managerPhone: '021-5890 1025',
       location: '上海市浦东新区',
       timezone: 'UTC+08:00',
-      managementCidr: '10.24.16.0/20',
-      bmcCidr: '172.20.16.0/22',
-      businessCidr: '10.28.0.0/16',
-      proxy: '专线出口 · 已配置',
       clusters: 1,
       machines: 3,
       freeMachines: 0,
@@ -144,10 +137,6 @@ const initialSnapshot: ResourceSnapshot = {
       managerPhone: '020-8901 2069',
       location: '广东省广州市黄埔区',
       timezone: 'UTC+08:00',
-      managementCidr: '10.34.0.0/20',
-      bmcCidr: '172.21.0.0/22',
-      businessCidr: '10.38.0.0/16',
-      proxy: '专线出口 · 已配置',
       clusters: 1,
       machines: 1,
       freeMachines: 0,
@@ -164,10 +153,6 @@ const initialSnapshot: ResourceSnapshot = {
       managerPhone: '027-8701 1038',
       location: '湖北省武汉市东湖高新区',
       timezone: 'UTC+08:00',
-      managementCidr: '10.35.0.0/20',
-      bmcCidr: '172.21.16.0/22',
-      businessCidr: '10.39.0.0/16',
-      proxy: '专线出口 · 已配置',
       clusters: 1,
       machines: 0,
       freeMachines: 0,
@@ -184,10 +169,6 @@ const initialSnapshot: ResourceSnapshot = {
       managerPhone: '010-6788 3057',
       location: '北京市大兴区亦庄',
       timezone: 'UTC+08:00',
-      managementCidr: '10.44.0.0/20',
-      bmcCidr: '172.22.0.0/22',
-      businessCidr: '10.48.0.0/16',
-      proxy: '云专线 · 已配置',
       clusters: 1,
       machines: 6,
       freeMachines: 0,
@@ -266,6 +247,7 @@ export const SupplierResourceCreateFlow = ({
   const { suppliers, dataCenters } = useSupplierResourceSnapshot();
   const [stage, setStage] = useState<CreateStage>(null);
   const [createdDataCenter, setCreatedDataCenter] = useState<DataCenterRecord | null>(null);
+  const [clusterMethod, setClusterMethod] = useState<'existing' | 'deploy'>('existing');
   const [supplierForm] = Form.useForm();
   const [dataCenterForm] = Form.useForm();
   const [machineForm] = Form.useForm();
@@ -332,10 +314,6 @@ export const SupplierResourceCreateFlow = ({
       managerPhone: values.managerPhone || '—',
       location: values.location,
       timezone: values.timezone,
-      managementCidr: values.managementCidr,
-      bmcCidr: values.bmcCidr || '待配置',
-      businessCidr: values.businessCidr || '待配置',
-      proxy: values.proxy || '待配置',
       clusters: 0,
       machines: 0,
       freeMachines: 0,
@@ -443,18 +421,6 @@ export const SupplierResourceCreateFlow = ({
             <Form.Item label="负责人电话（选填）" name="managerPhone">
               <Input placeholder="例如：021-5890 1025" />
             </Form.Item>
-            <Form.Item label="管理网段" name="managementCidr" rules={[{ required: true, message: '请输入管理网段' }]}>
-              <Input placeholder="10.24.16.0/20" />
-            </Form.Item>
-            <Form.Item label="BMC 网段（选填）" name="bmcCidr">
-              <Input placeholder="172.20.16.0/22" />
-            </Form.Item>
-            <Form.Item label="业务网段（选填）" name="businessCidr">
-              <Input placeholder="10.28.0.0/16" />
-            </Form.Item>
-            <Form.Item label="出口／代理（选填）" name="proxy">
-              <Input placeholder="代理地址或专线说明" />
-            </Form.Item>
           </div>
         </Form>
       </Modal>
@@ -556,18 +522,53 @@ export const SupplierResourceCreateFlow = ({
           <Form.Item label="集群名称" name="name" rules={[{ required: true, message: '请输入集群名称' }]}>
             <Input placeholder="例如：gpu-prod-02" />
           </Form.Item>
-          <Form.Item label="接入方式" name="method" initialValue="existing">
-            <Select options={[
-              { value: 'existing', label: '接入已有 Kubernetes' },
-              { value: 'remote', label: '使用已纳管机器远程部署新集群' },
-              { value: 'offline', label: '离线软件包接入' },
-            ]} />
-          </Form.Item>
-          <Form.Item label="API Server／管理地址" name="endpoint" rules={[{ required: true, message: '请输入连接地址' }]}>
-            <Input placeholder="https://10.24.16.10:6443" />
-          </Form.Item>
+          <div className="cluster-method-group">
+            <span className="cluster-method-label">接入方式</span>
+            <div className="cluster-method-options">
+              <label className={['cluster-method-option', clusterMethod === 'existing' ? 'active' : ''].filter(Boolean).join(' ')}>
+                <input type="radio" name="clusterMethod" value="existing" checked={clusterMethod === 'existing'} onChange={() => setClusterMethod('existing')} />
+                <strong>接入已有 Kubernetes</strong>
+                <small>填写 API Server 地址与 Token，直接接入现有集群</small>
+              </label>
+              <label className={['cluster-method-option', clusterMethod === 'deploy' ? 'active' : ''].filter(Boolean).join(' ')}>
+                <input type="radio" name="clusterMethod" value="deploy" checked={clusterMethod === 'deploy'} onChange={() => setClusterMethod('deploy')} />
+                <strong>部署自建集群</strong>
+                <small>使用已纳管机器远程部署一套新 Kubernetes 集群</small>
+              </label>
+            </div>
+          </div>
+
+          {clusterMethod === 'existing' ? (
+            <>
+              <div className="supplier-resource-form-grid">
+                <Form.Item label="API Server 地址" name="endpoint">
+                  <Input placeholder="https://10.24.16.10:6443" />
+                </Form.Item>
+                <Form.Item label="Token" name="token" rules={[{ required: true, message: '请输入集群 Token' }]}>
+                  <Input.Password placeholder="kubernetes.io/cluster-token" />
+                </Form.Item>
+              </div>
+              <Form.Item name="skipTLS" valuePropName="checked">
+                <Checkbox>跳过证书验证（TLS Insecure）</Checkbox>
+              </Form.Item>
+            </>
+          ) : (
+            <div className="supplier-resource-form-grid">
+              <Form.Item label="部署节点数" name="nodeCount" initialValue={3}>
+                <Input type="number" min={1} max={100} placeholder="3" />
+              </Form.Item>
+              <Form.Item label="Kubernetes 版本" name="k8sVersion" initialValue="v1.28">
+                <Select options={[
+                  { value: 'v1.28', label: 'v1.28' },
+                  { value: 'v1.27', label: 'v1.27' },
+                  { value: 'v1.26', label: 'v1.26' },
+                ]} />
+              </Form.Item>
+            </div>
+          )}
+
           <Form.Item label="说明" name="remark">
-            <Input.TextArea rows={3} placeholder="可选，用于记录接入范围或部署说明" />
+            <Input.TextArea rows={2} placeholder="可选，用于记录接入范围或部署说明" />
           </Form.Item>
         </Form>
       </Modal>

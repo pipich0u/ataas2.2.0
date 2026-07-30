@@ -1,11 +1,12 @@
-import { CloseOutlined, PlusOutlined } from '@ant-design/icons';
-import { Button, ConfigProvider, Input, message, Modal, Segmented, Select, Table } from 'antd';
+import { AppstoreOutlined, CloseOutlined, CopyOutlined, DownloadOutlined, PlusOutlined, TableOutlined } from '@ant-design/icons';
+import { Button, ConfigProvider, Input, message, Modal, Popover, Segmented, Select, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import * as yaml from 'js-yaml';
-import { Search } from 'lucide-react';
+import { FileCode2, Pencil, RefreshCw, Search, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { MonacoEditor } from '../../../components/shared/MonacoEditor';
-import { createManualPod, useK8sResourceStore } from './k8sResourceStore';
+import { MODEL_OPS_RESOURCE_SPECS } from './modelOpsResourceSpec';
+import { buildPodYaml, buildServiceEntryYaml, buildServiceYaml, clusterGroupNames, createManualPod, createManualService, K8sPodResource, K8sServiceEntryResource, K8sServiceResource, useK8sResourceStore } from './k8sResourceStore';
 
 type ResourceView = 'svc' | 'se' | 'pod' | 'pv' | 'pvc';
 type PortInfo = { port: number; targetPort: number; nodePort?: number; protocol: string };
@@ -22,6 +23,7 @@ type ServiceRow = {
   ports: PortInfo[];
   endpoints: EndpointInfo[];
   pods: number;
+  podList: { name: string; ip: string; status: string }[];
   age: string;
 };
 
@@ -119,6 +121,181 @@ const devPodTemplates = [
 const pvRows: PVRow[] = [];
 const pvcRows: PVCRow[] = [];
 
+const SE_RESOURCE_FILES: Record<string, string> = {
+  'se/llm-external-api.yaml': `apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: llm-external-api
+  namespace: higress-system
+spec:
+  hosts:
+    - api.openai.com
+  ports:
+    - number: 443
+      name: https
+      protocol: HTTPS
+  resolution: DNS
+  location: MESH_EXTERNAL`,
+  'se/internal-model-server.yaml': `apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: internal-model-server
+  namespace: higress-system
+spec:
+  hosts:
+    - model-server.internal.cluster.local
+  addresses:
+    - 10.100.0.100
+  ports:
+    - number: 8000
+      name: http
+      protocol: HTTP
+  resolution: STATIC
+  endpoints:
+    - address: 10.100.0.101
+      weight: 80
+    - address: 10.100.0.102
+      weight: 20`,
+  'se/external-database.yaml': `apiVersion: networking.istio.io/v1beta1
+kind: ServiceEntry
+metadata:
+  name: external-database
+  namespace: higress-system
+spec:
+  hosts:
+    - db.cloud-service.com
+  ports:
+    - number: 5432
+      name: tcp
+      protocol: TCP
+  resolution: DNS
+  location: MESH_EXTERNAL`,
+};
+
+const SVC_RESOURCE_FILES: Record<string, string> = {
+  'svc/sh-prod-router.yaml': `apiVersion: v1
+kind: Service
+metadata:
+  name: sh-prod-router
+  namespace: default
+  labels:
+    app: sh-prod-router
+    monitoring: scrape
+    rolebasedgroup.workloads.x-k8s.io/name: sh-prod-router
+    rolebasedgroup.workloads.x-k8s.io/role: router
+spec:
+  type: ClusterIP
+  selector:
+    rolebasedgroup.workloads.x-k8s.io/name: sh-prod-router
+    rolebasedgroup.workloads.x-k8s.io/role: router
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8000
+      targetPort: 8000`,
+  'svc/sh-prod-llm-1.yaml': `apiVersion: v1
+kind: Service
+metadata:
+  name: sh-prod-llm-1
+  namespace: default
+  labels:
+    app: sh-prod-llm-1
+    monitoring: scrape
+    rolebasedgroup.workloads.x-k8s.io/name: sh-prod-llm-1
+    rolebasedgroup.workloads.x-k8s.io/role: prefill
+spec:
+  type: ClusterIP
+  selector:
+    rolebasedgroup.workloads.x-k8s.io/name: sh-prod-llm-1
+    rolebasedgroup.workloads.x-k8s.io/role: prefill
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8000
+      targetPort: 8000`,
+  'svc/sh-prod-llm-2.yaml': `apiVersion: v1
+kind: Service
+metadata:
+  name: sh-prod-llm-2
+  namespace: default
+  labels:
+    app: sh-prod-llm-2
+    monitoring: scrape
+    rolebasedgroup.workloads.x-k8s.io/name: sh-prod-llm-2
+    rolebasedgroup.workloads.x-k8s.io/role: decode
+spec:
+  type: ClusterIP
+  selector:
+    rolebasedgroup.workloads.x-k8s.io/name: sh-prod-llm-2
+    rolebasedgroup.workloads.x-k8s.io/role: decode
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8000
+      targetPort: 8000`,
+  'svc/zz-prod-router.yaml': `apiVersion: v1
+kind: Service
+metadata:
+  name: zz-prod-router
+  namespace: default
+  labels:
+    app: zz-prod-router
+    monitoring: scrape
+    rolebasedgroup.workloads.x-k8s.io/name: zz-prod-router
+    rolebasedgroup.workloads.x-k8s.io/role: router
+spec:
+  type: NodePort
+  selector:
+    rolebasedgroup.workloads.x-k8s.io/name: zz-prod-router
+    rolebasedgroup.workloads.x-k8s.io/role: router
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8000
+      targetPort: 8000
+      nodePort: 30080`,
+  'svc/bj-prod-router.yaml': `apiVersion: v1
+kind: Service
+metadata:
+  name: bj-prod-router
+  namespace: default
+  labels:
+    app: bj-prod-router
+    monitoring: scrape
+    rolebasedgroup.workloads.x-k8s.io/name: bj-prod-router
+    rolebasedgroup.workloads.x-k8s.io/role: router
+spec:
+  type: ClusterIP
+  selector:
+    rolebasedgroup.workloads.x-k8s.io/name: bj-prod-router
+    rolebasedgroup.workloads.x-k8s.io/role: router
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8000
+      targetPort: 8000`,
+  'svc/zj-llm-router.yaml': `apiVersion: v1
+kind: Service
+metadata:
+  name: zj-llm-router
+  namespace: default
+  labels:
+    app: zj-llm-router
+    monitoring: scrape
+    rolebasedgroup.workloads.x-k8s.io/name: zj-llm-router
+    rolebasedgroup.workloads.x-k8s.io/role: router
+spec:
+  type: LoadBalancer
+  selector:
+    rolebasedgroup.workloads.x-k8s.io/name: zj-llm-router
+    rolebasedgroup.workloads.x-k8s.io/role: router
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 8000`,
+};
+
 const includesKeyword = (content: string, keyword: string) => (
   !keyword || content.toLowerCase().includes(keyword)
 );
@@ -133,13 +310,29 @@ export default function ClusterResourceTables({
   selectedClusterKey?: string;
 }) {
   const [keyword, setKeyword] = useState('');
+  const [viewMode, setViewMode] = useState<'table' | 'card'>('card');
   const [podScope, setPodScope] = useState<PodScope | null>(null);
   const [namespaceFilter, setNamespaceFilter] = useState('all');
   const [podStatus, setPodStatus] = useState('all');
+  const [podRole, setPodRole] = useState('all');
   const [devPodOpen, setDevPodOpen] = useState(false);
   const [devPodStep, setDevPodStep] = useState<'form' | 'preview'>('form');
   const [devPodMode, setDevPodMode] = useState<'form' | 'yaml'>('form');
   const [devPodYaml, setDevPodYaml] = useState('');
+  const [editingService, setEditingService] = useState<K8sServiceResource | null>(null);
+  const [editServiceOpen, setEditServiceOpen] = useState(false);
+  const [createServiceOpen, setCreateServiceOpen] = useState(false);
+  const [createServiceYaml, setCreateServiceYaml] = useState('');
+  const [createServiceFileKey, setCreateServiceFileKey] = useState('');
+  const [createServiceShowTree, setCreateServiceShowTree] = useState(false);
+  const [createServiceEntryOpen, setCreateServiceEntryOpen] = useState(false);
+  const [createServiceEntryYaml, setCreateServiceEntryYaml] = useState('');
+  const [createServiceEntryFileKey, setCreateServiceEntryFileKey] = useState('');
+  const [createServiceEntryShowTree, setCreateServiceEntryShowTree] = useState(false);
+  const [editingPod, setEditingPod] = useState<K8sPodResource | null>(null);
+  const [editPodOpen, setEditPodOpen] = useState(false);
+  const [editingServiceEntry, setEditingServiceEntry] = useState<K8sServiceEntryResource | null>(null);
+  const [editServiceEntryOpen, setEditServiceEntryOpen] = useState(false);
   const [devPodDraft, setDevPodDraft] = useState<DevPodDraft>({
     name: '',
     namespace: 'devpods',
@@ -170,19 +363,29 @@ export default function ClusterResourceTables({
     return map;
   }, [serviceEntries]);
 
-  const storeServiceRows = useMemo<ServiceRow[]>(() => services.map((service) => ({
-    key: service.id,
-    name: service.name,
-    se: seNameMap.get(service.id) || service.serviceEntryId || '-',
-    cluster: service.cluster,
-    namespace: service.namespace,
-    clusterIP: service.clusterIP,
-    type: service.type,
-    ports: service.ports,
-    endpoints: serviceEndpointMap.get(service.id) || [],
-    pods: service.podIds.length,
-    age: service.createdAt,
-  })), [services, seNameMap, serviceEndpointMap]);
+  const storeServiceRows = useMemo<ServiceRow[]>(() => services.map((service) => {
+    const specIndex = MODEL_OPS_RESOURCE_SPECS.findIndex((s) => s.name === service.name);
+    const groups = clusterGroupNames[service.cluster] || [];
+    let routerPod: K8sPodResource | undefined;
+    if (specIndex !== -1 && groups.length > 0) {
+      const groupName = groups[specIndex % groups.length];
+      routerPod = pods.find((p) => p.role === 'router' && p.group === groupName);
+    }
+    return {
+      key: service.id,
+      name: service.name,
+      se: seNameMap.get(service.id) || service.serviceEntryId || '-',
+      cluster: service.cluster,
+      namespace: service.namespace,
+      clusterIP: service.clusterIP,
+      type: service.type,
+      ports: service.ports,
+      endpoints: serviceEndpointMap.get(service.id) || [],
+      pods: routerPod ? 1 : 0,
+      podList: routerPod ? [{ name: routerPod.name, ip: routerPod.podIP, status: routerPod.status }] : [],
+      age: service.createdAt,
+    };
+  }), [services, seNameMap, serviceEndpointMap, pods]);
 
   const storePodRows = useMemo<PodRow[]>(() => pods.map((pod) => ({
     key: pod.id,
@@ -191,7 +394,9 @@ export default function ClusterResourceTables({
     namespace: pod.namespace,
     group: pod.group || '-',
     role: pod.role,
-    category: ['router', 'prefill', 'decode'].includes(pod.role) ? 'inference' : 'other',
+    category: ['router', 'prefill', 'decode'].includes(pod.role) ? 'inference'
+      : ['store', 'master', 'etcd'].includes(pod.role) ? 'dependency'
+      : 'other',
     ready: pod.ready,
     status: pod.status === 'Draft' ? 'Pending' : pod.status,
     restart: pod.restart,
@@ -205,6 +410,7 @@ export default function ClusterResourceTables({
     setPodScope(null);
     setNamespaceFilter('all');
     setPodStatus('all');
+    setPodRole('all');
     setKeyword('');
     setDevPodOpen(false);
     setDevPodStep('form');
@@ -222,10 +428,21 @@ export default function ClusterResourceTables({
       });
       setNamespaceFilter('all');
       setPodStatus('all');
+      setPodRole('all');
       setKeyword('');
     };
     window.addEventListener('ataas:pod-scope-change', applyPodScope);
     return () => window.removeEventListener('ataas:pod-scope-change', applyPodScope);
+  }, [initialView]);
+
+  useEffect(() => {
+    if (initialView !== 'se') return undefined;
+    const handler = (event: Event) => {
+      const name = (event as CustomEvent<string>).detail;
+      if (name) setKeyword(name);
+    };
+    window.addEventListener('ataas:se-search', handler);
+    return () => window.removeEventListener('ataas:se-search', handler);
   }, [initialView]);
 
   const scopedServiceRows = useMemo(
@@ -245,7 +462,7 @@ export default function ClusterResourceTables({
   }, [podScope, scopedPodRows]);
 
   const podNamespaceRows = useMemo(
-    () => effectivePodRows.filter((row) => namespaceFilter === 'all' || row.namespace === namespaceFilter),
+    () => effectivePodRows.filter((row) => namespaceFilter === 'all' || row.group === namespaceFilter),
     [effectivePodRows, namespaceFilter],
   );
   const serviceNamespaceRows = useMemo(
@@ -255,12 +472,19 @@ export default function ClusterResourceTables({
   const namespaceOptions = useMemo(() => {
     const rows = initialView === 'pod' ? effectivePodRows : scopedServiceRows;
     return [
-      { value: 'all', label: '全部命名空间' },
-      ...Array.from(new Set(rows.map((row) => row.namespace)))
+      { value: 'all', label: initialView === 'pod' ? '全部组' : '全部命名空间' },
+      ...Array.from(new Set(rows.map((row) => initialView === 'pod' ? row.group : row.namespace)))
         .sort((a, b) => a.localeCompare(b))
-        .map((namespace) => ({ value: namespace, label: namespace })),
+        .map((value) => ({ value, label: value })),
     ];
   }, [effectivePodRows, initialView, scopedServiceRows]);
+  const roleOptions = useMemo(() => {
+    const roles = Array.from(new Set(effectivePodRows.map((row) => row.role)));
+    return [
+      { value: 'all', label: '全部角色' },
+      ...roles.sort((a, b) => a.localeCompare(b)).map((role) => ({ value: role, label: role.toUpperCase() })),
+    ];
+  }, [effectivePodRows]);
   const nodeOptions = useMemo(() => {
     const clusterNodes = scopedPodRows
       .map((row) => row.node)
@@ -315,11 +539,12 @@ export default function ClusterResourceTables({
 
   const filteredPods = useMemo(() => podNamespaceRows.filter((row) => {
     if (podStatus !== 'all' && row.status !== podStatus) return false;
+    if (podRole !== 'all' && row.role !== podRole) return false;
     return includesKeyword(
       `${row.name} ${row.cluster} ${row.namespace} ${row.group} ${row.category} ${row.role} ${row.status} ${row.image} ${row.ip} ${row.node}`,
       normalizedKeyword,
     );
-  }), [normalizedKeyword, podNamespaceRows, podStatus]);
+  }), [normalizedKeyword, podNamespaceRows, podStatus, podRole]);
 
   const filteredRoutes = useMemo(() => scopedRouteData.filter((row) => includesKeyword(
     `${row.name} ${row.namespace} ${row.hosts.join(' ')} ${row.endpoints.map((endpoint) => endpoint.address).join(' ')}`,
@@ -537,6 +762,7 @@ export default function ClusterResourceTables({
     setPodScope(null);
     setNamespaceFilter(previewDevPod.namespace);
     setPodStatus('all');
+    setPodRole('all');
     setKeyword(previewDevPod.name);
     message.success(`${previewDevPod.name} 已提交创建`);
   };
@@ -567,18 +793,97 @@ export default function ClusterResourceTables({
       title: 'Endpoints',
       dataIndex: 'endpoints',
       key: 'endpoints',
-      width: 300,
-      render: (endpoints: EndpointInfo[]) => (
-        <div className="resource-list-lines">
-          {endpoints.map((endpoint, index) => (
-            <span key={`${endpoint.address}-${index}`} className="resource-list-code">{endpoint.address}</span>
+      width: 500,
+      render: (endpoints: EndpointInfo[]) => endpoints.length > 0 ? (
+        <Popover
+          placement="right"
+          title="Endpoints"
+          content={endpoints.map((endpoint) => (
+            <div key={endpoint.address} style={{ padding: '2px 0', fontSize: 12, whiteSpace: 'nowrap' }}>
+              <span className="resource-list-code">{endpoint.address}</span>
+            </div>
           ))}
-          {endpoints.length === 0 && <span className="resource-list-muted">-</span>}
-        </div>
+        >
+          <div style={{ whiteSpace: 'nowrap', cursor: 'pointer', textDecoration: 'underline dashed #888', textUnderlineOffset: 3 }}>
+            {endpoints.map((endpoint, index) => (
+              <span key={`${endpoint.address}-${index}`} className="resource-list-code" style={{ marginRight: 8 }}>{endpoint.address}</span>
+            ))}
+          </div>
+        </Popover>
+      ) : (
+        <span className="resource-list-muted">-</span>
       ),
     },
-    { title: 'POD', dataIndex: 'pods', key: 'pods', width: 90 },
+    {
+      title: 'POD',
+      key: 'pods',
+      width: 90,
+      render: (_: unknown, row: ServiceRow) => row.podList.length > 0 ? (
+        <Popover
+          placement="right"
+          title={`关联 Router Pod（${row.pods}）`}
+          content={row.podList.map((pod) => (
+            <div key={pod.name} style={{ padding: '2px 0', display: 'flex', gap: 8, alignItems: 'center', fontSize: 12, whiteSpace: 'nowrap' }}>
+              <span className={`resource-list-status is-${pod.status.toLowerCase()}`}><i /></span>
+              <span style={{ fontWeight: 500 }}>{pod.name}</span>
+              <span className="resource-list-code">{pod.ip}</span>
+            </div>
+          ))}
+        >
+          <span style={{ cursor: 'pointer', textDecoration: 'underline dashed #888', textUnderlineOffset: 3 }}>{row.pods}</span>
+        </Popover>
+      ) : (
+        <span>{row.pods}</span>
+      ),
+    },
     { title: '运行时间', dataIndex: 'age', key: 'age', width: 150, render: (value) => <span className="resource-list-muted is-nowrap">{value}</span> },
+    {
+      title: '操作',
+      key: 'actions',
+      width: 160,
+      fixed: 'right',
+      render: (_: unknown, row: ServiceRow) => {
+        const service = services.find((s) => s.id === row.key);
+        return (
+          <span style={{ whiteSpace: 'nowrap', fontSize: 12 }} onClick={(e) => e.stopPropagation()}>
+            <Button
+              type="link"
+              size="small"
+              style={{ fontSize: 12, padding: '0 4px', color: '#888' }}
+              icon={<Pencil size={12} />}
+              onClick={() => {
+                if (service) {
+                  setEditingService(JSON.parse(JSON.stringify(service)));
+                  setEditServiceOpen(true);
+                }
+              }}
+            >编辑</Button>
+            <Button
+              type="link"
+              danger
+              size="small"
+              style={{ fontSize: 12, padding: '0 4px' }}
+              icon={<Trash2 size={12} />}
+              onClick={() => {
+                if (service) {
+                  Modal.confirm({
+                    title: '确认删除',
+                    content: `确定要删除 Service「${service.name}」吗？`,
+                    okText: '删除',
+                    okType: 'danger',
+                    cancelText: '取消',
+                    onOk: () => {
+                      resourceStore.removeService(service.id);
+                      message.success('Service 已删除');
+                    },
+                  });
+                }
+              }}
+            >删除</Button>
+          </span>
+        );
+      },
+    },
   ];
 
   const podColumns: ColumnsType<PodRow> = [
@@ -590,7 +895,7 @@ export default function ClusterResourceTables({
       width: 130,
       render: (value, row) => row.role === 'business' ? (
         <span className="resource-devpod-group">DevPod</span>
-      ) : row.canOpenGroup ? (
+      ) : (
         <button
           type="button"
           className="resource-group-link"
@@ -605,8 +910,6 @@ export default function ClusterResourceTables({
         >
           {value}
         </button>
-      ) : (
-        <span className="resource-group-value">{value}</span>
       ),
     },
     { title: 'Pod IP', dataIndex: 'ip', key: 'ip', width: 140, render: (value) => <span className="resource-list-code">{value}</span> },
@@ -617,7 +920,7 @@ export default function ClusterResourceTables({
       width: 100,
       render: (value) => (
         <span className={`resource-role-tag is-${value}`}>
-          {value === 'business' ? 'DEV' : String(value).toUpperCase()}
+          {value === 'business' ? 'DEV' : value === 'dev' ? 'DEV' : value === 'master' ? 'MASTER' : value === 'store' ? 'STORE' : value === 'etcd' ? 'ETCD' : String(value).toUpperCase()}
         </span>
       ),
     },
@@ -635,10 +938,95 @@ export default function ClusterResourceTables({
       ),
     },
     { title: '重启次数', dataIndex: 'restart', key: 'restart', width: 100 },
-    { title: 'Node', dataIndex: 'node', key: 'node', width: 160, render: (value) => <span className="is-nowrap">{value}</span> },
-    { title: '命名空间', dataIndex: 'namespace', key: 'namespace', width: 140 },
-    { title: 'Cluster', dataIndex: 'cluster', key: 'cluster', width: 150 },
+    { title: 'Node', dataIndex: 'node', key: 'node', width: 160, render: (value, row) => value && value !== '自动调度' ? (
+      <button
+        type="button"
+        className="resource-group-link"
+        onClick={() => {
+          window.dispatchEvent(new CustomEvent('ataas:node-focus', {
+            detail: { nodeName: value, cluster: row.cluster },
+          }));
+          document.querySelector<HTMLElement>(
+            '.cluster-operations-homepage .module-tab[data-view="nodes"]',
+          )?.click();
+        }}
+      >
+        {value}
+      </button>
+    ) : <span className="is-nowrap">{value}</span> },
     { title: '运行时间', dataIndex: 'age', key: 'age', width: 120, render: (value) => <span className="resource-list-muted is-nowrap">{value}</span> },
+    {
+      title: '操作',
+      key: 'action',
+      width: 200,
+      fixed: 'right',
+      render: (_value, row) => {
+        const isDevPod = row.role === 'dev' || row.role === 'business';
+        return (
+          <span style={{ whiteSpace: 'nowrap', fontSize: 12 }} onClick={(e) => e.stopPropagation()}>
+            {isDevPod && (
+              <Button
+                type="link"
+                size="small"
+                style={{ fontSize: 12, padding: '0 4px' }}
+                icon={<Pencil size={12} />}
+                onClick={() => {
+                  const pod = pods.find((p) => p.id === row.key);
+                  if (pod) {
+                    setEditingPod(JSON.parse(JSON.stringify(pod)));
+                    setEditPodOpen(true);
+                  }
+                }}
+              >
+                编辑
+              </Button>
+            )}
+            <Button
+              type="link"
+              size="small"
+              style={{ fontSize: 12, padding: '0 4px', color: '#888' }}
+              icon={<RefreshCw size={12} />}
+              onClick={() => {
+                Modal.confirm({
+                  title: '重建 Pod',
+                  content: `确定要重建 ${row.name} 吗？`,
+                  centered: true,
+                  okText: '确定',
+                  cancelText: '取消',
+                  onOk: () => {
+                    message.success(`Pod ${row.name} 已提交重建`);
+                  },
+                });
+              }}
+            >
+              重建
+            </Button>
+            <Button
+              type="link"
+              size="small"
+              danger
+              style={{ fontSize: 12, padding: '0 4px' }}
+              icon={<Trash2 size={12} />}
+              onClick={() => {
+                Modal.confirm({
+                  title: '删除 Pod',
+                  content: `确定要删除 ${row.name} 吗？`,
+                  centered: true,
+                  okText: '删除',
+                  okButtonProps: { danger: true },
+                  cancelText: '取消',
+                  onOk: () => {
+                    message.success(`Pod ${row.name} 已删除`);
+                  },
+                });
+              }}
+            >
+              删除
+            </Button>
+          </span>
+        );
+      },
+    },
   ];
 
   const serviceEntryColumns: ColumnsType<RouteEntry> = [
@@ -686,6 +1074,21 @@ export default function ClusterResourceTables({
         </div>
       ),
     },
+    {
+      title: '操作',
+      key: 'action',
+      width: 80,
+      render: (_: unknown, row: RouteEntry) => (
+        <Button type="link" size="small" style={{ fontSize: 12, padding: '0 4px', color: '#888' }}
+          onClick={() => {
+            const entry = resourceStore.state.serviceEntries.find(e => e.id === row.key);
+            if (entry) { setEditingServiceEntry(entry); setEditServiceEntryOpen(true); }
+          }}
+        >
+          编辑
+        </Button>
+      ),
+    },
   ];
 
   const pvColumns: ColumnsType<PVRow> = [
@@ -730,7 +1133,7 @@ export default function ClusterResourceTables({
       rowKey="key"
       columns={serviceColumns}
       dataSource={filteredServices}
-      scroll={{ x: 1560 }}
+      scroll={{ x: 1920, scrollbarWidth: 6 }}
       pagination={pagination}
       locale={{ emptyText: '暂无 Service 数据' }}
     />
@@ -813,9 +1216,17 @@ export default function ClusterResourceTables({
                 ]}
               />
             )}
+            {initialView === 'pod' && (
+              <Select
+                className="resource-pod-role-select"
+                value={podRole}
+                onChange={setPodRole}
+                options={roleOptions}
+                style={{ width: 130 }}
+              />
+            )}
             {initialView === 'pod' && podScope ? (
               <div className="resource-pod-scope">
-                <span><small>Cluster</small>{podScope.cluster}</span>
                 <span><small>Group</small>{podScope.group}</span>
                 <Button
                   type="text"
@@ -825,6 +1236,7 @@ export default function ClusterResourceTables({
                     setPodScope(null);
                     setNamespaceFilter('all');
                     setPodStatus('all');
+                    setPodRole('all');
                   }}
                 >
                   清除筛选
@@ -841,12 +1253,537 @@ export default function ClusterResourceTables({
             >
               新建 DevPod
             </Button>
+          ) : initialView === 'svc' ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span className="ataas-cr-view-toggle">
+                <button type="button" className={viewMode === 'table' ? 'active' : ''} onClick={() => setViewMode('table')}>
+                  <TableOutlined size={12} />列表
+                </button>
+                <i className="ataas-cr-view-divider" />
+                <button type="button" className={viewMode === 'card' ? 'active' : ''} onClick={() => setViewMode('card')}>
+                  <AppstoreOutlined />卡片
+                </button>
+              </span>
+              <Button
+              type="primary"
+              className="resource-create-devpod"
+              icon={<PlusOutlined />}
+              onClick={() => {
+                setCreateServiceYaml(buildServiceYaml({
+                  id: '',
+                  kind: 'Service',
+                  name: 'my-service',
+                  cluster: currentCluster,
+                  namespace: 'default',
+                  clusterIP: '10.43.100.100',
+                  type: 'ClusterIP',
+                  ports: [{ name: 'http', port: 8000, targetPort: 8000, protocol: 'TCP' }],
+                  selector: { app: 'my-app' },
+                  labels: { app: 'my-app' },
+                  podIds: [],
+                  source: 'manual',
+                  status: 'Draft',
+                  yaml: '',
+                  createdAt: new Date().toISOString(),
+                }));
+                setCreateServiceOpen(true);
+              }}
+            >
+              新建 Service
+            </Button>
+            </div>
+          ) : initialView === 'se' ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span className="ataas-cr-view-toggle">
+                <button type="button" className={viewMode === 'table' ? 'active' : ''} onClick={() => setViewMode('table')}>
+                  <TableOutlined size={12} />列表
+                </button>
+                <i className="ataas-cr-view-divider" />
+                <button type="button" className={viewMode === 'card' ? 'active' : ''} onClick={() => setViewMode('card')}>
+                  <AppstoreOutlined />卡片
+                </button>
+              </span>
+              <Button
+              type="primary"
+              className="resource-create-devpod"
+              icon={<PlusOutlined />}
+              onClick={() => {
+                setCreateServiceEntryShowTree(true);
+                setCreateServiceEntryOpen(true);
+              }}
+            >
+              新建 ServiceEntry
+            </Button>
+            </div>
           ) : null}
         </div>
 
-        <div className="group-table-frame">
-          {table}
-        </div>
+        {viewMode === 'card' && initialView === 'svc' ? (
+            <div className="ataas-cr-card-grid">
+              {filteredServices.map((svc) => (
+                <div key={svc.key} className="ataas-cr-card">
+                  <header>
+                    <span className="ataas-cr-card-icon"><FileCode2 size={18} /></span>
+                    <div>
+                      <strong>{svc.name}</strong>
+                      <small>{svc.cluster} · {svc.namespace}</small>
+                    </div>
+                    <span className="resource-kind-tag">{svc.type}</span>
+                  </header>
+                  <div className="ataas-cr-card-body">
+                    <div className="ataas-cr-card-simple-row"><span>Cluster IP</span><strong>{svc.clusterIP}</strong></div>
+                    <div className="ataas-cr-card-simple-row"><span>关联 SE</span><strong>{svc.se || '-'}</strong></div>
+                    <div className="ataas-cr-card-simple-row"><span>端口</span><strong>{svc.ports.length > 0 ? svc.ports.map((p) => `${p.port}/${p.protocol.toLowerCase()}`).join(', ') : '-'}</strong></div>
+                    <div className="ataas-cr-card-simple-row"><span>Endpoints</span><strong>{svc.endpoints.length > 0 ? svc.endpoints[0].address + (svc.endpoints.length > 1 ? ` 等${svc.endpoints.length}个` : '') : '-'}</strong></div>
+                    <div className="ataas-cr-card-simple-row"><span>Pods</span><strong>{svc.pods > 0 ? `${svc.pods} 个 · ${svc.podList.map((p) => p.name).join(', ')}` : '-'}</strong></div>
+                  </div>
+                  <footer>
+                    <Button className="ataas-cr-card-action" icon={<Pencil size={12} />} onClick={() => {
+                      const service = services.find((s) => s.id === svc.key);
+                      if (service) { setEditingService(JSON.parse(JSON.stringify(service))); setEditServiceOpen(true); }
+                    }}>编辑</Button>
+                    <Button className="ataas-cr-card-action" icon={<Trash2 size={12} />} onClick={() => {
+                      const service = services.find((s) => s.id === svc.key);
+                      if (service) {
+                        Modal.confirm({
+                          title: '确认删除',
+                          content: `确定要删除 Service「${service.name}」吗？`,
+                          okText: '删除',
+                          okType: 'danger',
+                          cancelText: '取消',
+                          onOk: () => { resourceStore.removeService(service.id); message.success('Service 已删除'); },
+                        });
+                      }
+                    }} danger>删除</Button>
+                  </footer>
+                </div>
+              ))}
+              {filteredServices.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '60px 0', color: '#86909c', gridColumn: '1 / -1' }}>
+                  <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.3 }}>◻</div>
+                  <div>暂无 Service 数据</div>
+                </div>
+              )}
+            </div>
+          ) : viewMode === 'card' && initialView === 'se' ? (
+            <div className="ataas-cr-card-grid">
+              {filteredRoutes.map((route) => (
+                <div key={route.key} className="ataas-cr-card">
+                  <header>
+                    <span className="ataas-cr-card-icon"><FileCode2 size={18} /></span>
+                    <div>
+                      <strong>{route.name}</strong>
+                      <small>{route.cluster} · {route.namespace}</small>
+                    </div>
+                  </header>
+                  <div className="ataas-cr-card-body">
+                    <div className="ataas-cr-card-simple-row"><span>Hosts</span><strong>{route.hosts.join(', ') || '-'}</strong></div>
+                    <div className="ataas-cr-card-simple-row"><span>Ports</span><strong>{route.ports.length > 0 ? route.ports.map((p) => `${p.port}/${p.protocol.toLowerCase()}`).join(', ') : '-'}</strong></div>
+                    <div className="ataas-cr-card-simple-row"><span>Endpoints</span><strong>{route.endpoints.length > 0 ? route.endpoints.map((ep) => `${ep.address}(${ep.weight}%)`).join(', ') : '-'}</strong></div>
+                  </div>
+                  <footer>
+                    <Button className="ataas-cr-card-action" icon={<Pencil size={12} />} onClick={() => {
+                      const se = resourceStore.state.serviceEntries.find((s) => s.id === route.key);
+                      if (se) { setEditingServiceEntry(JSON.parse(JSON.stringify(se))); setEditServiceEntryOpen(true); }
+                    }}>编辑</Button>
+                    <Button className="ataas-cr-card-action" icon={<Trash2 size={12} />} onClick={() => {
+                      Modal.confirm({
+                        title: '确认删除',
+                        content: `确定要删除 ServiceEntry「${route.name}」吗？`,
+                        okText: '删除',
+                        okType: 'danger',
+                        cancelText: '取消',
+                        onOk: () => { resourceStore.removeServiceEntry(route.key); message.success('ServiceEntry 已删除'); },
+                      });
+                    }} danger>删除</Button>
+                  </footer>
+                </div>
+              ))}
+              {filteredRoutes.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '60px 0', color: '#86909c', gridColumn: '1 / -1' }}>
+                  <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.3 }}>◻</div>
+                  <div>暂无 ServiceEntry 数据</div>
+                </div>
+              )}
+            </div>
+          ) : <div className="group-table-frame">{table}</div>}
+
+        <Modal
+          title="编辑 Service"
+          open={editServiceOpen}
+          width={760}
+          destroyOnClose
+          onCancel={() => setEditServiceOpen(false)}
+          onOk={() => {
+            if (!editingService) return;
+            try {
+              const parsed = JSON.parse(editingService.yaml);
+              if (!parsed) { message.error('无效的 JSON'); return; }
+            } catch { /* non-JSON yaml is ok */ }
+            resourceStore.update((prev) => ({
+              ...prev,
+              services: prev.services.map((s) => s.id === editingService.id ? {
+                ...editingService,
+                yaml: editingService.yaml || buildServiceYaml(editingService),
+              } : s),
+            }));
+            setEditServiceOpen(false);
+            message.success('Service 已更新');
+          }}
+          footer={(_, { OkBtn, CancelBtn }) => (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8 }}>
+              <CancelBtn /><OkBtn />
+            </div>
+          )}
+        >
+          {editingService && (
+            <div style={{ height: 420, border: '1px solid #e5e6eb', borderRadius: 6, overflow: 'hidden' }}>
+              <MonacoEditor
+                value={editingService.yaml || buildServiceYaml(editingService)}
+                language="yaml"
+                height={420}
+                onChange={(value) => setEditingService({ ...editingService, yaml: value })}
+                options={{
+                  lineNumbers: 'on',
+                  folding: true,
+                  wordWrap: 'off',
+                  padding: { top: 12, bottom: 12 },
+                }}
+              />
+            </div>
+          )}
+        </Modal>
+
+        <Modal
+          title="编辑 Pod"
+          open={editPodOpen}
+          width={760}
+          destroyOnClose
+          onCancel={() => setEditPodOpen(false)}
+          onOk={() => {
+            if (!editingPod) return;
+            try {
+              const parsed = JSON.parse(editingPod.yaml);
+              if (!parsed) { message.error('无效的 JSON'); return; }
+            } catch { /* non-JSON yaml is ok */ }
+            resourceStore.update((prev) => ({
+              ...prev,
+              pods: prev.pods.map((p) => p.id === editingPod.id ? {
+                ...editingPod,
+                yaml: editingPod.yaml || buildPodYaml(editingPod),
+              } : p),
+            }));
+            setEditPodOpen(false);
+            message.success('Pod 已更新');
+          }}
+          footer={(_, { OkBtn, CancelBtn }) => (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8 }}>
+              <CancelBtn /><OkBtn />
+            </div>
+          )}
+        >
+          {editingPod && (
+            <div style={{ height: 420, border: '1px solid #e5e6eb', borderRadius: 6, overflow: 'hidden' }}>
+              <MonacoEditor
+                value={editingPod.yaml || buildPodYaml(editingPod)}
+                language="yaml"
+                height={420}
+                onChange={(value) => setEditingPod({ ...editingPod, yaml: value })}
+                options={{
+                  lineNumbers: 'on',
+                  folding: true,
+                  wordWrap: 'off',
+                  padding: { top: 12, bottom: 12 },
+                }}
+              />
+            </div>
+          )}
+        </Modal>
+
+        <Modal
+          title="编辑 ServiceEntry"
+          open={editServiceEntryOpen}
+          width={760}
+          destroyOnClose
+          onCancel={() => setEditServiceEntryOpen(false)}
+          onOk={() => {
+            if (!editingServiceEntry) return;
+            try {
+              const parsed = yaml.load(editingServiceEntry.yaml || '');
+              if (!parsed) { message.error('无效的 YAML'); return; }
+            } catch { /* non-yaml content is ok */ }
+            resourceStore.update((prev) => ({
+              ...prev,
+              serviceEntries: prev.serviceEntries.map((e) => e.id === editingServiceEntry.id ? {
+                ...editingServiceEntry,
+                yaml: editingServiceEntry.yaml || buildServiceEntryYaml(editingServiceEntry),
+              } : e),
+            }));
+            setEditServiceEntryOpen(false);
+            message.success('ServiceEntry 已更新');
+          }}
+          footer={(_, { OkBtn, CancelBtn }) => (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8 }}>
+              <CancelBtn /><OkBtn />
+            </div>
+          )}
+        >
+          {editingServiceEntry && (
+            <div style={{ height: 420, border: '1px solid #e5e6eb', borderRadius: 6, overflow: 'hidden' }}>
+              <MonacoEditor
+                value={editingServiceEntry.yaml || buildServiceEntryYaml(editingServiceEntry)}
+                language="yaml"
+                height={420}
+                onChange={(value) => setEditingServiceEntry({ ...editingServiceEntry, yaml: value })}
+                options={{
+                  lineNumbers: 'on',
+                  folding: true,
+                  wordWrap: 'off',
+                  padding: { top: 12, bottom: 12 },
+                }}
+              />
+            </div>
+          )}
+        </Modal>
+
+        <Modal
+          title="新建 Service"
+          open={createServiceOpen}
+          width={880}
+          destroyOnClose
+          onCancel={() => setCreateServiceOpen(false)}
+          onOk={() => {
+            if (!createServiceYaml.trim()) {
+              message.warning('请输入 YAML 配置');
+              return;
+            }
+            try {
+              const parsed = yaml.load(createServiceYaml) as Record<string, unknown>;
+              if (!parsed || parsed.kind !== 'Service') {
+                message.error('YAML 的 kind 必须为 Service');
+                return;
+              }
+              const metadata = (parsed.metadata || {}) as Record<string, unknown>;
+              const spec = (parsed.spec || {}) as Record<string, unknown>;
+              const name = String(metadata.name || '');
+              const namespace = String(metadata.namespace || 'default');
+              const clusterIP = String(spec.clusterIP || '10.43.100.100');
+              const type = String(spec.type || 'ClusterIP') as K8sServiceResource['type'];
+              const rawPorts = Array.isArray(spec.ports) ? spec.ports : [];
+              const rawSelector = (spec.selector || {}) as Record<string, string>;
+              const rawLabels = ((metadata.labels || {}) as Record<string, string>);
+
+              const ports = rawPorts.map((p: Record<string, unknown>) => ({
+                name: String(p.name || 'http'),
+                port: Number(p.port) || 8000,
+                targetPort: Number(p.targetPort) || Number(p.port) || 8000,
+                nodePort: p.nodePort ? Number(p.nodePort) : undefined,
+                protocol: String(p.protocol || 'TCP').toUpperCase() as 'TCP' | 'UDP',
+              }));
+
+              const service = createManualService({
+                name,
+                cluster: currentCluster,
+                namespace,
+                type,
+                port: ports[0]?.port || 8000,
+              });
+              const newService: K8sServiceResource = {
+                ...service,
+                clusterIP,
+                ports,
+                selector: rawSelector,
+                labels: rawLabels,
+                yaml: createServiceYaml,
+                status: 'Running',
+              };
+              resourceStore.addService(newService);
+              setCreateServiceOpen(false);
+              setCreateServiceYaml('');
+              setCreateServiceFileKey('');
+              setCreateServiceShowTree(false);
+              message.success(`Service「${name}」已创建`);
+            } catch (err) {
+              message.error('YAML 解析失败，请检查格式');
+            }
+          }}
+        >
+          {createServiceShowTree || createServiceFileKey ? (
+            <div style={{ display: 'flex', gap: 0, height: 460 }}>
+              <div style={{ width: 200, flexShrink: 0, border: '1px solid #e5e6eb', borderRadius: 6, overflow: 'hidden', background: '#f7f8fa', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ padding: '10px 12px', fontSize: 12, fontWeight: 600, color: '#86909c', borderBottom: '1px solid #e5e6eb' }}>资源文件</div>
+                <div style={{ flex: 1, overflow: 'auto', padding: '4px 0' }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: '#86909c', padding: '8px 12px 4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>svc</div>
+                  {Object.entries(SVC_RESOURCE_FILES).map(([path, content]) => {
+                    const name = path.replace('svc/', '');
+                    const active = createServiceFileKey === path;
+                    return (
+                      <div key={path} onClick={() => { setCreateServiceFileKey(path); setCreateServiceYaml(content); }}
+                        style={{ padding: '6px 12px 6px 16px', cursor: 'pointer', fontSize: 13, color: active ? '#6951FF' : '#1d2129', background: active ? '#F3F0FF' : 'transparent', borderLeft: active ? '2px solid #6951FF' : '2px solid transparent', margin: '1px 0' }}
+                        onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = '#eef0f4'; }}
+                        onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = 'transparent'; }}
+                      >
+                        <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 12 }}>{name}</span>
+                      </div>
+                    );
+                  })}
+                  <div style={{ fontSize: 11, fontWeight: 600, color: '#86909c', padding: '12px 12px 4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>已有 Service</div>
+                  {services.filter((s) => s.cluster === currentCluster).map((s) => {
+                    const active = createServiceFileKey === s.id;
+                    return (
+                      <div key={s.id} onClick={() => { setCreateServiceFileKey(s.id); setCreateServiceYaml(s.yaml || buildServiceYaml(s)); }}
+                        style={{ padding: '6px 12px 6px 16px', cursor: 'pointer', fontSize: 13, color: active ? '#6951FF' : '#1d2129', background: active ? '#F3F0FF' : 'transparent', borderLeft: active ? '2px solid #6951FF' : '2px solid transparent', margin: '1px 0' }}
+                        onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = '#eef0f4'; }}
+                        onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = 'transparent'; }}
+                      >
+                        <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 12 }}>{s.name}.yaml</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginLeft: 12 }}>
+                {createServiceFileKey ? (
+                  <>
+                    <div style={{ height: 38, padding: '0 8px 0 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid #e5e6eb', borderRadius: '6px 6px 0 0', borderBottom: '1px solid #eef0f4', color: '#4e5969', background: '#f7f8fa', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 11 }}>
+                      <span>{(() => {
+                        const matched = Object.entries(SVC_RESOURCE_FILES).find(([k]) => k === createServiceFileKey);
+                        if (matched) return matched[0].replace('svc/', '');
+                        const svc = services.find((s) => s.id === createServiceFileKey);
+                        return svc ? `${svc.name}.yaml` : '';
+                      })()}</span>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <Button type="text" size="small" icon={<CopyOutlined />} aria-label="复制 YAML" title="复制 YAML" onClick={async () => { await navigator.clipboard?.writeText(createServiceYaml); message.success('YAML 已复制'); }} />
+                        <Button type="text" size="small" icon={<DownloadOutlined />} aria-label="下载 YAML" title="下载 YAML" onClick={() => { const url = URL.createObjectURL(new Blob([createServiceYaml], { type: 'application/yaml;charset=utf-8' })); const link = document.createElement('a'); link.href = url; const matched = Object.entries(SVC_RESOURCE_FILES).find(([k]) => k === createServiceFileKey); link.download = matched ? matched[0] : (services.find((s) => s.id === createServiceFileKey)?.name + '.yaml') || 'service.yaml'; link.click(); URL.revokeObjectURL(url); message.success('YAML 已下载'); }} />
+                      </div>
+                    </div>
+                    <div style={{ flex: 1, border: '1px solid #e5e6eb', borderTop: 0, borderRadius: '0 0 6px 6px', overflow: 'hidden' }}>
+                      <MonacoEditor value={createServiceYaml} language="yaml" height={420} onChange={setCreateServiceYaml} options={{ lineNumbers: 'on', folding: true, wordWrap: 'off', padding: { top: 12, bottom: 12 } }} />
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', border: '1px solid #e5e6eb', borderRadius: 6, color: '#c9cdd4', fontSize: 13, background: '#fafafa' }}>
+                    请从左侧资源文件中选择
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div
+              onClick={() => setCreateServiceShowTree(true)}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, border: '2px dashed #e5e6eb', borderRadius: 8, cursor: 'pointer', color: '#4e5969', fontSize: 14, background: '#fafafa', transition: 'border-color 0.2s' }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#6951FF'; e.currentTarget.style.color = '#6951FF'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e5e6eb'; e.currentTarget.style.color = '#4e5969'; }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <FileCode2 size={20} />
+                选择 YAML 文件
+              </span>
+            </div>
+          )}
+        </Modal>
+
+        <Modal
+          title="新建 ServiceEntry"
+          open={createServiceEntryOpen}
+          width={880}
+          destroyOnClose
+          onCancel={() => { setCreateServiceEntryOpen(false); setCreateServiceEntryShowTree(false); setCreateServiceEntryYaml(''); setCreateServiceEntryFileKey(''); }}
+          onOk={() => {
+            if (!createServiceEntryYaml.trim()) {
+              message.warning('请输入 YAML 配置');
+              return;
+            }
+            try {
+              const parsed = yaml.load(createServiceEntryYaml) as Record<string, unknown>;
+              if (!parsed || parsed.kind !== 'ServiceEntry') {
+                message.error('YAML 的 kind 必须为 ServiceEntry');
+                return;
+              }
+              const metadata = (parsed.metadata || {}) as Record<string, unknown>;
+              const spec = (parsed.spec || {}) as Record<string, unknown>;
+              const name = String(metadata.name || '');
+              const namespace = String(metadata.namespace || 'higress-system');
+              const rawHosts = Array.isArray(spec.hosts) ? spec.hosts.map((h: unknown) => String(h)) : [];
+              const rawEndpoints = Array.isArray(spec.endpoints) ? spec.endpoints : [];
+
+              const entry = createManualServiceEntry({
+                name,
+                cluster: currentCluster,
+                namespace,
+                hosts: rawHosts,
+                yaml: createServiceEntryYaml,
+              });
+              resourceStore.addServiceEntry(entry);
+              setCreateServiceEntryOpen(false);
+              setCreateServiceEntryShowTree(false);
+              setCreateServiceEntryYaml('');
+              setCreateServiceEntryFileKey('');
+              message.success(`ServiceEntry「${name}」已创建`);
+            } catch (err) {
+              message.error('YAML 解析失败，请检查格式');
+            }
+          }}
+        >
+          {createServiceEntryShowTree || createServiceEntryFileKey ? (
+            <div style={{ display: 'flex', gap: 0, height: 460 }}>
+              <div style={{ width: 200, flexShrink: 0, border: '1px solid #e5e6eb', borderRadius: 6, overflow: 'hidden', background: '#f7f8fa', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ padding: '10px 12px', fontSize: 12, fontWeight: 600, color: '#86909c', borderBottom: '1px solid #e5e6eb' }}>资源文件</div>
+                <div style={{ flex: 1, overflow: 'auto', padding: '4px 0' }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: '#86909c', padding: '8px 12px 4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>se</div>
+                  {Object.entries(SE_RESOURCE_FILES).map(([path, content]) => {
+                    const name = path.replace('se/', '');
+                    const active = createServiceEntryFileKey === path;
+                    return (
+                      <div key={path} onClick={() => { setCreateServiceEntryFileKey(path); setCreateServiceEntryYaml(content); }}
+                        style={{ padding: '6px 12px 6px 16px', cursor: 'pointer', fontSize: 13, color: active ? '#6951FF' : '#1d2129', background: active ? '#F3F0FF' : 'transparent', borderLeft: active ? '2px solid #6951FF' : '2px solid transparent', margin: '1px 0' }}
+                        onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = '#eef0f4'; }}
+                        onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = 'transparent'; }}
+                      >
+                        <span style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 12 }}>{name}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginLeft: 12 }}>
+                {createServiceEntryFileKey ? (
+                  <>
+                    <div style={{ height: 38, padding: '0 8px 0 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid #e5e6eb', borderRadius: '6px 6px 0 0', borderBottom: '1px solid #eef0f4', color: '#4e5969', background: '#f7f8fa', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 11 }}>
+                      <span>{(() => {
+                        const matched = Object.entries(SE_RESOURCE_FILES).find(([k]) => k === createServiceEntryFileKey);
+                        return matched ? matched[0].replace('se/', '') : '';
+                      })()}</span>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <Button type="text" size="small" icon={<CopyOutlined />} aria-label="复制 YAML" title="复制 YAML" onClick={async () => { await navigator.clipboard?.writeText(createServiceEntryYaml); message.success('YAML 已复制'); }} />
+                        <Button type="text" size="small" icon={<DownloadOutlined />} aria-label="下载 YAML" title="下载 YAML" onClick={() => { const url = URL.createObjectURL(new Blob([createServiceEntryYaml], { type: 'application/yaml;charset=utf-8' })); const link = document.createElement('a'); link.href = url; const matched = Object.entries(SE_RESOURCE_FILES).find(([k]) => k === createServiceEntryFileKey); link.download = matched ? matched[0] : 'service-entry.yaml'; link.click(); URL.revokeObjectURL(url); message.success('YAML 已下载'); }} />
+                      </div>
+                    </div>
+                    <div style={{ flex: 1, border: '1px solid #e5e6eb', borderTop: 0, borderRadius: '0 0 6px 6px', overflow: 'hidden' }}>
+                      <MonacoEditor value={createServiceEntryYaml} language="yaml" height={420} onChange={setCreateServiceEntryYaml} options={{ lineNumbers: 'on', folding: true, wordWrap: 'off', padding: { top: 12, bottom: 12 } }} />
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', border: '1px solid #e5e6eb', borderRadius: 6, color: '#c9cdd4', fontSize: 13, background: '#fafafa' }}>
+                    请从左侧资源文件中选择
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div
+              onClick={() => setCreateServiceEntryShowTree(true)}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200, border: '2px dashed #e5e6eb', borderRadius: 8, cursor: 'pointer', color: '#4e5969', fontSize: 14, background: '#fafafa', transition: 'border-color 0.2s' }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#6951FF'; e.currentTarget.style.color = '#6951FF'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e5e6eb'; e.currentTarget.style.color = '#4e5969'; }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <FileCode2 size={20} />
+                选择 YAML 文件
+              </span>
+            </div>
+          )}
+        </Modal>
 
         {initialView === 'pod' && (
           <Modal

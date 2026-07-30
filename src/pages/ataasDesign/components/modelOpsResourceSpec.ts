@@ -74,6 +74,11 @@ export const MODEL_OPS_RESOURCE_SPECS: ModelOpsResourceSpec[] = [
   // gpu-prod-01 东京资源段 16台
   { name: 'tokyo-prod-router', cluster: 'gpu-prod-01', instanceCount: 2, workerNames: ['tokyo-prod-node-1', 'tokyo-prod-node-2'], routerReady: 1, routerTotal: 1, prefillReady: 2, prefillTotal: 2, decodeReady: 1, decodeTotal: 1, weight: 7 },
   { name: 'tokyo-prod-llm', cluster: 'gpu-prod-01', instanceCount: 2, workerNames: ['/gpu/tokyo-h100-1', '/gpu/tokyo-h100-2'], routerReady: 1, routerTotal: 1, prefillReady: 2, prefillTotal: 2, decodeReady: 1, decodeTotal: 1, weight: 7 },
+
+  /* ── 未接流 · 备用资源 ── */
+  { name: 'sh-standby-1', cluster: 'gpu-standby-01', instanceCount: 1, workerNames: ['sh-standby-node-1'], routerReady: 0, routerTotal: 1, prefillReady: 0, prefillTotal: 1, decodeReady: 0, decodeTotal: 1, weight: 0 },
+  { name: 'zj-standby-1', cluster: 'gpu-standby-01', instanceCount: 1, workerNames: ['zj-standby-node-1'], routerReady: 0, routerTotal: 1, prefillReady: 0, prefillTotal: 1, decodeReady: 0, decodeTotal: 1, weight: 0 },
+  { name: 'bj-standby-1', cluster: 'gpu-standby-01', instanceCount: 1, workerNames: ['bj-standby-node-1'], routerReady: 0, routerTotal: 1, prefillReady: 0, prefillTotal: 1, decodeReady: 0, decodeTotal: 1, weight: 0 },
 ];
 
 export const getModelOpsRoleSummary = (spec: ModelOpsResourceSpec) => ({

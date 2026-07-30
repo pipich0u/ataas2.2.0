@@ -50,8 +50,8 @@ export type ClusterOperationsResourceTreeProvider = {
 };
 
 export const CLUSTER_OPERATIONS_CLUSTER_DATA: Record<string, ClusterOperationsClusterData> = {
-  'shanghai-online': {
-    name: 'shanghai-online', location: '上海二区', provider: '商汤', dc: '上海外高桥数据中心', k8s: 'v1.36.2',
+  'st': {
+    name: 'st', location: '上海二区', provider: '商汤', dc: '上海外高桥数据中心', k8s: 'v1.36.2',
     bms: '3', nodes: '3', normal: '2', abnormal: '1', health: '正常', running: true, code: '上海二区',
     alerts: { critical: 3, warning: 2 },
     resources: { cpuTotal: 512, cpuUsed: 166, gpuTotal: 24, gpuUtilization: 64.5, vramTotal: 1.13, vramUsed: 0.27, memoryTotal: 3.45, memoryUsed: 1.33, storageTotal: 20.32, storageUsed: 8.7 },
@@ -133,7 +133,7 @@ export const CLUSTER_OPERATIONS_CLUSTER_DATA: Record<string, ClusterOperationsCl
 export const CLUSTER_OPERATIONS_RESOURCE_TREE: ClusterOperationsResourceTreeProvider[] = [
   { name: '商汤', providerFull: '', expanded: true, dcs: [
     { name: '上海外高桥数据中心', count: '6', expanded: true, clusters: [
-      { key: 'shanghai-online', name: 'shanghai-online', meta: '上海二区', count: '3台' },
+      { key: 'st', name: 'st', meta: '上海二区', count: '3台' },
       { key: 'shanghai-inference-02', name: 'shanghai-inference-02', meta: '上海三区', count: '4台' },
       { key: 'shanghai-inference-03', name: 'shanghai-inference-03', meta: '上海四区', count: '5台', bad: true },
       { key: 'shanghai-batch', name: 'shanghai-batch', meta: '离线推理区', count: '3台' },

@@ -34,6 +34,7 @@ import {
 } from '@ant-design/icons';
 import { AutoComplete, Button, Checkbox, ColorPicker, ConfigProvider, DatePicker, Drawer, Dropdown, Form, Input, InputNumber, message, Modal, Popconfirm, Popover, Progress, Segmented, Select, Slider, Space, Switch, Table, Tabs, Tag, Tooltip, Transfer, Upload } from 'antd';
 import DeployList, { MOCK_DEPLOY_DATA, getDeployClusterName, getDeployModelLogo, type DeployCategory, type DeployServiceItem, type ViewMode } from './components/deployList';
+import { MODEL_OPS_RESOURCE_SPECS } from './components/modelOpsResourceSpec';
 import BenchmarkPage from './components/benchmarkPage';
 import PlaygroundChatPage from './components/playgroundChatPage';
 import type { ColumnsType } from 'antd/es/table';
@@ -556,7 +557,7 @@ type ExtraInstanceInfo = {
 
 const clusters: ClusterRecord[] = [
   { key: 'c1', name: 'beijing-prod', region: '北京一区', nodes: 38, gpu: 'A100 80G x 160 / H20 x 64', gpuTypes: [{ name: 'A100', nodes: 24, cards: 160, usage: 78 }, { name: 'H20', nodes: 14, cards: 64, usage: 62 }], gpuUsage: 72, cpu: '1,824 / 2,432 Core', memory: '9.4 / 14.8 TB', models: 18, status: 'healthy', authInfo: '36/38' },
-  { key: 'c2', name: 'shanghai-online', region: '上海二区', nodes: 46, gpu: 'H20 x 304 / 910B x 64', gpuTypes: [{ name: 'H20', nodes: 38, cards: 304, usage: 68 }, { name: '910B', nodes: 8, cards: 64, usage: 54 }], gpuUsage: 66, cpu: '2,118 / 2,944 Core', memory: '11.2 / 18.1 TB', models: 24, status: 'healthy', authInfo: '42/46' },
+  { key: 'c2', name: 'st', region: '上海二区', nodes: 46, gpu: 'H20 x 304 / 910B x 64', gpuTypes: [{ name: 'H20', nodes: 38, cards: 304, usage: 68 }, { name: '910B', nodes: 8, cards: 64, usage: 54 }], gpuUsage: 66, cpu: '2,118 / 2,944 Core', memory: '11.2 / 18.1 TB', models: 24, status: 'healthy', authInfo: '42/46' },
   { key: 'c3', name: 'guangzhou-test', region: '广州测试', nodes: 19, gpu: 'L20 x 72 / A100 x 24', gpuTypes: [{ name: 'L20', nodes: 15, cards: 72, usage: 38 }, { name: 'A100', nodes: 4, cards: 24, usage: 52 }], gpuUsage: 92, cpu: '742 / 1,216 Core', memory: '3.7 / 7.6 TB', models: 9, status: 'warning', authInfo: '15/19' },
   { key: 'c4', name: 'wuhan-kunpeng', region: '武汉专区', nodes: 16, gpu: 'Ascend 910B x 64 / L20 x 24', gpuTypes: [{ name: '910B', nodes: 8, cards: 64, usage: 61 }, { name: 'L20', nodes: 4, cards: 24, usage: 45 }], gpuUsage: 58, cpu: '624 / 1,024 Core', memory: '2.9 / 6.4 TB', models: 7, status: 'healthy', authInfo: '16/16' },
 ];
@@ -575,22 +576,22 @@ const nodes: NodeRecord[] = [
 ];
 
 const pods: PodRecord[] = [
-  { key: 'p1', name: 'deepseek-prod-r1-p1', cluster: 'shanghai-online', role: 'decode', namespace: 'production', ready: '1/1', status: 'Running', restart: 0, load: 78, performance: 92, image: 'vllm/vllm-openai:latest', podIP: '10.0.1.12', node: 'nj-h20-001', nodeGPU: 'H20 141G × 8', gpuUtil: 72, gpuVram: 61, age: '12d', trafficSource: 'rbg-deepseek-prod', tpotP50: 72, tpotP99: 98, tpotHistory: [68,71,73,75,72,69,66,70,74,77,76,73,70,68,65,69,72,75,73,71,68,67,70,74,78,80,79,76,73,71,68,66,69,72,75,78,76,74,71,69,67,70,73,76,79,81,80,77,74,72,69,71,74,77,75,72,70,67,71,73] },
-  { key: 'p2', name: 'deepseek-prod-r1-p2', cluster: 'shanghai-online', role: 'decode', namespace: 'production', ready: '1/1', status: 'Running', restart: 1, load: 72, performance: 88, image: 'vllm/vllm-openai:latest', podIP: '10.0.1.13', node: 'nj-h20-001', nodeGPU: 'H20 141G × 8', gpuUtil: 68, gpuVram: 58, age: '10d', trafficSource: 'rbg-deepseek-prod', tpotP50: 68, tpotP99: 95, tpotHistory: [65,67,70,72,69,66,64,68,71,74,73,70,67,65,63,67,70,73,71,68,65,64,67,71,75,77,76,73,70,68,65,63,66,70,73,75,73,70,68,66,64,67,71,74,76,78,76,73,71,68,66,68,71,74,72,69,67,64,68,70] },
-  { key: 'p3', name: 'qwen3-coding-p1', cluster: 'shanghai-online', role: 'decode', namespace: 'production', ready: '1/1', status: 'Running', restart: 0, load: 65, performance: 85, image: 'sglang/sglang:latest', podIP: '10.0.2.15', node: 'nj-h20-002', nodeGPU: 'H20 141G × 8', gpuUtil: 76, gpuVram: 69, age: '8d', trafficSource: 'qwen3-coding-slo', tpotP50: 62, tpotP99: 88, tpotHistory: [60,63,65,64,61,59,58,62,65,68,66,63,61,59,57,61,64,67,65,62,60,58,61,65,68,70,68,65,63,61,58,57,60,64,67,69,67,64,62,60,58,61,64,67,70,71,69,66,64,61,59,62,65,67,65,62,60,57,61,63] },
-  { key: 'p4', name: 'qwen3-coding-p2', cluster: 'shanghai-online', role: 'decode', namespace: 'production', ready: '1/1', status: 'Running', restart: 2, load: 61, performance: 82, image: 'sglang/sglang:latest', podIP: '10.0.2.16', node: 'nj-h20-002', nodeGPU: 'H20 141G × 8', gpuUtil: 71, gpuVram: 64, age: '8d', trafficSource: 'qwen3-coding-slo', tpotP50: 58, tpotP99: 85, tpotHistory: [56,58,61,60,57,55,54,58,61,63,62,59,57,55,53,57,60,62,61,58,56,54,57,61,63,65,64,61,59,57,54,53,56,60,62,64,63,60,58,56,54,57,60,63,65,66,64,62,59,57,55,58,60,63,61,58,56,53,57,59] },
-  { key: 'p5', name: 'glm51-1-prefill-p1', cluster: 'shanghai-online', role: 'prefill', namespace: 'production', ready: '1/1', status: 'Running', restart: 0, load: 89, performance: 95, image: 'sglang/sglang:latest', podIP: '10.0.1.8', node: 'nj-h20-001', nodeGPU: 'H20 141G × 8', gpuUtil: 85, gpuVram: 73, age: '15d', trafficSource: 'glm51-1-slo', ttftP50: 320, ttftP99: 580, ttftHistory: [310,325,340,335,315,305,298,320,345,360,350,330,315,308,295,318,340,355,345,325,310,302,325,348,365,370,358,340,322,310,300,315,338,355,360,345,328,312,305,298,315,335,355,370,375,362,342,325,312,305,320,340,358,350,332,315,302,310,330,345] },
-  { key: 'p6', name: 'glm51-1-prefill-p2', cluster: 'shanghai-online', role: 'prefill', namespace: 'production', ready: '1/1', status: 'Running', restart: 1, load: 84, performance: 91, image: 'sglang/sglang:latest', podIP: '10.0.1.9', node: 'nj-h20-001', nodeGPU: 'H20 141G × 8', gpuUtil: 82, gpuVram: 70, age: '14d', trafficSource: 'glm51-1-slo', ttftP50: 305, ttftP99: 560, ttftHistory: [295,310,325,320,300,290,285,308,332,348,338,318,302,292,282,305,328,342,332,312,298,288,310,335,352,358,345,326,310,298,288,302,325,342,348,332,315,300,290,282,300,322,342,358,362,350,330,312,300,288,305,328,345,338,318,302,290,298,318,332] },
+  { key: 'p1', name: 'deepseek-prod-r1-p1', cluster: 'st', role: 'decode', namespace: 'production', ready: '1/1', status: 'Running', restart: 0, load: 78, performance: 92, image: 'vllm/vllm-openai:latest', podIP: '10.0.1.12', node: 'nj-h20-001', nodeGPU: 'H20 141G × 8', gpuUtil: 72, gpuVram: 61, age: '12d', trafficSource: 'rbg-deepseek-prod', tpotP50: 72, tpotP99: 98, tpotHistory: [68,71,73,75,72,69,66,70,74,77,76,73,70,68,65,69,72,75,73,71,68,67,70,74,78,80,79,76,73,71,68,66,69,72,75,78,76,74,71,69,67,70,73,76,79,81,80,77,74,72,69,71,74,77,75,72,70,67,71,73] },
+  { key: 'p2', name: 'deepseek-prod-r1-p2', cluster: 'st', role: 'decode', namespace: 'production', ready: '1/1', status: 'Running', restart: 1, load: 72, performance: 88, image: 'vllm/vllm-openai:latest', podIP: '10.0.1.13', node: 'nj-h20-001', nodeGPU: 'H20 141G × 8', gpuUtil: 68, gpuVram: 58, age: '10d', trafficSource: 'rbg-deepseek-prod', tpotP50: 68, tpotP99: 95, tpotHistory: [65,67,70,72,69,66,64,68,71,74,73,70,67,65,63,67,70,73,71,68,65,64,67,71,75,77,76,73,70,68,65,63,66,70,73,75,73,70,68,66,64,67,71,74,76,78,76,73,71,68,66,68,71,74,72,69,67,64,68,70] },
+  { key: 'p3', name: 'qwen3-coding-p1', cluster: 'st', role: 'decode', namespace: 'production', ready: '1/1', status: 'Running', restart: 0, load: 65, performance: 85, image: 'sglang/sglang:latest', podIP: '10.0.2.15', node: 'nj-h20-002', nodeGPU: 'H20 141G × 8', gpuUtil: 76, gpuVram: 69, age: '8d', trafficSource: 'qwen3-coding-slo', tpotP50: 62, tpotP99: 88, tpotHistory: [60,63,65,64,61,59,58,62,65,68,66,63,61,59,57,61,64,67,65,62,60,58,61,65,68,70,68,65,63,61,58,57,60,64,67,69,67,64,62,60,58,61,64,67,70,71,69,66,64,61,59,62,65,67,65,62,60,57,61,63] },
+  { key: 'p4', name: 'qwen3-coding-p2', cluster: 'st', role: 'decode', namespace: 'production', ready: '1/1', status: 'Running', restart: 2, load: 61, performance: 82, image: 'sglang/sglang:latest', podIP: '10.0.2.16', node: 'nj-h20-002', nodeGPU: 'H20 141G × 8', gpuUtil: 71, gpuVram: 64, age: '8d', trafficSource: 'qwen3-coding-slo', tpotP50: 58, tpotP99: 85, tpotHistory: [56,58,61,60,57,55,54,58,61,63,62,59,57,55,53,57,60,62,61,58,56,54,57,61,63,65,64,61,59,57,54,53,56,60,62,64,63,60,58,56,54,57,60,63,65,66,64,62,59,57,55,58,60,63,61,58,56,53,57,59] },
+  { key: 'p5', name: 'glm51-1-prefill-p1', cluster: 'st', role: 'prefill', namespace: 'production', ready: '1/1', status: 'Running', restart: 0, load: 89, performance: 95, image: 'sglang/sglang:latest', podIP: '10.0.1.8', node: 'nj-h20-001', nodeGPU: 'H20 141G × 8', gpuUtil: 85, gpuVram: 73, age: '15d', trafficSource: 'glm51-1-slo', ttftP50: 320, ttftP99: 580, ttftHistory: [310,325,340,335,315,305,298,320,345,360,350,330,315,308,295,318,340,355,345,325,310,302,325,348,365,370,358,340,322,310,300,315,338,355,360,345,328,312,305,298,315,335,355,370,375,362,342,325,312,305,320,340,358,350,332,315,302,310,330,345] },
+  { key: 'p6', name: 'glm51-1-prefill-p2', cluster: 'st', role: 'prefill', namespace: 'production', ready: '1/1', status: 'Running', restart: 1, load: 84, performance: 91, image: 'sglang/sglang:latest', podIP: '10.0.1.9', node: 'nj-h20-001', nodeGPU: 'H20 141G × 8', gpuUtil: 82, gpuVram: 70, age: '14d', trafficSource: 'glm51-1-slo', ttftP50: 305, ttftP99: 560, ttftHistory: [295,310,325,320,300,290,285,308,332,348,338,318,302,292,282,305,328,342,332,312,298,288,310,335,352,358,345,326,310,298,288,302,325,342,348,332,315,300,290,282,300,322,342,358,362,350,330,312,300,288,305,328,345,338,318,302,290,298,318,332] },
   { key: 'p7', name: 'glm-air-batch-p1', cluster: 'guangzhou-test', role: 'other', namespace: 'batch', ready: '1/1', status: 'Running', restart: 3, load: 45, performance: 63, image: 'vllm/vllm-openai:latest', podIP: '10.0.3.22', node: 'gz-l20-001', nodeGPU: 'L20 48G × 4', gpuUtil: 54, gpuVram: 66, age: '6d', trafficSource: 'glm-air-batch' },
   { key: 'p8', name: 'glm-air-batch-p2', cluster: 'guangzhou-test', role: 'other', namespace: 'batch', ready: '0/1', status: 'Pending', restart: 5, load: 0, performance: 0, image: 'vllm/vllm-openai:latest', podIP: '10.0.3.23', node: 'gz-l20-001', nodeGPU: 'L20 48G × 4', gpuUtil: 0, gpuVram: 0, age: '6d', trafficSource: 'glm-air-batch' },
   { key: 'p9', name: 'kimi-router-canary-p1', cluster: 'wuhan-kunpeng', role: 'router', namespace: 'canary', ready: '1/1', status: 'Running', restart: 0, load: 52, performance: 74, image: 'mindie/mindie:latest', podIP: '10.0.4.5', node: 'nj-910b-001', nodeGPU: 'Ascend 910B × 8', gpuUtil: 61, gpuVram: 52, age: '5d', trafficSource: 'kimi-router-canary', ttftP50: 180, ttftP99: 350, ttftHistory: [172,185,195,190,178,168,162,182,198,210,205,188,175,165,158,178,195,208,202,185,172,162,180,198,212,218,208,192,178,168,158,172,192,208,215,200,182,170,162,155,172,190,208,218,222,210,195,180,168,158,175,192,210,205,188,175,162,170,185,200] },
   { key: 'p10', name: 'kimi-router-canary-p2', cluster: 'wuhan-kunpeng', role: 'router', namespace: 'canary', ready: '1/1', status: 'Running', restart: 1, load: 48, performance: 71, image: 'mindie/mindie:latest', podIP: '10.0.4.6', node: 'nj-910b-001', nodeGPU: 'Ascend 910B × 8', gpuUtil: 57, gpuVram: 48, age: '4d', trafficSource: 'kimi-router-canary', ttftP50: 165, ttftP99: 320, ttftHistory: [158,170,182,178,162,155,150,168,185,198,190,175,162,152,145,165,182,195,188,172,158,150,168,185,200,205,195,180,165,155,148,160,178,195,202,188,170,158,150,142,160,178,195,205,210,198,182,168,155,145,162,178,195,190,172,160,148,155,172,188] },
-  { key: 'p11', name: 'deepseek-prod-r1-p3', cluster: 'shanghai-online', role: 'decode', namespace: 'production', ready: '1/1', status: 'Running', restart: 0, load: 75, performance: 90, image: 'vllm/vllm-openai:latest', podIP: '10.0.2.18', node: 'nj-h20-002', nodeGPU: 'H20 141G × 8', gpuUtil: 74, gpuVram: 66, age: '9d', trafficSource: 'rbg-deepseek-prod', tpotP50: 70, tpotP99: 96, tpotHistory: [66,69,72,74,71,67,65,69,73,76,74,71,68,66,63,67,71,74,72,69,66,65,68,73,76,79,77,74,71,69,66,64,67,71,74,76,74,71,69,66,64,68,71,74,77,79,77,75,72,69,67,69,72,75,73,70,67,64,68,71] },
+  { key: 'p11', name: 'deepseek-prod-r1-p3', cluster: 'st', role: 'decode', namespace: 'production', ready: '1/1', status: 'Running', restart: 0, load: 75, performance: 90, image: 'vllm/vllm-openai:latest', podIP: '10.0.2.18', node: 'nj-h20-002', nodeGPU: 'H20 141G × 8', gpuUtil: 74, gpuVram: 66, age: '9d', trafficSource: 'rbg-deepseek-prod', tpotP50: 70, tpotP99: 96, tpotHistory: [66,69,72,74,71,67,65,69,73,76,74,71,68,66,63,67,71,74,72,69,66,65,68,73,76,79,77,74,71,69,66,64,67,71,74,76,74,71,69,66,64,68,71,74,77,79,77,75,72,69,67,69,72,75,73,70,67,64,68,71] },
   { key: 'p12', name: 'deepseek-dev-p1', cluster: 'beijing-prod', role: 'decode', namespace: 'development', ready: '1/1', status: 'Running', restart: 0, load: 28, performance: 55, image: 'vllm/vllm-openai:latest', podIP: '10.0.5.2', node: 'qujing4', nodeGPU: 'A100 80G × 4', gpuUtil: 36, gpuVram: 42, age: '2d', trafficSource: 'deepseek-dev', tpotP50: 42, tpotP99: 65, tpotHistory: [40,42,44,43,41,39,38,41,44,46,45,42,40,38,37,40,43,45,44,41,39,38,41,44,46,48,46,44,42,40,38,37,40,43,45,47,45,43,41,39,37,40,43,46,48,49,47,45,42,40,38,41,43,46,44,41,39,37,40,42] },
   { key: 'p13', name: 'deepseek-dev-p2', cluster: 'beijing-prod', role: 'decode', namespace: 'development', ready: '1/1', status: 'Running', restart: 2, load: 24, performance: 48, image: 'vllm/vllm-openai:latest', podIP: '10.0.5.3', node: 'qujing7', nodeGPU: 'A100 80G × 4', gpuUtil: 31, gpuVram: 38, age: '1d', trafficSource: 'deepseek-dev', tpotP50: 39, tpotP99: 60, tpotHistory: [37,39,41,40,38,36,35,38,41,43,42,39,37,35,34,37,40,42,41,38,36,35,38,41,43,45,43,41,39,37,35,34,37,40,42,44,42,40,38,36,34,37,40,43,45,46,44,42,39,37,35,38,40,43,41,38,36,34,37,39] },
   { key: 'p14', name: 'qwen2-demo-p1', cluster: 'beijing-prod', role: 'other', namespace: 'demo', ready: '1/1', status: 'Running', restart: 0, load: 18, performance: 42, image: 'sglang/sglang:latest', podIP: '10.0.5.4', node: 'qujing4', nodeGPU: 'A100 80G × 4', gpuUtil: 24, gpuVram: 32, age: '3d', trafficSource: 'qwen2-demo' },
   { key: 'p15', name: 'qwen2-demo-p2', cluster: 'beijing-prod', role: 'other', namespace: 'demo', ready: '0/1', status: 'Failed', restart: 8, load: 0, performance: 0, image: 'sglang/sglang:latest', podIP: '10.0.5.5', node: 'qujing4', nodeGPU: 'A100 80G × 4', gpuUtil: 0, gpuVram: 0, age: '3d', trafficSource: 'qwen2-demo' },
-  { key: 'p16', name: 'mistral-prod-p1', cluster: 'shanghai-online', role: 'prefill', namespace: 'production', ready: '1/1', status: 'Running', restart: 0, load: 82, performance: 93, image: 'sglang/sglang:latest', podIP: '10.0.1.20', node: 'nj-h20-001', nodeGPU: 'H20 141G × 8', gpuUtil: 79, gpuVram: 67, age: '20d', trafficSource: 'mistral-vllm-slo', ttftP50: 280, ttftP99: 520, ttftHistory: [272,285,298,292,278,268,260,282,305,320,310,290,275,265,255,278,300,315,305,285,270,260,282,305,322,328,315,298,280,268,258,272,295,312,318,302,285,270,262,252,270,292,312,328,332,318,300,282,270,258,275,298,315,308,290,275,262,270,288,302] },
+  { key: 'p16', name: 'mistral-prod-p1', cluster: 'st', role: 'prefill', namespace: 'production', ready: '1/1', status: 'Running', restart: 0, load: 82, performance: 93, image: 'sglang/sglang:latest', podIP: '10.0.1.20', node: 'nj-h20-001', nodeGPU: 'H20 141G × 8', gpuUtil: 79, gpuVram: 67, age: '20d', trafficSource: 'mistral-vllm-slo', ttftP50: 280, ttftP99: 520, ttftHistory: [272,285,298,292,278,268,260,282,305,320,310,290,275,265,255,278,300,315,305,285,270,260,282,305,322,328,315,298,280,268,258,272,295,312,318,302,285,270,262,252,270,292,312,328,332,318,300,282,270,258,275,298,315,308,290,275,262,270,288,302] },
 ];
 
 const podYamlTemplates = [
@@ -666,7 +667,7 @@ const monitorModelNames = [
   'MiniMax-abab6.5',
 ];
 
-const monitorClusterNames = ['beijing-prod', 'shanghai-online', 'guangzhou-test', 'wuhan-kunpeng'];
+const monitorClusterNames = ['beijing-prod', 'st', 'guangzhou-test', 'wuhan-kunpeng'];
 const clusterFilterOptions = [
   { value: '', label: '全部集群' },
   ...monitorClusterNames.map((name) => ({ value: name, label: name })),
@@ -4556,7 +4557,7 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate, onP
         <p className="ataas-template-deploy-desc">将使用「{deployTarget?.name}」启动模型服务。</p>
         <Form layout="vertical">
           <Form.Item label="集群"><Select defaultValue="prod-gpu-cluster-01" options={['prod-gpu-cluster-01', 'prod-gpu-cluster-02', 'staging-gpu', 'dev-910b'].map((value) => ({ value, label: value }))} /></Form.Item>
-          <Form.Item label="实例数量"><InputNumber min={1} max={16} defaultValue={1} style={{ width: '100%' }} /></Form.Item>
+          <Form.Item label="分组数量"><InputNumber min={1} max={16} defaultValue={1} style={{ width: '100%' }} /></Form.Item>
           <Form.Item label="备注"><Input placeholder="可选" /></Form.Item>
         </Form>
       </Modal>
@@ -4592,7 +4593,7 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate, onP
         </div>
       </Modal>
       <Modal className="ataas-template-model-service-import-modal" title="从模型服务导入" open={modelServiceImportOpen} onCancel={() => setModelServiceImportOpen(false)} footer={null} width={560}>
-        <div className="ataas-template-benchmark-import-note">选择当前平台运行中的模型服务，同步模型、GPU 类型、引擎、量化、实例数和资源信息；启动参数仍需在模板中确认。</div>
+        <div className="ataas-template-benchmark-import-note">选择当前平台运行中的模型服务，同步模型、GPU 类型、引擎、量化、分组数和资源信息；启动参数仍需在模板中确认。</div>
         <Input className="ataas-template-service-import-search" value={modelServiceKeyword} onChange={(event) => setModelServiceKeyword(event.target.value)} placeholder="搜索服务名、模型、引擎、节点" allowClear />
         <div className="ataas-template-benchmark-task-list">
           {filteredModelServices.length === 0 ? <div className="ataas-template-service-import-empty">没有匹配的运行中模型服务</div> : filteredModelServices.map((service) => (
@@ -4829,7 +4830,7 @@ const initialAlertData: AlertRecord[] = [
   { key: 'a2', target: 'qwen3-coding-slo', time: '2026-05-29 14:28', objectType: '模型服务', cluster: 'shanghai-h20-online', description: 'TTFT 平均 512ms，超过阈值 300ms', suggestion: '检查 Decode 节点负载，考虑扩容', count: 8, status: '未处理', level: 'warning' },
   { key: 'a3', target: 'gz-l20-worker-005', time: '2026-05-29 14:15', objectType: '节点', cluster: 'guangzhou-l20-test', description: '节点心跳中断，已离线 5 分钟', suggestion: '检查网络连通性及 kubelet 状态', count: 3, status: '未处理', level: 'critical' },
   { key: 'a4', target: 'DeepSeek-R1', time: '2026-05-29 13:58', objectType: '模型服务', cluster: 'beijing-a100-prod', description: '模型加载失败，镜像拉取超时', suggestion: '检查镜像仓库连通性，重试拉取', count: 2, status: '已恢复', level: 'warning' },
-  { key: 'a5', target: 'shanghai-online', time: '2026-05-29 13:40', objectType: '集群', cluster: 'shanghai-h20-online', description: '集群扩容完成，新增 4 个 H20 节点', suggestion: '-', count: 1, status: '已恢复', level: 'info' },
+  { key: 'a5', target: 'st', time: '2026-05-29 13:40', objectType: '集群', cluster: 'shanghai-h20-online', description: '集群扩容完成，新增 4 个 H20 节点', suggestion: '-', count: 1, status: '已恢复', level: 'info' },
   { key: 'a6', target: 'nj-910b-001', time: '2026-05-29 12:10', objectType: '节点', cluster: 'shanghai-h20-online', description: '磁盘使用率 88%，剩余 512 GB', suggestion: '建议清理过期日志和镜像缓存', count: 6, status: '未处理', level: 'warning' },
   { key: 'a7', target: 'glm-air-batch', time: '2026-05-29 11:25', objectType: '模型服务', cluster: 'guangzhou-l20-test', description: 'TPOT 延迟飙升至 45ms，正常范围 <20ms', suggestion: '检查 GPU 是否被其他任务抢占', count: 4, status: '未处理', level: 'warning' },
   { key: 'a8', target: 'deepseek-prod', time: '2026-05-28 23:15', objectType: '模型服务', cluster: 'beijing-a100-prod', description: '并发请求数超过限制 1240/1000', suggestion: '检查是否遭受异常流量，考虑扩容', count: 15, status: '已恢复', level: 'critical' },
@@ -4892,7 +4893,7 @@ const startupTemplateSeed: StartupTemplateRecord[] = [
     name: 'DeepSeek-R1 SGLang PD 模板',
     type: 'pd',
     source: 'custom',
-    yamlContent: 'name: DeepSeek-R1 SGLang PD 模板\nengine: SGLang\nmodelFamily: DeepSeek\ndeployMode: PD 分离\nhardware: NVIDIA H20\nnodeCount: 2\ncardCount: 16\ntopology: 2P2D / TP8 / EP1\ncommand: python -m sglang.launch_server --model-path /models/deepseek-r1 --host 0.0.0.0 --port 30000 --enable-pd-disaggregation\ndescription: DeepSeek-R1 生产环境 PD 分离启动模板，适合 H20/A100 多实例部署。',
+    yamlContent: 'name: DeepSeek-R1 SGLang PD 模板\nengine: SGLang\nmodelFamily: DeepSeek\ndeployMode: PD 分离\nhardware: NVIDIA H20\nnodeCount: 2\ncardCount: 16\ntopology: 2P2D / TP8 / EP1\ncommand: python -m sglang.launch_server --model-path /models/deepseek-r1 --host 0.0.0.0 --port 30000 --enable-pd-disaggregation\ndescription: DeepSeek-R1 生产环境 PD 分离启动模板，适合 H20/A100 多分组部署。',
     engine: 'SGLang',
     modelFamily: 'DeepSeek',
     deployMode: 'PD 分离',
@@ -4901,7 +4902,7 @@ const startupTemplateSeed: StartupTemplateRecord[] = [
     cardCount: 16,
     topology: '2P2D / TP8 / EP1',
     command: 'python -m sglang.launch_server --model-path /models/deepseek-r1 --host 0.0.0.0 --port 30000 --enable-pd-disaggregation',
-    description: 'DeepSeek-R1 生产环境 PD 分离启动模板，适合 H20/A100 多实例部署。',
+    description: 'DeepSeek-R1 生产环境 PD 分离启动模板，适合 H20/A100 多分组部署。',
     updatedAt: '2026-05-29 15:20',
   },
   {
@@ -6799,12 +6800,12 @@ const AtAasDesign = () => {
     setMonitorReportDate(value.isAfter(dayjs(), 'day') ? dayjs() : value);
   };
   const logData: Array<{ user: string; action: string; object: string; objectType: string; cluster: string; node: string; status: string; time: string; detail: string }> = [
-    { user: 'admin', action: '创建服务', object: 'deepseek-prod', objectType: '模型服务', cluster: 'beijing-a100-prod', node: 'bj-a100-worker-012', status: '成功', time: '2026-05-29 14:35', detail: '部署模式: PD 分离, 引擎: SGLang, GPU: H20 x 4, 实例: 2' },
+    { user: 'admin', action: '创建服务', object: 'deepseek-prod', objectType: '模型服务', cluster: 'beijing-a100-prod', node: 'bj-a100-worker-012', status: '成功', time: '2026-05-29 14:35', detail: '部署模式: PD 分离, 引擎: SGLang, GPU: H20 x 4, 分组: 2' },
     { user: 'ops-lilei', action: '上传镜像', object: 'sglang:v0.4.8-h20', objectType: '引擎镜像', cluster: '-', node: '-', status: '成功', time: '2026-05-29 14:18', detail: '镜像大小: 21.3 GB, 标签: h20-pd-cache, 来源: 在线拉取' },
     { user: 'zhaomin', action: '调整参数', object: 'qwen3-coding-slo', objectType: '模型服务', cluster: 'shanghai-h20-online', node: 'sh-h20-worker-021', status: '成功', time: '2026-05-29 13:57', detail: 'TTFT 阈值: 500ms → 300ms, TPOT 阈值: 50ms → 30ms' },
     { user: 'admin', action: '修改标签', object: 'gpu-worker-021', objectType: '节点', cluster: 'shanghai-h20-online', node: 'sh-h20-worker-021', status: '成功', time: '2026-05-29 13:42', detail: '标签变更: GPU=H20 → GPU=H20_PD, 节点: sh-h20-worker-021' },
     { user: 'system', action: '节点隔离', object: 'worker-a100-017', objectType: '节点', cluster: 'beijing-a100-prod', node: 'worker-a100-017', status: '失败', time: '2026-05-29 13:20', detail: '原因: GPU 温度过高(89°C), 自动隔离, 影响服务: deepseek-prod' },
-    { user: 'admin', action: '部署模型', object: 'glm-air-batch', objectType: '模型服务', cluster: 'guangzhou-l20-test', node: 'gz-l20-worker-003', status: '成功', time: '2026-05-29 12:58', detail: '模型: GLM-4.5-Air, 引擎: vLLM, 集群: guangzhou-l20-test, 实例: 2' },
+    { user: 'admin', action: '部署模型', object: 'glm-air-batch', objectType: '模型服务', cluster: 'guangzhou-l20-test', node: 'gz-l20-worker-003', status: '成功', time: '2026-05-29 12:58', detail: '模型: GLM-4.5-Air, 引擎: vLLM, 集群: guangzhou-l20-test, 分组: 2' },
     { user: 'ops-wang', action: '集群扩容', object: 'guangzhou-test', objectType: '集群', cluster: 'guangzhou-l20-test', node: 'gz-l20-worker-019', status: '成功', time: '2026-05-29 12:15', detail: '新增节点: 4 台, GPU: L20 x 16, 扩容后总量: 19 台 / 72 卡' },
     { user: 'zhaomin', action: '更新配置', object: 'vLLM 0.9.1', objectType: '引擎镜像', cluster: '-', node: '-', status: '成功', time: '2026-05-29 11:42', detail: '配置参数: max_model_len=8192, gpu_memory_utilization=0.9' },
     { user: 'admin', action: '删除镜像', object: 'triton:23.12-py3', objectType: '引擎镜像', cluster: '-', node: '-', status: '成功', time: '2026-05-29 11:08', detail: '镜像标签: triton:23.12-py3, 大小: 12.4 GB, 已清理存储' },
@@ -6895,14 +6896,25 @@ const AtAasDesign = () => {
       return item.name.toLowerCase().includes(keyword) || item.family.toLowerCase().includes(keyword) || item.description.toLowerCase().includes(keyword);
     });
   }, [modelRepoSearch, modelRepoCategory, modelRepoFamily, modelRepoSource]);
-  const [deployListViewMode, setDeployListViewMode] = useState<ViewMode>('mooncake');
+  const [deployListViewMode, setDeployListViewMode] = useState<ViewMode>('card');
   const [deployListClusterFilter, setDeployListClusterFilter] = useState('');
   const [deployDownloadOpen, setDeployDownloadOpen] = useState(false);
   const [modelOpsListViewMode, setModelOpsListViewMode] = useState<ViewMode>('table');
   const [modelOpsClusterFilter, setModelOpsClusterFilter] = useState('');
   const [modelOpsSelectedModel, setModelOpsSelectedModel] = useState('');
   const [modelOpsSelectedServiceId, setModelOpsSelectedServiceId] = useState<number | null>(null);
-  const [modelOpsWeights, setModelOpsWeights] = useState<Record<string, number>>({});
+  const [modelOpsWeights, setModelOpsWeights] = useState<Record<string, number>>(() => {
+    const seed: Record<string, number> = {};
+    MODEL_OPS_RESOURCE_SPECS.forEach((spec, index) => {
+      if (spec.weight === 0) {
+        const serviceId = 100 + index;
+        for (let i = 0; i < spec.instanceCount; i++) {
+          seed[`${serviceId}-instance-${i}`] = 0;
+        }
+      }
+    });
+    return seed;
+  });
   const [modelOpsWeightModalServiceId, setModelOpsWeightModalServiceId] = useState<number | null>(null);
   const [deployMode, setDeployMode] = useState<string>('single');
   const [startupTemplateForm] = Form.useForm();
@@ -6950,11 +6962,11 @@ const AtAasDesign = () => {
   const resetGatewayTrafficByCount = (count: number) => {
     const safeCount = Math.max(1, count);
     if (safeCount <= 1) {
-      setGatewayGroupTraffic([{ groupKey: '实例 1', percent: 100 }]);
+      setGatewayGroupTraffic([{ groupKey: '分组 1', percent: 100 }]);
       return;
     }
     const pct = Math.floor(100 / safeCount);
-    setGatewayGroupTraffic(Array.from({ length: safeCount }, (_, i) => ({ groupKey: `实例 ${i + 1}`, percent: i === safeCount - 1 ? 100 - pct * (safeCount - 1) : pct })));
+    setGatewayGroupTraffic(Array.from({ length: safeCount }, (_, i) => ({ groupKey: `分组 ${i + 1}`, percent: i === safeCount - 1 ? 100 - pct * (safeCount - 1) : pct })));
   };
   const handleDeployDetail = (item: DeployServiceItem) => {
     setDeployDetailItem(item);
@@ -6974,7 +6986,7 @@ const AtAasDesign = () => {
     const works = item.modelInfo.works?.split(',').map((work: string) => work.trim()).filter(Boolean) || [];
     const currentCount = works.length > 0 ? works.length : (item.modelInfo.number || 1);
     if (currentCount <= 1) {
-      message.warning('至少保留一个实例');
+      message.warning('至少保留一个分组');
       return;
     }
     const nextWorks = works.length > 0 ? works.filter((_: string, index: number) => index !== instanceIndex) : works;
@@ -6993,7 +7005,7 @@ const AtAasDesign = () => {
       setDeployDetailExtraNodes([]);
       resetGatewayTrafficByCount(nextCount);
     }
-    message.success(`实例 ${instanceIndex + 1} 已删除`);
+    message.success(`分组 ${instanceIndex + 1} 已删除`);
   };
   const handleDeployMonitor = (item: DeployServiceItem) => {
     const serviceName = item.name;
@@ -7288,7 +7300,7 @@ const AtAasDesign = () => {
           <div>
             <p>当前 PD 组包含 {routerCount} 个 Router、{prefillCount} 个 Prefill、{decodeCount} 个 Decode，点击确认后将同时下线。</p>
             <div style={{ marginTop: 8, color: '#4E5969', lineHeight: 1.8 }}>
-              模型实例：{item.name}
+              模型Group：{item.name}
             </div>
           </div>
         ),
@@ -7303,14 +7315,14 @@ const AtAasDesign = () => {
     const instanceCount = Math.max(1, workInstances.length || item.modelInfo.number || 1);
     const instanceNames = workInstances.length > 0
       ? workInstances
-      : Array.from({ length: instanceCount }, (_, index) => `${item.name}-实例${index + 1}`);
+      : Array.from({ length: instanceCount }, (_, index) => `${item.name}-分组${index + 1}`);
     Modal.confirm({
       title: '确认停止',
       content: (
         <div>
-          <p>当前此模型服务包含 {instanceCount} 个实例，点击确认后将同时下线。</p>
+          <p>当前此模型服务包含 {instanceCount} 个分组，点击确认后将同时下线。</p>
           <div style={{ marginTop: 8, color: '#4E5969', lineHeight: 1.8 }}>
-            实例名：{instanceNames.join('、')}
+            分组名：{instanceNames.join('、')}
           </div>
         </div>
       ),
@@ -7666,7 +7678,7 @@ const AtAasDesign = () => {
       const scheduledNames = new Set(scheduledServices.map((service) => service.name));
       return [...scheduledServices, ...prev.filter((service) => !scheduledNames.has(service.name))];
     });
-    setDeployListViewMode('mooncake');
+    setDeployListViewMode('card');
     setActiveTab('deploy');
     message.success('定时任务已创建');
     setDeployDrawerOpen(false);
@@ -8421,7 +8433,7 @@ const AtAasDesign = () => {
       model: currentModel,
       engine: currentEngine,
       gpu: '',
-      description: '由添加实例上传生成',
+      description: '由添加Group上传生成',
       routerYaml: '',
       workerYaml: '',
     });
@@ -8499,7 +8511,7 @@ const AtAasDesign = () => {
       setAddInstDecodeParams(resolvedParams.map((param) => ({ ...param })));
     }
     setPdTemplateUploadOpen(false);
-    message.success(pdTemplateUploadTarget === 'deploy' ? 'PD 模板已创建并应用到当前模型服务' : 'PD 模板已创建并应用到当前实例');
+    message.success(pdTemplateUploadTarget === 'deploy' ? 'PD 模板已创建并应用到当前模型服务' : 'PD 模板已创建并应用到当前分组');
   };
   const resetAddInstanceForm = () => {
     setAddInstCluster(undefined);
@@ -8534,7 +8546,7 @@ const AtAasDesign = () => {
   const getDeployDetailClusterName = (item: DeployServiceItem | null) => {
     if (!item) return undefined;
     const text = `${item.name} ${item.modelInfo.works} ${item.typeStr}`.toLowerCase();
-    if (text.includes('h20') || text.includes('qwen')) return 'shanghai-online';
+    if (text.includes('h20') || text.includes('qwen')) return 'st';
     if (text.includes('gz-') || text.includes('l20') || text.includes('glm')) return 'guangzhou-test';
     if (text.includes('910b') || text.includes('kimi')) return 'wuhan-kunpeng';
     return 'beijing-prod';
@@ -8775,7 +8787,7 @@ const AtAasDesign = () => {
 
     setActiveTab('deploy');
     window.history.replaceState(null, '', '/deploy');
-    setDeployListViewMode('mooncake');
+    setDeployListViewMode('card');
     setDeployMode(isPdTemplate ? 'pd-separation' : 'single');
     setStrictTemplateDeploy(true);
     setDeployServiceName(template.name);
@@ -8950,7 +8962,7 @@ const AtAasDesign = () => {
     }
     const submittedService = buildSubmittedDeployService();
     setDeployServices((prev) => [submittedService, ...prev.filter((service) => service.name !== submittedService.name)]);
-    setDeployListViewMode('mooncake');
+    setDeployListViewMode('card');
     setDeployListClusterFilter('');
     setActiveTab('deploy');
     message.success('部署提交成功，已添加到模型服务列表');
@@ -9402,7 +9414,7 @@ const AtAasDesign = () => {
     const modes = [
       { value: 'single', label: '单机部署', desc: '单台机器部署，适合单节点多卡推理服务。' },
       { value: 'pd-separation', label: 'PD 分离', desc: 'Prefill/Decode 分离部署，适合高吞吐服务。' },
-      { value: 'distributed', label: '分布式部署', desc: '多节点分布式部署，适合更大模型或多实例。' },
+      { value: 'distributed', label: '分布式部署', desc: '多节点分布式部署，适合更大模型或多分组。' },
       { value: 'smart', label: '智能决策', desc: '当前版本暂不支持', disabled: true },
     ];
     return (
@@ -10683,7 +10695,7 @@ const AtAasDesign = () => {
     // { key: 'modelRepo', icon: <SidebarIcon name="modelRepo" />, label: '模型仓库' },
     { key: 'distributionCenter', icon: <SwapRightOutlined style={{ fontSize: 15 }} />, label: '分发中心' },
     // { key: 'startupTemplates', icon: <SidebarIcon name="template" />, label: '性能仓库' },
-    { key: 'deploy', icon: <SidebarIcon name="deploy" />, label: 'Mooncake' },
+    { key: 'deploy', icon: <SidebarIcon name="deploy" />, label: '模型部署' },
     { key: 'modelOps', icon: <SidebarIcon name="ops" />, label: '运营调度' },
     { key: 'taskFlow', icon: <SidebarIcon name="task" />, label: '任务流程' },
     // { key: 'images', icon: <SidebarIcon name="image" />, label: '镜像仓库' },
@@ -10953,7 +10965,7 @@ const AtAasDesign = () => {
                           className="ataas-table-link"
                           onClick={() => {
                             setDeployListClusterFilter(r.name);
-                            setDeployListViewMode('mooncake');
+                            setDeployListViewMode('table');
                             setActiveTab('deploy');
                           }}
                         >
@@ -11053,7 +11065,7 @@ const AtAasDesign = () => {
                             <div><span>内存</span><strong>{r.memory}（已用 {r.memoryUsed}）</strong></div>
                             <div><span>GPU</span><strong>{getNodeDisplayGpuCards(r).length} 片（显存 {r.gpuMemoryUsed} / {r.gpuMemory}）</strong></div>
                             <div><span>磁盘</span><strong>{r.disk}（已用 {r.diskUsed}）</strong></div>
-                            <div><span>模型</span><strong>{r.modelCount} 个 / {r.runningInstances} 实例</strong></div>
+                            <div><span>模型</span><strong>{r.modelCount} 个 / {r.runningInstances} 分组</strong></div>
                             <div><span>操作系统</span><strong>{getNodeOperatingSystem(r)}</strong></div>
                           </div>
                           <div className="ataas-node-gpu-panel">
@@ -11299,26 +11311,6 @@ const AtAasDesign = () => {
           onScalePd={handleScalePd}
           onCreateService={handleOpenCreate}
           onYamlPreview={openModelOpsYamlPreview}
-          onPickConfigYaml={(onSelect) => openConfigYamlPicker('custom', onSelect)}
-          onSaveConfigYaml={async (path, yaml) => {
-            try {
-              await rpc('config.commit', {
-                writes: [{ path, yaml }],
-                message: 'update from model ops create group',
-              });
-              try {
-                const drafts = JSON.parse(sessionStorage.getItem('b300.configs.drafts') || '{}');
-                drafts[path] = { base: yaml, draft: yaml, deleted: false };
-                sessionStorage.setItem('b300.configs.drafts', JSON.stringify(drafts));
-              } catch {
-                // ignore session sync failures
-              }
-              message.success(`已同步到资源文件：${path}`);
-            } catch {
-              message.error('同步资源文件失败');
-              throw new Error('config sync failed');
-            }
-          }}
         />
       );
       case '__legacyModelOps': {
@@ -11356,9 +11348,9 @@ const AtAasDesign = () => {
                     { cluster: 'guangzhou-test', roleSummary: { router: '1/1', prefill: '4/4', decode: '1/1' } },
                     { cluster: 'guangzhou-test', roleSummary: { router: '1/1', prefill: '3/4', decode: '1/1' } },
                     { cluster: 'guangzhou-test', roleSummary: { router: '1/1', prefill: '2/4', decode: '1/1' } },
-                    { cluster: 'shanghai-online', roleSummary: { router: '1/1', prefill: '4/4', decode: '1/1' } },
-                    { cluster: 'shanghai-online', roleSummary: { router: '1/1', prefill: '3/4', decode: '0/1' } },
-                    { cluster: 'shanghai-online', roleSummary: { router: '0/1', prefill: '4/4', decode: '1/1' } },
+                    { cluster: 'st', roleSummary: { router: '1/1', prefill: '4/4', decode: '1/1' } },
+                    { cluster: 'st', roleSummary: { router: '1/1', prefill: '3/4', decode: '0/1' } },
+                    { cluster: 'st', roleSummary: { router: '0/1', prefill: '4/4', decode: '1/1' } },
                     { cluster: 'wuhan-kunpeng', roleSummary: { router: '1/1', prefill: '3/4', decode: '1/1' } },
                     { cluster: 'wuhan-kunpeng', roleSummary: { router: '1/1', prefill: '4/4', decode: '0/1' } },
                     { cluster: 'beijing-prod', roleSummary: { router: '1/1', prefill: '4/4', decode: '1/1' } },
@@ -11368,7 +11360,7 @@ const AtAasDesign = () => {
               return Array.from({ length: count }, (_, index) => ({
                 key: `${service.id}-instance-${index}`,
                 serviceName: service.name,
-                instanceName: works[index] || `${service.name}-实例${index + 1}`,
+                instanceName: works[index] || `${service.name}-分组${index + 1}`,
                 cluster: stRouter1Mock[index]?.cluster || getDeployClusterName(service),
                 roleSummary: stRouter1Mock[index]?.roleSummary,
               }));
@@ -11466,7 +11458,7 @@ const AtAasDesign = () => {
             const openModelOpsWeightModal = (service?: DeployServiceItem) => {
               const targetService = service ? resolveModelOpsSourceService(service) : (selectedModelOpsService || activeModelServices[0]);
               if (!targetService) {
-                message.warning('暂无可分配权重的实例');
+                message.warning('暂无可分配权重的分组');
                 return;
               }
               setModelOpsWeightModalServiceId(targetService.id);
@@ -11527,7 +11519,7 @@ const AtAasDesign = () => {
                                     <div className="ataas-model-ops-weight-modal-cluster-head">
                                       <div className="ataas-model-ops-weight-modal-cluster-title">
                                         <strong>{group.cluster}</strong>
-                                        <span>{group.items.length} 个实例</span>
+                                        <span>{group.items.length} 个分组</span>
                                       </div>
                                       <span className="ataas-model-ops-weight-modal-cluster-total">当前总和 <em className={total === 100 ? '' : 'warning'}>{total}</em></span>
                                       <div>
@@ -12516,8 +12508,8 @@ const AtAasDesign = () => {
                     };
                     window.history.replaceState(null, '', pathMap[item.key] || '/');
                   }}>
-                    <span className="ataas-sidebar-item-icon">{item.icon}</span>
-                    <span className="ataas-sidebar-item-label">{item.label}</span>
+                    {item.icon}
+                    <span>{item.label}</span>
                   </div>
                 ))}
               </div>
@@ -12850,7 +12842,7 @@ subjects:
                 <div><span>服务组</span><strong>{scheduleDetailTarget.serviceGroupName ? `Group: ${scheduleDetailTarget.serviceGroupName}` : '-'}</strong></div>
                 <div><span>目标模型</span><strong>{scheduleDetailTarget.name}</strong></div>
                 <div><span>部署方式</span><strong>{scheduleDetailTarget.deployMode || '-'}</strong></div>
-                <div><span>实例数</span><strong>{scheduleDetailTarget.modelInfo.number}</strong></div>
+                <div><span>分组数</span><strong>{scheduleDetailTarget.modelInfo.number}</strong></div>
                 <div><span>循环策略</span><strong>{scheduleDetailTarget.scheduleRepeatDaily ? '每天循环' : '单次执行'}</strong></div>
                 <div><span>异常告警</span><strong>{scheduleDetailTarget.scheduleAlertWebhook ? '已启用 Feishu Webhook' : '未启用'}</strong></div>
               </div>
@@ -13385,7 +13377,7 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
               <div className="ataas-node-stat-card"><span>CPU</span><strong>{clusterNodeRecord.cpu}<em>Core</em></strong></div>
               <div className="ataas-node-stat-card"><span>内存</span><strong>{clusterNodeRecord.memory.replace(/[^0-9.]+/g, '')}<em>{clusterNodeRecord.memory.includes('T') ? 'TB' : 'GB'}</em></strong></div>
               <div className="ataas-node-stat-card"><span>GPU</span><strong>{clusterNodeRecord.gpu}<em>卡</em></strong></div>
-              <div className="ataas-node-stat-card"><span>运行实例</span><strong>{clusterNodeRecord.runningInstances}<em>个</em></strong></div>
+              <div className="ataas-node-stat-card"><span>运行分组</span><strong>{clusterNodeRecord.runningInstances}<em>个</em></strong></div>
             </div>
             <h3 style={{ fontSize: 15, fontWeight: 600, color: '#1d2129', margin: '20px 0 12px' }}>GPU 详情</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -13932,7 +13924,7 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
         const baseInstanceCount = nodeList.length;
         const dataSource = allInstanceInfos.map((info, i) => ({
           key: i,
-          instance: `实例 ${i + 1}`,
+          instance: `分组 ${i + 1}`,
           source: i < baseInstanceCount ? 'base' : 'extra',
           sourceIndex: i < baseInstanceCount ? i : i - baseInstanceCount,
           cluster: deployDetailCluster,
@@ -13952,7 +13944,7 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
         const detailStatus = () => <span className="ataas-deploy-inline-status-running">运行中</span>;
         const handleDeleteInstance = (record: any) => {
           if (dataSource.length <= 1) {
-            message.warning('至少保留一个实例');
+            message.warning('至少保留一个分组');
             return;
           }
           let nextTotal = dataSource.length - 1;
@@ -13993,13 +13985,13 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
           <div className="ataas-deploy-inline-instance-cell">
             <span>{record.instance}</span>
             <Popconfirm
-              title="删除实例？"
+              title="删除分组？"
               description={`确认删除 ${record.instance} 吗？`}
               okText="删除"
               cancelText="取消"
               onConfirm={() => handleDeleteInstance(record)}
             >
-              <button type="button" className="ataas-deploy-inline-instance-delete">删除实例</button>
+              <button type="button" className="ataas-deploy-inline-instance-delete">删除分组</button>
             </Popconfirm>
           </div>
         );
@@ -14022,8 +14014,8 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
         const trafficEditable = detailTrafficEnabled && !isSingleTrafficGroup;
         const enableDetailTraffic = () => {
           Modal.confirm({
-            title: '启用按实例分配流量？',
-            content: '启用后才可以调整各实例权重。调整权重会影响线上流量分配，请确认后再操作。',
+            title: '启用按分组分配流量？',
+            content: '启用后才可以调整各分组权重。调整权重会影响线上流量分配，请确认后再操作。',
             okText: '确认启用',
             cancelText: '取消',
             onOk: () => setDetailTrafficEnabled(true),
@@ -14072,7 +14064,7 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
               </div>
               <div className="ataas-deploy-detail-gateway-legacy" style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span style={{ fontSize: 12, color: '#86909c', minWidth: 80, flexShrink: 0 }}>按实例分配流量</span>
+                  <span style={{ fontSize: 12, color: '#86909c', minWidth: 80, flexShrink: 0 }}>按分组分配流量</span>
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {gatewayGroupTraffic.map((item, gi) => (
                       <div className="ataas-deploy-detail-traffic-row-legacy" key={item.groupKey} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -14103,8 +14095,8 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
                 </div>
               </div>
               <div className="ataas-deploy-detail-section-title ataas-deploy-detail-section-title-action">
-                <span>实例信息</span>
-                <Button className="ataas-traffic-enable-button" size="small" onClick={() => openAddInstanceModal()}>添加实例</Button>
+                <span>分组信息</span>
+                <Button className="ataas-traffic-enable-button" size="small" onClick={() => openAddInstanceModal()}>添加Group</Button>
               </div>
               {isPdMode ? (
                 <div className="ataas-deploy-inline-table ataas-deploy-detail-inline-table">
@@ -14121,7 +14113,7 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
                     </colgroup>
                     <thead>
                       <tr>
-                        <th>实例</th>
+                        <th>分组</th>
                         <th>状态</th>
                         <th>Pod 名称</th>
                         <th>组件</th>
@@ -14161,7 +14153,7 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
                     </colgroup>
                     <thead>
                       <tr>
-                        <th>实例</th>
+                        <th>分组</th>
                         <th>状态</th>
                         <th>Pod 名称</th>
                         <th>集群</th>
@@ -14201,10 +14193,10 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
           </Modal>
         );
       })()}
-      {/* 添加实例弹窗 - PD 模式 */}
+      {/* 添加Group弹窗 - PD 模式 */}
       {deployDetailItem?.deployMode === 'PD 分离' && (
         <ConfigProvider theme={{ token: { colorPrimary: '#6738E8', colorPrimaryHover: '#5D30D8', colorPrimaryActive: '#5127C7', controlOutline: 'rgba(103, 56, 232, 0.12)' } }}>
-        <Modal className="ataas-add-instance-modal" title="添加实例" open={addInstanceModalOpen} onCancel={closeAddInstanceModal} width={720} footer={
+        <Modal className="ataas-add-instance-modal" title="添加Group" open={addInstanceModalOpen} onCancel={closeAddInstanceModal} width={720} footer={
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
             <Button onClick={closeAddInstanceModal}>取消</Button>
             <Button type="primary" disabled={isAddInstanceSubmitDisabled} onClick={handleAddInstanceConfirm}>确认添加</Button>
@@ -14336,10 +14328,10 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
         </Modal>
         </ConfigProvider>
       )}
-      {/* 添加实例弹窗 - 非PD模式 */}
+      {/* 添加Group弹窗 - 非PD模式 */}
       {deployDetailItem && deployDetailItem.deployMode !== 'PD 分离' && (
         <ConfigProvider theme={{ token: { colorPrimary: '#6738E8', colorPrimaryHover: '#5D30D8', colorPrimaryActive: '#5127C7', controlOutline: 'rgba(103, 56, 232, 0.12)' } }}>
-        <Modal className="ataas-add-instance-modal" title="添加实例" open={addInstanceModalOpen} onCancel={closeAddInstanceModal} width={680} footer={
+        <Modal className="ataas-add-instance-modal" title="添加Group" open={addInstanceModalOpen} onCancel={closeAddInstanceModal} width={680} footer={
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
             <Button onClick={closeAddInstanceModal}>取消</Button>
             <Button type="primary" disabled={isAddInstanceSubmitDisabled} onClick={handleAddInstanceConfirm}>确认添加</Button>
@@ -14385,7 +14377,7 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
         </Modal>
         </ConfigProvider>
       )}
-      {/* 添加实例 - 节点选择弹窗 */}
+      {/* 添加Group - 节点选择弹窗 */}
       <Modal zIndex={2200} className="ataas-node-select-modal" title={deployDetailItem?.deployMode !== 'PD 分离' ? '选择部署节点' : '选择' + (addInstNodePickerMode === 'router' ? 'Router' : addInstNodePickerMode === 'prefill' ? 'Prefill' : 'Decode') + '节点'} open={addInstNodePickerOpen} onCancel={() => setAddInstNodePickerOpen(false)} footer={
         <div className="ataas-node-select-footer">
           <span>已选 {addInstNodePickerSelected.length} 个节点{Number.isFinite(getAddInstNodePickerLimit()) ? `，最多 ${getAddInstNodePickerLimit()} 个` : ''}</span>

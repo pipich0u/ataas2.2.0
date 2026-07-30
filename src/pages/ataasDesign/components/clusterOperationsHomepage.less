@@ -6956,32 +6956,6 @@
     stroke-width: 1.8;
   }
 
-  .node-list-role {
-    display: inline-flex;
-    height: 22px;
-    align-items: center;
-    padding: 0 8px;
-    border: 1px solid #d8dce5;
-    border-radius: 4px;
-    color: #4e5969;
-    background: #f7f8fa;
-    font-size: 11px;
-    font-weight: 500;
-    line-height: 20px;
-  }
-
-  .node-list-role.is-master {
-    border-color: #d9d2ff;
-    color: #5f46e8;
-    background: #f7f5ff;
-  }
-
-  .node-list-role.is-worker {
-    border-color: #cfe1ff;
-    color: #3568c9;
-    background: #f3f7ff;
-  }
-
   .node-list-tags {
     display: flex;
     flex-wrap: wrap;
@@ -7159,13 +7133,11 @@
     margin: 0 !important;
   }
 
-  .node-row-actions .node-row-action.is-drain,
-  .node-row-actions .node-row-action.is-log {
+  .node-row-actions .node-row-action.is-drain {
     color: #4e5969 !important;
   }
 
-  .node-row-actions .node-row-action.is-drain:hover,
-  .node-row-actions .node-row-action.is-log:hover {
+  .node-row-actions .node-row-action.is-drain:hover {
     color: #1d2129 !important;
   }
 
@@ -7177,8 +7149,7 @@
     color: #d92d20;
   }
 
-  .node-row-action .ant-btn-icon > svg,
-  .node-inline-log-icon {
+  .node-row-action .ant-btn-icon > svg {
     width: 14px;
     height: 14px;
     color: #5b687a;
@@ -7187,13 +7158,6 @@
 
   .node-row-action.ant-btn-dangerous .ant-btn-icon > svg {
     color: currentColor;
-  }
-
-  .node-inline-log-icon {
-    color: #86909c;
-    display: inline-block;
-    vertical-align: middle;
-    cursor: pointer;
   }
 
   .node-list-table .node-list-action-cell {
@@ -7385,15 +7349,9 @@
     display: flex;
     align-items: stretch;
     gap: 0;
-    overflow-x: auto;
-    scrollbar-width: none;
     border: 1px solid #e5e6eb;
     border-radius: 7px;
     background: #f7f8fa;
-  }
-
-  .node-detail-tabs::-webkit-scrollbar {
-    display: none;
   }
 
   .node-detail-tabs > button {
@@ -7460,194 +7418,6 @@
     width: 14px;
     height: 14px;
     stroke-width: 1.5;
-  }
-
-  .node-service-overview {
-    overflow: hidden;
-    border: 1px solid #e5e6eb;
-    border-radius: 8px;
-    background: #fff;
-  }
-
-  .node-service-overview-head {
-    min-height: 74px;
-    padding: 14px 18px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 24px;
-    border-bottom: 1px solid #eef0f4;
-    background: #fafbfc;
-  }
-
-  .node-service-overview-head > div:first-child {
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-  }
-
-  .node-service-overview-head > div:first-child > strong {
-    color: #1d2129;
-    font-size: 14px;
-    font-weight: 500;
-    line-height: 21px;
-  }
-
-  .node-service-overview-head > div:first-child > span {
-    color: #86909c;
-    font-size: 12px;
-    line-height: 18px;
-  }
-
-  .node-service-summary {
-    display: flex;
-    align-items: stretch;
-  }
-
-  .node-service-summary > span {
-    min-width: 72px;
-    padding: 0 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    border-left: 1px solid #e5e6eb;
-  }
-
-  .node-service-summary small {
-    color: #86909c;
-    font-size: 10px;
-    font-weight: 400;
-    line-height: 15px;
-  }
-
-  .node-service-summary b {
-    color: #1d2129;
-    font-size: 15px;
-    font-weight: 500;
-    line-height: 20px;
-  }
-
-  .node-service-summary b.is-running {
-    color: #00a11f;
-  }
-
-  .node-service-summary b.is-abnormal {
-    color: #f53f3f;
-  }
-
-  .node-service-table {
-    overflow-x: auto;
-  }
-
-  .node-service-table-head,
-  .node-service-table-row {
-    min-width: 630px;
-    display: grid;
-    grid-template-columns: minmax(200px, 1.55fr) 64px 78px 50px 76px 66px;
-    align-items: center;
-    column-gap: 12px;
-  }
-
-  .node-service-table-head {
-    min-height: 38px;
-    padding: 0 18px;
-    border-bottom: 1px solid #eef0f4;
-    color: #86909c;
-    background: #fff;
-    font-size: 11px;
-    font-weight: 400;
-  }
-
-  .node-service-table-row {
-    min-height: 58px;
-    padding: 8px 18px;
-    border-bottom: 1px solid #f2f3f5;
-    color: #4e5969;
-    font-size: 12px;
-  }
-
-  .node-service-table-row:last-child {
-    border-bottom: 0;
-  }
-
-  .node-service-table-row:hover {
-    background: #fafbfc;
-  }
-
-  .node-service-identity {
-    min-width: 0;
-    display: grid;
-    grid-template-columns: 8px minmax(0, 1fr);
-    align-items: center;
-    gap: 9px;
-  }
-
-  .node-service-identity > i {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #00b42a;
-  }
-
-  .node-service-identity > i.is-warning {
-    background: #ff7d00;
-  }
-
-  .node-service-identity > i.is-stopped {
-    background: #f53f3f;
-  }
-
-  .node-service-identity > span {
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-  }
-
-  .node-service-identity strong,
-  .node-service-identity small {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .node-service-identity strong {
-    color: #1d2129;
-    font-size: 12px;
-    font-weight: 500;
-    line-height: 18px;
-  }
-
-  .node-service-identity small {
-    color: #86909c;
-    font-size: 10px;
-    line-height: 15px;
-  }
-
-  .node-service-status {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    color: #00a11f;
-    font-size: 11px;
-    font-style: normal;
-    white-space: nowrap;
-  }
-
-  .node-service-status > i {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: currentColor;
-  }
-
-  .node-service-status.is-warning {
-    color: #d46b08;
-  }
-
-  .node-service-status.is-stopped {
-    color: #f53f3f;
   }
 
   .node-resource-panel {
@@ -9704,6 +9474,12 @@
     background: #f5f7fd;
   }
 
+  .resource-role-tag.is-router {
+    border-color: #d9e7df;
+    color: #16894b;
+    background: #f3faf6;
+  }
+
   .resource-role-tag.is-decode {
     border-color: #e6dff3;
     color: #7650a5;
@@ -9718,7 +9494,8 @@
     background: #f7f8fa;
   }
 
-  .resource-role-tag.is-business {
+  .resource-role-tag.is-business,
+  .resource-role-tag.is-dev {
     border-color: #dbe7e9;
     color: #3f737a;
     background: #f4f9fa;
@@ -12094,5 +11871,263 @@
     border-color: #5f46e8;
     color: #fff;
     background: #5f46e8;
+  }
+}
+
+.cluster-operations-homepage {
+  /* ── 列表/卡片视图切换（匹配模型部署 toggle 风格） ── */
+  .ataas-cr-view-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+
+    button {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      min-height: 28px;
+      padding: 0 8px;
+      border: 0;
+      background: transparent;
+      color: #1D2129;
+      font-family: PingFangSC, "PingFang SC", "Helvetica Neue", Helvetica, Arial, sans-serif;
+      font-size: 13px;
+      font-weight: 400;
+      line-height: 28px;
+      cursor: pointer;
+      transition: font-weight 0.18s ease, transform 0.18s ease, color 0.18s ease;
+
+      &:hover {
+        background: transparent;
+        color: #1D2129;
+      }
+
+      &.active {
+        font-weight: 600;
+        transform: scale(1.035);
+      }
+
+      .anticon {
+        color: inherit;
+        font-size: 12px;
+      }
+    }
+
+    .ataas-cr-view-divider {
+      width: 1px;
+      height: 14px;
+      margin: 0 4px;
+      background: #E5E6EB;
+    }
+  }
+
+  /* ── Services / ServiceEntry 卡片视图 ── */
+  .ataas-cr-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 14px;
+    padding: 4px 0;
+  }
+
+  .ataas-cr-card {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid #e9ebef;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(29, 33, 41, 0.025);
+    color: #1D2129;
+    font-family: PingFangSC, "PingFang SC", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+
+    &:hover {
+      border-color: #ddd7fa;
+      box-shadow: 0 8px 24px rgba(51, 65, 85, 0.075);
+      transform: translateY(-1px);
+    }
+
+    > header {
+      position: relative;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 17px 18px 14px;
+
+      &::after {
+        position: absolute;
+        right: 18px;
+        bottom: 0;
+        left: 70px;
+        height: 1px;
+        background: #f2f3f5;
+        content: "";
+      }
+
+      > div {
+        min-width: 0;
+        flex: 1;
+      }
+
+      > div strong,
+      > div small {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      > div strong {
+        color: #1d2129;
+        font-size: 13px;
+        font-weight: 500;
+        line-height: 20px;
+      }
+
+      > div small {
+        margin-top: 2px;
+        color: #86909c;
+        font-size: 10px;
+        line-height: 16px;
+      }
+    }
+
+    > footer {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 6px;
+      padding: 10px 14px;
+      border-top: 1px solid #f2f3f5;
+    }
+  }
+
+  .ataas-cr-card-icon {
+    display: grid;
+    width: 40px;
+    height: 40px;
+    flex: 0 0 40px;
+    place-items: center;
+    overflow: hidden;
+    border-radius: 9px;
+    background: #f5f7fa;
+    color: #4e5969;
+    font-size: 17px;
+  }
+
+  .ataas-cr-card-body {
+    flex: 1;
+    min-height: 0;
+    padding: 14px 18px 18px;
+  }
+
+  .ataas-cr-card-simple-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px 0;
+
+    + .ataas-cr-card-simple-row {
+      border-top: 1px solid #f5f6f7;
+    }
+
+    > span {
+      flex: 0 0 72px;
+      color: #86909c;
+      font-size: 12px;
+      line-height: 20px;
+    }
+
+    > strong {
+      min-width: 0;
+      flex: 1;
+      overflow: hidden;
+      color: #1d2129;
+      font-size: 13px;
+      font-weight: 400;
+      line-height: 20px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  .ataas-cr-card-summary {
+    background: #fafbfc;
+    border: 1px solid #eef0f4;
+    border-radius: 7px;
+    overflow: hidden;
+  }
+
+  .ataas-cr-card-section {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 8px 12px;
+
+    + .ataas-cr-card-section {
+      border-top: 1px solid #f2f3f5;
+    }
+  }
+
+  .ataas-cr-card-label {
+    flex: 0 0 72px;
+    color: #86909c;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 20px;
+  }
+
+  .ataas-cr-card-values {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 6px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .ataas-cr-card-code {
+    display: inline-block;
+    padding: 1px 6px;
+    border: 1px solid #edf0f5;
+    border-radius: 4px;
+    background: #fff;
+    color: #344054;
+    font-family: Menlo, Monaco, Consolas, monospace;
+    font-size: 11px;
+    line-height: 18px;
+    white-space: nowrap;
+  }
+
+  .ataas-cr-card-action.ant-btn {
+    height: 28px;
+    padding: 0 10px;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    color: #4e5969;
+    background: transparent;
+    box-shadow: none;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 26px;
+    transition: color 0.16s ease, border-color 0.16s ease, background 0.16s ease;
+
+    &:hover,
+    &:focus-visible {
+      border-color: #e1dafc !important;
+      color: #5f35d5 !important;
+      background: #f8f6ff !important;
+    }
+
+    &.ant-btn-dangerous {
+      &:hover,
+      &:focus-visible {
+        border-color: #ffccc7 !important;
+        color: #d92d20 !important;
+        background: #fff2f0 !important;
+      }
+    }
   }
 }

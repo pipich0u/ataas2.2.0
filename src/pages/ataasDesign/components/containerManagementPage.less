@@ -594,3 +594,166 @@
 .ataas-config-yaml-picker-warning .anticon {
   font-size: 13px;
 }
+
+/* ── ServiceEntry 卡片视图（匹配分发中心卡片风格） ── */
+.ataas-cm-se-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 14px;
+}
+
+.ataas-cm-se-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #e9ebef;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(29, 33, 41, 0.025);
+  color: #1D2129;
+  font-family: PingFangSC, "PingFang SC", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+
+  &:hover {
+    border-color: #ddd7fa;
+    box-shadow: 0 8px 24px rgba(51, 65, 85, 0.075);
+    transform: translateY(-1px);
+  }
+
+  > header {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 17px 18px 14px;
+
+    &::after {
+      position: absolute;
+      right: 18px;
+      bottom: 0;
+      left: 70px;
+      height: 1px;
+      background: #f2f3f5;
+      content: "";
+    }
+
+    > div {
+      min-width: 0;
+      flex: 1;
+    }
+
+    > div strong,
+    > div small {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    > div strong {
+      color: #1d2129;
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 20px;
+    }
+
+    > div small {
+      margin-top: 2px;
+      color: #86909c;
+      font-size: 10px;
+      line-height: 16px;
+    }
+  }
+
+  > footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    padding: 10px 14px;
+    border-top: 1px solid #f2f3f5;
+  }
+}
+
+.ataas-cm-se-card-icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 9px;
+  background: #f5f7fa;
+  color: #4e5969;
+  font-size: 17px;
+}
+
+.ataas-cm-se-card-body {
+  flex: 1;
+  min-height: 0;
+  padding: 14px 18px 18px;
+}
+
+.ataas-cm-se-card-summary {
+  background: #fafbfc;
+  border: 1px solid #eef0f4;
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.ataas-cm-se-card-section {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 12px;
+
+  + .ataas-cm-se-card-section {
+    border-top: 1px solid #f2f3f5;
+  }
+}
+
+.ataas-cm-se-card-label {
+  flex: 0 0 72px;
+  color: #86909c;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 20px;
+}
+
+.ataas-cm-se-card-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.ataas-cm-se-card-code {
+  display: inline-block;
+  padding: 1px 6px;
+  border: 1px solid #edf0f5;
+  border-radius: 4px;
+  background: #fff;
+  color: #344054;
+  font-family: Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.ataas-cm-se-card-muted {
+  color: #98a2b3;
+  font-size: 11px;
+  line-height: 20px;
+}
+
+.ataas-cm-se-card-link {
+  color: #5f35d5;
+  cursor: pointer;
+  transition: color 0.14s ease;
+
+  &:hover {
+    color: #451cb8;
+    text-decoration: underline;
+  }
+}

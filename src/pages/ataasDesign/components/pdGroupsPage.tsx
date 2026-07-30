@@ -21,10 +21,11 @@ import type { ColumnsType } from 'antd/es/table';
 import { Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { MonacoEditor } from '../../../components/shared/MonacoEditor';
+import { useK8sResourceStore } from './k8sResourceStore';
 
 type PdRoleName = 'router' | 'prefill' | 'decode';
 type PdPodRole = PdRoleName | 'store' | 'master' | 'etcd';
-type GroupStatus = '正常' | '需关注' | '更新中' | '已摘流';
+type GroupStatus = '正常' | '需关注' | '更新中' | '未接流';
 type TrafficState = 'serving' | 'drained';
 type GroupYamlFileKey = 'router' | 'workers';
 
@@ -214,12 +215,12 @@ const createGroup = ({
   };
 };
 
-const initialGroups: PdGroup[] = [
+export const initialGroups: PdGroup[] = [
   createGroup({
     key: 'glm51-1-st',
-    clusterKey: 'shanghai-online',
+    clusterKey: 'st',
     clusterAlias: 'st',
-    clusterName: 'shanghai-online',
+    clusterName: 'st',
     name: 'glm51_1',
     model: 'GLM-5.1',
     namespace: 'model-serving',
@@ -232,9 +233,9 @@ const initialGroups: PdGroup[] = [
   }),
   createGroup({
     key: 'glm51-3-st',
-    clusterKey: 'shanghai-online',
+    clusterKey: 'st',
     clusterAlias: 'st',
-    clusterName: 'shanghai-online',
+    clusterName: 'st',
     name: 'glm51_3',
     model: 'GLM-5.1',
     namespace: 'model-serving',
@@ -247,9 +248,9 @@ const initialGroups: PdGroup[] = [
   }),
   createGroup({
     key: 'glm51-4-st',
-    clusterKey: 'shanghai-online',
+    clusterKey: 'st',
     clusterAlias: 'st',
-    clusterName: 'shanghai-online',
+    clusterName: 'st',
     name: 'glm51_4',
     model: 'GLM-5.1',
     namespace: 'model-serving',
@@ -290,7 +291,7 @@ const initialGroups: PdGroup[] = [
       prefill: ['bd-b300-31', 'bd-b300-32', 'bd-b300-33', 'bd-b300-34', 'bd-b300-35', 'bd-b300-36', 'bd-b300-37', 'bd-b300-38'],
       decode: ['bd-b300-41', 'bd-b300-42', 'bd-b300-43'],
     },
-    status: '已摘流',
+    status: '未接流',
     trafficState: 'drained',
   }),
   createGroup({
@@ -574,12 +575,12 @@ const GroupDetailDrawer = ({
         <div className="pd-detail-section-head">
           <strong>Route Exposure</strong>
           <span className={`pd-traffic-state is-${group.trafficState}`}>
-            {group.trafficState === 'serving' ? '接流中' : '已摘流'}
+            {group.trafficState === 'serving' ? '接流中' : '未接流'}
           </span>
         </div>
         <div className="pd-route-exposure">
-          <span><small>SE</small><b>{group.exposure.seName}</b></span>
-          <span><small>Host</small><b>{group.exposure.host}</b></span>
+          <span><small>SE</small><b>{group.exposure.seName || '-'}</b></span>
+          <span><small>Host</small><b>{group.trafficState === 'drained' ? '-' : group.exposure.host}</b></span>
           <span><small>Router Service</small><b>{group.exposure.routerService}</b></span>
           <span><small>端口 / 协议</small><b>{group.exposure.port} / {group.exposure.protocol}</b></span>
           <span><small>流量策略</small><b>{group.exposure.policy}</b></span>
@@ -778,6 +779,7 @@ const PdGroupsPage = ({ selectedClusterKey }: { selectedClusterKey: string }) =>
   const [statusScope, setStatusScope] = useState('all');
   const [detailGroupKey, setDetailGroupKey] = useState<string | null>(null);
   const [pendingPodsNavigation, setPendingPodsNavigation] = useState(false);
+  const resourceStore = useK8sResourceStore();
 
   useEffect(() => {
     const focusGroup = (event: Event) => {
@@ -857,53 +859,105 @@ const PdGroupsPage = ({ selectedClusterKey }: { selectedClusterKey: string }) =>
 
   const toggleTraffic = (group: PdGroup) => {
     const draining = group.trafficState === 'serving';
-    Modal.confirm({
-      rootClassName: `pd-group-action-confirm ${draining ? 'is-drain' : 'is-restore'}`,
-      width: 480,
-      centered: true,
-      icon: null,
-      title: (
-        <div className="pd-group-confirm-title">
-          <span className="pd-group-confirm-icon"><DisconnectOutlined /></span>
-          <div>
-            <strong>{draining ? '摘流 Group' : '恢复流量'}</strong>
-            <span>{group.name}</span>
-          </div>
-        </div>
-      ),
-      content: (
-        <div className="pd-group-confirm-content">
-          <p>
-            {draining
-              ? '摘流后该 Group 将停止接收新请求，正在处理的请求不会被中断。'
-              : '恢复后该 Group 将重新加入可用后端，并开始接收新请求。'}
-          </p>
-          <dl>
-            <div><dt>Service Entry</dt><dd>{group.exposure.seName}</dd></div>
+    if (draining) {
+      Modal.confirm({
+        rootClassName: 'pd-group-action-confirm is-drain',
+        width: 480,
+        centered: true,
+        icon: null,
+        title: (
+          <div className="pd-group-confirm-title">
+            <span className="pd-group-confirm-icon"><DisconnectOutlined /></span>
             <div>
-              <dt>{draining ? '现有请求' : '流量状态'}</dt>
-              <dd>{draining ? '等待自然结束' : '恢复接流'}</dd>
+              <strong>摘流 Group</strong>
+              <span>{group.name}</span>
             </div>
-          </dl>
-        </div>
-      ),
-      okText: draining ? '确认摘流' : '确认恢复',
-      cancelText: '取消',
-      okButtonProps: draining ? { danger: true } : undefined,
-      onOk: () => {
-        setGroups((current) => current.map((item) => (
-          item.key === group.key
-            ? {
-              ...item,
-              trafficState: draining ? 'drained' : 'serving',
-              status: draining ? '已摘流' : '正常',
-              updatedAt: '刚刚',
-            }
-            : item
-        )));
-        message.success(`${group.name} 已${draining ? '摘流' : '恢复流量'}`);
-      },
-    });
+          </div>
+        ),
+        content: (
+          <div className="pd-group-confirm-content">
+            <p>摘流后该 Group 将停止接收新请求，正在处理的请求不会被中断。</p>
+            <dl>
+              <div><dt>Service Entry</dt><dd>{group.exposure.seName}</dd></div>
+              <div><dt>现有请求</dt><dd>等待自然结束</dd></div>
+            </dl>
+          </div>
+        ),
+        okText: '确认摘流',
+        cancelText: '取消',
+        okButtonProps: { danger: true },
+        onOk: () => {
+          setGroups((current) => current.map((item) => (
+            item.key === group.key
+              ? {
+                ...item,
+                trafficState: 'drained',
+                status: '未接流',
+                exposure: { ...item.exposure, seName: '' },
+                updatedAt: '刚刚',
+              }
+              : item
+          )));
+          message.success(`${group.name} 已摘流`);
+        },
+      });
+    } else {
+      const restoreSeRef = { current: group.exposure.seName || '' };
+      Modal.confirm({
+        rootClassName: 'pd-group-action-confirm is-restore',
+        width: 480,
+        centered: true,
+        icon: null,
+        title: (
+          <div className="pd-group-confirm-title">
+            <span className="pd-group-confirm-icon"><DisconnectOutlined /></span>
+            <div>
+              <strong>恢复流量</strong>
+              <span>{group.name}</span>
+            </div>
+          </div>
+        ),
+        content: (
+          <div className="pd-group-confirm-content">
+            <p>恢复后该 Group 将重新加入可用后端，并开始接收新请求。</p>
+            <dl>
+              <div>
+                <dt>Service Entry</dt>
+                <dd>
+                  <Select
+                    defaultValue={restoreSeRef.current}
+                    onChange={(val) => { restoreSeRef.current = val; }}
+                    options={resourceStore.state.serviceEntries.map((se) => ({
+                      label: `${se.name}（endpoints: ${se.endpoints.length}）`,
+                      value: se.name,
+                    }))}
+                    style={{ width: 300 }}
+                    placeholder="请选择 ServiceEntry"
+                  />
+                </dd>
+              </div>
+              <div><dt>流量状态</dt><dd>恢复接流</dd></div>
+            </dl>
+          </div>
+        ),
+        okText: '确认恢复',
+        cancelText: '取消',
+        onOk: () => {
+          setGroups((current) => current.map((item) => (
+            item.key === group.key
+              ? {
+                ...item,
+                trafficState: 'serving',
+                status: '正常',
+                exposure: { ...item.exposure, seName: restoreSeRef.current },
+                updatedAt: '刚刚',
+              }
+              : item
+          )));
+          message.success(`${group.name} 已恢复流量`);
+        },
+      });
+    }
   };
 
   const viewAllPods = (group: PdGroup) => {
@@ -973,11 +1027,19 @@ const PdGroupsPage = ({ selectedClusterKey }: { selectedClusterKey: string }) =>
       title: 'Exposed SE',
       key: 'exposure',
       width: 180,
-      render: (_, group) => (
+      render: (_, group) => group.trafficState === 'drained' ? (
+        <span className="pd-exposure-empty">-</span>
+      ) : (
         <div className="pd-exposure-cell">
           <div>
             <span className="pd-se-pill">SE</span>
-            <b>{group.exposure.seName}</b>
+            <b
+              style={{ cursor: 'pointer', color: '#6951FF' }}
+              onClick={() => {
+                document.querySelector<HTMLElement>('.module-tab[data-view="serviceentry"]')?.click();
+                window.dispatchEvent(new CustomEvent('ataas:se-search', { detail: group.exposure.seName }));
+              }}
+            >{group.exposure.seName}</b>
           </div>
           <span title={group.exposure.host}>{group.exposure.host}</span>
         </div>
@@ -1048,7 +1110,7 @@ const PdGroupsPage = ({ selectedClusterKey }: { selectedClusterKey: string }) =>
             <span><small>Group</small><b>{scopedGroups.length}</b></span>
             <span><small>正常</small><b className="is-normal">{healthyCount}</b></span>
             <span><small>需关注</small><b className={attentionCount ? 'is-error' : ''}>{attentionCount}</b></span>
-            <span><small>已摘流</small><b>{drainedCount}</b></span>
+            <span><small>未接流</small><b>{drainedCount}</b></span>
           </div>
         </header>
 
@@ -1070,7 +1132,7 @@ const PdGroupsPage = ({ selectedClusterKey }: { selectedClusterKey: string }) =>
               { value: '正常', label: '正常' },
               { value: '需关注', label: '需关注' },
               { value: '更新中', label: '更新中' },
-              { value: '已摘流', label: '已摘流' },
+              { value: '未接流', label: '未接流' },
             ]}
           />
         </div>

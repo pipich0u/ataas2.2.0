@@ -19,6 +19,7 @@ import {
   supplierResourceCreateMenuItems,
 } from './supplierResourcesPage';
 import type { SupplierResourceCreateKind } from './supplierResourcesPage';
+import { K8sPodResource, useK8sResourceStore } from './k8sResourceStore';
 import './clusterOperationsHomepage.less';
 import './pdGroupsPage.less';
 
@@ -658,7 +659,7 @@ const ClusterOperationsHomepage = () => {
   const rootRef = useRef<HTMLDivElement>(null);
   const [hierarchyScope, setHierarchyScope] = useState<HierarchyScope | null>(null);
   const [resourceCreateKind, setResourceCreateKind] = useState<SupplierResourceCreateKind | null>(null);
-  const [selectedClusterKey, setSelectedClusterKey] = useState('shanghai-online');
+  const [selectedClusterKey, setSelectedClusterKey] = useState('st');
 
   useEffect(() => {
     const handleHierarchyScopeChange = (event: Event) => {
@@ -672,7 +673,7 @@ const ClusterOperationsHomepage = () => {
           datacenter: detail.datacenter,
         });
       } else if (detail?.type === 'cluster') {
-        setSelectedClusterKey(detail.key || 'shanghai-online');
+        setSelectedClusterKey(detail.key || 'st');
         setHierarchyScope(null);
       }
     };
@@ -1075,7 +1076,6 @@ type NodeRow = {
   name: string;
   ip: string;
   clusterName: string;
-  role?: 'master' | 'worker';
   label: string;
   tags?: string[];
   status: 'normal' | 'warning' | 'error' | 'pending' | 'draining';
@@ -1113,92 +1113,6 @@ type NodeRow = {
   disks: Array<{ name: string; total: string; used: string; type: string; mountPath: string; status: string; readSpeed: string; writeSpeed: string; iops: string; latency: string; readPressure: number; writePressure: number }>;
   networkCards: Array<{ name: string; ip: string; speed: string; status: string; type: string; mac: string; driver: string; pcie: string; linkStatus: string; duplex: string; lossRate: string; errors: number; inbound: string; outbound: string; bandwidthUtil: number; pps: string; tcpConns: number; avgLatency: string; connStatus: string }>;
   pods: Array<{ name: string; status: string; namespace: string; ready: string }>;
-  serviceComponents?: NodeServiceComponent[];
-};
-
-type NodeServiceComponent = {
-  name: string;
-  description: string;
-  version: string;
-  workload: string;
-  desired: number;
-  ready: number;
-  heartbeat: string;
-  status: 'running' | 'warning' | 'stopped';
-};
-
-const getNodeRole = (node: NodeRow): 'master' | 'worker' => (
-  node.role || (['n1', 'n3'].includes(node.key) ? 'master' : 'worker')
-);
-
-const getNodeServiceComponents = (node: NodeRow): NodeServiceComponent[] => {
-  if (node.serviceComponents) return node.serviceComponents;
-
-  const unavailable = node.status === 'error';
-  const degraded = node.status === 'warning';
-  const componentStatus = unavailable ? 'stopped' : degraded ? 'warning' : 'running';
-  const ready = unavailable ? 0 : 1;
-  const components: NodeServiceComponent[] = [
-    {
-      name: 'ATaaS Node Agent',
-      description: '节点注册、资源同步与任务执行',
-      version: 'v2.6.3',
-      workload: 'DaemonSet',
-      desired: 1,
-      ready,
-      heartbeat: unavailable ? '连接中断' : '12 秒前',
-      status: componentStatus,
-    },
-    {
-      name: 'GPU Telemetry Exporter',
-      description: 'GPU、显存、功耗与温度指标采集',
-      version: 'v1.9.1',
-      workload: 'DaemonSet',
-      desired: 1,
-      ready,
-      heartbeat: unavailable ? '连接中断' : '18 秒前',
-      status: componentStatus,
-    },
-    {
-      name: 'Log Collector',
-      description: '节点与容器运行日志采集',
-      version: 'v3.4.0',
-      workload: 'DaemonSet',
-      desired: 1,
-      ready,
-      heartbeat: unavailable ? '连接中断' : '24 秒前',
-      status: componentStatus,
-    },
-  ];
-
-  if (node.networkCards.some((card) => card.type === 'InfiniBand')) {
-    const rdmaWarning = node.networkCards.some((card) => card.type === 'InfiniBand' && card.status !== 'active');
-    components.push({
-      name: 'RDMA Health Agent',
-      description: 'RDMA 链路发现、巡检与故障上报',
-      version: 'v1.3.2',
-      workload: 'DaemonSet',
-      desired: 1,
-      ready: unavailable || rdmaWarning ? 0 : 1,
-      heartbeat: unavailable || rdmaWarning ? '连接中断' : '16 秒前',
-      status: unavailable || rdmaWarning ? 'stopped' : 'running',
-    });
-  }
-
-  if (getNodeRole(node) === 'master') {
-    components.push({
-      name: 'Cluster Control Connector',
-      description: '集群控制面状态同步与指令代理',
-      version: 'v2.2.0',
-      workload: 'Deployment',
-      desired: 1,
-      ready,
-      heartbeat: unavailable ? '连接中断' : '10 秒前',
-      status: componentStatus,
-    });
-  }
-
-  return components;
 };
 
 const getCapacityPercent = (used: string | number, total: string | number) => {
@@ -1229,50 +1143,7 @@ const UsageRing = ({ percent, sub }: { percent: number; sub?: string }) => {
   );
 };
 
-const nodeTabs = ['故障定位', 'CPU', '内存', 'GPU', '磁盘详情', '网卡详情', 'Pods列表', '服务组件'];
-
-const mockKernelLogs = (label: string) => [
-  `[${new Date().toLocaleString()}] kernel: ${label} - NVRM: GPU at PCI:0000:01:00.0 is OK`,
-  `[${new Date().toLocaleString()}] kernel: ${label} - mlx5_core 0000:3b:00.0: Link up, 100Gbps, full duplex`,
-  `[${new Date().toLocaleString()}] kernel: ${label} - nvidia-nvlink: link 0 enabled, speed 400 GB/s`,
-  `[${new Date().toLocaleString()}] kernel: ${label} - x86/split lock detection: #AC: process took a split lock`,
-  `[${new Date().toLocaleString()}] kernel: ${label} - nvme nvme0: new device found, PCI:0000:02:00.0`,
-  `[${new Date().toLocaleString()}] kernel: ${label} - scsi 0:0:0:0: Direct-Access NVMe SSD 3.86TB`,
-  `[${new Date().toLocaleString()}] kernel: ${label} - NETDEV: eth0: link becomes ready`,
-  `[${new Date().toLocaleString()}] kernel: ${label} - CPU: frequency scaling enabled (governor: performance)`,
-  `[${new Date().toLocaleString()}] kernel: ${label} - EDAC sbridge: S0 is ready`,
-  `[${new Date().toLocaleString()}] kernel: ${label} - ACPI: button: Power button pressed - entering sleep`,
-];
-
-const NodeLogDrawer = ({ detail, onClose }: {
-  detail: { title: string; logs: string[] } | null;
-  onClose: () => void;
-}) => (
-  <Drawer
-    rootClassName="node-log-drawer"
-    title={(
-      <div className="node-log-drawer-title">
-        <strong>{detail?.title || '内核日志'}</strong>
-        <span>按时间顺序展示最近采集记录</span>
-      </div>
-    )}
-    placement="right"
-    open={!!detail}
-    onClose={onClose}
-    width={640}
-  >
-    {detail && (
-      <div className="node-log-stream">
-        <div className="node-log-terminal-head">
-          <span><i /><i /><i /></span>
-          <strong>kernel console</strong>
-          <em>tail -n {detail.logs.length}</em>
-        </div>
-        <pre><code>{detail.logs.join('\n')}</code></pre>
-      </div>
-    )}
-  </Drawer>
-);
+const nodeTabs = ['故障定位', 'CPU', '内存', 'GPU', '磁盘详情', '网卡详情', 'Pods列表'];
 
 const DiskDetailDrawer = ({ disk, nodeName, open, onClose }: { disk: { name: string; total: string; used: string; type: string; mountPath: string; status: string; readSpeed: string; writeSpeed: string; iops: string; latency: string; readPressure: number; writePressure: number } | null; nodeName: string; open: boolean; onClose: () => void }) => {
   if (!disk) return null;
@@ -1540,7 +1411,6 @@ const NodeExpandContent = ({ node, initialTab = 'CPU' }: { node: NodeRow; initia
   const [diskDetail, setDiskDetail] = useState<{ name: string; total: string; used: string; type: string; mountPath: string; status: string; readSpeed: string; writeSpeed: string; iops: string; latency: string; readPressure: number; writePressure: number } | null>(null);
   const [netDetail, setNetDetail] = useState<NetCardDetail | null>(null);
   const [gpuDetail, setGpuDetail] = useState<{ index: number; model: string; spec: string; memoryTotal: string; memoryUsed: string; memoryFree: string; utilization: number; power: number; temperature: number; status: string } | null>(null);
-  const [logDetail, setLogDetail] = useState<{ title: string; logs: string[] } | null>(null);
 
   const cpuUtil = node.cpu > 0 ? Math.round((node.cpuUsed / node.cpu) * 100) : 0;
   const memUtil = getCapacityPercent(node.memoryUsed, node.memory);
@@ -1748,7 +1618,6 @@ const NodeExpandContent = ({ node, initialTab = 'CPU' }: { node: NodeRow; initia
               <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>类型</th>
               <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>挂载路径</th>
               <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>状态</th>
-              <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>操作</th>
             </tr>
           </thead>
           <tbody>
@@ -1763,13 +1632,11 @@ const NodeExpandContent = ({ node, initialTab = 'CPU' }: { node: NodeRow; initia
                   <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: d.status === 'normal' ? '#00B42A' : '#FF7D00', marginRight: 6 }} />
                   <span style={{ color: d.status === 'normal' ? '#00B42A' : '#FF7D00' }}>{d.status === 'normal' ? '正常' : '告警'}</span>
                 </td>
-                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}><FileText className="node-inline-log-icon" onClick={() => setLogDetail({ title: d.name + ' 内核日志', logs: mockKernelLogs(d.name) })} /></td>
               </tr>
             ))}
           </tbody>
         </table>
         <DiskDetailDrawer disk={diskDetail} nodeName={node.name} open={!!diskDetail} onClose={() => setDiskDetail(null)} />
-        <NodeLogDrawer detail={logDetail} onClose={() => setLogDetail(null)} />
       </div>
     );
   }
@@ -1786,7 +1653,6 @@ const NodeExpandContent = ({ node, initialTab = 'CPU' }: { node: NodeRow; initia
               <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>IP</th>
               <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>速率</th>
               <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>状态</th>
-              <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>操作</th>
             </tr>
           </thead>
           <tbody>
@@ -1806,74 +1672,11 @@ const NodeExpandContent = ({ node, initialTab = 'CPU' }: { node: NodeRow; initia
                   <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: card.status === 'active' ? '#00B42A' : '#F53F3F', marginRight: 6 }} />
                   <span style={{ color: card.status === 'active' ? '#00B42A' : '#F53F3F' }}>{card.status === 'active' ? '正常' : '异常'}</span>
                 </td>
-                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}><FileText className="node-inline-log-icon" onClick={() => setLogDetail({ title: card.name + ' 内核日志', logs: mockKernelLogs(card.name) })} /></td>
               </tr>
             ))}
           </tbody>
         </table>
         <NetDetailDrawer card={netDetail} open={!!netDetail} onClose={() => setNetDetail(null)} />
-        <NodeLogDrawer detail={logDetail} onClose={() => setLogDetail(null)} />
-      </div>
-    );
-  }
-
-  if (activeTab === '服务组件') {
-    const components = getNodeServiceComponents(node);
-    const healthyCount = components.filter((component) => component.status === 'running').length;
-    const abnormalCount = components.length - healthyCount;
-    const statusText: Record<NodeServiceComponent['status'], string> = {
-      running: '运行中',
-      warning: '有告警',
-      stopped: '已停止',
-    };
-
-    return (
-      <div className="node-expand-shell">
-        {renderTabBar()}
-        <section className="node-service-overview">
-          <div className="node-service-overview-head">
-            <div>
-              <strong>服务组件状态概览</strong>
-              <span>展示由平台安装并运行在当前节点上的服务组件。</span>
-            </div>
-            <div className="node-service-summary">
-              <span><small>已安装</small><b>{components.length}</b></span>
-              <span><small>运行正常</small><b className="is-running">{healthyCount}</b></span>
-              <span><small>异常</small><b className={abnormalCount ? 'is-abnormal' : ''}>{abnormalCount}</b></span>
-            </div>
-          </div>
-          <div className="node-service-table" role="table" aria-label={`${node.name} 服务组件状态`}>
-            <div className="node-service-table-head" role="row">
-              <span role="columnheader">服务组件</span>
-              <span role="columnheader">版本</span>
-              <span role="columnheader">运行方式</span>
-              <span role="columnheader">实例</span>
-              <span role="columnheader">最近心跳</span>
-              <span role="columnheader">状态</span>
-            </div>
-            {components.map((component) => (
-              <div className="node-service-table-row" role="row" key={component.name}>
-                <span className="node-service-identity" role="cell">
-                  <i className={`is-${component.status}`} />
-                  <span>
-                    <strong>{component.name}</strong>
-                    <small>{component.description}</small>
-                  </span>
-                </span>
-                <span role="cell">{component.version}</span>
-                <span role="cell">{component.workload}</span>
-                <span role="cell">{component.ready} / {component.desired}</span>
-                <span role="cell">{component.heartbeat}</span>
-                <span role="cell">
-                  <em className={`node-service-status is-${component.status}`}>
-                    <i />
-                    {statusText[component.status]}
-                  </em>
-                </span>
-              </div>
-            ))}
-          </div>
-        </section>
       </div>
     );
   }
@@ -1915,20 +1718,70 @@ const NodeExpandContent = ({ node, initialTab = 'CPU' }: { node: NodeRow; initia
   return null;
 };
 
-const nodeData: NodeRow[] = [
-  { key: 'n1', name: 'qujing4', ip: '192.168.110.4', clusterName: 'default', label: 'GPU=RTX_4090', tags: ['deployment=dev', 'zone=shanghai', 'worker=high-performance', 'accelerator=nvidia-rtx'], status: 'normal', authStatus: 'authorized', modelCount: 0, runningInstances: 0, cpu: 128, cpuUsed: 42, cpuModel: 'Intel Xeon Gold 6438M', cpuArch: 'x86_64', cpuSockets: 2, cpuCores: 64, cpuThreads: 128, cpuFrequency: 2.1, cpuTotalGHz: 134.4, cpuUsedGHz: 44.1, cpuReady: '99.2%', cpuLoad: '8.5', gpu: 8, gpuCards: [{ index: 0, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '12.0 GB', memoryFree: '11.99 GB', utilization: 52, power: 315, temperature: 72, status: 'active' }, { index: 1, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 98, power: 425, temperature: 81, status: 'active' }, { index: 2, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 95, power: 410, temperature: 78, status: 'active' }, { index: 3, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 87, power: 380, temperature: 75, status: 'active' }, { index: 4, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '18.5 GB', memoryFree: '5.49 GB', utilization: 72, power: 360, temperature: 73, status: 'active' }, { index: 5, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '4.8 GB', memoryFree: '19.19 GB', utilization: 22, power: 180, temperature: 58, status: 'active' }, { index: 6, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 91, power: 415, temperature: 80, status: 'active' }, { index: 7, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 34, status: 'idle' }], gpuMemory: '383.9 GB', gpuMemoryUsed: '95.9 GB', memory: '1007.56 GB', memoryUsed: '352.6 GB', memoryType: 'DDR5 4800MHz', memoryActive: '286.4 GB', memoryConsumed: '412.8 GB', memoryShared: '12.3 GB', memoryBalloon: '0 GB', memoryCompression: '8.7 GB', memorySwap: '2.1 GB', memoryCache: '156.2 GB', disk: '3.86 TB', diskUsed: '1.54 TB', disks: [{ name: '/dev/sda', total: '3.86 TB', used: '1.54 TB', type: 'NVMe SSD', mountPath: '/data', status: 'normal', readSpeed: '850 MB/s', writeSpeed: '420 MB/s', iops: '85K', latency: '0.8 ms', readPressure: 60, writePressure: 40 }], networkCards: [{ name: 'eth0', ip: '192.168.110.4', speed: '25Gbps', status: 'active', type: 'Ethernet', mac: '00:1A:2B:3C:4D:01', driver: 'mlx5_core', pcie: '0000:3b:00.0', linkStatus: 'UP', duplex: 'Full Duplex', lossRate: '0.001%', errors: 0, inbound: '8.5 Gbps', outbound: '12.3 Gbps', bandwidthUtil: 45, pps: '850K', tcpConns: 12430, avgLatency: '0.35ms', connStatus: '正常' }, { name: 'eth1', ip: '10.0.0.4', speed: '100Gbps', status: 'active', type: 'Ethernet', mac: '00:1A:2B:3C:4D:02', driver: 'mlx5_core', pcie: '0000:3b:00.1', linkStatus: 'UP', duplex: 'Full Duplex', lossRate: '0.000%', errors: 0, inbound: '42.3 Gbps', outbound: '38.7 Gbps', bandwidthUtil: 42, pps: '2.1M', tcpConns: 8650, avgLatency: '0.28ms', connStatus: '正常' }, { name: 'ib0', ip: '192.168.200.4', speed: '200Gbps', status: 'active', type: 'InfiniBand', mac: 'N/A', driver: 'mlx5_ib', pcie: '0000:3b:00.2', linkStatus: 'UP', duplex: 'Full Duplex', lossRate: '0.000%', errors: 0, inbound: '156.8 Gbps', outbound: '112.4 Gbps', bandwidthUtil: 78, pps: '4.5M', tcpConns: 0, avgLatency: '0.15ms', connStatus: '正常' }], pods: [{ name: 'deepseek-dev-p1', status: 'Running', namespace: 'development', ready: '1/1' }, { name: 'qwen2-demo-p1', status: 'Running', namespace: 'demo', ready: '1/1' }, { name: 'qwen2-demo-p2', status: 'Failed', namespace: 'demo', ready: '0/1' }] },
-  { key: 'n2', name: 'qujing7', ip: '192.168.110.21', clusterName: 'default', label: 'GPU=RTX_4090', status: 'normal', authStatus: 'authorized', modelCount: 0, runningInstances: 0, cpu: 192, cpuUsed: 68, cpuModel: 'AMD EPYC 9654', cpuArch: 'x86_64', cpuSockets: 2, cpuCores: 192, cpuThreads: 384, cpuFrequency: 2.4, cpuTotalGHz: 460.8, cpuUsedGHz: 163.2, cpuReady: '97.8%', cpuLoad: '12.3', gpu: 8, gpuCards: [{ index: 0, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '12.0 GB', memoryFree: '11.99 GB', utilization: 48, power: 300, temperature: 68, status: 'active' }, { index: 1, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 92, power: 400, temperature: 76, status: 'active' }, { index: 2, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 94, power: 405, temperature: 77, status: 'active' }, { index: 3, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 88, power: 385, temperature: 74, status: 'active' }, { index: 4, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '3.2 GB', memoryFree: '20.79 GB', utilization: 14, power: 120, temperature: 48, status: 'active' }, { index: 5, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '19.4 GB', memoryFree: '4.59 GB', utilization: 76, power: 345, temperature: 72, status: 'active' }, { index: 6, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '7.8 GB', memoryFree: '16.19 GB', utilization: 35, power: 210, temperature: 60, status: 'active' }, { index: 7, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 97, power: 430, temperature: 83, status: 'active' }], gpuMemory: '383.9 GB', gpuMemoryUsed: '115.2 GB', memory: '1.48 TB', memoryUsed: '521.3 GB', memoryType: 'DDR5 4800MHz', memoryActive: '286.4 GB', memoryConsumed: '412.8 GB', memoryShared: '12.3 GB', memoryBalloon: '0 GB', memoryCompression: '8.7 GB', memorySwap: '2.1 GB', memoryCache: '156.2 GB', disk: '12.6 TB', diskUsed: '5.04 TB', disks: [{ name: '/dev/sda', total: '6.3 TB', used: '3.2 TB', type: 'NVMe SSD', mountPath: '/data', status: 'normal', readSpeed: '720 MB/s', writeSpeed: '380 MB/s', iops: '72K', latency: '1.2 ms', readPressure: 55, writePressure: 45 }, { name: '/dev/sdb', total: '6.3 TB', used: '1.84 TB', type: 'NVMe SSD', mountPath: '/models', status: 'normal', readSpeed: '560 MB/s', writeSpeed: '210 MB/s', iops: '48K', latency: '1.8 ms', readPressure: 35, writePressure: 25 }], networkCards: [{ name: 'eth0', ip: '192.168.110.21', speed: '25Gbps', status: 'active', type: 'Ethernet', mac: '00:1A:2B:3C:4D:11', driver: 'mlx5_core', pcie: '0000:3b:00.0', linkStatus: 'UP', duplex: 'Full Duplex', lossRate: '0.002%', errors: 0, inbound: '6.2 Gbps', outbound: '9.8 Gbps', bandwidthUtil: 38, pps: '620K', tcpConns: 8920, avgLatency: '0.42ms', connStatus: '正常' }, { name: 'eth1', ip: '10.0.0.21', speed: '100Gbps', status: 'active', type: 'Ethernet', mac: '00:1A:2B:3C:4D:12', driver: 'mlx5_core', pcie: '0000:3b:00.1', linkStatus: 'UP', duplex: 'Full Duplex', lossRate: '0.000%', errors: 0, inbound: '32.1 Gbps', outbound: '28.5 Gbps', bandwidthUtil: 32, pps: '1.8M', tcpConns: 5430, avgLatency: '0.31ms', connStatus: '正常' }, { name: 'ib0', ip: '192.168.200.21', speed: '200Gbps', status: 'active', type: 'InfiniBand', mac: 'N/A', driver: 'mlx5_ib', pcie: '0000:3b:00.2', linkStatus: 'UP', duplex: 'Full Duplex', lossRate: '0.000%', errors: 0, inbound: '128.4 Gbps', outbound: '95.2 Gbps', bandwidthUtil: 65, pps: '3.2M', tcpConns: 0, avgLatency: '0.12ms', connStatus: '正常' }], pods: [{ name: 'deepseek-dev-p2', status: 'Running', namespace: 'development', ready: '1/1' }] },
-  { key: 'n3', name: 'qujing21', ip: '192.168.109.6', clusterName: 'default', label: 'GPU=RTX_4090', status: 'normal', authStatus: 'unauthorized', modelCount: 0, runningInstances: 0, cpu: 192, cpuUsed: 56, cpuModel: 'Intel Xeon Gold 6438M', cpuArch: 'x86_64', cpuSockets: 2, cpuCores: 96, cpuThreads: 192, cpuFrequency: 2.1, cpuTotalGHz: 201.6, cpuUsedGHz: 58.8, cpuReady: '98.5%', cpuLoad: '9.8', gpu: 8, gpuCards: [{ index: 0, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '19.2 GB', memoryFree: '4.79 GB', utilization: 78, power: 350, temperature: 71, status: 'active' }, { index: 1, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 96, power: 420, temperature: 82, status: 'active' }, { index: 2, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '15.6 GB', memoryFree: '8.39 GB', utilization: 63, power: 325, temperature: 68, status: 'active' }, { index: 3, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0.5 GB', memoryFree: '23.49 GB', utilization: 2, power: 45, temperature: 36, status: 'idle' }, { index: 4, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 93, power: 412, temperature: 79, status: 'active' }, { index: 5, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '11.5 GB', memoryFree: '12.49 GB', utilization: 45, power: 280, temperature: 65, status: 'active' }, { index: 6, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 89, power: 390, temperature: 75, status: 'active' }, { index: 7, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '4.8 GB', memoryFree: '19.19 GB', utilization: 20, power: 160, temperature: 55, status: 'active' }], gpuMemory: '383.9 GB', gpuMemoryUsed: '67.2 GB', memory: '1007.51 GB', memoryUsed: '483.6 GB', memoryType: 'DDR5 4800MHz', memoryActive: '286.4 GB', memoryConsumed: '412.8 GB', memoryShared: '12.3 GB', memoryBalloon: '0 GB', memoryCompression: '8.7 GB', memorySwap: '2.1 GB', memoryCache: '156.2 GB', disk: '3.86 TB', diskUsed: '2.12 TB', disks: [{ name: '/dev/sda', total: '3.86 TB', used: '2.12 TB', type: 'NVMe SSD', mountPath: '/data', status: 'normal', readSpeed: '920 MB/s', writeSpeed: '510 MB/s', iops: '92K', latency: '0.6 ms', readPressure: 75, writePressure: 55 }], networkCards: [{ name: 'eth0', ip: '192.168.109.6', speed: '25Gbps', status: 'active', type: 'Ethernet', mac: '00:1A:2B:3C:4D:21', driver: 'mlx5_core', pcie: '0000:3b:00.0', linkStatus: 'UP', duplex: 'Full Duplex', lossRate: '0.003%', errors: 0, inbound: '12.8 Gbps', outbound: '15.2 Gbps', bandwidthUtil: 58, pps: '1.2M', tcpConns: 15670, avgLatency: '0.28ms', connStatus: '正常' }, { name: 'ib0', ip: '192.168.200.6', speed: '200Gbps', status: 'active', type: 'InfiniBand', mac: 'N/A', driver: 'mlx5_ib', pcie: '0000:3b:00.1', linkStatus: 'UP', duplex: 'Full Duplex', lossRate: '0.000%', errors: 0, inbound: '178.6 Gbps', outbound: '142.3 Gbps', bandwidthUtil: 82, pps: '5.1M', tcpConns: 0, avgLatency: '0.11ms', connStatus: '正常' }], pods: [] },
-  { key: 'n4', name: 'qujing1', ip: '192.168.200.10', clusterName: 'default', label: 'GPU=RTX_5000', status: 'error', authStatus: 'unauthorized', modelCount: 0, runningInstances: 0, cpu: 192, cpuUsed: 0, cpuModel: 'Intel Xeon Gold 6438M', cpuArch: 'x86_64', cpuSockets: 2, cpuCores: 96, cpuThreads: 192, cpuFrequency: 2.1, cpuTotalGHz: 201.6, cpuUsedGHz: 0, cpuReady: '0%', cpuLoad: '0.0', gpu: 8, gpuCards: [{ index: 0, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 35, status: 'idle' }, { index: 1, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 34, status: 'idle' }, { index: 2, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 33, status: 'idle' }, { index: 3, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 34, status: 'idle' }, { index: 4, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 35, status: 'idle' }, { index: 5, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 34, status: 'idle' }, { index: 6, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 33, status: 'idle' }, { index: 7, model: 'RTX 5000', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 34, status: 'idle' }], gpuMemory: '383.9 GB', gpuMemoryUsed: '0 GB', memory: '1007.39 GB', memoryUsed: '0 GB', memoryType: 'DDR5 4800MHz', memoryActive: '286.4 GB', memoryConsumed: '412.8 GB', memoryShared: '12.3 GB', memoryBalloon: '0 GB', memoryCompression: '8.7 GB', memorySwap: '2.1 GB', memoryCache: '156.2 GB', disk: '3.86 TB', diskUsed: '1.89 TB', disks: [{ name: '/dev/sda', total: '3.86 TB', used: '1.89 TB', type: 'NVMe SSD', mountPath: '/data', status: 'warning', readSpeed: '0 MB/s', writeSpeed: '0 MB/s', iops: '0', latency: 'N/A', readPressure: 0, writePressure: 0 }], networkCards: [{ name: 'eth0', ip: '192.168.200.10', speed: '25Gbps', status: 'inactive', type: 'Ethernet', mac: '00:1A:2B:3C:4D:31', driver: 'mlx5_core', pcie: '0000:3b:00.0', linkStatus: 'DOWN', duplex: 'N/A', lossRate: 'N/A', errors: 0, inbound: '0 Gbps', outbound: '0 Gbps', bandwidthUtil: 0, pps: '0', tcpConns: 0, avgLatency: 'N/A', connStatus: '异常' }, { name: 'ib0', ip: '192.168.200.100', speed: '200Gbps', status: 'inactive', type: 'InfiniBand', mac: 'N/A', driver: 'mlx5_ib', pcie: '0000:3b:00.1', linkStatus: 'DOWN', duplex: 'N/A', lossRate: 'N/A', errors: 0, inbound: '0 Gbps', outbound: '0 Gbps', bandwidthUtil: 0, pps: '0', tcpConns: 0, avgLatency: 'N/A', connStatus: '异常' }], pods: [] },
-  { key: 'n5', name: 'qujing24', ip: '192.168.109.23', clusterName: 'default', label: 'GPU=RTX_4090', status: 'normal', authStatus: 'authorized', modelCount: 0, runningInstances: 0, cpu: 96, cpuUsed: 38, cpuModel: 'Intel Xeon Silver 4416+', cpuArch: 'x86_64', cpuSockets: 2, cpuCores: 40, cpuThreads: 80, cpuFrequency: 2.0, cpuTotalGHz: 80.0, cpuUsedGHz: 31.7, cpuReady: '99.5%', cpuLoad: '5.2', gpu: 8, gpuCards: [{ index: 0, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '14.4 GB', memoryFree: '9.59 GB', utilization: 58, power: 320, temperature: 69, status: 'active' }, { index: 1, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 93, power: 408, temperature: 79, status: 'active' }, { index: 2, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0.2 GB', memoryFree: '23.79 GB', utilization: 1, power: 35, temperature: 32, status: 'idle' }, { index: 3, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '21.6 GB', memoryFree: '2.39 GB', utilization: 85, power: 375, temperature: 74, status: 'active' }, { index: 4, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '9.8 GB', memoryFree: '14.19 GB', utilization: 40, power: 250, temperature: 62, status: 'active' }, { index: 5, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 95, power: 418, temperature: 80, status: 'active' }, { index: 6, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '12.8 GB', memoryFree: '11.19 GB', utilization: 50, power: 295, temperature: 67, status: 'active' }, { index: 7, model: 'RTX 4090', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 90, power: 398, temperature: 77, status: 'active' }], gpuMemory: '383.9 GB', gpuMemoryUsed: '57.6 GB', memory: '503.35 GB', memoryUsed: '176.2 GB', memoryType: 'DDR5 4800MHz', memoryActive: '286.4 GB', memoryConsumed: '412.8 GB', memoryShared: '12.3 GB', memoryBalloon: '0 GB', memoryCompression: '8.7 GB', memorySwap: '2.1 GB', memoryCache: '156.2 GB', disk: '5.68 TB', diskUsed: '2.27 TB', disks: [{ name: '/dev/sda', total: '5.68 TB', used: '2.27 TB', type: 'NVMe SSD', mountPath: '/data', status: 'normal', readSpeed: '780 MB/s', writeSpeed: '390 MB/s', iops: '78K', latency: '0.9 ms', readPressure: 50, writePressure: 35 }], networkCards: [{ name: 'eth0', ip: '192.168.109.23', speed: '25Gbps', status: 'active', type: 'Ethernet', mac: '00:1A:2B:3C:4D:41', driver: 'mlx5_core', pcie: '0000:3b:00.0', linkStatus: 'UP', duplex: 'Full Duplex', lossRate: '0.001%', errors: 0, inbound: '5.6 Gbps', outbound: '8.9 Gbps', bandwidthUtil: 35, pps: '560K', tcpConns: 7230, avgLatency: '0.38ms', connStatus: '正常' }, { name: 'ib0', ip: '192.168.200.23', speed: '200Gbps', status: 'active', type: 'InfiniBand', mac: 'N/A', driver: 'mlx5_ib', pcie: '0000:3b:00.1', linkStatus: 'UP', duplex: 'Full Duplex', lossRate: '0.000%', errors: 0, inbound: '89.6 Gbps', outbound: '72.1 Gbps', bandwidthUtil: 45, pps: '2.8M', tcpConns: 0, avgLatency: '0.13ms', connStatus: '正常' }], pods: [] },
-  { key: 'n6', name: 'qujing20', ip: '192.168.110.20', clusterName: 'default', label: 'GPU=RTX_4011', status: 'normal', authStatus: 'authorized', modelCount: 0, runningInstances: 0, cpu: 192, cpuUsed: 72, cpuModel: 'AMD EPYC 9654', cpuArch: 'x86_64', cpuSockets: 2, cpuCores: 192, cpuThreads: 384, cpuFrequency: 2.4, cpuTotalGHz: 460.8, cpuUsedGHz: 172.8, cpuReady: '97.2%', cpuLoad: '14.1', gpu: 8, gpuCards: [{ index: 0, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '16.8 GB', memoryFree: '7.19 GB', utilization: 68, power: 340, temperature: 70, status: 'active' }, { index: 1, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 91, power: 395, temperature: 76, status: 'active' }, { index: 2, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '5.6 GB', memoryFree: '18.39 GB', utilization: 25, power: 185, temperature: 56, status: 'active' }, { index: 3, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '22.1 GB', memoryFree: '1.89 GB', utilization: 82, power: 365, temperature: 73, status: 'active' }, { index: 4, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '0 GB', memoryFree: '23.99 GB', utilization: 0, power: 25, temperature: 31, status: 'idle' }, { index: 5, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '23.9 GB', memoryFree: '0.09 GB', utilization: 96, power: 425, temperature: 81, status: 'active' }, { index: 6, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '18.2 GB', memoryFree: '5.79 GB', utilization: 74, power: 348, temperature: 71, status: 'active' }, { index: 7, model: 'RTX 4011', spec: '24 GB', memoryTotal: '23.99 GB', memoryUsed: '10.5 GB', memoryFree: '13.49 GB', utilization: 42, power: 265, temperature: 63, status: 'active' }], gpuMemory: '383.9 GB', gpuMemoryUsed: '72.0 GB', memory: '1007.51 GB', memoryUsed: '604.5 GB', memoryType: 'DDR5 4800MHz', memoryActive: '286.4 GB', memoryConsumed: '412.8 GB', memoryShared: '12.3 GB', memoryBalloon: '0 GB', memoryCompression: '8.7 GB', memorySwap: '2.1 GB', memoryCache: '156.2 GB', disk: '3.86 TB', diskUsed: '1.62 TB', disks: [{ name: '/dev/sda', total: '3.86 TB', used: '1.62 TB', type: 'NVMe SSD', mountPath: '/data', status: 'normal', readSpeed: '680 MB/s', writeSpeed: '350 MB/s', iops: '65K', latency: '1.1 ms', readPressure: 45, writePressure: 30 }], networkCards: [{ name: 'eth0', ip: '192.168.110.20', speed: '25Gbps', status: 'active', type: 'Ethernet', mac: '00:1A:2B:3C:4D:51', driver: 'mlx5_core', pcie: '0000:3b:00.0', linkStatus: 'UP', duplex: 'Full Duplex', lossRate: '0.004%', errors: 1, inbound: '15.2 Gbps', outbound: '18.6 Gbps', bandwidthUtil: 72, pps: '1.5M', tcpConns: 18240, avgLatency: '0.31ms', connStatus: '正常' }, { name: 'eth1', ip: '10.0.0.20', speed: '100Gbps', status: 'active', type: 'Ethernet', mac: '00:1A:2B:3C:4D:52', driver: 'mlx5_core', pcie: '0000:3b:00.1', linkStatus: 'UP', duplex: 'Full Duplex', lossRate: '0.001%', errors: 0, inbound: '52.6 Gbps', outbound: '48.3 Gbps', bandwidthUtil: 52, pps: '2.6M', tcpConns: 12450, avgLatency: '0.25ms', connStatus: '正常' }, { name: 'ib0', ip: '192.168.200.20', speed: '200Gbps', status: 'active', type: 'InfiniBand', mac: 'N/A', driver: 'mlx5_ib', pcie: '0000:3b:00.2', linkStatus: 'UP', duplex: 'Full Duplex', lossRate: '0.000%', errors: 0, inbound: '192.4 Gbps', outbound: '168.7 Gbps', bandwidthUtil: 92, pps: '6.2M', tcpConns: 0, avgLatency: '0.10ms', connStatus: '正常' }], pods: [] },
-];
+const buildMockNodeRow = (name: string, matchedPods: NodeRow['pods'], index: number): NodeRow => {
+  const gpuCount = 8;
+  const clusterName = name.startsWith('st-') ? 'st'
+    : name.startsWith('bd-') ? 'beijing-prod'
+    : name.startsWith('bx-') ? 'guangzhou-test'
+    : 'default';
+  const runningCount = matchedPods.filter(p => p.status === 'Running').length;
+  const baseIp = `192.168.${100 + (index % 200)}.${(index % 254) + 1}`;
+  const s = index;
+  const gpuCards: NodeRow['gpuCards'] = Array.from({ length: gpuCount }, (_, gi) => ({
+    index: gi, model: 'B300', spec: '24 GB',
+    memoryTotal: '23.99 GB',
+    memoryUsed: `${(12 + (gi * 3 + s * 2) % 12).toFixed(1)} GB`,
+    memoryFree: `${(12 - (gi * 3 + s * 2) % 12) < 0 ? '0.09' : (12 - (gi * 3 + s * 2) % 12).toFixed(2)} GB`,
+    utilization: (30 + (gi * 12 + s * 5) % 60),
+    power: 250 + (gi * 20 + s * 10) % 200,
+    temperature: 55 + (gi * 5 + s * 3) % 30,
+    status: 'active' as const,
+  }));
+  const disks: NodeRow['disks'] = [{
+    name: '/dev/sda', total: '3.86 TB',
+    used: `${(1.2 + (s * 0.1) % 1.5).toFixed(2)} TB`,
+    type: 'NVMe SSD', mountPath: '/data', status: 'normal',
+    readSpeed: `${700 + (s * 50) % 300} MB/s`, writeSpeed: `${350 + (s * 25) % 200} MB/s`,
+    iops: `${70 + (s * 5) % 30}K`, latency: `${(0.5 + (s * 0.1) % 1.5).toFixed(1)} ms`,
+    readPressure: 40 + (s * 8) % 40, writePressure: 25 + (s * 5) % 30,
+  }];
+  const networkCards: NodeRow['networkCards'] = [
+    { name: 'eth0', ip: baseIp, speed: '25Gbps', status: 'active', type: 'Ethernet', mac: `00:1A:2B:3C:${String(s).padStart(2, '0').slice(-2)}:01`, driver: 'mlx5_core', pcie: '0000:3b:00.0', linkStatus: 'UP', duplex: 'Full Duplex', lossRate: '0.001%', errors: 0, inbound: `${(5 + (s * 0.5) % 15).toFixed(1)} Gbps`, outbound: `${(8 + (s * 0.7) % 12).toFixed(1)} Gbps`, bandwidthUtil: 35 + (s * 5) % 45, pps: `${600 + (s * 50) % 400}K`, tcpConns: 8000 + (s * 300) % 5000, avgLatency: `${(0.25 + (s * 0.02) % 0.3).toFixed(2)}ms`, connStatus: '正常' },
+    { name: 'ib0', ip: `192.168.200.${(s % 254) + 1}`, speed: '200Gbps', status: 'active', type: 'InfiniBand', mac: 'N/A', driver: 'mlx5_ib', pcie: '0000:3b:00.1', linkStatus: 'UP', duplex: 'Full Duplex', lossRate: '0.000%', errors: 0, inbound: `${(80 + (s * 10) % 100).toFixed(1)} Gbps`, outbound: `${(60 + (s * 8) % 90).toFixed(1)} Gbps`, bandwidthUtil: 55 + (s * 5) % 35, pps: `${(2 + (s * 0.3) % 4).toFixed(1)}M`, tcpConns: 0, avgLatency: `${(0.08 + (s * 0.02) % 0.12).toFixed(2)}ms`, connStatus: '正常' },
+  ];
+  return {
+    key: `node-${name}`, name, ip: baseIp, clusterName,
+    label: gpuCount > 0 ? 'GPU=B300' : 'CPU',
+    status: 'normal' as const, authStatus: 'authorized' as const,
+    modelCount: 0, runningInstances: runningCount,
+    cpu: 64, cpuUsed: 28 + (s * 7) % 45,
+    cpuModel: 'Intel Xeon Gold 6438M', cpuArch: 'x86_64',
+    cpuSockets: 2, cpuCores: 64, cpuThreads: 128, cpuFrequency: 2.1,
+    cpuTotalGHz: 134.4, cpuUsedGHz: +(44 + (s * 3) % 30).toFixed(1),
+    cpuReady: `${(97 + (s % 3)).toFixed(1)}%`, cpuLoad: `${(5 + (s * 0.8) % 10).toFixed(1)}`,
+    gpu: gpuCount, gpuCards,
+    gpuMemory: gpuCount > 0 ? `${(gpuCount * 24).toFixed(1)} GB` : '—',
+    gpuMemoryUsed: gpuCount > 0 ? `${(gpuCount * 12).toFixed(1)} GB` : '—',
+    memory: '1007.56 GB',
+    memoryUsed: `${(280 + (s * 15) % 200).toFixed(1)} GB`,
+    memoryType: 'DDR5 4800MHz', memoryActive: '—', memoryConsumed: '—',
+    memoryShared: '—', memoryBalloon: '0 GB', memoryCompression: '—',
+    memorySwap: '—', memoryCache: '—',
+    disk: '3.86 TB',
+    diskUsed: `${(1.2 + (s * 0.1) % 1.5).toFixed(2)} TB`,
+    disks, networkCards, pods: matchedPods,
+  };
+};
 
-const clusterFixtureNodeKeys: Record<string, string[]> = {
-  'shanghai-online': ['n1', 'n2', 'n4'],
-  'beijing-prod': ['n1', 'n2', 'n3', 'n4', 'n5', 'n6'],
-  'guangzhou-test': ['n3'],
-  'wuhan-kunpeng': [],
+const generateNodeRows = (pods: K8sPodResource[]): NodeRow[] => {
+  const nodeMap = new Map<string, NodeRow['pods']>();
+  pods.forEach(p => {
+    if (!p.node || p.node === '自动调度') return;
+    if (p.role === 'router' || p.role === 'store' || p.role === 'master' || p.role === 'etcd') return;
+    if (!nodeMap.has(p.node)) nodeMap.set(p.node, []);
+    nodeMap.get(p.node)!.push({ name: p.name, status: p.status, namespace: p.namespace, ready: p.ready });
+  });
+  return Array.from(nodeMap.entries()).map(([name, matchedPods], i) => buildMockNodeRow(name, matchedPods, i));
 };
 
 const nodeStatusText: Record<NodeRow['status'], string> = {
@@ -1941,7 +1794,6 @@ const nodeStatusText: Record<NodeRow['status'], string> = {
 
 const getNodeTags = (node: NodeRow) => [node.label, ...(node.tags || [])]
   .map((tag) => tag.trim())
-  .filter((tag) => !/^(worker|controlplane|node-role\.kubernetes\.io\/)/i.test(tag))
   .filter((tag, index, tags) => tag && tags.indexOf(tag) === index);
 
 const getNodeRunningWorkload = (node: NodeRow) => {
@@ -1956,28 +1808,31 @@ const getNodeRunningWorkload = (node: NodeRow) => {
 
 const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
   const [keyword, setKeyword] = useState('');
-  const [nodeLog, setNodeLog] = useState<{ title: string; logs: string[] } | null>(null);
   const [faultFocus, setFaultFocus] = useState<{ kind: 'node' | 'network' | 'disk'; nodeKey: string } | null>(null);
   const [expandedRowKeys, setExpandedRowKeys] = useState<string[]>([]);
   const [addNodeOpen, setAddNodeOpen] = useState(false);
-  const [nodeRows, setNodeRows] = useState<NodeRow[]>(nodeData);
   const [addNodeForm] = Form.useForm();
+  const { state } = useK8sResourceStore();
+  const storePods = state.pods;
+  const baseNodeRows = useMemo(() => generateNodeRows(storePods), [storePods]);
+  const [customNodes, setCustomNodes] = useState<NodeRow[]>([]);
+  const [deletedNames, setDeletedNames] = useState<Set<string>>(new Set());
+  const [statusOverrides, setStatusOverrides] = useState<Record<string, Partial<Pick<NodeRow, 'status' | 'tags'>>>>({});
   const scopedNodeRows = useMemo(() => {
-    const fixtureKeys = new Set(clusterFixtureNodeKeys[selectedClusterKey] || []);
-    return nodeRows
-      .filter((row) => (
-        /^n\d+$/.test(row.key)
-          ? fixtureKeys.has(row.key)
-          : row.clusterName === selectedClusterKey
-      ))
-      .map((row) => (
-        /^n\d+$/.test(row.key)
-          ? { ...row, clusterName: selectedClusterKey }
-          : row
-      ));
-  }, [nodeRows, selectedClusterKey]);
+    const allRows = [
+      ...customNodes,
+      ...baseNodeRows.filter((r) => !deletedNames.has(r.name)),
+    ];
+    const withOverrides = allRows.map((r) => {
+      const override = statusOverrides[r.name];
+      return override ? { ...r, ...override, tags: override.tags ?? r.tags } : r;
+    });
+    return withOverrides.filter((r) => r.clusterName === selectedClusterKey);
+  }, [baseNodeRows, customNodes, deletedNames, statusOverrides, selectedClusterKey]);
   const normalCount = scopedNodeRows.filter((row) => row.status === 'normal').length;
   const abnormalCount = scopedNodeRows.filter((row) => row.status === 'warning' || row.status === 'error').length;
+  const errorCount = scopedNodeRows.filter((row) => row.status === 'error').length;
+  const warningCount = scopedNodeRows.filter((row) => row.status === 'warning').length;
   const totalGpuCount = scopedNodeRows.reduce((total, row) => total + row.gpu, 0);
   const focusedNode = faultFocus ? scopedNodeRows.find((row) => row.key === faultFocus.nodeKey) : null;
 
@@ -1996,11 +1851,11 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
   }) => {
     const nodeName = values.name.trim();
     const nodeIp = values.ip.trim();
-    if (nodeRows.some((row) => row.name === nodeName)) {
+    if (customNodes.some((row) => row.name === nodeName) || baseNodeRows.some((row) => row.name === nodeName)) {
       addNodeForm.setFields([{ name: 'name', errors: ['节点名称已存在'] }]);
       return;
     }
-    if (nodeRows.some((row) => row.ip === nodeIp)) {
+    if (customNodes.some((row) => row.ip === nodeIp) || baseNodeRows.some((row) => row.ip === nodeIp)) {
       addNodeForm.setFields([{ name: 'ip', errors: ['管理 IP 已关联其他节点'] }]);
       return;
     }
@@ -2015,7 +1870,6 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
       name: nodeName,
       ip: nodeIp,
       clusterName: selectedClusterKey,
-      role: values.role === 'control-plane' ? 'master' : 'worker',
       label: roleLabel,
       tags: labels,
       status: 'pending',
@@ -2055,7 +1909,7 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
       pods: [],
     };
 
-    setNodeRows((rows) => [newNode, ...rows]);
+    setCustomNodes((prev) => [newNode, ...prev]);
     setKeyword('');
     setFaultFocus(null);
     setExpandedRowKeys([newNode.key]);
@@ -2105,15 +1959,10 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
       cancelText: '取消',
       focusable: { autoFocusButton: 'cancel' },
       onOk: () => {
-        setNodeRows((rows) => rows.map((row) => (
-          row.key === node.key
-            ? {
-              ...row,
-              status: 'draining',
-              tags: [...new Set([...(row.tags || []), 'node.kubernetes.io/unschedulable=true'])],
-            }
-            : row
-        )));
+        setStatusOverrides((prev) => ({ ...prev, [node.name]: {
+          status: 'draining',
+          tags: [...new Set([...(node.tags || []), 'node.kubernetes.io/unschedulable=true'])],
+        } }));
         message.success(`${node.name} 已提交 Drain，业务负载将自动迁移`);
       },
     });
@@ -2159,7 +2008,8 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
       cancelText: '取消',
       focusable: { autoFocusButton: 'cancel' },
       onOk: () => {
-        setNodeRows((rows) => rows.filter((row) => row.key !== node.key));
+        setDeletedNames((prev) => new Set([...prev, node.name]));
+        setStatusOverrides((prev) => { const next = { ...prev }; delete next[node.name]; return next; });
         setExpandedRowKeys((keys) => keys.filter((key) => key !== node.key));
         if (faultFocus?.nodeKey === node.key) setFaultFocus(null);
         message.success(`${node.name} 已提交下线及移除`);
@@ -2184,13 +2034,25 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
       setExpandedRowKeys([detail.nodeKey]);
     };
 
+    const handleNodeFocus = (event: Event) => {
+      const detail = (event as CustomEvent<{ nodeName: string; cluster?: string }>).detail;
+      if (!detail?.nodeName) return;
+      setFaultFocus(null);
+      setKeyword(detail.nodeName);
+      setExpandedRowKeys([`node-${detail.nodeName}`]);
+    };
+
     window.addEventListener('ataas:cluster-node-focus', handleFocus);
-    return () => window.removeEventListener('ataas:cluster-node-focus', handleFocus);
+    window.addEventListener('ataas:node-focus', handleNodeFocus);
+    return () => {
+      window.removeEventListener('ataas:cluster-node-focus', handleFocus);
+      window.removeEventListener('ataas:node-focus', handleNodeFocus);
+    };
   }, []);
 
   const filteredData = useMemo(() => scopedNodeRows.filter((row) => {
     if (faultFocus) return row.key === faultFocus.nodeKey;
-    const text = (row.name + ' ' + row.ip + ' ' + row.clusterName + ' ' + getNodeRole(row) + ' ' + getNodeTags(row).join(' ')).toLowerCase();
+    const text = (row.name + ' ' + row.ip + ' ' + row.clusterName + ' ' + getNodeTags(row).join(' ')).toLowerCase();
     return !keyword || text.includes(keyword.toLowerCase());
   }), [faultFocus, keyword, scopedNodeRows]);
 
@@ -2216,11 +2078,7 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
         <span>{r.ip} · {r.clusterName}</span>
       </div>
     ) },
-    { title: '角色', key: 'role', width: 100, render: (_, r) => {
-      const role = getNodeRole(r);
-      return <span className={`node-list-role is-${role}`}>{role === 'master' ? 'Master' : 'Worker'}</span>;
-    } },
-    { title: '标签', key: 'label', width: 250, render: (_, r) => {
+    { title: '角色与标签', key: 'label', width: 250, render: (_, r) => {
       const tags = getNodeTags(r);
       const visibleTags = tags.slice(0, 3);
       const hiddenTags = tags.slice(3);
@@ -2234,7 +2092,7 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
               trigger="click"
               placement="bottomLeft"
               rootClassName="node-list-tags-popover"
-              title={`全部标签（${tags.length}）`}
+              title={`全部角色与标签（${tags.length}）`}
               content={(
                 <div className="node-list-tags-popover-content">
                   {tags.map((tag, index) => (
@@ -2246,7 +2104,7 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
               <button
                 type="button"
                 className="is-more"
-                aria-label={`查看 ${r.name} 的全部标签`}
+                aria-label={`查看 ${r.name} 的全部角色与标签`}
                 onClick={(event) => event.stopPropagation()}
               >
                 +{hiddenTags.length}
@@ -2328,18 +2186,6 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
             删除
           </Button>
         </Tooltip>
-        <Tooltip title="查看节点内核日志" placement="top">
-          <Button
-            type="link"
-            size="small"
-            className="node-row-action is-log"
-            aria-label={`查看 ${r.name} 日志`}
-            icon={<FileText />}
-            onClick={() => setNodeLog({ title: r.name + ' 内核日志', logs: mockKernelLogs(r.name) })}
-          >
-            日志
-          </Button>
-        </Tooltip>
       </div>
     ) },
   ];
@@ -2351,7 +2197,9 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
           <div className="node-page-summary">
             <span><small>节点总数</small><b>{scopedNodeRows.length}</b></span>
             <span><small>运行正常</small><b className="is-normal">{normalCount}</b></span>
-            <span><small>告警 / 异常</small><b className={abnormalCount ? 'is-error' : ''}>{abnormalCount}</b></span>
+            <Tooltip title={`故障节点 ${errorCount} 个 · 告警节点 ${warningCount} 个`}>
+              <span><small>告警 / 异常</small><b className={abnormalCount ? 'is-error' : ''}>{abnormalCount}</b></span>
+            </Tooltip>
             <span><small>GPU 总量</small><b>{totalGpuCount} 张</b></span>
           </div>
         </div>
@@ -2399,7 +2247,7 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
             rowKey="key"
             columns={columns}
             dataSource={filteredData}
-            scroll={{ x: 1620 }}
+            scroll={{ x: 1520 }}
             pagination={{ pageSize: 10, size: 'small', showTotal: (total) => '共 ' + total + ' 个' }}
             rowClassName={(row) => [
               faultFocus?.nodeKey === row.key ? 'node-fault-focus-row' : '',
@@ -2430,7 +2278,6 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
           />
         </div>
       </div>
-      <NodeLogDrawer detail={nodeLog} onClose={() => setNodeLog(null)} />
       <Drawer
         rootClassName="node-add-drawer"
         title={(
