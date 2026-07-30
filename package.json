@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc && vite build && mkdir -p dist/server && cp deploy/sites-worker.js dist/server/index.js",
     "preview": "vite preview"
   },
   "dependencies": {

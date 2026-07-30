@@ -73,6 +73,7 @@ import SupplierResourcesPage from './components/supplierResourcesPage';
 import DistributionCenterPage from './components/distributionCenterPage';
 import ModelDownloadTaskModal from './components/modelDownloadTaskModal';
 import ModelOpsPage from './components/modelOpsPage';
+import SoftwarePackagePage from './components/softwarePackagePage';
 import './index.less';
 
 const DEPLOY_DOWNLOAD_HOST_OPTIONS = [
@@ -6583,6 +6584,7 @@ const AtAasDesign = () => {
     if (window.location.pathname.includes('/model-deploy')) return 'deploy';
     if (window.location.pathname.includes('/model-ops')) return 'modelOps';
     if (window.location.pathname.includes('/distribution-center')) return 'distributionCenter';
+    if (window.location.pathname.includes('/software-packages')) return 'softwarePackages';
     if (window.location.pathname.includes('/containers')) return 'containerManagement';
     if (window.location.pathname.includes('/route-workbench')) return 'routeWorkbench';
     if (window.location.pathname.includes('/task-flow')) return 'taskFlow';
@@ -10715,11 +10717,12 @@ const AtAasDesign = () => {
     // { key: 'containerManagement', icon: <SidebarIcon name="pod" />, label: '容器管理' },
     // { key: 'routeWorkbench', icon: <SidebarIcon name="service" />, label: '链路编排' },
     { key: 'configCenter', icon: <SidebarIcon name="config" />, label: '资源文件' },
+    { key: 'softwarePackages', icon: <InboxOutlined />, label: '软件包管理' },
   ];
   const getSidebarItems = (keys: string[]) => keys.map((key) => SIDEBAR_ITEMS.find((item) => item.key === key)).filter(Boolean) as typeof SIDEBAR_ITEMS;
   const SIDEBAR_GROUPS = [
     { title: '概览', items: getSidebarItems(['clusterOperations', 'supplierResources']) },
-    { title: '资源管理', items: getSidebarItems(['images', 'configCenter']) },
+    { title: '资源管理', items: getSidebarItems(['images', 'configCenter', 'softwarePackages']) },
     { title: '模型运维', items: getSidebarItems(['modelRepo', 'deploy', 'distributionCenter', 'modelOps', 'taskFlow']) },
     { title: '模型测试', items: getSidebarItems(['benchmark', 'accuracy']) },
     { title: '身份权限', items: getSidebarItems(['users']) },
@@ -12466,6 +12469,7 @@ const AtAasDesign = () => {
       case 'clusterOperations': return <ClusterOperationsHomepage />;
       case 'supplierResources': return <SupplierResourcesPage />;
       case 'distributionCenter': return <DistributionCenterPage />;
+      case 'softwarePackages': return <SoftwarePackagePage />;
       case 'taskFlow': return (
         <div className="ataas-b300-task-page">
           <TasksPage />
@@ -12508,6 +12512,7 @@ const AtAasDesign = () => {
 	                      deploy: '/model-deploy',
 	                      modelOps: '/model-ops',
 	                      distributionCenter: '/distribution-center',
+	                      softwarePackages: '/software-packages',
 	                      containerManagement: '/containers',
 	                      routeWorkbench: '/route-workbench',
 	                      taskFlow: '/task-flow',
