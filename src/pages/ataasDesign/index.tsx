@@ -6896,7 +6896,7 @@ const AtAasDesign = () => {
       return item.name.toLowerCase().includes(keyword) || item.family.toLowerCase().includes(keyword) || item.description.toLowerCase().includes(keyword);
     });
   }, [modelRepoSearch, modelRepoCategory, modelRepoFamily, modelRepoSource]);
-  const [deployListViewMode, setDeployListViewMode] = useState<ViewMode>('card');
+  const [deployListViewMode, setDeployListViewMode] = useState<ViewMode>('mooncake');
   const [deployListClusterFilter, setDeployListClusterFilter] = useState('');
   const [deployDownloadOpen, setDeployDownloadOpen] = useState(false);
   const [modelOpsListViewMode, setModelOpsListViewMode] = useState<ViewMode>('table');
@@ -7678,7 +7678,7 @@ const AtAasDesign = () => {
       const scheduledNames = new Set(scheduledServices.map((service) => service.name));
       return [...scheduledServices, ...prev.filter((service) => !scheduledNames.has(service.name))];
     });
-    setDeployListViewMode('card');
+    setDeployListViewMode('mooncake');
     setActiveTab('deploy');
     message.success('定时任务已创建');
     setDeployDrawerOpen(false);
@@ -8787,7 +8787,7 @@ const AtAasDesign = () => {
 
     setActiveTab('deploy');
     window.history.replaceState(null, '', '/deploy');
-    setDeployListViewMode('card');
+    setDeployListViewMode('mooncake');
     setDeployMode(isPdTemplate ? 'pd-separation' : 'single');
     setStrictTemplateDeploy(true);
     setDeployServiceName(template.name);
@@ -8962,7 +8962,7 @@ const AtAasDesign = () => {
     }
     const submittedService = buildSubmittedDeployService();
     setDeployServices((prev) => [submittedService, ...prev.filter((service) => service.name !== submittedService.name)]);
-    setDeployListViewMode('card');
+    setDeployListViewMode('mooncake');
     setDeployListClusterFilter('');
     setActiveTab('deploy');
     message.success('部署提交成功，已添加到模型服务列表');
