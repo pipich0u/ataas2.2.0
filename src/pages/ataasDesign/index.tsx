@@ -11311,6 +11311,17 @@ const AtAasDesign = () => {
           onScalePd={handleScalePd}
           onCreateService={handleOpenCreate}
           onYamlPreview={openModelOpsYamlPreview}
+          onPickConfigYaml={(onSelect) => openConfigYamlPicker('custom', onSelect)}
+          onSaveConfigYaml={async (path, yaml) => {
+            try {
+              await rpc('config.commit', {
+                writes: [{ path, yaml }],
+                message: 'update from model ops create group',
+              });
+              try { setConfigYamlPickerTarget('custom'); setConfigYamlPickerOpen(true); } catch {}
+              message.success('配置文件已保存');
+            } catch { message.error('保存失败'); }
+          }}
         />
       );
       case '__legacyModelOps': {
