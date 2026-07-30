@@ -6956,6 +6956,32 @@
     stroke-width: 1.8;
   }
 
+  .node-list-role {
+    display: inline-flex;
+    height: 22px;
+    align-items: center;
+    padding: 0 8px;
+    border: 1px solid #d8dce5;
+    border-radius: 4px;
+    color: #4e5969;
+    background: #f7f8fa;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 20px;
+  }
+
+  .node-list-role.is-master {
+    border-color: #d9d2ff;
+    color: #5f46e8;
+    background: #f7f5ff;
+  }
+
+  .node-list-role.is-worker {
+    border-color: #cfe1ff;
+    color: #3568c9;
+    background: #f3f7ff;
+  }
+
   .node-list-tags {
     display: flex;
     flex-wrap: wrap;
@@ -7359,9 +7385,15 @@
     display: flex;
     align-items: stretch;
     gap: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
     border: 1px solid #e5e6eb;
     border-radius: 7px;
     background: #f7f8fa;
+  }
+
+  .node-detail-tabs::-webkit-scrollbar {
+    display: none;
   }
 
   .node-detail-tabs > button {
@@ -7428,6 +7460,194 @@
     width: 14px;
     height: 14px;
     stroke-width: 1.5;
+  }
+
+  .node-service-overview {
+    overflow: hidden;
+    border: 1px solid #e5e6eb;
+    border-radius: 8px;
+    background: #fff;
+  }
+
+  .node-service-overview-head {
+    min-height: 74px;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    border-bottom: 1px solid #eef0f4;
+    background: #fafbfc;
+  }
+
+  .node-service-overview-head > div:first-child {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .node-service-overview-head > div:first-child > strong {
+    color: #1d2129;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 21px;
+  }
+
+  .node-service-overview-head > div:first-child > span {
+    color: #86909c;
+    font-size: 12px;
+    line-height: 18px;
+  }
+
+  .node-service-summary {
+    display: flex;
+    align-items: stretch;
+  }
+
+  .node-service-summary > span {
+    min-width: 72px;
+    padding: 0 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    border-left: 1px solid #e5e6eb;
+  }
+
+  .node-service-summary small {
+    color: #86909c;
+    font-size: 10px;
+    font-weight: 400;
+    line-height: 15px;
+  }
+
+  .node-service-summary b {
+    color: #1d2129;
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 20px;
+  }
+
+  .node-service-summary b.is-running {
+    color: #00a11f;
+  }
+
+  .node-service-summary b.is-abnormal {
+    color: #f53f3f;
+  }
+
+  .node-service-table {
+    overflow-x: auto;
+  }
+
+  .node-service-table-head,
+  .node-service-table-row {
+    min-width: 630px;
+    display: grid;
+    grid-template-columns: minmax(200px, 1.55fr) 64px 78px 50px 76px 66px;
+    align-items: center;
+    column-gap: 12px;
+  }
+
+  .node-service-table-head {
+    min-height: 38px;
+    padding: 0 18px;
+    border-bottom: 1px solid #eef0f4;
+    color: #86909c;
+    background: #fff;
+    font-size: 11px;
+    font-weight: 400;
+  }
+
+  .node-service-table-row {
+    min-height: 58px;
+    padding: 8px 18px;
+    border-bottom: 1px solid #f2f3f5;
+    color: #4e5969;
+    font-size: 12px;
+  }
+
+  .node-service-table-row:last-child {
+    border-bottom: 0;
+  }
+
+  .node-service-table-row:hover {
+    background: #fafbfc;
+  }
+
+  .node-service-identity {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: 8px minmax(0, 1fr);
+    align-items: center;
+    gap: 9px;
+  }
+
+  .node-service-identity > i {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #00b42a;
+  }
+
+  .node-service-identity > i.is-warning {
+    background: #ff7d00;
+  }
+
+  .node-service-identity > i.is-stopped {
+    background: #f53f3f;
+  }
+
+  .node-service-identity > span {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .node-service-identity strong,
+  .node-service-identity small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .node-service-identity strong {
+    color: #1d2129;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 18px;
+  }
+
+  .node-service-identity small {
+    color: #86909c;
+    font-size: 10px;
+    line-height: 15px;
+  }
+
+  .node-service-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: #00a11f;
+    font-size: 11px;
+    font-style: normal;
+    white-space: nowrap;
+  }
+
+  .node-service-status > i {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .node-service-status.is-warning {
+    color: #d46b08;
+  }
+
+  .node-service-status.is-stopped {
+    color: #f53f3f;
   }
 
   .node-resource-panel {

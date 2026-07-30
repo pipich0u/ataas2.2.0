@@ -1075,6 +1075,7 @@ type NodeRow = {
   name: string;
   ip: string;
   clusterName: string;
+  role?: 'master' | 'worker';
   label: string;
   tags?: string[];
   status: 'normal' | 'warning' | 'error' | 'pending' | 'draining';
@@ -1112,6 +1113,92 @@ type NodeRow = {
   disks: Array<{ name: string; total: string; used: string; type: string; mountPath: string; status: string; readSpeed: string; writeSpeed: string; iops: string; latency: string; readPressure: number; writePressure: number }>;
   networkCards: Array<{ name: string; ip: string; speed: string; status: string; type: string; mac: string; driver: string; pcie: string; linkStatus: string; duplex: string; lossRate: string; errors: number; inbound: string; outbound: string; bandwidthUtil: number; pps: string; tcpConns: number; avgLatency: string; connStatus: string }>;
   pods: Array<{ name: string; status: string; namespace: string; ready: string }>;
+  serviceComponents?: NodeServiceComponent[];
+};
+
+type NodeServiceComponent = {
+  name: string;
+  description: string;
+  version: string;
+  workload: string;
+  desired: number;
+  ready: number;
+  heartbeat: string;
+  status: 'running' | 'warning' | 'stopped';
+};
+
+const getNodeRole = (node: NodeRow): 'master' | 'worker' => (
+  node.role || (['n1', 'n3'].includes(node.key) ? 'master' : 'worker')
+);
+
+const getNodeServiceComponents = (node: NodeRow): NodeServiceComponent[] => {
+  if (node.serviceComponents) return node.serviceComponents;
+
+  const unavailable = node.status === 'error';
+  const degraded = node.status === 'warning';
+  const componentStatus = unavailable ? 'stopped' : degraded ? 'warning' : 'running';
+  const ready = unavailable ? 0 : 1;
+  const components: NodeServiceComponent[] = [
+    {
+      name: 'ATaaS Node Agent',
+      description: '节点注册、资源同步与任务执行',
+      version: 'v2.6.3',
+      workload: 'DaemonSet',
+      desired: 1,
+      ready,
+      heartbeat: unavailable ? '连接中断' : '12 秒前',
+      status: componentStatus,
+    },
+    {
+      name: 'GPU Telemetry Exporter',
+      description: 'GPU、显存、功耗与温度指标采集',
+      version: 'v1.9.1',
+      workload: 'DaemonSet',
+      desired: 1,
+      ready,
+      heartbeat: unavailable ? '连接中断' : '18 秒前',
+      status: componentStatus,
+    },
+    {
+      name: 'Log Collector',
+      description: '节点与容器运行日志采集',
+      version: 'v3.4.0',
+      workload: 'DaemonSet',
+      desired: 1,
+      ready,
+      heartbeat: unavailable ? '连接中断' : '24 秒前',
+      status: componentStatus,
+    },
+  ];
+
+  if (node.networkCards.some((card) => card.type === 'InfiniBand')) {
+    const rdmaWarning = node.networkCards.some((card) => card.type === 'InfiniBand' && card.status !== 'active');
+    components.push({
+      name: 'RDMA Health Agent',
+      description: 'RDMA 链路发现、巡检与故障上报',
+      version: 'v1.3.2',
+      workload: 'DaemonSet',
+      desired: 1,
+      ready: unavailable || rdmaWarning ? 0 : 1,
+      heartbeat: unavailable || rdmaWarning ? '连接中断' : '16 秒前',
+      status: unavailable || rdmaWarning ? 'stopped' : 'running',
+    });
+  }
+
+  if (getNodeRole(node) === 'master') {
+    components.push({
+      name: 'Cluster Control Connector',
+      description: '集群控制面状态同步与指令代理',
+      version: 'v2.2.0',
+      workload: 'Deployment',
+      desired: 1,
+      ready,
+      heartbeat: unavailable ? '连接中断' : '10 秒前',
+      status: componentStatus,
+    });
+  }
+
+  return components;
 };
 
 const getCapacityPercent = (used: string | number, total: string | number) => {
@@ -1142,7 +1229,7 @@ const UsageRing = ({ percent, sub }: { percent: number; sub?: string }) => {
   );
 };
 
-const nodeTabs = ['故障定位', 'CPU', '内存', 'GPU', '磁盘详情', '网卡详情', 'Pods列表'];
+const nodeTabs = ['故障定位', 'CPU', '内存', 'GPU', '磁盘详情', '网卡详情', 'Pods列表', '服务组件'];
 
 const mockKernelLogs = (label: string) => [
   `[${new Date().toLocaleString()}] kernel: ${label} - NVRM: GPU at PCI:0000:01:00.0 is OK`,
@@ -1730,6 +1817,67 @@ const NodeExpandContent = ({ node, initialTab = 'CPU' }: { node: NodeRow; initia
     );
   }
 
+  if (activeTab === '服务组件') {
+    const components = getNodeServiceComponents(node);
+    const healthyCount = components.filter((component) => component.status === 'running').length;
+    const abnormalCount = components.length - healthyCount;
+    const statusText: Record<NodeServiceComponent['status'], string> = {
+      running: '运行中',
+      warning: '有告警',
+      stopped: '已停止',
+    };
+
+    return (
+      <div className="node-expand-shell">
+        {renderTabBar()}
+        <section className="node-service-overview">
+          <div className="node-service-overview-head">
+            <div>
+              <strong>服务组件状态概览</strong>
+              <span>展示由平台安装并运行在当前节点上的服务组件。</span>
+            </div>
+            <div className="node-service-summary">
+              <span><small>已安装</small><b>{components.length}</b></span>
+              <span><small>运行正常</small><b className="is-running">{healthyCount}</b></span>
+              <span><small>异常</small><b className={abnormalCount ? 'is-abnormal' : ''}>{abnormalCount}</b></span>
+            </div>
+          </div>
+          <div className="node-service-table" role="table" aria-label={`${node.name} 服务组件状态`}>
+            <div className="node-service-table-head" role="row">
+              <span role="columnheader">服务组件</span>
+              <span role="columnheader">版本</span>
+              <span role="columnheader">运行方式</span>
+              <span role="columnheader">实例</span>
+              <span role="columnheader">最近心跳</span>
+              <span role="columnheader">状态</span>
+            </div>
+            {components.map((component) => (
+              <div className="node-service-table-row" role="row" key={component.name}>
+                <span className="node-service-identity" role="cell">
+                  <i className={`is-${component.status}`} />
+                  <span>
+                    <strong>{component.name}</strong>
+                    <small>{component.description}</small>
+                  </span>
+                </span>
+                <span role="cell">{component.version}</span>
+                <span role="cell">{component.workload}</span>
+                <span role="cell">{component.ready} / {component.desired}</span>
+                <span role="cell">{component.heartbeat}</span>
+                <span role="cell">
+                  <em className={`node-service-status is-${component.status}`}>
+                    <i />
+                    {statusText[component.status]}
+                  </em>
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+    );
+  }
+
   if (activeTab === 'Pods列表') {
     return (
       <div className="node-expand-shell">
@@ -1793,6 +1941,7 @@ const nodeStatusText: Record<NodeRow['status'], string> = {
 
 const getNodeTags = (node: NodeRow) => [node.label, ...(node.tags || [])]
   .map((tag) => tag.trim())
+  .filter((tag) => !/^(worker|controlplane|node-role\.kubernetes\.io\/)/i.test(tag))
   .filter((tag, index, tags) => tag && tags.indexOf(tag) === index);
 
 const getNodeRunningWorkload = (node: NodeRow) => {
@@ -1866,6 +2015,7 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
       name: nodeName,
       ip: nodeIp,
       clusterName: selectedClusterKey,
+      role: values.role === 'control-plane' ? 'master' : 'worker',
       label: roleLabel,
       tags: labels,
       status: 'pending',
@@ -2040,7 +2190,7 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
 
   const filteredData = useMemo(() => scopedNodeRows.filter((row) => {
     if (faultFocus) return row.key === faultFocus.nodeKey;
-    const text = (row.name + ' ' + row.ip + ' ' + row.clusterName + ' ' + getNodeTags(row).join(' ')).toLowerCase();
+    const text = (row.name + ' ' + row.ip + ' ' + row.clusterName + ' ' + getNodeRole(row) + ' ' + getNodeTags(row).join(' ')).toLowerCase();
     return !keyword || text.includes(keyword.toLowerCase());
   }), [faultFocus, keyword, scopedNodeRows]);
 
@@ -2066,7 +2216,11 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
         <span>{r.ip} · {r.clusterName}</span>
       </div>
     ) },
-    { title: '角色与标签', key: 'label', width: 250, render: (_, r) => {
+    { title: '角色', key: 'role', width: 100, render: (_, r) => {
+      const role = getNodeRole(r);
+      return <span className={`node-list-role is-${role}`}>{role === 'master' ? 'Master' : 'Worker'}</span>;
+    } },
+    { title: '标签', key: 'label', width: 250, render: (_, r) => {
       const tags = getNodeTags(r);
       const visibleTags = tags.slice(0, 3);
       const hiddenTags = tags.slice(3);
@@ -2080,7 +2234,7 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
               trigger="click"
               placement="bottomLeft"
               rootClassName="node-list-tags-popover"
-              title={`全部角色与标签（${tags.length}）`}
+              title={`全部标签（${tags.length}）`}
               content={(
                 <div className="node-list-tags-popover-content">
                   {tags.map((tag, index) => (
@@ -2092,7 +2246,7 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
               <button
                 type="button"
                 className="is-more"
-                aria-label={`查看 ${r.name} 的全部角色与标签`}
+                aria-label={`查看 ${r.name} 的全部标签`}
                 onClick={(event) => event.stopPropagation()}
               >
                 +{hiddenTags.length}
@@ -2245,7 +2399,7 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
             rowKey="key"
             columns={columns}
             dataSource={filteredData}
-            scroll={{ x: 1520 }}
+            scroll={{ x: 1620 }}
             pagination={{ pageSize: 10, size: 'small', showTotal: (total) => '共 ' + total + ' 个' }}
             rowClassName={(row) => [
               faultFocus?.nodeKey === row.key ? 'node-fault-focus-row' : '',

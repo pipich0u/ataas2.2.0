@@ -6895,7 +6895,7 @@ const AtAasDesign = () => {
       return item.name.toLowerCase().includes(keyword) || item.family.toLowerCase().includes(keyword) || item.description.toLowerCase().includes(keyword);
     });
   }, [modelRepoSearch, modelRepoCategory, modelRepoFamily, modelRepoSource]);
-  const [deployListViewMode, setDeployListViewMode] = useState<ViewMode>('card');
+  const [deployListViewMode, setDeployListViewMode] = useState<ViewMode>('mooncake');
   const [deployListClusterFilter, setDeployListClusterFilter] = useState('');
   const [deployDownloadOpen, setDeployDownloadOpen] = useState(false);
   const [modelOpsListViewMode, setModelOpsListViewMode] = useState<ViewMode>('table');
@@ -7666,7 +7666,7 @@ const AtAasDesign = () => {
       const scheduledNames = new Set(scheduledServices.map((service) => service.name));
       return [...scheduledServices, ...prev.filter((service) => !scheduledNames.has(service.name))];
     });
-    setDeployListViewMode('card');
+    setDeployListViewMode('mooncake');
     setActiveTab('deploy');
     message.success('定时任务已创建');
     setDeployDrawerOpen(false);
@@ -8775,7 +8775,7 @@ const AtAasDesign = () => {
 
     setActiveTab('deploy');
     window.history.replaceState(null, '', '/deploy');
-    setDeployListViewMode('card');
+    setDeployListViewMode('mooncake');
     setDeployMode(isPdTemplate ? 'pd-separation' : 'single');
     setStrictTemplateDeploy(true);
     setDeployServiceName(template.name);
@@ -8950,7 +8950,7 @@ const AtAasDesign = () => {
     }
     const submittedService = buildSubmittedDeployService();
     setDeployServices((prev) => [submittedService, ...prev.filter((service) => service.name !== submittedService.name)]);
-    setDeployListViewMode('card');
+    setDeployListViewMode('mooncake');
     setDeployListClusterFilter('');
     setActiveTab('deploy');
     message.success('部署提交成功，已添加到模型服务列表');
@@ -10683,7 +10683,7 @@ const AtAasDesign = () => {
     // { key: 'modelRepo', icon: <SidebarIcon name="modelRepo" />, label: '模型仓库' },
     { key: 'distributionCenter', icon: <SwapRightOutlined style={{ fontSize: 15 }} />, label: '分发中心' },
     // { key: 'startupTemplates', icon: <SidebarIcon name="template" />, label: '性能仓库' },
-    { key: 'deploy', icon: <SidebarIcon name="deploy" />, label: '模型部署' },
+    { key: 'deploy', icon: <SidebarIcon name="deploy" />, label: 'Mooncake' },
     { key: 'modelOps', icon: <SidebarIcon name="ops" />, label: '运营调度' },
     { key: 'taskFlow', icon: <SidebarIcon name="task" />, label: '任务流程' },
     // { key: 'images', icon: <SidebarIcon name="image" />, label: '镜像仓库' },
@@ -10953,7 +10953,7 @@ const AtAasDesign = () => {
                           className="ataas-table-link"
                           onClick={() => {
                             setDeployListClusterFilter(r.name);
-                            setDeployListViewMode('table');
+                            setDeployListViewMode('mooncake');
                             setActiveTab('deploy');
                           }}
                         >
@@ -11299,6 +11299,26 @@ const AtAasDesign = () => {
           onScalePd={handleScalePd}
           onCreateService={handleOpenCreate}
           onYamlPreview={openModelOpsYamlPreview}
+          onPickConfigYaml={(onSelect) => openConfigYamlPicker('custom', onSelect)}
+          onSaveConfigYaml={async (path, yaml) => {
+            try {
+              await rpc('config.commit', {
+                writes: [{ path, yaml }],
+                message: 'update from model ops create group',
+              });
+              try {
+                const drafts = JSON.parse(sessionStorage.getItem('b300.configs.drafts') || '{}');
+                drafts[path] = { base: yaml, draft: yaml, deleted: false };
+                sessionStorage.setItem('b300.configs.drafts', JSON.stringify(drafts));
+              } catch {
+                // ignore session sync failures
+              }
+              message.success(`已同步到资源文件：${path}`);
+            } catch {
+              message.error('同步资源文件失败');
+              throw new Error('config sync failed');
+            }
+          }}
         />
       );
       case '__legacyModelOps': {
@@ -12496,8 +12516,8 @@ const AtAasDesign = () => {
                     };
                     window.history.replaceState(null, '', pathMap[item.key] || '/');
                   }}>
-                    {item.icon}
-                    <span>{item.label}</span>
+                    <span className="ataas-sidebar-item-icon">{item.icon}</span>
+                    <span className="ataas-sidebar-item-label">{item.label}</span>
                   </div>
                 ))}
               </div>
