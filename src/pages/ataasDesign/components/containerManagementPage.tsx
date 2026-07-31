@@ -574,7 +574,7 @@ export default function ContainerManagementPage({ onNavigateToNodeManagement }: 
             )}
           </div>
           {view !== 'pod' && (
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => view === 'se' ? (resetSeCreateForm(), setSeCreateOpen(true)) : (resetCreateForm(), setCreateOpen(true))}>
+            <Button className="ataas-page-create-button" type="primary" icon={<PlusOutlined />} onClick={() => view === 'se' ? (resetSeCreateForm(), setSeCreateOpen(true)) : (resetCreateForm(), setCreateOpen(true))}>
               {view === 'se' ? '创建ServiceEntry' : '创建 Service'}
             </Button>
           )}

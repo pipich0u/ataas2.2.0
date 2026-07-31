@@ -505,9 +505,10 @@ body,
 
 .ataas-sidebar-item {
   position: relative;
-  display: flex;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
   align-items: center;
-  gap: 11px;
+  column-gap: 11px;
   min-height: 38px;
   padding: 0 14px;
   margin: 0 20px 5px 8px;
@@ -518,6 +519,12 @@ body,
   border-radius: 6px;
   transition: all 0.15s;
   user-select: none;
+
+  > span:last-child {
+    min-width: 0;
+    text-align: left;
+    line-height: 22px;
+  }
 }
 
 .ataas-sidebar-item:hover {
@@ -556,19 +563,28 @@ body,
 }
 
 .ataas-sidebar-icon {
-  display: block;
+  display: inline-flex;
   width: 18px;
   height: 18px;
   flex: 0 0 18px;
+  align-items: center;
+  justify-content: center;
+  justify-self: center;
+  color: currentColor;
+  font-size: 16px;
+  line-height: 1;
+
+  > svg {
+    width: 18px;
+    height: 18px;
+    display: block;
+  }
 }
 
 .ataas-sidebar-package-icon {
-  display: grid;
-  width: 20px;
-  height: 20px;
-  place-items: center;
-  flex: 0 0 20px;
-  font-size: 19px;
+  width: 18px;
+  height: 18px;
+  font-size: 16px;
 }
 
 .ataas-private-model-drawer {
@@ -1433,7 +1449,8 @@ body,
   margin-left: auto;
 
   .ant-input-affix-wrapper,
-  .ant-input-group-addon .ant-btn {
+  .ant-input-group-addon .ant-btn,
+  .ant-input-search-btn {
     height: 32px;
     border-color: #E5E6EB !important;
     box-shadow: none !important;
@@ -1444,8 +1461,10 @@ body,
     border-radius: 4px 0 0 4px !important;
   }
 
-  .ant-input-group-addon .ant-btn {
-    width: 34px;
+  .ant-input-group-addon .ant-btn,
+  .ant-input-search-btn {
+    width: 32px;
+    padding: 0;
     border-radius: 0 4px 4px 0 !important;
     color: #86909C;
   }
@@ -2592,11 +2611,82 @@ body,
   --ant-color-primary: #6951FF;
   --ant-color-primary-hover: #5B42F3;
   --ant-color-primary-active: #4E35DF;
+
+  > .ant-btn {
+    box-sizing: border-box;
+    height: 32px !important;
+    min-height: 32px !important;
+    max-height: 32px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0 12px;
+    border-color: #E5E6EB;
+    border-radius: 4px !important;
+    background: #fff;
+    box-shadow: none;
+    color: #1D2129;
+    font-family: PingFangSC, "PingFang SC", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1 !important;
+    vertical-align: top;
+    transform: none !important;
+    white-space: nowrap;
+
+    &:hover,
+    &:focus {
+      border-color: #6951FF !important;
+      background: #fff !important;
+      color: #6951FF !important;
+      box-shadow: none !important;
+    }
+
+    &.ant-btn-icon-only {
+      width: 32px;
+      padding: 0;
+    }
+
+    .anticon {
+      font-size: 13px;
+    }
+
+    > span,
+    .ant-btn-icon {
+      display: inline-flex;
+      align-items: center;
+      line-height: 1 !important;
+      white-space: nowrap;
+    }
+  }
+
+  > .ant-btn:not(.ant-btn-icon-only) {
+    width: 132px;
+    padding-inline: 16px;
+    justify-content: center;
+  }
+
+  > .ant-picker {
+    height: 32px;
+    border-color: #E5E6EB;
+    border-radius: 4px;
+    box-shadow: none;
+    font-size: 13px;
+  }
 }
 
 .ataas-deploy-list-select {
   width: 140px;
   flex-shrink: 0;
+  height: 32px;
+  padding: 4px 11px;
+  border: 1px solid #E5E6EB !important;
+  border-radius: 4px !important;
+  background: #fff !important;
+  box-shadow: none !important;
+  color: #4E5969;
+  font-size: 13px;
+  font-weight: 400;
 
   .ant-select-selector {
     height: 32px !important;
@@ -2609,18 +2699,22 @@ body,
   }
 
   .ant-select-selection-item,
-  .ant-select-selection-placeholder {
+  .ant-select-selection-placeholder,
+  .ant-select-content {
     color: #4E5969;
     font-size: 13px;
     font-weight: 400;
-    line-height: 30px !important;
+    line-height: 22px !important;
   }
 
   &:hover .ant-select-selector,
   &.ant-select-focused .ant-select-selector,
   &.ant-select-open .ant-select-selector,
   &.ant-select-focused:not(.ant-select-disabled) .ant-select-selector,
-  &.ant-select-open:not(.ant-select-disabled) .ant-select-selector {
+  &.ant-select-open:not(.ant-select-disabled) .ant-select-selector,
+  &:hover,
+  &.ant-select-focused,
+  &.ant-select-open {
     border-color: #6951FF !important;
     box-shadow: none !important;
   }
@@ -2630,7 +2724,8 @@ body,
   width: 240px;
 
   .ant-input-affix-wrapper,
-  .ant-input-group-addon .ant-btn {
+  .ant-input-group-addon .ant-btn,
+  .ant-input-search-btn {
     height: 32px;
     border-color: #E5E6EB !important;
     box-shadow: none !important;
@@ -2641,8 +2736,10 @@ body,
     border-radius: 4px 0 0 4px !important;
   }
 
-  .ant-input-group-addon .ant-btn {
-    width: 34px;
+  .ant-input-group-addon .ant-btn,
+  .ant-input-search-btn {
+    width: 32px;
+    padding: 0;
     border-radius: 0 4px 4px 0 !important;
     color: #86909C;
   }
@@ -2662,8 +2759,10 @@ body,
 
   &:hover .ant-input-affix-wrapper,
   &:hover .ant-input-group-addon .ant-btn,
+  &:hover .ant-input-search-btn,
   .ant-input-affix-wrapper-focused,
-  .ant-input-affix-wrapper-focused + .ant-input-group-addon .ant-btn {
+  .ant-input-affix-wrapper-focused + .ant-input-group-addon .ant-btn,
+  .ant-input-affix-wrapper-focused + .ant-input-search-btn {
     border-color: #6951FF !important;
   }
 
@@ -2673,65 +2772,94 @@ body,
 }
 
 .ataas-deploy-list-view-toggle {
+  box-sizing: border-box;
   display: inline-flex;
+  height: 32px !important;
+  min-height: 32px !important;
+  max-height: 32px !important;
+  flex: 0 0 auto;
   align-items: center;
   gap: 0;
   padding: 0;
-  border-radius: 0;
-  background: transparent;
+  overflow: hidden;
+  border: 1px solid #E5E6EB;
+  border-radius: 4px;
+  background: #fff;
   font-family: PingFangSC, "PingFang SC", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  transition: border-color 0.18s ease;
+  vertical-align: top;
+  transform: none !important;
+
+  &:hover,
+  &:focus-within {
+    border-color: #CFC4FA;
+  }
 
   button {
+    box-sizing: border-box;
     display: inline-flex;
+    width: 140px;
+    height: 30px !important;
+    min-height: 30px !important;
+    max-height: 30px !important;
+    flex: 0 0 140px;
     align-items: center;
+    justify-content: center;
     gap: 4px;
-    min-height: 28px;
-    padding: 0 8px;
+    padding: 0 10px;
     border: 0;
     background: transparent;
     color: #1D2129;
     font-family: inherit;
     font-size: 13px;
     font-weight: 400;
-    line-height: 28px;
+    line-height: 1 !important;
     cursor: pointer;
-    transform-origin: center;
-    transition: font-weight 0.18s ease, transform 0.18s ease, color 0.18s ease;
+    transition: background 0.18s ease, color 0.18s ease;
+    transform: none !important;
+    white-space: nowrap;
 
     &:hover {
-      background: transparent;
-      color: #1D2129;
+      background: #fff;
+      color: #6738E8;
     }
 
     &.active {
-      font-weight: 600;
-      transform: scale(1.035);
+      background: #fff;
+      color: #6738E8;
+      font-weight: 400;
     }
 
     .anticon {
+      flex: 0 0 auto;
       color: inherit;
       font-size: 12px;
+      line-height: 1;
       transition: transform 0.18s ease;
     }
   }
 
   .ataas-deploy-view-divider {
     width: 1px;
-    height: 14px;
-    margin: 0 4px;
+    height: 16px;
+    margin: 0;
     background: #E5E6EB;
   }
 }
 
 .ataas-deploy-view-mooncake-icon {
+  display: block;
   width: 16px;
   height: 16px;
+  flex: 0 0 16px;
   object-fit: contain;
 }
 
 button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
-.ataas-deploy-create-button.ant-btn.ant-btn-primary {
-  height: 32px;
+.ataas-deploy-create-button.ant-btn.ant-btn-primary,
+button.ataas-page-create-button.ant-btn.ant-btn-primary,
+.ataas-page-create-button.ant-btn.ant-btn-primary {
+  height: 31px;
   padding: 0 16px;
   border: 1px solid #6738E8 !important;
   border-radius: 4px;
@@ -2741,7 +2869,7 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   font-family: PingFangSC, "PingFang SC", "Helvetica Neue", Helvetica, Arial, sans-serif;
   font-size: 13px;
   font-weight: 400;
-  line-height: 32px;
+  line-height: 31px;
   text-shadow: none;
   transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
 
@@ -2760,11 +2888,39 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 
   .anticon {
     color: #fff !important;
+    font-size: 13px !important;
+  }
+}
+
+.ataas-page-create-button.ant-btn.ant-btn-primary {
+  box-sizing: border-box !important;
+  height: 31px !important;
+  min-height: 31px !important;
+  max-height: 31px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 16px !important;
+  border-radius: 4px !important;
+  font-family: PingFangSC, "PingFang SC", "Helvetica Neue", Helvetica, Arial, sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  line-height: 1 !important;
+  vertical-align: middle !important;
+  transform: none !important;
+  white-space: nowrap;
+
+  > span,
+  .ant-btn-icon {
+    display: inline-flex;
+    align-items: center;
+    line-height: 1 !important;
+    white-space: nowrap;
   }
 }
 
 .ataas-modal-primary-button.ant-btn-primary {
-  height: 32px;
+  height: 31px;
   padding: 0 16px;
   border-color: #6738E8 !important;
   border-radius: 4px;
@@ -3471,6 +3627,12 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   align-items: center;
   gap: 10px;
   margin-bottom: 16px;
+
+  > .ant-btn:not(.ant-btn-icon-only) {
+    width: 132px;
+    padding-inline: 16px;
+    justify-content: center;
+  }
 }
 
 .ataas-monitor-search {
@@ -3592,7 +3754,7 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 
     &:hover {
       color: #5127C7 !important;
-      transform: translateY(-1px);
+      transform: none;
 
       > i {
         color: #5127C7;
@@ -9962,20 +10124,23 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
   margin-left: 16px;
 
   .ant-input-affix-wrapper,
-  .ant-input-group-addon .ant-btn {
-    height: 34px;
+  .ant-input-group-addon .ant-btn,
+  .ant-input-search-btn {
+    height: 32px;
     border-color: #E5E6EB !important;
     background: #fff;
   }
 
   .ant-input-affix-wrapper {
     padding-inline: 12px 10px;
-    border-radius: 6px 0 0 6px !important;
+    border-radius: 4px 0 0 4px !important;
   }
 
-  .ant-input-group-addon .ant-btn {
-    width: 36px;
-    border-radius: 0 6px 6px 0 !important;
+  .ant-input-group-addon .ant-btn,
+  .ant-input-search-btn {
+    width: 32px;
+    padding: 0;
+    border-radius: 0 4px 4px 0 !important;
     color: #6B778A;
   }
 
@@ -9986,13 +10151,15 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 
   &:hover .ant-input-affix-wrapper,
   &:hover .ant-input-group-addon .ant-btn,
+  &:hover .ant-input-search-btn,
   .ant-input-affix-wrapper-focused,
-  .ant-input-affix-wrapper-focused + .ant-input-group-addon .ant-btn {
+  .ant-input-affix-wrapper-focused + .ant-input-group-addon .ant-btn,
+  .ant-input-affix-wrapper-focused + .ant-input-search-btn {
     border-color: #6951FF !important;
   }
 
   .ant-input-affix-wrapper-focused {
-    box-shadow: 0 0 0 2px rgba(105, 81, 255, 0.08) !important;
+    box-shadow: none !important;
   }
 }
 
@@ -22205,14 +22372,17 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 
 .ataas-model-ops-table-actions .ant-btn,
 .ataas-model-ops-row-actions .ant-btn {
-  width: 30px !important;
-  min-width: 30px !important;
-  height: 30px !important;
-  padding: 0 !important;
+  width: auto !important;
+  min-width: 48px !important;
+  height: 26px !important;
+  padding: 0 7px !important;
   border: 1px solid #E5E6EB !important;
-  border-radius: 50% !important;
-  background: transparent !important;
+  border-radius: 4px !important;
+  background: #fff !important;
   color: #4E5969 !important;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  line-height: 1 !important;
   box-shadow: none !important;
 }
 
@@ -22229,7 +22399,7 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
 .ataas-model-ops-row-actions .ant-btn.warning,
 .ataas-model-ops-row-actions .ant-btn.link {
   border-color: #E5E6EB !important;
-  background: transparent !important;
+  background: #fff !important;
   color: #4E5969 !important;
 }
 
@@ -24630,6 +24800,9 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
     .ant-table-cell-fix-right,
     .ant-table-cell-fix-right-first,
     .ataas-model-ops-unified-action-cell {
+      width: 216px !important;
+      min-width: 216px !important;
+      max-width: 216px !important;
       border-left: 0 !important;
       background: #fff !important;
       box-shadow: none !important;
@@ -24696,4 +24869,102 @@ button.ataas-deploy-create-button.ant-btn.ant-btn-primary,
       box-shadow: none !important;
     }
   }
+}
+
+.ataas-page,
+.ant-modal,
+.ant-drawer {
+  .ant-btn-primary:not(.ant-btn-sm):not(.ant-btn-lg):not(.ant-btn-block) {
+    box-sizing: border-box !important;
+    height: 31px !important;
+    min-height: 31px !important;
+    max-height: 31px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    line-height: 1 !important;
+    vertical-align: middle !important;
+    transform: none !important;
+    white-space: nowrap;
+  }
+
+  .ant-btn-primary:not(.ant-btn-sm):not(.ant-btn-lg):not(.ant-btn-block) > span,
+  .ant-btn-primary:not(.ant-btn-sm):not(.ant-btn-lg):not(.ant-btn-block) .ant-btn-icon {
+    display: inline-flex !important;
+    align-items: center !important;
+    line-height: 1 !important;
+    white-space: nowrap;
+  }
+}
+
+.ataas-sidebar-mooncake-icon {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+
+.ataas-page .cluster-operations-homepage .resource-tree-create-button.ant-btn.ant-btn-primary {
+  width: 57px !important;
+  height: 25px !important;
+  min-height: 25px !important;
+  max-height: 25px !important;
+  padding: 0 7px !important;
+  font-size: 12px !important;
+}
+
+.ataas-page .cluster-operations-homepage .resource-tree-create-button.ant-btn.ant-btn-primary .anticon {
+  font-size: 11px !important;
+}
+
+.model-ops-page .model-ops-original-table .ataas-model-ops-detail-table-wrap .ataas-model-ops-unified-action-cell,
+.model-ops-page .model-ops-original-table .model-ops-pod-table .ataas-model-ops-pod-action-cell {
+  width: 216px !important;
+  min-width: 216px !important;
+  max-width: 216px !important;
+  padding-right: 12px !important;
+  padding-left: 12px !important;
+}
+
+.model-ops-page .model-ops-original-table .model-ops-pod-table.ataas-deploy-inline-native-table th,
+.model-ops-page .model-ops-original-table .model-ops-pod-table.ataas-deploy-inline-native-table td {
+  height: 71px !important;
+  padding: 8px 12px !important;
+  vertical-align: middle !important;
+}
+
+.model-ops-page .model-ops-original-table .model-ops-pod-table.ataas-deploy-inline-native-table th {
+  height: 34px !important;
+}
+
+.model-ops-page .model-ops-original-table .ataas-model-ops-table-actions,
+.model-ops-page .model-ops-original-table .ataas-model-ops-row-actions {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 6px !important;
+}
+
+.model-ops-page .model-ops-original-table .ataas-model-ops-icon-action,
+.model-ops-page .model-ops-original-table .ataas-model-ops-row-action-button.ant-btn {
+  width: auto !important;
+  min-width: 48px !important;
+  height: 26px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  padding: 0 7px !important;
+  border: 1px solid #E5E6EB !important;
+  border-radius: 4px !important;
+  background: #fff !important;
+  color: #4E5969 !important;
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  line-height: 1 !important;
+  box-shadow: none !important;
+}
+
+.model-ops-page .model-ops-original-table .ataas-model-ops-icon-action .anticon,
+.model-ops-page .model-ops-original-table .ataas-model-ops-row-action-button.ant-btn .anticon {
+  font-size: 12px !important;
 }

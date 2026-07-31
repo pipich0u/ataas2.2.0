@@ -22,37 +22,60 @@
 }
 
 .ataas-cm-switch {
+  box-sizing: border-box;
   display: inline-flex;
+  height: 32px !important;
+  min-height: 32px !important;
+  max-height: 32px !important;
   align-items: center;
-  gap: 12px;
-  padding: 0 4px;
+  gap: 0;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid #e5e6eb;
+  border-radius: 4px;
+  background: #fff;
+  vertical-align: top;
+  transform: none !important;
 }
 
 .ataas-cm-switch button {
+  box-sizing: border-box;
   display: inline-flex;
+  width: 72px;
+  height: 30px !important;
+  min-height: 30px !important;
+  max-height: 30px !important;
+  flex: 0 0 72px;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 10px;
   border: 0;
   background: transparent;
   color: #707a8c;
   font-size: 13px;
-  line-height: 20px;
+  font-weight: 400;
+  line-height: 1 !important;
   cursor: pointer;
-  transition: color 0.16s ease;
+  transition: color 0.16s ease, background 0.16s ease;
+  transform: none !important;
+  white-space: nowrap;
 }
 
 .ataas-cm-switch button.active {
-  color: #111827;
-  font-weight: 600;
+  color: #6738e8;
+  background: #fff;
+  font-weight: 400;
 }
 
 .ataas-cm-switch i {
   width: 1px;
-  height: 14px;
+  height: 16px;
   background: #d8dde8;
 }
 
 .ataas-cm-toolbar {
+  align-items: center;
   justify-content: space-between;
   margin-bottom: -4px;
 }
@@ -65,19 +88,80 @@
 
 .ataas-cm-toolbar-filters .ant-select {
   width: 180px;
+  height: 32px;
+  padding: 4px 11px;
+  border: 1px solid #e5e6eb !important;
+  border-radius: 4px !important;
+  background: #fff;
+  box-shadow: none !important;
+  color: #4e5969;
+  font-size: 13px;
+  font-weight: 400;
 }
 
 .ataas-cm-toolbar-filters .ant-input-search {
   width: 320px;
 }
 
-.ataas-cm-toolbar-filters .ant-input-search .ant-input-search-button {
-  height: auto !important;
+.ataas-cm-toolbar-filters .ant-input-search .ant-input-search-button,
+.ataas-cm-toolbar-filters .ant-input-search .ant-input-search-btn {
+  width: 32px;
+  height: 32px !important;
+  padding: 0;
+  border-radius: 0 4px 4px 0 !important;
 }
 
 .ataas-cm-toolbar .ant-btn,
-.ataas-cm-toolbar .ant-select-selector {
+.ataas-cm-toolbar .ant-select-selector,
+.ataas-cm-toolbar .ant-input-affix-wrapper {
   height: 32px;
+  border-color: #e5e6eb !important;
+  border-radius: 4px;
+  box-shadow: none !important;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.ataas-cm-toolbar .ant-select-selector {
+  height: 32px !important;
+  border-radius: 4px !important;
+}
+
+.ataas-cm-toolbar .ant-select-selection-item,
+.ataas-cm-toolbar .ant-select-selection-placeholder,
+.ataas-cm-toolbar .ant-select-content {
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 22px !important;
+}
+
+.ataas-cm-toolbar .ant-input-affix-wrapper {
+  border-radius: 4px 0 0 4px !important;
+}
+
+.ataas-cm-toolbar .ant-btn {
+  box-sizing: border-box;
+  width: 132px;
+  height: 32px !important;
+  min-height: 32px !important;
+  max-height: 32px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  padding: 0 12px;
+  justify-content: center !important;
+  border-radius: 4px !important;
+  line-height: 1 !important;
+  vertical-align: top;
+  transform: none !important;
+  white-space: nowrap;
+}
+
+.ataas-cm-toolbar .ant-btn > span,
+.ataas-cm-toolbar .ant-btn .ant-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1 !important;
+  white-space: nowrap;
 }
 
 .ataas-cm-table {

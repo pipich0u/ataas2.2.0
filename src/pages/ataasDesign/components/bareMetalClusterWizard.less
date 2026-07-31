@@ -205,6 +205,41 @@
   }
 }
 
+.cluster-wizard-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 12px 0 6px;
+
+  > label {
+    margin: 0;
+  }
+
+  > span {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .ant-btn {
+    height: 24px;
+    padding-inline: 4px;
+    color: #6951ff;
+    font-size: 10px;
+  }
+}
+
+.cluster-wizard-resource-empty {
+  margin-top: 7px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  color: #b26a00;
+  background: #fff7e8;
+  font-size: 10px;
+  line-height: 16px;
+}
+
 .cluster-wizard-input-note {
   margin-top: 7px;
   color: #86909c;
@@ -279,6 +314,25 @@
     border: 0;
     border-radius: 999px;
     line-height: 24px;
+  }
+}
+
+.cluster-wizard-master-choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  .ant-checkbox-wrapper {
+    margin: 0;
+    color: #1d2129;
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  small {
+    color: #86909c;
+    font-size: 9px;
+    white-space: nowrap;
   }
 }
 
@@ -436,6 +490,53 @@
       border: 0;
       color: #6951ff;
       background: #f2efff;
+    }
+  }
+}
+
+.cluster-wizard-version-options {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 7px;
+  margin-bottom: 14px;
+
+  > button {
+    min-width: 0;
+    padding: 9px 8px;
+    border: 1px solid #e5e6eb;
+    border-radius: 7px;
+    color: #4e5969;
+    background: #fff;
+    text-align: left;
+    cursor: pointer;
+
+    &:hover {
+      border-color: #c9c0ff;
+    }
+
+    &.active {
+      border-color: #6951ff;
+      color: #5f35d5;
+      background: #faf9ff;
+    }
+
+    strong,
+    small {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    strong {
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    small {
+      margin-top: 3px;
+      color: #86909c;
+      font-size: 8px;
     }
   }
 }
@@ -763,6 +864,12 @@
   }
 }
 
+.cluster-wizard-background-note {
+  color: #86909c;
+  font-size: 10px;
+  line-height: 18px;
+}
+
 @media (max-width: 900px) {
   .cluster-wizard-content {
     max-height: calc(100vh - 250px);
@@ -780,5 +887,9 @@
   .cluster-wizard-environment {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .cluster-wizard-version-options {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }

@@ -1,12 +1,13 @@
 import {
+  ArrowLeftOutlined,
   CheckCircleFilled,
   CloudDownloadOutlined,
   CloudServerOutlined,
   CodeOutlined,
   DownloadOutlined,
   FileZipOutlined,
-  HistoryOutlined,
   InboxOutlined,
+  LoadingOutlined,
   PlusOutlined,
   ReloadOutlined,
   SafetyCertificateOutlined,
@@ -60,6 +61,17 @@ type SoftwarePackage = {
   versions: PackageVersion[];
 };
 
+type PackageVersionOption = {
+  packageRecord: SoftwarePackage;
+  versionRecord: PackageVersion;
+};
+
+type PackageVersionRow = PackageVersionOption & {
+  key: string;
+  category: SoftwarePackage['category'];
+  isCurrent: boolean;
+};
+
 type DistributionTask = {
   key: string;
   name: string;
@@ -70,6 +82,12 @@ type DistributionTask = {
   progress: number;
   status: TaskStatus;
   createdAt: string;
+};
+
+type DistributionMachine = {
+  key: string;
+  ip: string;
+  status: 'checking' | 'ready';
 };
 
 type UploadPackageValues = {
@@ -195,6 +213,7 @@ const initialPackages: SoftwarePackage[] = [
 ];
 
 const PACKAGE_STORAGE_KEY = 'ataas.software-packages.catalog.v1';
+const CLUSTER_WIZARD_RESUME_KEY = 'ataas.cluster-wizard.resume';
 
 const loadPackageRecords = () => {
   if (typeof window === 'undefined') return initialPackages;
@@ -251,6 +270,30 @@ const taskStatusLabels: Record<TaskStatus, string> = {
   failed: '失败',
 };
 
+const parseTargetIPs = (value: string) => (
+  Array.from(new Set(
+    value
+      .split(/[\n,，;\s]+/)
+      .map((item) => item.trim())
+      .filter(Boolean),
+  ))
+);
+
+const isValidIPv4 = (value: string) => {
+  const parts = value.split('.');
+  return parts.length === 4 && parts.every((part) => (
+    /^\d{1,3}$/.test(part) && Number(part) >= 0 && Number(part) <= 255
+  ));
+};
+
+const getDistributionStage = (progress: number, installK8s: boolean) => {
+  if (progress < 30) return '传输软件包';
+  if (progress < 52) return '校验并解压';
+  if (progress < 84) return installK8s ? '安装 Kubernetes 组件' : '执行软件包安装';
+  if (progress < 100) return '安装后健康检查';
+  return '下发安装完成';
+};
+
 const SoftwarePackagePage = () => {
   const [packageRecords, setPackageRecords] = useState<SoftwarePackage[]>(loadPackageRecords);
   const [tasks, setTasks] = useState(initialTasks);
@@ -262,6 +305,8 @@ const SoftwarePackagePage = () => {
   const [versionTarget, setVersionTarget] = useState<SoftwarePackage | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [distributionOpen, setDistributionOpen] = useState(false);
+  const [distributionStep, setDistributionStep] = useState(0);
+  const [distributionCategory, setDistributionCategory] = useState<SoftwarePackage['category']>('kubernetes');
   const [distributionPackageId, setDistributionPackageId] = useState('k8s-bundle');
   const [distributionVersion, setDistributionVersion] = useState('v1.31.4');
   const [distributionTargets, setDistributionTargets] = useState('10.24.16.31\n10.24.16.32\n10.24.16.33');
@@ -270,6 +315,17 @@ const SoftwarePackagePage = () => {
   const [credential, setCredential] = useState('sh-new-node-root');
   const [installK8s, setInstallK8s] = useState(true);
   const [initControlPlane, setInitControlPlane] = useState(false);
+  const [distributionMachines, setDistributionMachines] = useState<DistributionMachine[]>([]);
+  const [distributionPrecheckRunId, setDistributionPrecheckRunId] = useState(0);
+  const [distributionProgress, setDistributionProgress] = useState(0);
+  const [distributionTaskKey, setDistributionTaskKey] = useState('');
+  const [clusterReturnContext, setClusterReturnContext] = useState<{
+    k8sVersion: string;
+    os: string;
+    arch: string;
+  } | null>(null);
+  const [clusterReturnReady, setClusterReturnReady] = useState(false);
+  const [clusterReturnValidating, setClusterReturnValidating] = useState(false);
   const [uploadForm] = Form.useForm<UploadPackageValues>();
 
   useEffect(() => {
@@ -289,6 +345,9 @@ const SoftwarePackagePage = () => {
         os: request.os,
         arch: request.arch,
       });
+      setClusterReturnContext(request);
+      setClusterReturnReady(false);
+      setClusterReturnValidating(false);
       setUploadOpen(true);
       message.info(`请上传适配 ${request.k8sVersion} / ${request.arch} 的 Kubernetes 软件包`);
     } finally {
@@ -296,8 +355,84 @@ const SoftwarePackagePage = () => {
     }
   }, [uploadForm]);
 
+  const returnToClusterWizard = () => {
+    window.sessionStorage.setItem(CLUSTER_WIZARD_RESUME_KEY, '1');
+    window.dispatchEvent(new CustomEvent('ataas:navigate', {
+      detail: { tab: 'clusterOperations' },
+    }));
+  };
+
   const selectedDistributionPackage = packageRecords.find((item) => item.key === distributionPackageId) || packageRecords[0];
-  const selectedTargetCount = distributionTargets.split(/[\n,]/).map((item) => item.trim()).filter(Boolean).length;
+  const selectedDistributionVersionRecord = selectedDistributionPackage?.versions.find((item) => item.version === distributionVersion);
+  const selectedTargetIPs = parseTargetIPs(distributionTargets);
+  const selectedTargetCount = selectedTargetIPs.length;
+  const distributionPrecheckReady = distributionMachines.length > 0
+    && distributionMachines.every((item) => item.status === 'ready');
+  const managedVersionCount = useMemo(() => (
+    packageRecords.reduce((count, item) => count + item.versions.length, 0)
+  ), [packageRecords]);
+  const availableVersionCount = useMemo(() => (
+    packageRecords.reduce((count, item) => (
+      count + item.versions.filter((version) => version.status === 'available').length
+    ), 0)
+  ), [packageRecords]);
+  const k8sVersionCount = useMemo(() => (
+    new Set(packageRecords.flatMap((item) => item.k8sVersions)).size
+  ), [packageRecords]);
+  const k8sFilterOptions = useMemo(() => (
+    Array.from(new Set(
+      packageRecords
+        .filter((item) => item.category === 'kubernetes')
+        .flatMap((item) => item.versions.map((version) => version.version)),
+    ))
+      .sort((first, second) => second.localeCompare(first, undefined, { numeric: true }))
+      .map((value) => ({ value, label: value.startsWith('v') ? `K8s ${value}` : value }))
+  ), [packageRecords]);
+  const distributionCategoryPackages = useMemo(() => (
+    packageRecords.filter((item) => item.category === distributionCategory)
+  ), [distributionCategory, packageRecords]);
+  const distributionVersionOptions = useMemo(() => (
+    (selectedDistributionPackage?.versions || []).map((item) => ({
+      value: item.version,
+      label: `${item.version}${item.version === selectedDistributionPackage?.currentVersion ? '（当前）' : item.status === 'deprecated' ? '（已停用）' : ''}`,
+      disabled: item.status === 'deprecated',
+    }))
+  ), [selectedDistributionPackage]);
+
+  useEffect(() => {
+    if (!distributionOpen || distributionStep !== 1 || distributionPrecheckRunId === 0) return undefined;
+    const timers = distributionMachines.map((machine, index) => window.setTimeout(() => {
+      setDistributionMachines((current) => current.map((item) => (
+        item.key === machine.key ? { ...item, status: 'ready' } : item
+      )));
+    }, 480 + index * 360));
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+  }, [distributionOpen, distributionPrecheckRunId, distributionStep]);
+
+  useEffect(() => {
+    if (distributionStep !== 2 || !distributionTaskKey || distributionProgress >= 100) return undefined;
+    const timer = window.setInterval(() => {
+      setDistributionProgress((current) => {
+        const increment = current < 30 ? 8 : current < 75 ? 6 : 4;
+        return Math.min(100, current + increment);
+      });
+    }, 520);
+    return () => window.clearInterval(timer);
+  }, [distributionProgress, distributionStep, distributionTaskKey]);
+
+  useEffect(() => {
+    if (!distributionTaskKey) return;
+    setTasks((items) => items.map((item) => (
+      item.key === distributionTaskKey
+        ? {
+            ...item,
+            stage: getDistributionStage(distributionProgress, installK8s),
+            progress: distributionProgress,
+            status: distributionProgress >= 100 ? 'completed' : 'running',
+          }
+        : item
+    )));
+  }, [distributionProgress, distributionTaskKey, installK8s]);
 
   const filteredPackages = useMemo(() => {
     const normalizedKeyword = keyword.trim().toLowerCase();
@@ -305,21 +440,73 @@ const SoftwarePackagePage = () => {
       const matchesKeyword = !normalizedKeyword
         || item.name.toLowerCase().includes(normalizedKeyword)
         || item.description.toLowerCase().includes(normalizedKeyword)
-        || item.currentVersion.toLowerCase().includes(normalizedKeyword);
+        || item.currentVersion.toLowerCase().includes(normalizedKeyword)
+        || item.versions.some((version) => (
+          version.version.toLowerCase().includes(normalizedKeyword)
+          || version.checksum.toLowerCase().includes(normalizedKeyword)
+      ));
       const matchesCategory = category === 'all' || item.category === category;
       const matchesArch = architecture === 'all' || item.arch.includes(architecture);
-      const matchesK8s = k8sVersion === 'all'
-        || item.k8sVersions.includes('通用')
-        || item.k8sVersions.some((value) => value.includes(k8sVersion.replace('v', '').replace('.x', '')));
+      const matchesK8s = category !== 'kubernetes'
+        || k8sVersion === 'all'
+        || item.versions.some((version) => version.version === k8sVersion);
       return matchesKeyword && matchesCategory && matchesArch && matchesK8s;
     });
   }, [architecture, category, k8sVersion, keyword, packageRecords]);
 
+  const filteredPackageVersionRows = useMemo(() => (
+    filteredPackages.flatMap((item) => item.versions
+      .filter((version) => (
+        category !== 'kubernetes'
+        || k8sVersion === 'all'
+        || version.version === k8sVersion
+      ))
+      .map((version) => ({
+        key: `${item.key}-${version.version}`,
+        packageRecord: item,
+        versionRecord: version,
+        category: item.category,
+        isCurrent: version.version === item.currentVersion,
+      })))
+  ), [category, filteredPackages, k8sVersion]);
+
   const openDistribution = (item = packageRecords[0], version = item.currentVersion) => {
+    setDistributionCategory(item.category);
     setDistributionPackageId(item.key);
     setDistributionVersion(version);
     setInstallK8s(item.category === 'kubernetes');
+    setInitControlPlane(false);
+    setDistributionStep(0);
+    setDistributionMachines([]);
+    setDistributionPrecheckRunId(0);
+    setDistributionProgress(0);
+    setDistributionTaskKey('');
     setDistributionOpen(true);
+  };
+
+  const selectDistributionPackage = (item: SoftwarePackage) => {
+    setDistributionCategory(item.category);
+    setDistributionPackageId(item.key);
+    setDistributionVersion(item.currentVersion);
+    setInstallK8s(item.category === 'kubernetes');
+  };
+
+  const handleDistributionCategoryChange = (nextCategory: SoftwarePackage['category']) => {
+    const nextPackage = packageRecords.find((item) => item.category === nextCategory);
+    setDistributionCategory(nextCategory);
+    if (nextPackage) {
+      selectDistributionPackage(nextPackage);
+      return;
+    }
+    setDistributionPackageId('');
+    setDistributionVersion('');
+    setInstallK8s(nextCategory === 'kubernetes');
+  };
+
+  const handleDistributionPackageChange = (packageId: string) => {
+    const nextPackage = packageRecords.find((item) => item.key === packageId);
+    if (!nextPackage) return;
+    selectDistributionPackage(nextPackage);
   };
 
   const handleDownload = (item: SoftwarePackage, version = item.currentVersion) => {
@@ -401,6 +588,8 @@ const SoftwarePackagePage = () => {
     }
     setUploadOpen(false);
     uploadForm.resetFields();
+    setClusterReturnReady(false);
+    setClusterReturnValidating(Boolean(clusterReturnContext));
     window.setTimeout(() => {
       setPackageRecords((records) => records.map((item) => (
         item.name.trim().toLowerCase() === values.name.trim().toLowerCase()
@@ -413,11 +602,13 @@ const SoftwarePackagePage = () => {
             }
           : item
       )));
+      setClusterReturnReady(true);
+      setClusterReturnValidating(false);
       message.success(`${values.name} ${values.version} 完整性与兼容性校验通过`);
     }, 1400);
   };
 
-  const submitDistribution = () => {
+  const startDistributionPrecheck = () => {
     if (!selectedDistributionPackage || !distributionVersion) {
       message.warning('请选择要下发的软件包和版本');
       return;
@@ -430,70 +621,409 @@ const SoftwarePackagePage = () => {
       message.warning('请补充 SSH 用户和凭据');
       return;
     }
+    const invalidIPs = selectedTargetIPs.filter((ip) => !isValidIPv4(ip));
+    if (invalidIPs.length) {
+      message.error(`IP 格式不正确：${invalidIPs.slice(0, 3).join('、')}`);
+      return;
+    }
+    setDistributionMachines(selectedTargetIPs.map((ip) => ({
+      key: ip,
+      ip,
+      status: 'checking',
+    })));
+    setDistributionStep(1);
+    setDistributionPrecheckRunId((current) => current + 1);
+  };
 
+  const rerunDistributionPrecheck = () => {
+    setDistributionMachines((current) => current.map((item) => ({ ...item, status: 'checking' })));
+    setDistributionPrecheckRunId((current) => current + 1);
+  };
+
+  const startDistributionTransfer = () => {
+    if (!distributionPrecheckReady || !selectedDistributionPackage) return;
+    const taskKey = `PKG-${Date.now()}`;
     const newTask: DistributionTask = {
-      key: `PKG-20260730-${String(tasks.length + 22).padStart(4, '0')}`,
+      key: taskKey,
       name: installK8s ? '新机器 K8s 初始化' : `${selectedDistributionPackage.name} 下发`,
       packageName: selectedDistributionPackage.name,
       version: distributionVersion,
-      targets: `${distributionTargets.split(/[\n,]/).map((item) => item.trim()).filter(Boolean)[0]} 等 ${selectedTargetCount} 台`,
-      stage: 'SSH 连通性检查',
-      progress: 8,
+      targets: selectedTargetCount > 1
+        ? `${selectedTargetIPs[0]} 等 ${selectedTargetCount} 台`
+        : selectedTargetIPs[0],
+      stage: '传输软件包',
+      progress: 6,
       status: 'running',
       createdAt: '2026-07-30 15:48',
     };
     setTasks((items) => [newTask, ...items]);
-    setDistributionOpen(false);
-    setActiveTab('tasks');
-    message.success(`下发任务已创建，将通过 SSH 处理 ${selectedTargetCount} 台机器`);
+    setDistributionTaskKey(taskKey);
+    setDistributionProgress(6);
+    setDistributionStep(2);
   };
 
-  const packageColumns: ColumnsType<SoftwarePackage> = [
+  const runDistributionInBackground = () => {
+    setDistributionOpen(false);
+    setActiveTab('tasks');
+    message.success('任务已转入后台，可在「下发任务」中查看进度和日志');
+  };
+
+  const finishDistribution = () => {
+    setDistributionOpen(false);
+    setActiveTab('tasks');
+    message.success(`软件包已成功下发至 ${selectedTargetCount} 台机器`);
+  };
+
+  const closeDistribution = () => {
+    if (distributionStep === 2 && distributionProgress < 100) {
+      runDistributionInBackground();
+      return;
+    }
+    setDistributionOpen(false);
+  };
+
+  const renderDistributionConfig = () => (
+    <div className="software-distribution-grid">
+      <section className="software-distribution-package-panel">
+        <h3><span className="software-distribution-title-icon"><FileZipOutlined /></span> 软件包版本定位</h3>
+        <div className="software-distribution-select-stack">
+          <label>软件包类型</label>
+          <Select
+            value={distributionCategory}
+            onChange={handleDistributionCategoryChange}
+            options={Object.entries(categoryLabels).map(([value, label]) => ({ value, label }))}
+          />
+          <label>软件包</label>
+          <Select
+            value={distributionPackageId}
+            onChange={handleDistributionPackageChange}
+            options={distributionCategoryPackages.map((item) => ({
+              value: item.key,
+              label: item.name,
+            }))}
+          />
+          <label>版本</label>
+          <Select
+            value={distributionVersion}
+            onChange={setDistributionVersion}
+            options={distributionVersionOptions}
+          />
+          <div className="software-distribution-package-info">
+            <span className={`software-package-type-tag ${selectedDistributionPackage?.category}`}>{selectedDistributionPackage ? categoryLabels[selectedDistributionPackage.category] : '未选择'}</span>
+            <strong>{selectedDistributionPackage?.name}</strong>
+            <small>
+              {selectedDistributionPackage?.os} · {selectedDistributionPackage?.arch}
+              {selectedDistributionVersionRecord ? ` · ${selectedDistributionVersionRecord.size}` : ''}
+            </small>
+          </div>
+        </div>
+        <label>安装选项</label>
+        <div className="software-install-options">
+          <Checkbox checked={installK8s} onChange={(event) => setInstallK8s(event.target.checked)}>
+            下发后自动安装 Kubernetes
+          </Checkbox>
+          <Checkbox
+            checked={initControlPlane}
+            disabled={!installK8s}
+            onChange={(event) => setInitControlPlane(event.target.checked)}
+          >
+            初始化首个控制面节点
+          </Checkbox>
+        </div>
+      </section>
+
+      <section className="software-distribution-ssh-panel">
+        <h3><span className="software-distribution-title-icon"><SafetyCertificateOutlined /></span> 目标机器与 SSH</h3>
+        <label>目标 IP <em>每行一个，也可用逗号分隔</em></label>
+        <Input.TextArea
+          rows={3}
+          value={distributionTargets}
+          onChange={(event) => setDistributionTargets(event.target.value)}
+          placeholder={'10.24.16.31\n10.24.16.32'}
+        />
+        <div className="software-ssh-row">
+          <span>
+            <label>SSH 端口</label>
+            <InputNumber min={1} max={65535} value={sshPort} onChange={(value) => setSshPort(value || 22)} />
+          </span>
+          <span>
+            <label>SSH 用户</label>
+            <Input value={sshUser} onChange={(event) => setSshUser(event.target.value)} />
+          </span>
+        </div>
+        <label>SSH 凭据</label>
+        <Select
+          value={credential}
+          onChange={setCredential}
+          options={[
+            { value: 'sh-new-node-root', label: 'sh-new-node-root（SSH Key）' },
+            { value: 'zz-baremetal-root', label: 'zz-baremetal-root（SSH Key）' },
+            { value: 'temporary-password', label: '临时密码凭据' },
+          ]}
+        />
+      </section>
+      <div className="software-distribution-summary">
+        <SafetyCertificateOutlined />
+        <span>
+          下一步将逐机执行 SSH 前置检查
+          <small>检查 {selectedTargetCount} 台机器的连通性、sudo 权限、磁盘空间、系统架构和端口占用。</small>
+        </span>
+        <Tag color="purple">
+          {selectedDistributionPackage?.name} {distributionVersion}
+          {selectedDistributionVersionRecord ? ` · ${statusLabels[selectedDistributionVersionRecord.status]}` : ''}
+        </Tag>
+      </div>
+    </div>
+  );
+
+  const renderDistributionPrecheck = () => {
+    const readyCount = distributionMachines.filter((item) => item.status === 'ready').length;
+    return (
+      <div className="software-distribution-precheck">
+        <header className="software-distribution-step-header">
+          <div>
+            <h3>SSH 前置检查</h3>
+            <p>每台机器检查通过后，才能开始传输和安装软件包。</p>
+          </div>
+          <Tag color={distributionPrecheckReady ? 'success' : 'processing'}>
+            {readyCount} / {distributionMachines.length} 台就绪
+          </Tag>
+        </header>
+        <div className="software-distribution-machine-list">
+          {distributionMachines.map((machine) => (
+            <div key={machine.key} className={machine.status}>
+              <span className="software-machine-status-icon">
+                {machine.status === 'ready' ? <CheckCircleFilled /> : <LoadingOutlined spin />}
+              </span>
+              <strong>{machine.ip}</strong>
+              <span className="software-machine-checks">
+                <em>SSH</em>
+                <em>sudo</em>
+                <em>磁盘</em>
+                <em>系统架构</em>
+                <em>端口</em>
+              </span>
+              <b>{machine.status === 'ready' ? '检查通过' : '检查中'}</b>
+            </div>
+          ))}
+        </div>
+        <div className={`software-distribution-check-result${distributionPrecheckReady ? ' ready' : ''}`}>
+          {distributionPrecheckReady ? <CheckCircleFilled /> : <LoadingOutlined spin />}
+          <span>
+            <strong>{distributionPrecheckReady ? '所有目标机器均已就绪' : '正在逐机检查环境'}</strong>
+            <small>
+              {distributionPrecheckReady
+                ? '可进入下一步，通过 SSH 传输并安装所选软件包。'
+                : '请保持弹窗开启，检查通常只需要几秒钟。'}
+            </small>
+          </span>
+        </div>
+      </div>
+    );
+  };
+
+  const renderDistributionTransfer = () => {
+    const stages = [
+      { label: '传输软件包', threshold: 6, next: 30 },
+      { label: '校验并解压', threshold: 30, next: 52 },
+      { label: installK8s ? '安装 Kubernetes 组件' : '执行软件包安装', threshold: 52, next: 84 },
+      { label: '安装后健康检查', threshold: 84, next: 100 },
+    ];
+    const logLines = [
+      `[${distributionProgress >= 30 ? '完成' : '执行'}] 建立 SSH 连接并传输 ${selectedDistributionPackage?.name}`,
+      ...(distributionProgress >= 30 ? ['[完成] SHA256 完整性校验通过，软件包已解压'] : []),
+      ...(distributionProgress >= 52 ? [`[执行] ${installK8s ? '安装 kubeadm、kubelet、kubectl 与 containerd' : '执行安装脚本'}`] : []),
+      ...(distributionProgress >= 84 ? ['[执行] 检查服务状态与节点健康度'] : []),
+      ...(distributionProgress >= 100 ? [`[完成] ${selectedTargetCount} 台机器全部处理成功`] : []),
+    ];
+    return (
+      <div className="software-distribution-transfer">
+        <section className={`software-distribution-progress-hero${distributionProgress >= 100 ? ' finished' : ''}`}>
+          <span>{distributionProgress >= 100 ? <CheckCircleFilled /> : <CloudDownloadOutlined />}</span>
+          <div>
+            <strong>{getDistributionStage(distributionProgress, installK8s)}</strong>
+            <small>{selectedDistributionPackage?.name} {distributionVersion} · {selectedTargetCount} 台机器</small>
+          </div>
+          <b>{distributionProgress}%</b>
+          <Progress
+            percent={distributionProgress}
+            showInfo={false}
+            status={distributionProgress >= 100 ? 'success' : 'active'}
+          />
+        </section>
+        <div className="software-distribution-progress-layout">
+          <section className="software-distribution-stage-list">
+            <h3>执行阶段</h3>
+            {stages.map((stage, index) => {
+              const completed = distributionProgress >= stage.next;
+              const active = distributionProgress >= stage.threshold && distributionProgress < stage.next;
+              return (
+                <div key={stage.label} className={completed ? 'completed' : active ? 'active' : ''}>
+                  <i>{completed ? <CheckCircleFilled /> : active ? <LoadingOutlined spin /> : index + 1}</i>
+                  <span>{stage.label}</span>
+                  <em>{completed ? '完成' : active ? '执行中' : '等待'}</em>
+                </div>
+              );
+            })}
+          </section>
+          <section className="software-distribution-node-list">
+            <h3>机器进度</h3>
+            {distributionMachines.map((machine, index) => {
+              const machineProgress = Math.max(0, Math.min(100, distributionProgress - index * 4));
+              return (
+                <div key={machine.key}>
+                  <span>
+                    <strong>{machine.ip}</strong>
+                    <small>{machineProgress >= 100 ? '安装完成' : getDistributionStage(machineProgress, installK8s)}</small>
+                  </span>
+                  <Progress
+                    percent={machineProgress}
+                    showInfo={false}
+                    size="small"
+                    status={machineProgress >= 100 ? 'success' : 'active'}
+                  />
+                  <em>{machineProgress}%</em>
+                </div>
+              );
+            })}
+          </section>
+        </div>
+        <section className="software-distribution-log">
+          <h3>实时日志 <Tag>任务 {distributionTaskKey}</Tag></h3>
+          <div>{logLines.map((line) => <code key={line}>{line}</code>)}</div>
+        </section>
+      </div>
+    );
+  };
+
+  const renderDistributionResult = () => (
+    <div className="software-distribution-result">
+      <span className="software-distribution-result-icon"><CheckCircleFilled /></span>
+      <h3>软件包下发安装完成</h3>
+      <p>{selectedTargetCount} 台目标机器全部处理成功，执行日志已保留在下发任务中。</p>
+      <section>
+        <div><small>软件包</small><strong>{selectedDistributionPackage?.name}</strong></div>
+        <div><small>版本</small><strong>{distributionVersion}</strong></div>
+        <div><small>目标机器</small><strong>{selectedTargetCount} 台</strong></div>
+        <div><small>安装方式</small><strong>{installK8s ? '下发并安装 K8s' : '仅下发软件包'}</strong></div>
+      </section>
+      <div className="software-distribution-result-note">
+        <SafetyCertificateOutlined />
+        <span>
+          <strong>任务 {distributionTaskKey}</strong>
+          <small>关闭后可在软件包管理的「下发任务」页签中继续查看任务详情和日志。</small>
+        </span>
+      </div>
+    </div>
+  );
+
+  const renderDistributionFooter = () => {
+    if (distributionStep === 0) {
+      return (
+        <div className="software-distribution-footer">
+          <Button onClick={() => setDistributionOpen(false)}>取消</Button>
+          <span />
+          <Button type="primary" icon={<SafetyCertificateOutlined />} onClick={startDistributionPrecheck}>
+            下一步：SSH 检查
+          </Button>
+        </div>
+      );
+    }
+    if (distributionStep === 1) {
+      return (
+        <div className="software-distribution-footer">
+          <Button onClick={() => setDistributionStep(0)}>上一步</Button>
+          <span />
+          <Button icon={<ReloadOutlined />} onClick={rerunDistributionPrecheck}>重新检查</Button>
+          <Button
+            type="primary"
+            icon={<CloudDownloadOutlined />}
+            disabled={!distributionPrecheckReady}
+            onClick={startDistributionTransfer}
+          >
+            下一步：传输安装
+          </Button>
+        </div>
+      );
+    }
+    if (distributionStep === 2) {
+      return (
+        <div className="software-distribution-footer">
+          <Button onClick={runDistributionInBackground}>后台运行</Button>
+          <small>后台运行后可在「下发任务」中查看进度与日志</small>
+          <span />
+          <Button
+            type="primary"
+            disabled={distributionProgress < 100}
+            onClick={() => setDistributionStep(3)}
+          >
+            下一步：结果确认
+          </Button>
+        </div>
+      );
+    }
+    return (
+      <div className="software-distribution-footer">
+        <span />
+        <Button type="primary" onClick={finishDistribution}>完成并查看任务</Button>
+      </div>
+    );
+  };
+
+  const packageVersionColumns: ColumnsType<PackageVersionRow> = [
+    {
+      title: '类型',
+      dataIndex: 'category',
+      width: 112,
+      render: (value: SoftwarePackage['category']) => (
+        <Tag className={`software-package-type-tag ${value}`}>{categoryLabels[value]}</Tag>
+      ),
+    },
     {
       title: '软件包',
       key: 'package',
-      width: 310,
+      width: 270,
       render: (_, item) => (
         <div className="software-package-name">
-          <span className={`software-package-icon ${item.category}`}>
-            {item.category === 'kubernetes' ? <CloudServerOutlined /> : <FileZipOutlined />}
-          </span>
           <span>
-            <strong>{item.name}</strong>
-            <small>{item.description}</small>
+            <strong>{item.packageRecord.name}</strong>
+            <small>{item.packageRecord.description}</small>
           </span>
         </div>
       ),
     },
     {
-      title: '当前版本',
-      dataIndex: 'currentVersion',
-      width: 126,
-      render: (value: string, item) => (
+      title: '版本',
+      key: 'version',
+      width: 150,
+      render: (_, item) => (
         <div className="software-package-version">
-          <strong>{value}</strong>
-          <Tag className={`package-status-tag ${item.status}`}>{statusLabels[item.status]}</Tag>
+          <strong>{item.versionRecord.version}</strong>
+          {item.isCurrent && <Tag className="package-status-tag current">当前</Tag>}
+          {item.versionRecord.status === 'deprecated' && (
+            <Tag className="package-status-tag deprecated">{statusLabels[item.versionRecord.status]}</Tag>
+          )}
         </div>
       ),
     },
     {
       title: '适配 K8s',
-      dataIndex: 'k8sVersions',
+      key: 'k8sVersions',
       width: 190,
-      render: (values: string[]) => (
+      render: (_, item) => (
         <div className="software-package-k8s-tags">
-          {values.map((value) => <Tag key={value}>{value}</Tag>)}
+          {item.packageRecord.k8sVersions.map((value) => <Tag key={value}>{value}</Tag>)}
         </div>
       ),
     },
     {
       title: '系统 / 架构',
       key: 'system',
-      width: 180,
+      width: 170,
       render: (_, item) => (
         <div className="software-package-system">
-          <span>{item.os}</span>
-          <small>{item.arch}</small>
+          <span>{item.packageRecord.os}</span>
+          <small>{item.packageRecord.arch}</small>
         </div>
       ),
     },
@@ -503,27 +1033,34 @@ const SoftwarePackagePage = () => {
       width: 140,
       render: (_, item) => (
         <div className="software-package-system">
-          <span>{item.size}</span>
-          <small>{item.checksum}</small>
+          <span>{item.versionRecord.size}</span>
+          <small>{item.versionRecord.checksum}</small>
         </div>
       ),
     },
     {
-      title: '更新时间',
-      dataIndex: 'updatedAt',
-      width: 150,
-      render: (value: string) => <span className="software-package-muted">{value}</span>,
+      title: '上传时间',
+      key: 'releasedAt',
+      width: 142,
+      render: (_, item) => <span className="software-package-muted">{item.versionRecord.releasedAt}</span>,
     },
     {
       title: '操作',
       key: 'actions',
       fixed: 'right',
-      width: 202,
+      width: 194,
       render: (_, item) => (
-        <Space size={2} className="software-package-actions">
-          <Button type="link" size="small" icon={<HistoryOutlined />} onClick={() => setVersionTarget(item)}>版本</Button>
-          <Button type="link" size="small" icon={<DownloadOutlined />} onClick={() => handleDownload(item)}>下载</Button>
-          <Button type="link" size="small" icon={<SendOutlined />} onClick={() => openDistribution(item)}>下发</Button>
+        <Space size={10} className="software-package-actions">
+          <Button type="link" size="small" icon={<DownloadOutlined />} onClick={() => handleDownload(item.packageRecord, item.versionRecord.version)}>下载</Button>
+          <Button
+            type="link"
+            size="small"
+            icon={<SendOutlined />}
+            disabled={item.versionRecord.status === 'deprecated'}
+            onClick={() => openDistribution(item.packageRecord, item.versionRecord.version)}
+          >
+            下发
+          </Button>
         </Space>
       ),
     },
@@ -593,11 +1130,56 @@ const SoftwarePackagePage = () => {
           <h1>软件包管理</h1>
           <p>统一维护节点初始化所需软件包，通过 SSH 下发到新机器并完成 Kubernetes 安装。</p>
         </div>
-        <Space>
-          <Button icon={<PlusOutlined />} onClick={() => setUploadOpen(true)}>上传软件包</Button>
-          <Button type="primary" icon={<SendOutlined />} onClick={() => openDistribution()}>新建下发</Button>
+        <Space size={8}>
+          <Button
+            type="primary"
+            className="ataas-page-create-button software-create-action"
+            icon={<PlusOutlined />}
+            onClick={() => setUploadOpen(true)}
+          >
+            上传软件包
+          </Button>
+          <Button
+            type="primary"
+            className="ataas-page-create-button software-create-action"
+            icon={<SendOutlined />}
+            onClick={() => openDistribution()}
+          >
+            新建下发
+          </Button>
         </Space>
       </header>
+
+      {clusterReturnContext && (
+        <section className={`software-cluster-return${clusterReturnReady ? ' ready' : ''}`}>
+          <span><ArrowLeftOutlined /></span>
+          <div>
+            <strong>
+              {clusterReturnReady
+                ? '软件包已校验通过，可以继续创建集群'
+                : clusterReturnValidating
+                  ? '正在校验软件包完整性与兼容性'
+                  : '从集群创建向导跳转而来'}
+            </strong>
+            <small>
+              {clusterReturnContext.k8sVersion} · {clusterReturnContext.os} · {clusterReturnContext.arch}
+              {clusterReturnReady
+                ? ' 已加入可选版本。'
+                : clusterReturnValidating
+                  ? '，校验完成后即可返回。'
+                  : '，上传完成后可返回原来的创建现场。'}
+            </small>
+          </div>
+          <Button
+            type={clusterReturnReady ? 'primary' : 'default'}
+            icon={<ArrowLeftOutlined />}
+            disabled={clusterReturnValidating}
+            onClick={returnToClusterWizard}
+          >
+            {clusterReturnValidating ? '校验中…' : '返回创建集群'}
+          </Button>
+        </section>
+      )}
 
       <section className="software-bootstrap-guide">
         <div className="software-bootstrap-guide-title">
@@ -611,27 +1193,34 @@ const SoftwarePackagePage = () => {
           size="small"
           current={-1}
           items={[
-            { title: '选择 K8s 套件', icon: <InboxOutlined /> },
+            { title: '选择 K8s 套件', icon: <FileZipOutlined /> },
             { title: 'SSH 下发', icon: <CloudDownloadOutlined /> },
             { title: '安装并校验', icon: <SafetyCertificateOutlined /> },
             { title: '创建 / 加入集群', icon: <CheckCircleFilled /> },
           ]}
         />
-        <Button type="link" icon={<SendOutlined />} onClick={() => openDistribution()}>开始初始化</Button>
+        <Button
+          type="primary"
+          className="ataas-page-create-button software-create-action"
+          icon={<SendOutlined />}
+          onClick={() => openDistribution()}
+        >
+          开始初始化
+        </Button>
       </section>
 
       <section className="software-package-metrics">
         <article>
-          <span className="purple"><InboxOutlined /></span>
+          <span className="purple"><FileZipOutlined /></span>
           <div><small>软件包</small><strong>{packageRecords.length}</strong><em>已纳管</em></div>
         </article>
         <article>
           <span className="blue"><CodeOutlined /></span>
-          <div><small>K8s 版本</small><strong>3</strong><em>v1.29 - v1.31</em></div>
+          <div><small>K8s 版本</small><strong>{k8sVersionCount}</strong><em>已适配</em></div>
         </article>
         <article>
           <span className="green"><CheckCircleFilled /></span>
-          <div><small>可用版本</small><strong>{packageRecords.filter((item) => item.status === 'available').length}</strong><em>校验通过</em></div>
+          <div><small>可用版本</small><strong>{availableVersionCount}</strong><em>共 {managedVersionCount} 个</em></div>
         </article>
         <article>
           <span className="orange"><SendOutlined /></span>
@@ -660,22 +1249,27 @@ const SoftwarePackagePage = () => {
               />
               <Select
                 value={category}
-                onChange={setCategory}
+                onChange={(value) => {
+                  setCategory(value);
+                  if (value !== 'kubernetes') {
+                    setK8sVersion('all');
+                  }
+                }}
                 options={[
-                  { value: 'all', label: '全部类型' },
+                  { value: 'all', label: '全部软件包类型' },
                   ...Object.entries(categoryLabels).map(([value, label]) => ({ value, label })),
                 ]}
               />
-              <Select
-                value={k8sVersion}
-                onChange={setK8sVersion}
-                options={[
-                  { value: 'all', label: '全部 K8s 版本' },
-                  { value: 'v1.31', label: 'K8s v1.31' },
-                  { value: 'v1.30', label: 'K8s v1.30' },
-                  { value: 'v1.29', label: 'K8s v1.29' },
-                ]}
-              />
+              {category === 'kubernetes' && (
+                <Select
+                  value={k8sVersion}
+                  onChange={setK8sVersion}
+                  options={[
+                    { value: 'all', label: '全部 K8s 版本' },
+                    ...k8sFilterOptions,
+                  ]}
+                />
+              )}
               <Select
                 value={architecture}
                 onChange={setArchitecture}
@@ -696,14 +1290,16 @@ const SoftwarePackagePage = () => {
               >
                 重置
               </Button>
-              <span>共 {filteredPackages.length} 个软件包</span>
+              <span>共 {filteredPackageVersionRows.length} 个版本</span>
             </div>
             <Table
               rowKey="key"
-              columns={packageColumns}
-              dataSource={filteredPackages}
-              pagination={{ pageSize: 8, showSizeChanger: false }}
-              scroll={{ x: 1490 }}
+              className="software-package-version-table"
+              columns={packageVersionColumns}
+              dataSource={filteredPackageVersionRows}
+              rowClassName={(record) => `${record.isCurrent ? 'is-current-version' : ''} ${record.versionRecord.status === 'deprecated' ? 'is-deprecated-version' : ''}`.trim()}
+              pagination={false}
+              scroll={{ x: 1390 }}
             />
           </>
         ) : (
@@ -734,6 +1330,7 @@ const SoftwarePackagePage = () => {
               </div>
               <Button
                 type="primary"
+                className="ataas-page-create-button software-create-action"
                 icon={<PlusOutlined />}
                 onClick={() => {
                   uploadForm.setFieldsValue({
@@ -750,49 +1347,40 @@ const SoftwarePackagePage = () => {
                 添加版本
               </Button>
             </div>
-            <Table
-              rowKey="version"
-              pagination={false}
-              dataSource={versionTarget.versions}
-              columns={[
-                {
-                  title: '版本',
-                  dataIndex: 'version',
-                  render: (value: string) => (
-                    <Space>
-                      <strong>{value}</strong>
-                      {value === versionTarget.currentVersion && <Tag color="purple">当前版本</Tag>}
-                    </Space>
-                  ),
-                },
-                { title: '上传时间', dataIndex: 'releasedAt' },
-                { title: '大小', dataIndex: 'size', width: 100 },
-                { title: 'SHA256', dataIndex: 'checksum', width: 120 },
-                {
-                  title: '状态',
-                  dataIndex: 'status',
-                  width: 90,
-                  render: (value: PackageStatus) => <Tag className={`package-status-tag ${value}`}>{statusLabels[value]}</Tag>,
-                },
-                {
-                  title: '操作',
-                  key: 'actions',
-                  width: 190,
-                  render: (_, version) => (
+            <div className="software-version-flat-list">
+              {versionTarget.versions.map((version) => {
+                const isCurrent = version.version === versionTarget.currentVersion;
+                return (
+                  <article key={version.version} className={`software-version-flat-item${isCurrent ? ' current' : ''}${version.status === 'deprecated' ? ' disabled' : ''}`}>
+                    <div>
+                      <strong>{version.version}</strong>
+                      {isCurrent && <Tag color="purple">当前版本</Tag>}
+                      <Tag className={`package-status-tag ${version.status}`}>{statusLabels[version.status]}</Tag>
+                    </div>
+                    <span>{version.releasedAt}</span>
+                    <span>{version.size}</span>
+                    <small>SHA256 {version.checksum}</small>
                     <Space size={0}>
                       <Button type="link" size="small" onClick={() => handleDownload(versionTarget, version.version)}>下载</Button>
-                      <Button type="link" size="small" onClick={() => {
-                        openDistribution(versionTarget, version.version);
-                        setVersionTarget(null);
-                      }}>下发</Button>
+                      <Button
+                        type="link"
+                        size="small"
+                        disabled={version.status === 'deprecated'}
+                        onClick={() => {
+                          openDistribution(versionTarget, version.version);
+                          setVersionTarget(null);
+                        }}
+                      >
+                        下发
+                      </Button>
                       {version.version !== versionTarget.currentVersion && version.status !== 'deprecated' && (
                         <Button type="link" size="small" onClick={() => handleSetCurrentVersion(version)}>设为当前</Button>
                       )}
                     </Space>
-                  ),
-                },
-              ]}
-            />
+                  </article>
+                );
+              })}
+            </div>
           </div>
         )}
       </Modal>
@@ -806,6 +1394,7 @@ const SoftwarePackagePage = () => {
         }}
         onOk={handleUpload}
         okText="上传并校验"
+        okButtonProps={{ className: 'ataas-page-create-button software-create-action' }}
         cancelText="取消"
         width={680}
       >
@@ -853,18 +1442,18 @@ const SoftwarePackagePage = () => {
       </Modal>
 
       <Modal
+        rootClassName="software-distribution-wizard-modal"
         title="新建软件包下发"
         open={distributionOpen}
-        onCancel={() => setDistributionOpen(false)}
-        onOk={submitDistribution}
-        okText={installK8s ? '下发并安装 K8s' : '创建下发任务'}
-        cancelText="取消"
-        width={860}
+        mask={{ closable: false }}
+        onCancel={closeDistribution}
+        footer={renderDistributionFooter()}
+        width={980}
       >
         <div className="software-distribution-modal">
           <Steps
             size="small"
-            current={0}
+            current={distributionStep}
             items={[
               { title: '软件包' },
               { title: 'SSH 检查' },
@@ -872,85 +1461,11 @@ const SoftwarePackagePage = () => {
               { title: '结果确认' },
             ]}
           />
-          <div className="software-distribution-grid">
-            <section>
-              <h3>软件包配置</h3>
-              <label>软件包</label>
-              <Select
-                value={distributionPackageId}
-                onChange={(value) => {
-                  const next = packageRecords.find((item) => item.key === value);
-                  setDistributionPackageId(value);
-                  if (next) {
-                    setDistributionVersion(next.currentVersion);
-                    setInstallK8s(next.category === 'kubernetes');
-                  }
-                }}
-                options={packageRecords.map((item) => ({ value: item.key, label: item.name }))}
-              />
-              <label>版本</label>
-              <Select
-                value={distributionVersion}
-                onChange={setDistributionVersion}
-                options={(selectedDistributionPackage?.versions || []).map((item) => ({
-                  value: item.version,
-                  label: `${item.version}${item.version === selectedDistributionPackage?.currentVersion ? '（当前）' : ''}`,
-                  disabled: item.status === 'deprecated',
-                }))}
-              />
-              <label>安装选项</label>
-              <div className="software-install-options">
-                <Checkbox checked={installK8s} onChange={(event) => setInstallK8s(event.target.checked)}>
-                  下发后自动安装 Kubernetes
-                </Checkbox>
-                <Checkbox
-                  checked={initControlPlane}
-                  disabled={!installK8s}
-                  onChange={(event) => setInitControlPlane(event.target.checked)}
-                >
-                  初始化首个控制面节点
-                </Checkbox>
-              </div>
-            </section>
-
-            <section>
-              <h3>目标机器与 SSH</h3>
-              <label>目标 IP <em>每行一个，也可用逗号分隔</em></label>
-              <Input.TextArea
-                rows={4}
-                value={distributionTargets}
-                onChange={(event) => setDistributionTargets(event.target.value)}
-                placeholder={'10.24.16.31\n10.24.16.32'}
-              />
-              <div className="software-ssh-row">
-                <span>
-                  <label>SSH 端口</label>
-                  <InputNumber min={1} max={65535} value={sshPort} onChange={(value) => setSshPort(value || 22)} />
-                </span>
-                <span>
-                  <label>SSH 用户</label>
-                  <Input value={sshUser} onChange={(event) => setSshUser(event.target.value)} />
-                </span>
-              </div>
-              <label>SSH 凭据</label>
-              <Select
-                value={credential}
-                onChange={setCredential}
-                options={[
-                  { value: 'sh-new-node-root', label: 'sh-new-node-root（SSH Key）' },
-                  { value: 'zz-baremetal-root', label: 'zz-baremetal-root（SSH Key）' },
-                  { value: 'temporary-password', label: '临时密码凭据' },
-                ]}
-              />
-            </section>
-          </div>
-          <div className="software-distribution-summary">
-            <SafetyCertificateOutlined />
-            <span>
-              下发前置检查
-              <small>将检查 {selectedTargetCount || 0} 台机器的 SSH 连通性、sudo 权限、磁盘空间、系统架构和 6443/10250 端口占用。</small>
-            </span>
-            <Tag color="purple">{selectedDistributionPackage?.name} {distributionVersion}</Tag>
+          <div className="software-distribution-content">
+            {distributionStep === 0 && renderDistributionConfig()}
+            {distributionStep === 1 && renderDistributionPrecheck()}
+            {distributionStep === 2 && renderDistributionTransfer()}
+            {distributionStep === 3 && renderDistributionResult()}
           </div>
         </div>
       </Modal>

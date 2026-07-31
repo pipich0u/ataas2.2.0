@@ -1429,7 +1429,7 @@ const ModelOpsPage = ({
             <strong>模型权重</strong>
             <div className="model-ops-section-actions">
               <Button type="primary" icon={<SettingOutlined />} disabled={!visibleRows.length} onClick={() => setBulkWeightOpen(true)}>分配权重</Button>
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => openCreateGroup(activeDeployRow)}>创建 Group 组</Button>
+              <Button className="ataas-page-create-button" type="primary" icon={<PlusOutlined />} onClick={() => openCreateGroup(activeDeployRow)}>创建 Group 组</Button>
             </div>
           </div>
           {visibleRows.length ? (

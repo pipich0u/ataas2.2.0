@@ -1,7 +1,7 @@
 import { Button, ConfigProvider, Dropdown, Image, Input, InputNumber, message, Modal, Popconfirm, Select, Slider, Table, Tag, Tooltip } from 'antd';
 import type { ThemeConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { AppstoreOutlined, BarChartOutlined, CloudDownloadOutlined, CopyOutlined, DisconnectOutlined, EyeOutlined, FileSearchOutlined, FileTextOutlined, InfoCircleOutlined, LinkOutlined, PlayCircleOutlined, PlusOutlined, PoweroffOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
+import { BarChartOutlined, CloudDownloadOutlined, CopyOutlined, DisconnectOutlined, EyeOutlined, FileSearchOutlined, FileTextOutlined, InfoCircleOutlined, LinkOutlined, PlayCircleOutlined, PlusOutlined, PoweroffOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import deepseekLogo from '../deepseek-logo.svg';
@@ -16,6 +16,8 @@ import { MODEL_OPS_RESOURCE_SPECS, getModelOpsRoleSummary as getModelOpsSpecRole
 export type DeployStatus = 'running' | 'loading' | 'error' | 'ready' | 'updating' | 'updatable' | 'warning';
 export type DeployCategory = 'llm' | 'embedding' | 'rerank' | 'vlm';
 export type ViewMode = 'card' | 'mooncake' | 'table';
+
+const normalizeDeployViewMode = (value?: ViewMode): ViewMode => (value === 'card' ? 'mooncake' : value || 'mooncake');
 
 type DeployLogItem = { id: number; name: string };
 type RestartRecord = { id: number; name: string; works: string; createTime: string; restartTime: string; reasonConsuming: string };
@@ -243,7 +245,7 @@ interface DeployListProps {
 }
 
 export default function DeployList({ data, onDetail, onStop, onMonitor, onMooncakeMonitor, onExperience, onLog, onDeleteInstance, onAddInstance, onAllocateWeight, onOpenCreate, onDownloadModel, onScalePd, onNodeFilter, onScheduleDetail, onModelOpsYamlPreview, viewModeValue, onViewModeChange, clusterFilterValue, onClusterFilterChange, getModelOpsRowWeight, hideToolbar = false, aggregateModelOpsPods = false, defaultExpandAllModelOps = false, mode = 'deploy' }: DeployListProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>('card');
+  const [, setViewMode] = useState<ViewMode>('mooncake');
   const [statusFilter, setStatusFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [clusterFilter, setClusterFilter] = useState('');
@@ -269,11 +271,16 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
   const modelInfoHoveringRef = useRef(false);
 
   useEffect(() => {
+    if (mode !== 'modelOps') {
+      setViewMode('mooncake');
+      setPage(1);
+      return;
+    }
     if (viewModeValue) {
       setViewMode(viewModeValue);
       setPage(1);
     }
-  }, [viewModeValue]);
+  }, [mode, viewModeValue]);
 
   useEffect(() => {
     if (clusterFilterValue !== undefined) {
@@ -313,7 +320,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
     ];
   }, [data, mode]);
 
-  const effectiveViewMode = mode === 'modelOps' ? 'table' : viewMode;
+  const effectiveViewMode: ViewMode = mode === 'modelOps' ? 'table' : normalizeDeployViewMode(viewModeValue);
 
   const paginated = useMemo(() => {
     if (effectiveViewMode === 'table') return filtered;
@@ -858,11 +865,9 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
             ))}
           </div>
         </td>
-        <td>
+        <td className="ataas-model-ops-pod-action-cell">
           <div className="ataas-model-ops-row-actions">
-            <Tooltip title="日志">
-              <Button className="ataas-model-ops-row-action-button" type="text" shape="circle" size="small" icon={<FileSearchOutlined />} onClick={() => onLog(item, row.logId, row.podName)} />
-            </Tooltip>
+            <Button className="ataas-model-ops-row-action-button" type="text" size="small" icon={<FileSearchOutlined />} onClick={() => onLog(item, row.logId, row.podName)}>日志</Button>
           </div>
         </td>
       </tr>
@@ -942,7 +947,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
           {mode === 'modelOps' ? (
             <div className="ataas-deploy-inline-monitoring">
               <div className="ataas-deploy-inline-table">
-              <table className="ataas-deploy-inline-native-table">
+              <table className="ataas-deploy-inline-native-table model-ops-pod-table">
                 <colgroup>
                   <col style={{ width: 190 }} />
                   <col style={{ width: 112 }} />
@@ -955,7 +960,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
                   <col style={{ width: 180 }} />
                   <col style={{ width: 80 }} />
                   <col style={{ width: 320 }} />
-                  <col style={{ width: 108 }} />
+                  <col style={{ width: 216 }} />
                 </colgroup>
                 <thead>
                   <tr>
@@ -1021,21 +1026,13 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
                       </td>
                       <td className="ataas-model-ops-pod-action-cell">
                         <div className="ataas-model-ops-row-actions">
-                          <Tooltip title="日志">
-                            <Button className="ataas-model-ops-row-action-button" type="text" shape="circle" size="small" icon={<FileSearchOutlined />} onClick={() => onLog(item, row.logId, row.podName)} />
-                          </Tooltip>
+                          <Button className="ataas-model-ops-row-action-button" type="text" size="small" icon={<FileSearchOutlined />} onClick={() => onLog(item, row.logId, row.podName)}>日志</Button>
                           {row.role === 'R' ? (
-                            <Tooltip title="摘流">
-                              <Button className="ataas-model-ops-row-action-button warning" type="text" shape="circle" size="small" icon={<DisconnectOutlined />} onClick={() => openDrainWeightModal(item, row)} />
-                            </Tooltip>
+                            <Button className="ataas-model-ops-row-action-button warning" type="text" size="small" icon={<DisconnectOutlined />} onClick={() => openDrainWeightModal(item, row)}>摘流</Button>
                           ) : (
                             <>
-                              <Tooltip title="下线">
-                                <Button className="ataas-model-ops-row-action-button warning" type="text" shape="circle" size="small" icon={<PoweroffOutlined />} />
-                              </Tooltip>
-                              <Tooltip title="关联">
-                                <Button className="ataas-model-ops-row-action-button link" type="text" shape="circle" size="small" icon={<LinkOutlined />} onClick={() => openRouterLinkModal(item, row)} />
-                              </Tooltip>
+                              <Button className="ataas-model-ops-row-action-button warning" type="text" size="small" icon={<PoweroffOutlined />}>下线</Button>
+                              <Button className="ataas-model-ops-row-action-button link" type="text" size="small" icon={<LinkOutlined />} onClick={() => openRouterLinkModal(item, row)}>关联</Button>
                             </>
                           )}
                         </div>
@@ -1342,17 +1339,11 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
     { title: 'Worker', key: 'workerYaml', width: 130, render: (_, r) => renderModelOpsYamlFile(`${r.modelInfo.name}/worker.yaml`, r, 'worker') },
     { title: 'TTFT', key: 'ttft', width: 76, render: (_, r) => renderModelOpsPerfValue(r, 'ttft') },
     { title: 'TPOT', key: 'tpot', width: 76, render: (_, r) => renderModelOpsPerfValue(r, 'tpot') },
-    { title: '操作', key: 'action', width: 108, fixed: 'right' as const, className: 'ataas-model-ops-unified-action-cell', render: (_, r) => (
+    { title: '操作', key: 'action', width: 216, fixed: 'right' as const, className: 'ataas-model-ops-unified-action-cell', render: (_, r) => (
       <div className="ataas-model-ops-table-actions">
-        <Tooltip title="重建">
-          <button type="button" className="ataas-model-ops-icon-action" onClick={(event) => event.stopPropagation()}><ReloadOutlined /></button>
-        </Tooltip>
-        <Tooltip title="整组下线">
-          <button type="button" className="ataas-model-ops-icon-action danger" onClick={(event) => { event.stopPropagation(); onStop(r); }}><PoweroffOutlined /></button>
-        </Tooltip>
-        <Tooltip title="扩缩容">
-          <button type="button" className="ataas-model-ops-icon-action" onClick={(event) => { event.stopPropagation(); onScalePd?.(r); }}><SettingOutlined /></button>
-        </Tooltip>
+        <button type="button" className="ataas-model-ops-icon-action" onClick={(event) => event.stopPropagation()} aria-label="重建"><ReloadOutlined /><span>重建</span></button>
+        <button type="button" className="ataas-model-ops-icon-action danger" onClick={(event) => { event.stopPropagation(); onStop(r); }} aria-label="整组下线"><PoweroffOutlined /><span>下线</span></button>
+        <button type="button" className="ataas-model-ops-icon-action" onClick={(event) => { event.stopPropagation(); onScalePd?.(r); }} aria-label="扩缩容"><SettingOutlined /><span>扩缩容</span></button>
       </div>
     ) },
   ];
@@ -1383,7 +1374,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
         )}
         {mode === 'modelOps' && onAddInstance && (
           <Button
-            className="ataas-deploy-create-button"
+            className="ataas-deploy-create-button ataas-page-create-button"
             type="primary"
             icon={<PlusOutlined />}
             disabled={filtered.length === 0}
@@ -1395,16 +1386,12 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
         {mode !== 'modelOps' && (
           <>
             <div className="ataas-deploy-list-view-toggle" role="group" aria-label="视图切换">
-              <button className={viewMode === 'card' ? 'active' : ''} type="button" onClick={() => { setViewMode('card'); onViewModeChange?.('card'); setPage(1); }}>
-                <AppstoreOutlined />模型卡片
-              </button>
-              <span className="ataas-deploy-view-divider" aria-hidden="true" />
-              <button className={viewMode === 'mooncake' ? 'active' : ''} type="button" onClick={() => { setViewMode('mooncake'); onViewModeChange?.('mooncake'); setPage(1); }}>
+              <button className="active" type="button" onClick={() => { setViewMode('mooncake'); onViewModeChange?.('mooncake'); setPage(1); }}>
                 <img className="ataas-deploy-view-mooncake-icon" src={mooncakeLogo} alt="" />Mooncake 卡片
               </button>
             </div>
             {onDownloadModel && <Button icon={<CloudDownloadOutlined />} onClick={onDownloadModel}>下载模型</Button>}
-            <Button className="ataas-deploy-create-button" type="primary" icon={<PlusOutlined />} onClick={onOpenCreate}>创建模型服务</Button>
+            <Button className="ataas-deploy-create-button ataas-page-create-button" type="primary" icon={<PlusOutlined />} onClick={onOpenCreate}>创建模型服务</Button>
           </>
         )}
       </div>}

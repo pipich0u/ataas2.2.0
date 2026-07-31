@@ -15,8 +15,8 @@ import {
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import BareMetalClusterWizard from './bareMetalClusterWizard';
-import type { ClusterCreateTaskSummary } from './bareMetalClusterWizard';
+import BareMetalClusterWizard, { CLUSTER_WIZARD_DRAFT_KEY } from './bareMetalClusterWizard';
+import type { ClusterCreateTaskSummary, ClusterWizardDraft } from './bareMetalClusterWizard';
 import './supplierResourcesPage.less';
 
 type ResourceStatus = 'normal' | 'attention' | 'pending';
@@ -237,6 +237,8 @@ export const supplierResourceCreateMenuItems = [
 type SupplierResourceCreateFlowProps = {
   openKind: SupplierResourceCreateKind | null;
   onClose: () => void;
+  onClusterTaskCreated?: (summary: ClusterCreateTaskSummary) => void;
+  onClusterTaskBackground?: () => void;
 };
 
 type CreateStage = 'supplier' | 'dataCenter' | 'completed' | 'machine' | 'cluster' | null;
@@ -244,10 +246,13 @@ type CreateStage = 'supplier' | 'dataCenter' | 'completed' | 'machine' | 'cluste
 export const SupplierResourceCreateFlow = ({
   openKind,
   onClose,
+  onClusterTaskCreated,
+  onClusterTaskBackground,
 }: SupplierResourceCreateFlowProps) => {
   const { suppliers, dataCenters } = useSupplierResourceSnapshot();
   const [stage, setStage] = useState<CreateStage>(null);
   const [createdDataCenter, setCreatedDataCenter] = useState<DataCenterRecord | null>(null);
+  const [returnToCluster, setReturnToCluster] = useState(false);
   const [supplierForm] = Form.useForm();
   const [dataCenterForm] = Form.useForm();
   const [machineForm] = Form.useForm();
@@ -258,6 +263,7 @@ export const SupplierResourceCreateFlow = ({
     if (!openKind) return;
     setStage(openKind);
     setCreatedDataCenter(null);
+    setReturnToCluster(false);
     supplierForm.resetFields();
     dataCenterForm.resetFields();
     machineForm.resetFields();
@@ -266,7 +272,24 @@ export const SupplierResourceCreateFlow = ({
   const closeFlow = () => {
     setStage(null);
     setCreatedDataCenter(null);
+    setReturnToCluster(false);
     onClose();
+  };
+
+  const returnToClusterWizard = () => {
+    setStage('cluster');
+    setReturnToCluster(false);
+  };
+
+  const openClusterResourceCreator = (kind: 'supplier' | 'dataCenter') => {
+    setReturnToCluster(true);
+    if (kind === 'supplier') {
+      supplierForm.resetFields();
+      setStage('supplier');
+      return;
+    }
+    dataCenterForm.resetFields();
+    setStage('dataCenter');
   };
 
   const createSupplier = async () => {
@@ -292,6 +315,13 @@ export const SupplierResourceCreateFlow = ({
       suppliers: [next, ...resourceSnapshot.suppliers],
     });
     supplierForm.resetFields();
+    if (returnToCluster) {
+      dataCenterForm.resetFields();
+      dataCenterForm.setFieldValue('supplierKey', next.key);
+      setStage('dataCenter');
+      message.success('供应商已创建，请继续添加数据中心');
+      return;
+    }
     message.success('供应商档案已创建');
     closeFlow();
   };
@@ -326,6 +356,12 @@ export const SupplierResourceCreateFlow = ({
     });
     setCreatedDataCenter(next);
     machineForm.setFieldValue('dataCenterKey', next.key);
+    if (returnToCluster) {
+      setStage('cluster');
+      setReturnToCluster(false);
+      message.success('数据中心已创建，已返回集群创建');
+      return;
+    }
     setStage('completed');
     message.success('数据中心档案已创建');
   };
@@ -357,11 +393,16 @@ export const SupplierResourceCreateFlow = ({
           : item
       )),
     });
+    onClusterTaskCreated?.(summary);
     message.success(`集群 ${summary.clusterName} 创建任务已启动`);
   };
 
-  const openPackageManager = (request: { k8sVersion: string; os: string; arch: string }) => {
+  const openPackageManager = (
+    request: { k8sVersion: string; os: string; arch: string },
+    draft: ClusterWizardDraft,
+  ) => {
     window.sessionStorage.setItem('ataas.software-package.upload-request', JSON.stringify(request));
+    window.sessionStorage.setItem(CLUSTER_WIZARD_DRAFT_KEY, JSON.stringify(draft));
     closeFlow();
     window.dispatchEvent(new CustomEvent('ataas:navigate', {
       detail: { tab: 'softwarePackages' },
@@ -376,9 +417,9 @@ export const SupplierResourceCreateFlow = ({
         open={stage === 'supplier'}
         width={720}
         okText="创建供应商"
-        cancelText="取消"
+        cancelText={returnToCluster ? '返回集群创建' : '取消'}
         onOk={createSupplier}
-        onCancel={closeFlow}
+        onCancel={returnToCluster ? returnToClusterWizard : closeFlow}
       >
         <p className="supplier-resource-modal-note">录入合作方基础资料，建立供应商档案。资源到期时间在具体机器纳管时维护。</p>
         <Form form={supplierForm} layout="vertical">
@@ -417,9 +458,9 @@ export const SupplierResourceCreateFlow = ({
         open={stage === 'dataCenter'}
         width={760}
         okText="创建数据中心"
-        cancelText="取消"
+        cancelText={returnToCluster ? '返回集群创建' : '取消'}
         onOk={createDataCenter}
-        onCancel={closeFlow}
+        onCancel={returnToCluster ? returnToClusterWizard : closeFlow}
       >
         <p className="supplier-resource-modal-note">创建数据中心只建立资源归属和网络档案；完成后再纳管机器，或使用已纳管机器创建集群。</p>
         <Form form={dataCenterForm} layout="vertical">
@@ -516,7 +557,7 @@ export const SupplierResourceCreateFlow = ({
       </Modal>
 
       <BareMetalClusterWizard
-        open={stage === 'cluster'}
+        open={stage === 'cluster' || returnToCluster}
         dataCenters={dataCenters.map((item) => ({
           key: item.key,
           name: item.name,
@@ -524,8 +565,13 @@ export const SupplierResourceCreateFlow = ({
         }))}
         initialDataCenterKey={createdDataCenter?.key}
         onCancel={() => createdDataCenter ? setStage('completed') : closeFlow()}
+        onOpenResourceCreator={openClusterResourceCreator}
         onOpenPackageManager={openPackageManager}
         onTaskCreated={handleClusterTaskCreated}
+        onRunInBackground={() => {
+          closeFlow();
+          onClusterTaskBackground?.();
+        }}
       />
     </>
   );
@@ -707,7 +753,7 @@ const SupplierResourcesPage = () => {
           >
             <Button
               type="primary"
-              className="ataas-deploy-create-button"
+              className="ataas-deploy-create-button ataas-page-create-button"
               icon={<PlusOutlined />}
             >
               新增

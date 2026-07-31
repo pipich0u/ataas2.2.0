@@ -1,9 +1,11 @@
 import {
   CheckCircleFilled,
+  ClusterOutlined,
   CloudServerOutlined,
-  CodeSandboxOutlined,
   DesktopOutlined,
+  FileZipOutlined,
   LoadingOutlined,
+  PlusOutlined,
   ReloadOutlined,
   SafetyCertificateOutlined,
   SendOutlined,
@@ -11,6 +13,7 @@ import {
 } from '@ant-design/icons';
 import {
   Button,
+  Checkbox,
   Input,
   InputNumber,
   message,
@@ -35,7 +38,7 @@ export type BareMetalDataCenter = {
 type MachineRole = 'master' | 'worker';
 type PrecheckStatus = 'checking' | 'ready' | 'failed';
 
-type MachineCandidate = {
+export type MachineCandidate = {
   key: string;
   ip: string;
   hostname: string;
@@ -70,16 +73,46 @@ export type ClusterCreateTaskSummary = {
   packageName: string;
 };
 
+export type ClusterWizardDraft = {
+  step: number;
+  clusterName: string;
+  dataCenterKey: string;
+  machineIPs: string;
+  sshPort: number;
+  sshUser: string;
+  credential: string;
+  machines: MachineCandidate[];
+  k8sVersion: string;
+  selectedPackageId: string;
+};
+
 type BareMetalClusterWizardProps = {
   open: boolean;
   dataCenters: BareMetalDataCenter[];
   initialDataCenterKey?: string;
   onCancel: () => void;
-  onOpenPackageManager: (request: { k8sVersion: string; os: string; arch: string }) => void;
+  onOpenResourceCreator?: (kind: 'supplier' | 'dataCenter') => void;
+  onOpenPackageManager: (
+    request: { k8sVersion: string; os: string; arch: string },
+    draft: ClusterWizardDraft,
+  ) => void;
   onTaskCreated?: (summary: ClusterCreateTaskSummary) => void;
+  onRunInBackground?: () => void;
 };
 
 const PACKAGE_STORAGE_KEY = 'ataas.software-packages.catalog.v1';
+export const CLUSTER_WIZARD_DRAFT_KEY = 'ataas.cluster-wizard.draft.v1';
+const DEFAULT_MACHINE_IPS = '10.24.16.31\n10.24.16.32\n10.24.16.33';
+
+const k8sVersionOptions = [
+  { value: 'v1.32.2', label: 'v1.32.2' },
+  { value: 'v1.32.0', label: 'v1.32.0' },
+  { value: 'v1.31.4', label: 'v1.31.4（推荐）' },
+  { value: 'v1.31.2', label: 'v1.31.2' },
+  { value: 'v1.30.8', label: 'v1.30.8' },
+  { value: 'v1.30.5', label: 'v1.30.5' },
+  { value: 'v1.29.12', label: 'v1.29.12' },
+];
 
 const builtinPackages: CompatiblePackage[] = [
   {
@@ -94,6 +127,17 @@ const builtinPackages: CompatiblePackage[] = [
     status: 'available',
   },
   {
+    id: 'k8s-bundle-v1.31.2',
+    name: 'Kubernetes 离线安装套件',
+    version: 'v1.31.2',
+    k8sVersions: ['v1.31.2'],
+    os: 'Ubuntu 22.04 / Rocky 9',
+    arch: 'x86_64',
+    size: '1.83 GB',
+    checksum: '7d31…a82c',
+    status: 'available',
+  },
+  {
     id: 'k8s-bundle-v1.30.8',
     name: 'Kubernetes 离线安装套件',
     version: 'v1.30.8',
@@ -102,6 +146,17 @@ const builtinPackages: CompatiblePackage[] = [
     arch: 'x86_64',
     size: '1.79 GB',
     checksum: '9e2c…71b4',
+    status: 'available',
+  },
+  {
+    id: 'k8s-bundle-v1.30.5',
+    name: 'Kubernetes 离线安装套件',
+    version: 'v1.30.5',
+    k8sVersions: ['v1.30.5'],
+    os: 'Ubuntu 22.04 / Rocky 9',
+    arch: 'x86_64',
+    size: '1.76 GB',
+    checksum: '45aa…906e',
     status: 'available',
   },
 ];
@@ -161,6 +216,25 @@ const isValidIPv4 = (value: string) => {
   ));
 };
 
+const isCompatiblePackage = (item: CompatiblePackage, targetVersion: string) => {
+  const minorVersion = targetVersion.split('.').slice(0, 2).join('.');
+  return item.status === 'available'
+    && item.arch.includes('x86_64')
+    && item.os.includes('Ubuntu 22.04')
+    && (item.version === targetVersion || item.k8sVersions.some((version) => (
+      version === targetVersion || version === `${minorVersion}.x`
+    )));
+};
+
+const readClusterWizardDraft = () => {
+  if (typeof window === 'undefined') return null;
+  try {
+    return JSON.parse(window.sessionStorage.getItem(CLUSTER_WIZARD_DRAFT_KEY) || 'null') as ClusterWizardDraft | null;
+  } catch {
+    return null;
+  }
+};
+
 const getProgressStage = (progress: number) => {
   if (progress < 16) return '创建部署任务';
   if (progress < 36) return 'SSH 下发软件包';
@@ -185,13 +259,15 @@ const BareMetalClusterWizard = ({
   dataCenters,
   initialDataCenterKey,
   onCancel,
+  onOpenResourceCreator,
   onOpenPackageManager,
   onTaskCreated,
+  onRunInBackground,
 }: BareMetalClusterWizardProps) => {
   const [step, setStep] = useState(0);
   const [clusterName, setClusterName] = useState('gpu-prod-02');
   const [dataCenterKey, setDataCenterKey] = useState('');
-  const [machineIPs, setMachineIPs] = useState('10.24.16.31\n10.24.16.32\n10.24.16.33');
+  const [machineIPs, setMachineIPs] = useState(DEFAULT_MACHINE_IPS);
   const [sshPort, setSshPort] = useState(22);
   const [sshUser, setSshUser] = useState('root');
   const [credential, setCredential] = useState('sh-new-node-root');
@@ -203,10 +279,27 @@ const BareMetalClusterWizard = ({
 
   useEffect(() => {
     if (!open) return;
+    const draft = readClusterWizardDraft();
+    if (draft) {
+      setStep(draft.step);
+      setClusterName(draft.clusterName);
+      setDataCenterKey(draft.dataCenterKey);
+      setMachineIPs(draft.machineIPs);
+      setSshPort(draft.sshPort);
+      setSshUser(draft.sshUser);
+      setCredential(draft.credential);
+      setMachines(draft.machines);
+      setPrecheckRunId(0);
+      setK8sVersion(draft.k8sVersion);
+      setSelectedPackageId(draft.selectedPackageId);
+      setTaskProgress(0);
+      window.sessionStorage.removeItem(CLUSTER_WIZARD_DRAFT_KEY);
+      return;
+    }
     setStep(0);
     setClusterName('gpu-prod-02');
     setDataCenterKey(initialDataCenterKey || dataCenters[0]?.key || '');
-    setMachineIPs('10.24.16.31\n10.24.16.32\n10.24.16.33');
+    setMachineIPs(DEFAULT_MACHINE_IPS);
     setSshPort(22);
     setSshUser('root');
     setCredential('sh-new-node-root');
@@ -216,6 +309,12 @@ const BareMetalClusterWizard = ({
     setSelectedPackageId('');
     setTaskProgress(0);
   }, [open]);
+
+  useEffect(() => {
+    if (open && initialDataCenterKey && dataCenters.some((item) => item.key === initialDataCenterKey)) {
+      setDataCenterKey(initialDataCenterKey);
+    }
+  }, [dataCenters, initialDataCenterKey, open]);
 
   useEffect(() => {
     if (!open || step !== 1 || precheckRunId === 0) return undefined;
@@ -248,15 +347,7 @@ const BareMetalClusterWizard = ({
   }, [open]);
 
   const matchedPackages = useMemo(() => {
-    const minorVersion = k8sVersion.split('.').slice(0, 2).join('.');
-    return packageCatalog.filter((item) => (
-      item.status === 'available'
-      && item.arch.includes('x86_64')
-      && item.os.includes('Ubuntu 22.04')
-      && (item.version === k8sVersion || item.k8sVersions.some((version) => (
-        version === k8sVersion || version === `${minorVersion}.x`
-      )))
-    ));
+    return packageCatalog.filter((item) => isCompatiblePackage(item, k8sVersion));
   }, [k8sVersion, packageCatalog]);
 
   useEffect(() => {
@@ -345,6 +436,17 @@ const BareMetalClusterWizard = ({
       k8sVersion,
       os: 'Ubuntu 22.04',
       arch: 'x86_64',
+    }, {
+      step: 3,
+      clusterName,
+      dataCenterKey,
+      machineIPs,
+      sshPort,
+      sshUser,
+      credential,
+      machines,
+      k8sVersion,
+      selectedPackageId,
     });
   };
 
@@ -427,20 +529,23 @@ const BareMetalClusterWizard = ({
       ),
     },
     {
-      title: '节点角色',
+      title: '选择 Master',
       key: 'role',
       width: 190,
       render: (_, item) => (
-        <Select
-          value={item.role}
-          onChange={(role: MachineRole) => setMachines((current) => current.map((machine) => (
-            machine.key === item.key ? { ...machine, role } : machine
-          )))}
-          options={[
-            { value: 'master', label: 'Master / Control Plane' },
-            { value: 'worker', label: 'Worker' },
-          ]}
-        />
+        <div className="cluster-wizard-master-choice">
+          <Checkbox
+            checked={item.role === 'master'}
+            onChange={(event) => setMachines((current) => current.map((machine) => (
+              machine.key === item.key
+                ? { ...machine, role: event.target.checked ? 'master' : 'worker' }
+                : machine
+            )))}
+          >
+            设为 Master
+          </Checkbox>
+          <small>{item.role === 'master' ? 'Control Plane' : '自动作为 Worker'}</small>
+        </div>
       ),
     },
     {
@@ -455,7 +560,13 @@ const BareMetalClusterWizard = ({
     <div className="cluster-wizard-machine-step">
       <section>
         <h3><CloudServerOutlined /> 集群与机器</h3>
-        <label>所属数据中心</label>
+        <div className="cluster-wizard-label-row">
+          <label>所属数据中心</label>
+          <span>
+            <Button type="link" size="small" icon={<PlusOutlined />} onClick={() => onOpenResourceCreator?.('supplier')}>新增供应商</Button>
+            <Button type="link" size="small" icon={<PlusOutlined />} onClick={() => onOpenResourceCreator?.('dataCenter')}>新增数据中心</Button>
+          </span>
+        </div>
         <Select
           value={dataCenterKey}
           onChange={setDataCenterKey}
@@ -465,6 +576,9 @@ const BareMetalClusterWizard = ({
             label: `${item.name} · ${item.supplier}`,
           }))}
         />
+        {!dataCenters.length && (
+          <div className="cluster-wizard-resource-empty">还没有可用数据中心，请先新增供应商和数据中心。</div>
+        )}
         <label>集群名称</label>
         <Input value={clusterName} onChange={(event) => setClusterName(event.target.value)} placeholder="例如：gpu-prod-02" />
         <label>机器 IP <em>每行一个，也可使用逗号分隔</em></label>
@@ -537,7 +651,7 @@ const BareMetalClusterWizard = ({
       <header>
         <div>
           <h3>分配 Master 与 Worker</h3>
-          <p>至少需要 1 台 Master；生产集群建议使用 3 台 Master 组成高可用控制面。</p>
+          <p>只需勾选 Master 节点，其余机器会自动作为 Worker；生产集群建议选择 3 台 Master。</p>
         </div>
         <div className="cluster-wizard-role-summary">
           <Tag color="purple">Master {masterCount}</Tag>
@@ -569,11 +683,7 @@ const BareMetalClusterWizard = ({
           <Select
             value={k8sVersion}
             onChange={setK8sVersion}
-            options={[
-              { value: 'v1.32.0', label: 'v1.32.0' },
-              { value: 'v1.31.4', label: 'v1.31.4（推荐）' },
-              { value: 'v1.30.8', label: 'v1.30.8' },
-            ]}
+            options={k8sVersionOptions}
           />
         </label>
       </section>
@@ -586,6 +696,22 @@ const BareMetalClusterWizard = ({
           </div>
           <Tag>{matchedPackages.length} 个匹配</Tag>
         </header>
+        <div className="cluster-wizard-version-options">
+          {k8sVersionOptions.map((option) => {
+            const availableCount = packageCatalog.filter((item) => isCompatiblePackage(item, option.value)).length;
+            return (
+              <button
+                type="button"
+                key={option.value}
+                className={k8sVersion === option.value ? 'active' : ''}
+                onClick={() => setK8sVersion(option.value)}
+              >
+                <strong>{option.value}</strong>
+                <small>{availableCount ? `${availableCount} 个可用` : '待上传'}</small>
+              </button>
+            );
+          })}
+        </div>
         {matchedPackages.length ? (
           matchedPackages.map((item) => (
             <button
@@ -594,7 +720,7 @@ const BareMetalClusterWizard = ({
               className={`cluster-wizard-package-card${selectedPackageId === item.id ? ' active' : ''}`}
               onClick={() => setSelectedPackageId(item.id)}
             >
-              <span className="cluster-wizard-package-icon"><CodeSandboxOutlined /></span>
+              <span className="cluster-wizard-package-icon"><FileZipOutlined /></span>
               <span>
                 <strong>{item.name}</strong>
                 <small>{item.os} · {item.arch} · {item.size}</small>
@@ -608,7 +734,7 @@ const BareMetalClusterWizard = ({
           ))
         ) : (
           <div className="cluster-wizard-package-empty">
-            <CodeSandboxOutlined />
+            <FileZipOutlined />
             <strong>没有匹配 {k8sVersion} 的可用软件包</strong>
             <p>当前环境为 Ubuntu 22.04 / x86_64。请先上传并完成软件包校验，再返回创建集群。</p>
             <Button type="primary" icon={<SendOutlined />} onClick={openPackageManager}>去软件包管理上传</Button>
@@ -711,8 +837,16 @@ const BareMetalClusterWizard = ({
     }
     return (
       <div className="cluster-wizard-footer">
+        <small className="cluster-wizard-background-note">
+          {taskProgress >= 100
+            ? '执行日志已保留在算力中心「任务」中'
+            : '转入后台后，可在算力中心「任务」中查看进度与日志'}
+        </small>
         <span />
-        <Button type={taskProgress >= 100 ? 'primary' : 'default'} onClick={onCancel}>
+        <Button
+          type={taskProgress >= 100 ? 'primary' : 'default'}
+          onClick={taskProgress >= 100 ? onCancel : (onRunInBackground || onCancel)}
+        >
           {taskProgress >= 100 ? '完成' : '后台运行'}
         </Button>
       </div>
@@ -724,7 +858,7 @@ const BareMetalClusterWizard = ({
       rootClassName="bare-metal-cluster-wizard-modal"
       title={(
         <div className="cluster-wizard-title">
-          <CodeSandboxOutlined />
+          <ClusterOutlined />
           <span>
             <strong>创建 / 接入 Kubernetes 集群</strong>
             <small>通过 SSH 纳管裸机、完成 Precheck 并自动部署集群</small>

@@ -3,7 +3,7 @@ import {
   SearchOutlined,
   WarningOutlined,
 } from '@ant-design/icons';
-import { Button, ConfigProvider, Drawer, Dropdown, Form, Input, message, Modal, Popover, Progress, Select, Table, Tooltip } from 'antd';
+import { Button, ConfigProvider, Drawer, Dropdown, Empty, Form, Input, message, Modal, Popover, Progress, Select, Table, Tag, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { ArrowRightLeft, CircleAlert, CircuitBoard, Cpu, Database, FileText, HardDrive, MemoryStick, MonitorCog, Network, Search, Server, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -19,6 +19,7 @@ import {
   supplierResourceCreateMenuItems,
 } from './supplierResourcesPage';
 import type { SupplierResourceCreateKind } from './supplierResourcesPage';
+import type { ClusterCreateTaskSummary } from './bareMetalClusterWizard';
 import { K8sPodResource, useK8sResourceStore } from './k8sResourceStore';
 import './clusterOperationsHomepage.less';
 import './pdGroupsPage.less';
@@ -655,11 +656,54 @@ const HierarchyOverviewPage = ({
   );
 };
 
+type ClusterProvisionTask = ClusterCreateTaskSummary & {
+  key: string;
+  startedAt: number;
+};
+
+const CLUSTER_TASK_STORAGE_KEY = 'ataas.cluster-provision-tasks.v1';
+const CLUSTER_WIZARD_RESUME_KEY = 'ataas.cluster-wizard.resume';
+
+const clusterTaskMilestones = [
+  { threshold: 8, offset: 0, stage: '创建部署任务', detail: '任务已提交，开始生成节点部署计划。' },
+  { threshold: 18, offset: 2200, stage: 'SSH 检查', detail: '目标机器 SSH 连通性与 sudo 权限校验通过。' },
+  { threshold: 34, offset: 5600, stage: '软件包下发', detail: 'Kubernetes 离线软件包开始分发到全部节点。' },
+  { threshold: 52, offset: 9800, stage: '组件安装', detail: 'containerd、kubelet、kubeadm 与 CNI 安装完成。' },
+  { threshold: 70, offset: 13800, stage: '初始化控制面', detail: 'Master 控制面初始化并生成 Worker 加入凭据。' },
+  { threshold: 86, offset: 17600, stage: '节点加入', detail: 'Worker 节点正在加入集群并等待 Ready。' },
+  { threshold: 100, offset: 22200, stage: '创建完成', detail: '全部节点 Ready，集群资源已同步到算力中心。' },
+];
+
+const loadClusterProvisionTasks = (): ClusterProvisionTask[] => {
+  try {
+    return JSON.parse(window.localStorage.getItem(CLUSTER_TASK_STORAGE_KEY) || '[]') as ClusterProvisionTask[];
+  } catch {
+    return [];
+  }
+};
+
+const getClusterTaskProgress = (task: ClusterProvisionTask, now: number) => (
+  Math.min(100, 8 + Math.max(0, Math.floor((now - task.startedAt) / 240)))
+);
+
+const formatTaskTime = (timestamp: number) => new Intl.DateTimeFormat('zh-CN', {
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hour12: false,
+}).format(new Date(timestamp));
+
 const ClusterOperationsHomepage = () => {
   const rootRef = useRef<HTMLDivElement>(null);
   const [hierarchyScope, setHierarchyScope] = useState<HierarchyScope | null>(null);
   const [resourceCreateKind, setResourceCreateKind] = useState<SupplierResourceCreateKind | null>(null);
   const [selectedClusterKey, setSelectedClusterKey] = useState('st');
+  const [clusterTasks, setClusterTasks] = useState<ClusterProvisionTask[]>(loadClusterProvisionTasks);
+  const [taskDrawerOpen, setTaskDrawerOpen] = useState(false);
+  const [logTaskKey, setLogTaskKey] = useState<string | null>(null);
+  const [taskClock, setTaskClock] = useState(Date.now());
 
   useEffect(() => {
     const handleHierarchyScopeChange = (event: Event) => {
@@ -679,9 +723,36 @@ const ClusterOperationsHomepage = () => {
     };
 
     window.addEventListener('ataas:hierarchy-scope-change', handleHierarchyScopeChange);
+    if (window.sessionStorage.getItem(CLUSTER_WIZARD_RESUME_KEY) === '1') {
+      window.sessionStorage.removeItem(CLUSTER_WIZARD_RESUME_KEY);
+      setResourceCreateKind('cluster');
+    }
     if (rootRef.current) initializeClusterOperations(rootRef.current);
     return () => window.removeEventListener('ataas:hierarchy-scope-change', handleHierarchyScopeChange);
   }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(CLUSTER_TASK_STORAGE_KEY, JSON.stringify(clusterTasks));
+  }, [clusterTasks]);
+
+  useEffect(() => {
+    if (!clusterTasks.some((task) => getClusterTaskProgress(task, taskClock) < 100)) return undefined;
+    const timer = window.setInterval(() => setTaskClock(Date.now()), 800);
+    return () => window.clearInterval(timer);
+  }, [clusterTasks, taskClock]);
+
+  const addClusterTask = (summary: ClusterCreateTaskSummary) => {
+    const task: ClusterProvisionTask = {
+      ...summary,
+      key: `CLUSTER-${Date.now()}`,
+      startedAt: Date.now(),
+    };
+    setClusterTasks((current) => [task, ...current]);
+    setTaskClock(Date.now());
+  };
+
+  const runningTaskCount = clusterTasks.filter((task) => getClusterTaskProgress(task, taskClock) < 100).length;
+  const selectedLogTask = clusterTasks.find((task) => task.key === logTaskKey) || null;
 
   const focusNodeIssue = (kind: 'node' | 'network' | 'disk') => {
     rootRef.current?.querySelector<HTMLElement>('.module-tab[data-view="nodes"]')?.click();
@@ -717,22 +788,32 @@ const ClusterOperationsHomepage = () => {
     <aside className="resource-tree">
       <div className="tree-header">
         <span className="tree-title">算力中心</span>
-        <Dropdown
-          trigger={['click']}
-          placement="bottomRight"
-          menu={{
-            items: supplierResourceCreateMenuItems,
-            onClick: ({ key }) => setResourceCreateKind(key as SupplierResourceCreateKind),
-          }}
-        >
+        <div className="tree-header-actions">
           <Button
-            className="resource-tree-create-button"
-            icon={<PlusOutlined />}
-            aria-label="新增算力中心资源"
+            className="resource-tree-task-button"
+            onClick={() => setTaskDrawerOpen(true)}
           >
-            新增
+            任务进度
+            {runningTaskCount > 0 && <b>{runningTaskCount}</b>}
           </Button>
-        </Dropdown>
+          <Dropdown
+            trigger={['click']}
+            placement="bottomRight"
+            menu={{
+              items: supplierResourceCreateMenuItems,
+              onClick: ({ key }) => setResourceCreateKind(key as SupplierResourceCreateKind),
+            }}
+          >
+            <Button
+              type="primary"
+              className="resource-tree-create-button ataas-page-create-button"
+              icon={<PlusOutlined />}
+              aria-label="新增算力中心资源"
+            >
+              新增
+            </Button>
+          </Dropdown>
+        </div>
       </div>
       <div className="tree-controls">
         <label className="tree-search">
@@ -1066,7 +1147,76 @@ const ClusterOperationsHomepage = () => {
     <SupplierResourceCreateFlow
       openKind={resourceCreateKind}
       onClose={() => setResourceCreateKind(null)}
+      onClusterTaskCreated={addClusterTask}
+      onClusterTaskBackground={() => {
+        setTaskDrawerOpen(true);
+        message.info('任务已转入后台，可在算力中心左上角“任务”中查看进度和日志');
+      }}
     />
+    <Drawer
+      rootClassName="cluster-task-drawer"
+      title="集群创建任务"
+      open={taskDrawerOpen}
+      onClose={() => setTaskDrawerOpen(false)}
+      size={720}
+      extra={<Tag>{runningTaskCount ? `${runningTaskCount} 个执行中` : '暂无执行中任务'}</Tag>}
+    >
+      {clusterTasks.length ? (
+        <div className="cluster-task-list">
+          {clusterTasks.map((task) => {
+            const progress = getClusterTaskProgress(task, taskClock);
+            const finished = progress >= 100;
+            const currentStage = [...clusterTaskMilestones].reverse().find((item) => progress >= item.threshold);
+            return (
+              <article key={task.key} className={finished ? 'finished' : ''}>
+                <header>
+                  <div>
+                    <strong>{task.clusterName}</strong>
+                    <small>{task.machineCount} 台机器 · Master {task.masterCount} · Worker {task.workerCount}</small>
+                  </div>
+                  <Tag color={finished ? 'success' : 'processing'}>{finished ? '已完成' : '执行中'}</Tag>
+                </header>
+                <div className="cluster-task-package">
+                  <span>{task.k8sVersion}</span>
+                  <span>{task.packageName}</span>
+                  <span>{formatTaskTime(task.startedAt)}</span>
+                </div>
+                <Progress percent={progress} status={finished ? 'success' : 'active'} />
+                <footer>
+                  <span>{currentStage?.stage || '准备任务'} · {progress}%</span>
+                  <Button type="link" icon={<FileText size={14} />} onClick={() => setLogTaskKey(task.key)}>查看日志</Button>
+                </footer>
+              </article>
+            );
+          })}
+        </div>
+      ) : (
+        <Empty description="还没有集群创建任务" />
+      )}
+    </Drawer>
+    <Modal
+      rootClassName="cluster-task-log-modal"
+      title={selectedLogTask ? `${selectedLogTask.clusterName} · 执行日志` : '执行日志'}
+      open={Boolean(selectedLogTask)}
+      onCancel={() => setLogTaskKey(null)}
+      footer={null}
+      width={780}
+    >
+      {selectedLogTask && (
+        <div className="cluster-task-logs">
+          {clusterTaskMilestones
+            .filter((item) => getClusterTaskProgress(selectedLogTask, taskClock) >= item.threshold)
+            .map((item) => (
+              <div key={item.stage}>
+                <time>{formatTaskTime(selectedLogTask.startedAt + item.offset)}</time>
+                <span className={item.threshold >= 100 ? 'success' : ''}>{item.threshold >= 100 ? '完成' : 'INFO'}</span>
+                <strong>{item.stage}</strong>
+                <p>{item.detail}</p>
+              </div>
+            ))}
+        </div>
+      )}
+    </Modal>
     </div>
   );
 };
@@ -2234,7 +2384,7 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
           </div>
           <Button
             type="primary"
-            className="node-add-action"
+            className="node-add-action ataas-page-create-button"
             icon={<PlusOutlined />}
             onClick={() => setAddNodeOpen(true)}
           >

@@ -1249,7 +1249,7 @@ export default function ClusterResourceTables({
           {initialView === 'pod' ? (
             <Button
               type="primary"
-              className="resource-create-devpod"
+              className="resource-create-devpod ataas-page-create-button"
               icon={<PlusOutlined />}
               onClick={openDevPodCreator}
             >
@@ -1268,7 +1268,7 @@ export default function ClusterResourceTables({
               </span>
               <Button
               type="primary"
-              className="resource-create-devpod"
+              className="resource-create-devpod ataas-page-create-button"
               icon={<PlusOutlined />}
               onClick={() => {
                 setCreateServiceYaml(buildServiceYaml({
@@ -1307,7 +1307,7 @@ export default function ClusterResourceTables({
               </span>
               <Button
               type="primary"
-              className="resource-create-devpod"
+              className="resource-create-devpod resource-create-service-entry ataas-page-create-button"
               icon={<PlusOutlined />}
               onClick={() => {
                 setCreateServiceEntryShowTree(true);

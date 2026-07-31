@@ -37,7 +37,7 @@
   .ant-btn {
     height: 32px;
     padding: 0 14px;
-    border-radius: 4px;
+    border-radius: 4px !important;
     border-color: #E5E6EB;
     color: #1D2129;
     font-size: 13px;
@@ -64,16 +64,19 @@
       border-color: #6738E8 !important;
       background: #6738E8 !important;
       color: #fff !important;
-      transform: translateY(-1px);
+      transform: none !important;
     }
   }
 }
 
 .benchmark-create-button.ant-btn.ant-btn-primary {
-  height: 32px;
+  height: 31px !important;
+  min-height: 31px !important;
+  max-height: 31px !important;
+  margin-top: 0 !important;
   padding: 0 16px;
   border-radius: 4px !important;
-  line-height: 32px;
+  line-height: 1 !important;
 }
 
 .benchmark-toolbar {
@@ -89,14 +92,33 @@
   }
 
   .ant-btn {
-    height: 32px;
+    box-sizing: border-box;
+    width: 132px;
+    height: 32px !important;
+    min-height: 32px !important;
+    max-height: 32px !important;
+    display: inline-flex !important;
+    align-items: center !important;
     padding: 0 12px;
+    justify-content: center !important;
     border-color: #E5E6EB;
-    border-radius: 4px;
+    border-radius: 4px !important;
     color: #1D2129;
     font-size: 13px;
     font-weight: 400;
+    line-height: 1 !important;
     box-shadow: none;
+    vertical-align: top;
+    transform: none !important;
+    white-space: nowrap;
+
+    > span,
+    .ant-btn-icon {
+      display: inline-flex;
+      align-items: center;
+      line-height: 1 !important;
+      white-space: nowrap;
+    }
 
     &:hover,
     &:focus {
@@ -107,21 +129,30 @@
   }
 
   .benchmark-create-button.ant-btn.ant-btn-primary {
+    width: 132px;
     padding: 0 16px;
-    border-color: #6951FF !important;
-    background: #6951FF !important;
+    border-color: #6738E8 !important;
+    background: #6738E8 !important;
     color: #fff !important;
 
     &:hover,
     &:focus {
-      border-color: #6738E8 !important;
-      background: #6738E8 !important;
+      border-color: #5D30D8 !important;
+      background: #5D30D8 !important;
       color: #fff !important;
     }
   }
 
   .ant-select {
     height: 32px;
+    padding: 4px 11px;
+    border: 1px solid #E5E6EB !important;
+    border-radius: 4px !important;
+    background: #fff;
+    box-shadow: none !important;
+    color: #4E5969;
+    font-size: 13px;
+    font-weight: 400;
   }
 
   .ant-select-selector {
@@ -137,6 +168,13 @@
     font-size: 13px;
     line-height: 30px !important;
     font-weight: 400;
+  }
+
+  .ant-select-content {
+    color: #4E5969;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 22px;
   }
 
   .ant-select:hover .ant-select-selector,
@@ -381,7 +419,7 @@
     &:focus {
       background: transparent !important;
       color: #5127C7 !important;
-      transform: translateY(-1px);
+      transform: none !important;
 
       > i {
         color: #5127C7;

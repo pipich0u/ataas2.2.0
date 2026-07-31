@@ -22,12 +22,9 @@ import {
 } from 'antd';
 import { useMemo, useState } from 'react';
 import type { ColumnsType } from 'antd/es/table';
-import bceLogo from '../bce-logo.svg';
-import bgeLogo from '../bge-logo.svg';
 import deepseekLogo from '../deepseek-logo.svg';
 import glmLogo from '../glm-logo.svg';
 import kimiLogo from '../kimi-logo.svg';
-import qwenLogo from '../qwen-logo.svg';
 import ModelDownloadTaskModal, { type ModelDownloadTaskValues } from './modelDownloadTaskModal';
 import './distributionCenterPage.less';
 
@@ -50,18 +47,12 @@ const modelBrandLogos = {
   glm: glmLogo,
   deepseek: deepseekLogo,
   kimi: kimiLogo,
-  qwen: qwenLogo,
-  bge: bgeLogo,
-  bce: bceLogo,
 };
 
 const getModelBrand = (name: string): keyof typeof modelBrandLogos => {
   const normalizedName = name.toLowerCase();
   if (normalizedName.includes('deepseek')) return 'deepseek';
   if (normalizedName.includes('kimi')) return 'kimi';
-  if (normalizedName.includes('qwen')) return 'qwen';
-  if (normalizedName.includes('bge') || normalizedName.includes('baai')) return 'bge';
-  if (normalizedName.includes('bce')) return 'bce';
   return 'glm';
 };
 
@@ -204,13 +195,8 @@ const initialModels: ModelRecord[] = [
   { id: 'kimi-k27', name: 'Kimi-K2.7-Code', type: '代码模型', copies: [{ id: 'kimi-k27-a', host: 'ops-transfer-01', ip: '10.24.16.21', path: '/data/models/Kimi-K2.7-Code', sizeGb: 284 }, { id: 'kimi-k27-b', host: 'gpu-node-03', ip: '10.24.18.103', path: '/models/Kimi-K2.7-Code', sizeGb: 284 }] },
   { id: 'kimi-k25', name: 'Kimi-K2.5', type: '大语言模型', copies: [{ id: 'kimi-k25-a', host: 'model-store-02', ip: '10.24.16.32', path: '/models/Kimi-K2.5', sizeGb: 276 }] },
   { id: 'deepseek-r1', name: 'DeepSeek-R1-0528', type: '推理模型', copies: [{ id: 'dsr1-a', host: 'model-store-02', ip: '10.24.16.32', path: '/models/DeepSeek-R1-0528', sizeGb: 642 }, { id: 'dsr1-b', host: 'gpu-node-01', ip: '10.24.18.101', path: '/data/models/DeepSeek-R1-0528', sizeGb: 642 }] },
-  { id: 'qwen3', name: 'Qwen3-235B-A22B', type: '大语言模型', copies: [{ id: 'qwen3-a', host: 'ops-transfer-01', ip: '10.24.16.21', path: '/data/models/Qwen3-235B-A22B', sizeGb: 468 }] },
-  { id: 'qwen3-coder', name: 'Qwen3-Coder-Next', type: '代码模型', copies: [{ id: 'qwen3-coder-a', host: 'gpu-node-02', ip: '10.24.18.102', path: '/data/models/Qwen3-Coder-Next', sizeGb: 194 }] },
   { id: 'glm-51', name: 'GLM-5.1-FP8', type: '量化模型', copies: [{ id: 'glm-51-a', host: 'model-store-02', ip: '10.24.16.32', path: '/models/GLM-5.1-FP8', sizeGb: 132 }] },
   { id: 'kimi-k2', name: 'Kimi-K2-Instruct', type: '大语言模型', copies: [{ id: 'kimi-k2-a', host: 'gpu-node-06', ip: '10.24.18.106', path: '/data/models/Kimi-K2-Instruct', sizeGb: 278 }, { id: 'kimi-k2-b', host: 'model-store-02', ip: '10.24.16.32', path: '/models/Kimi-K2-Instruct', sizeGb: 278 }] },
-  { id: 'qwen25', name: 'Qwen2.5-72B-Instruct', type: '大语言模型', copies: [{ id: 'qwen25-a', host: 'ops-transfer-01', ip: '10.24.16.21', path: '/data/models/Qwen2.5-72B-Instruct', sizeGb: 145 }] },
-  { id: 'bge-m3', name: 'BAAI-bge-m3', type: 'Embedding 模型', copies: [{ id: 'bge-a', host: 'model-store-02', ip: '10.24.16.32', path: '/models/BAAI-bge-m3', sizeGb: 2.3 }] },
-  { id: 'reranker', name: 'BCE-reranker-base-v1', type: '重排模型', copies: [{ id: 'reranker-a', host: 'ops-transfer-01', ip: '10.24.16.21', path: '/data/models/BCE-reranker-base-v1', sizeGb: 1.1 }] },
 ];
 
 const makeTaskNodes = (
@@ -311,46 +297,6 @@ const initialTasks: DistributionTask[] = [
     verify: true,
     sizeGb: 642,
     nodes: makeTaskNodes('gpu-test-sh-01', 4, 'completed'),
-  },
-  {
-    id: 1003,
-    name: '下载 Qwen3-Coder-Next',
-    model: 'Qwen3-Coder-Next',
-    type: 'download',
-    source: 'HTTPS URL',
-    target: 'gpu-node-02 · /data/models/',
-    progress: 37,
-    speed: '—',
-    status: 'stopped',
-    updatedAt: Date.now() - 7_200_000,
-    updatedText: '2 小时前',
-    url: 'https://models.example.com/Qwen3-Coder-Next.tar.zst',
-    targetPath: '/data/models/',
-    resume: true,
-    verify: true,
-    sizeGb: 194,
-  },
-  {
-    id: 1002,
-    name: '同步 Qwen3-235B 至生产集群',
-    model: 'Qwen3-235B-A22B',
-    type: 'distribution',
-    source: 'ops-transfer-01',
-    target: 'gpu-prod-01 · 指定 8 个 Nodes',
-    progress: 91,
-    speed: '—',
-    status: 'failed',
-    updatedAt: Date.now() - 10_800_000,
-    updatedText: '3 小时前',
-    detail: 'gpu-node-08 SSH 连接失败',
-    sourcePath: '/data/models/Qwen3-235B-A22B',
-    targetPath: '/data/models/Qwen3-235B-A22B',
-    targetCluster: 'gpu-prod-01',
-    targetMode: 'nodes',
-    credential: 'sh-prod-model-key',
-    verify: true,
-    sizeGb: 468,
-    nodes: makeTaskNodes('gpu-prod-01', 8, 'failed', 'gpu-node-08'),
   },
 ];
 
@@ -691,7 +637,7 @@ const DistributionCenterPage = () => {
         <span />
         <Button icon={<ReloadOutlined />} onClick={() => message.success('模型列表已刷新')} />
         <Button icon={<CloudDownloadOutlined />} onClick={openDownload}>下载模型</Button>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => openDistribution(models[0].id)}>创建分发</Button>
+        <Button className="ataas-page-create-button" type="primary" icon={<PlusOutlined />} onClick={() => openDistribution(models[0].id)}>创建分发</Button>
       </div>
       <div className="distribution-model-grid">
         {visibleModels.map((model) => {
@@ -782,7 +728,7 @@ const DistributionCenterPage = () => {
       <div className="distribution-simple-toolbar">
         <Input.Search value={imageSearch} onChange={(event) => setImageSearch(event.target.value)} allowClear placeholder="搜索镜像名称或来源仓库" />
         <span />
-        <Button className="distribution-pane-create-button" type="primary" icon={<PlusOutlined />} onClick={() => message.info('创建镜像分发')}>创建镜像分发</Button>
+        <Button className="distribution-pane-create-button ataas-page-create-button" type="primary" icon={<PlusOutlined />} onClick={() => message.info('创建镜像分发')}>创建镜像分发</Button>
       </div>
       <Table tableLayout="fixed" dataSource={visibleImages} pagination={false} columns={[
         { title: '镜像', key: 'name', width: '22%', render: (_, record) => <span className="distribution-table-main"><strong>{record.name}</strong><small>{record.desc}</small></span> },
@@ -801,7 +747,7 @@ const DistributionCenterPage = () => {
       <div className="distribution-simple-toolbar">
         <Input.Search value={fileSearch} onChange={(event) => setFileSearch(event.target.value)} allowClear placeholder="搜索文件、类型或来源主机" />
         <span />
-        <Button className="distribution-pane-create-button" type="primary" icon={<PlusOutlined />} onClick={() => message.info('创建文件分发')}>创建文件分发</Button>
+        <Button className="distribution-pane-create-button ataas-page-create-button" type="primary" icon={<PlusOutlined />} onClick={() => message.info('创建文件分发')}>创建文件分发</Button>
       </div>
       <Table tableLayout="fixed" dataSource={visibleFiles} pagination={false} columns={[
         { title: '文件／软件包', key: 'name', width: '23%', render: (_, record) => <span className="distribution-table-main"><strong>{record.name}</strong><small>{record.desc}</small></span> },

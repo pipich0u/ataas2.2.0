@@ -1185,18 +1185,42 @@
 }
 
 .model-ops-section-actions .ant-btn {
-  min-width: 88px !important;
-  height: 28px !important;
-  padding: 0 10px !important;
-  border-radius: 6px !important;
-  font-size: 12px !important;
+  box-sizing: border-box !important;
+  width: 132px !important;
+  min-width: 132px !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  max-height: 32px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  padding: 0 16px !important;
+  justify-content: center !important;
+  border-radius: 4px !important;
+  font-size: 13px !important;
   font-weight: 400 !important;
-  line-height: 26px !important;
-  box-shadow: 0 4px 10px rgba(105, 81, 255, 0.12) !important;
+  line-height: 1 !important;
+  box-shadow: none !important;
+  vertical-align: top;
+  transform: none !important;
+  white-space: nowrap;
+}
+
+.model-ops-section-actions .ant-btn > span,
+.model-ops-section-actions .ant-btn .ant-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1 !important;
+  white-space: nowrap;
 }
 
 .model-ops-section-actions .ant-btn .anticon {
   font-size: 13px !important;
+}
+
+.model-ops-section-actions .ant-btn-primary {
+  height: 31px !important;
+  min-height: 31px !important;
+  max-height: 31px !important;
 }
 
 .model-ops-section-actions .ant-btn-primary,
@@ -1571,14 +1595,16 @@
 }
 
 .model-ops-pod-table.ataas-deploy-inline-native-table {
-  min-width: 1738px;
+  min-width: 1774px;
 }
 
 .model-ops-pod-table.ataas-deploy-inline-native-table th,
 .model-ops-pod-table.ataas-deploy-inline-native-table td {
-  height: 44px;
+  height: 71px;
+  padding: 8px 12px;
   border-right: 0;
   background: #fff;
+  vertical-align: middle;
 }
 
 .model-ops-pod-table.ataas-deploy-inline-native-table th {
@@ -1808,11 +1834,11 @@
   right: 0 !important;
   z-index: 12 !important;
   box-sizing: border-box !important;
-  width: 108px !important;
-  min-width: 108px !important;
-  max-width: 108px !important;
-  padding-right: 10px !important;
-  padding-left: 10px !important;
+  width: 216px !important;
+  min-width: 216px !important;
+  max-width: 216px !important;
+  padding-right: 12px !important;
+  padding-left: 12px !important;
   border-left: 0 !important;
   background: #fff !important;
   box-shadow: none !important;
@@ -1841,33 +1867,42 @@
 .model-ops-page .model-ops-original-table .ataas-model-ops-row-actions {
   align-items: center !important;
   justify-content: flex-start !important;
-  gap: 4px !important;
+  gap: 6px !important;
 }
 
 .model-ops-page .model-ops-original-table .ataas-model-ops-icon-action {
-  width: 26px !important;
   height: 26px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  padding: 0 7px !important;
   border-color: #e5e6eb !important;
+  border-radius: 4px !important;
   background: #fff !important;
   color: #4e5969 !important;
+  font-size: 11px !important;
+  line-height: 1 !important;
 }
 
 .model-ops-page .model-ops-original-table .ataas-model-ops-icon-action .anticon {
-  font-size: 13px !important;
+  font-size: 12px !important;
 }
 
 .model-ops-page .model-ops-original-table .ataas-model-ops-row-action-button.ant-btn {
-  width: 26px !important;
-  min-width: 26px !important;
+  width: auto !important;
+  min-width: 48px !important;
   height: 26px !important;
-  padding: 0 !important;
+  padding: 0 7px !important;
   border-color: #e5e6eb !important;
+  border-radius: 4px !important;
   background: #fff !important;
   color: #4e5969 !important;
+  font-size: 11px !important;
+  line-height: 1 !important;
 }
 
 .model-ops-page .model-ops-original-table .ataas-model-ops-row-action-button.ant-btn .anticon {
-  font-size: 13px !important;
+  font-size: 12px !important;
 }
 
 .model-ops-page .model-ops-original-table .ataas-deploy-inline-table {
@@ -1879,11 +1914,11 @@
   right: 0 !important;
   z-index: 10 !important;
   box-sizing: border-box !important;
-  width: 108px !important;
-  min-width: 108px !important;
-  max-width: 108px !important;
-  padding-right: 10px !important;
-  padding-left: 10px !important;
+  width: 216px !important;
+  min-width: 216px !important;
+  max-width: 216px !important;
+  padding-right: 12px !important;
+  padding-left: 12px !important;
   border-left: 0 !important;
   background: #fff !important;
   box-shadow: none !important;

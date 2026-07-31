@@ -534,7 +534,7 @@ export default function BenchmarkPage() {
           )}>
             <Button icon={<SettingOutlined />}>详情列设置</Button>
           </Popover>
-          <Button className="benchmark-create-button" type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建压测</Button>
+          <Button className="benchmark-create-button ataas-page-create-button" type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建压测</Button>
         </Space>
       </div>
 

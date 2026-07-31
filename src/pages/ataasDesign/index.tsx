@@ -2,13 +2,11 @@ import {
   ApartmentOutlined,
   ArrowLeftOutlined,
   ArrowRightOutlined,
-  AppstoreOutlined,
   BarChartOutlined,
   BarsOutlined,
   CheckCircleFilled,
   CheckCircleOutlined,
   CloseCircleOutlined,
-  CodeSandboxOutlined,
   CodeOutlined,
   CopyOutlined,
   DeploymentUnitOutlined,
@@ -18,6 +16,7 @@ import {
   ExclamationCircleOutlined,
   EyeOutlined,
   FileSearchOutlined,
+  FileZipOutlined,
   InboxOutlined,
   InfoCircleOutlined,
   LoadingOutlined,
@@ -61,6 +60,7 @@ import hygonLogo from './hygon-logo.png';
 import sglangLogo from './sglang-logo.png';
 import vllmLogo from './vllm-logo.png';
 import ktransformersLogo from './ktransformers-logo.png';
+import mooncakeLogo from './mooncake-logo.png';
 import visionCatPreview from './vision-cat-preview.png';
 import ConfigsPage from '../Configs';
 import TasksPage from '../Tasks';
@@ -4487,7 +4487,7 @@ const StartupTemplateManager = ({ templates, setTemplates, onDeployTemplate, onP
         />
         <Space>
           <Button onClick={resetFilters}>清除筛选</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => openEditor()}>新建模板</Button>
+          <Button className="ataas-page-create-button" type="primary" icon={<PlusOutlined />} onClick={() => openEditor()}>新建模板</Button>
         </Space>
       </div>
       <div className="ataas-template-layout">
@@ -10693,13 +10693,13 @@ const AtAasDesign = () => {
   const SIDEBAR_ITEMS = [
     // { key: 'overview', icon: <SidebarIcon name="dashboard" />, label: '数据概览' },
     { key: 'clusterOperations', icon: <SidebarIcon name="dashboard" />, label: '算力中心' },
-    { key: 'supplierResources', icon: <ApartmentOutlined style={{ fontSize: 15 }} />, label: '供应商列表' },
+    { key: 'supplierResources', icon: <ApartmentOutlined className="ataas-sidebar-icon" />, label: '供应商列表' },
     // { key: 'clusters', icon: <SidebarIcon name="cluster" />, label: '集群管理' },
     // { key: 'nodes', icon: <SidebarIcon name="engineMgr" />, label: '节点管理' },
     // { key: 'modelRepo', icon: <SidebarIcon name="modelRepo" />, label: '模型仓库' },
-    { key: 'distributionCenter', icon: <SwapRightOutlined style={{ fontSize: 15 }} />, label: '分发中心' },
+    { key: 'distributionCenter', icon: <SwapRightOutlined className="ataas-sidebar-icon" />, label: '分发中心' },
     // { key: 'startupTemplates', icon: <SidebarIcon name="template" />, label: '性能仓库' },
-    { key: 'deploy', icon: <SidebarIcon name="deploy" />, label: '模型部署' },
+    { key: 'deploy', icon: <img className="ataas-sidebar-icon ataas-sidebar-mooncake-icon" src={mooncakeLogo} alt="" />, label: 'Mooncake' },
     { key: 'modelOps', icon: <SidebarIcon name="ops" />, label: '运营调度' },
     { key: 'taskFlow', icon: <SidebarIcon name="task" />, label: '任务流程' },
     // { key: 'images', icon: <SidebarIcon name="image" />, label: '镜像仓库' },
@@ -10710,7 +10710,7 @@ const AtAasDesign = () => {
     // { key: 'playgroundEmbedding', icon: <SidebarIcon name="embedding" />, label: '嵌入模型' },
     // { key: 'playgroundRerank', icon: <SidebarIcon name="rerank" />, label: '重排模型' },
     { key: 'benchmark', icon: <SidebarIcon name="benchmark" />, label: '性能压测' },
-    { key: 'accuracy', icon: <CheckCircleOutlined style={{ fontSize: 15 }} />, label: '精度测试' },
+    { key: 'accuracy', icon: <CheckCircleOutlined className="ataas-sidebar-icon" />, label: '精度测试' },
     { key: 'logs', icon: <SidebarIcon name="logs" />, label: '操作日志' },
     { key: 'alerts', icon: <SidebarIcon name="alert" />, label: '告警详情' },
     // { key: 'apiKeys', icon: <SidebarIcon name="apiKey" />, label: 'API Key' },
@@ -10719,7 +10719,7 @@ const AtAasDesign = () => {
     // { key: 'containerManagement', icon: <SidebarIcon name="pod" />, label: '容器管理' },
     // { key: 'routeWorkbench', icon: <SidebarIcon name="service" />, label: '链路编排' },
     { key: 'configCenter', icon: <SidebarIcon name="config" />, label: '资源文件' },
-    { key: 'softwarePackages', icon: <CodeSandboxOutlined className="ataas-sidebar-package-icon" />, label: '软件包管理' },
+    { key: 'softwarePackages', icon: <FileZipOutlined className="ataas-sidebar-icon ataas-sidebar-package-icon" />, label: '软件包管理' },
   ];
   const getSidebarItems = (keys: string[]) => keys.map((key) => SIDEBAR_ITEMS.find((item) => item.key === key)).filter(Boolean) as typeof SIDEBAR_ITEMS;
   const SIDEBAR_GROUPS = [
@@ -10938,7 +10938,7 @@ const AtAasDesign = () => {
                       </div>
                     </div>
                     <div className="ataas-cluster-toolbar">
-                      <Button className="ataas-deploy-create-button" icon={<PlusOutlined />} type="primary" onClick={() => setClusterCreateOpen(true)}>纳管新集群</Button>
+                      <Button className="ataas-deploy-create-button ataas-page-create-button" icon={<PlusOutlined />} type="primary" onClick={() => setClusterCreateOpen(true)}>纳管新集群</Button>
                       <Input.Search placeholder="搜索集群名称..." className="ataas-cluster-search" value={clusterSearchText} onChange={(e) => setClusterSearchText(e.target.value)} allowClear />
                     </div>
                     <div className="ataas-cluster-table-wrap">
@@ -10970,7 +10970,7 @@ const AtAasDesign = () => {
                           className="ataas-table-link"
                           onClick={() => {
                             setDeployListClusterFilter(r.name);
-                            setDeployListViewMode('table');
+                            setDeployListViewMode('mooncake');
                             setActiveTab('deploy');
                           }}
                         >
@@ -11679,7 +11679,7 @@ const AtAasDesign = () => {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div className="ataas-image-toolbar ataas-deploy-list-toolbar">
                       <div style={{ flex: 1 }} />
-                      <Button className="ataas-deploy-create-button" icon={<PlusOutlined />} type="primary" onClick={() => setImageUploadOpen(true)}>上传镜像</Button>
+                      <Button className="ataas-deploy-create-button ataas-page-create-button" icon={<PlusOutlined />} type="primary" onClick={() => setImageUploadOpen(true)}>上传镜像</Button>
                     </div>
                     <div className="ataas-deploy-table-wrap ataas-image-table-wrap">
                       <Table dataSource={filteredImages} rowKey="key" columns={imageColumns} pagination={false} />
@@ -11950,8 +11950,8 @@ const AtAasDesign = () => {
                     <div className="ataas-user-toolbar ataas-api-key-toolbar ataas-deploy-list-toolbar">
                       <Input.Search className="ataas-deploy-list-search ataas-user-search" placeholder="名称/备注查询" value={userSearchText} onChange={(e) => setUserSearchText(e.target.value)} allowClear size="middle" />
                       <div className="ataas-api-key-toolbar-spacer" />
-                      <Button className="ataas-deploy-create-button" type="primary" onClick={() => openCreateUser('user')}>新建普通用户</Button>
-                      <Button className="ataas-deploy-create-button" type="primary" onClick={() => openCreateUser('admin')}>新建管理员</Button>
+                      <Button className="ataas-deploy-create-button ataas-page-create-button" type="primary" onClick={() => openCreateUser('user')}>新建普通用户</Button>
+                      <Button className="ataas-deploy-create-button ataas-page-create-button" type="primary" onClick={() => openCreateUser('admin')}>新建管理员</Button>
                     </div>
                     <div className="ataas-deploy-table-wrap ataas-api-key-table-wrap ataas-user-table-wrap">
                       <Table
@@ -12112,7 +12112,7 @@ const AtAasDesign = () => {
                           message.success('已批量删除');
                         }}>批量删除</Button>
                         <div className="ataas-api-key-toolbar-spacer" />
-                        <Button className="ataas-deploy-create-button" type="primary" icon={<PlusOutlined />} onClick={openCreateEngineDrawer}>创建引擎</Button>
+                        <Button className="ataas-deploy-create-button ataas-page-create-button" type="primary" icon={<PlusOutlined />} onClick={openCreateEngineDrawer}>创建引擎</Button>
                       </div>
                     </div>
                     <div className="ataas-deploy-table-wrap ataas-api-key-table-wrap ataas-engine-table-wrap">
@@ -12424,7 +12424,7 @@ const AtAasDesign = () => {
                       <Input.Search className="ataas-deploy-list-search ataas-api-key-search" placeholder="请输入名称" value={apiKeySearchText} onChange={(e) => setApiKeySearchText(e.target.value)} allowClear size="middle" />
                       <div className="ataas-api-key-toolbar-spacer" />
                       <Button className="ataas-square-icon-button" icon={<ReloadOutlined />} onClick={() => message.success('已刷新')} />
-                      <Button className="ataas-deploy-create-button" type="primary" icon={<PlusOutlined />} onClick={() => setApiKeyCreateOpen(true)}>创建 API Key</Button>
+                      <Button className="ataas-deploy-create-button ataas-page-create-button" type="primary" icon={<PlusOutlined />} onClick={() => setApiKeyCreateOpen(true)}>创建 API Key</Button>
                     </div>
                     <div className="ataas-deploy-table-wrap ataas-api-key-table-wrap">
                       <Table
