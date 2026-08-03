@@ -277,18 +277,6 @@ export const initializeClusterOperations = (root: HTMLElement) => {
     if (!container) return;
     container.innerHTML = '';
 
-    // Tree all + stats
-    container.appendChild(el('div', 'tree-all',
-      el('span', null, '全部机器'),
-      el('span', 'tree-all-count', `已纳管${totalBms}台 · 异常${totalAbnormal}`),
-    ));
-    container.appendChild(el('div', 'tree-stats',
-      el('span', null, '供应商', el('strong', null, String(totalProviders))),
-      el('span', null, '数据中心', el('strong', null, String(totalDcs))),
-      el('span', null, '集群', el('strong', null, String(totalClusters))),
-      el('span', null, '节点', el('strong', null, String(totalBms))),
-    ));
-
     let firstClusterKey = '';
 
     resourceTreeData.forEach((provider, pi) => {

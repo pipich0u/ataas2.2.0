@@ -13,6 +13,7 @@ import {
 } from '@ant-design/icons';
 import { Button, Checkbox, Empty, Input, InputNumber, message, Modal, Select, Slider, Switch, Tooltip } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
+import ClusterResourceTables from './clusterResourceTables';
 import DeployList, { MOCK_DEPLOY_DATA, type DeployServiceItem } from './deployList';
 import {
   modelOpsServices,
@@ -204,6 +205,8 @@ type OpsDeployPreviewItem = DeployServiceItem & {
 };
 
 type ModelOpsPageProps = {
+  centerViewMode?: 'compute' | 'inference';
+  onCenterViewModeChange?: (mode: 'compute' | 'inference') => void;
   selectedModelName?: string;
   onDetail?: (item: DeployServiceItem) => void;
   onStop?: (item: DeployServiceItem) => void;
@@ -981,7 +984,7 @@ const OpsCreateGroupPage = ({
                 </span>
               </Checkbox>
               <div>
-                <Button onClick={onBack} disabled={isRunning}>{executionPhase === 'success' ? '返回运营调度' : '取消'}</Button>
+                <Button onClick={onBack} disabled={isRunning}>{executionPhase === 'success' ? '返回 Groups' : '取消'}</Button>
                 <Button
                   type="primary"
                   icon={executionPhase === 'running' ? <LoadingOutlined /> : executionPhase === 'success' ? <CheckCircleFilled /> : <PlayCircleOutlined />}
@@ -1000,6 +1003,8 @@ const OpsCreateGroupPage = ({
 };
 
 const ModelOpsPage = ({
+  centerViewMode,
+  onCenterViewModeChange,
   selectedModelName,
   onDetail,
   onStop,
@@ -1012,6 +1017,8 @@ const ModelOpsPage = ({
   onPickConfigYaml,
 }: ModelOpsPageProps) => {
   const initialServiceId = getServiceIdByModelName(selectedModelName);
+  const isEmbeddedCenter = Boolean(centerViewMode && onCenterViewModeChange);
+  const [centerWorkspaceView, setCenterWorkspaceView] = useState<'groups' | 'pods'>('groups');
   const [selectedServiceId, setSelectedServiceId] = useState(initialServiceId);
   const [selectedClusterCode, setSelectedClusterCode] = useState('all');
   const [activeRowKey, setActiveRowKey] = useState(getInitialActiveRowKey(initialServiceId));
@@ -1252,7 +1259,7 @@ const ModelOpsPage = ({
           setSelectedClusterCode(createDraft.clusterCode);
           setActiveRowKey(row.key);
           setCreateExecutionPhase('success');
-          message.success(`${groupName} 已创建并接入运营调度`);
+          message.success(`${groupName} 已创建并接入 Groups`);
           return current;
         }
         return current + 1;
@@ -1380,50 +1387,106 @@ const ModelOpsPage = ({
   }
 
   return (
-    <div className="model-ops-page">
+    <div className={`model-ops-page${isEmbeddedCenter ? ' center-view-embedded' : ''}`}>
       <aside className="model-ops-rail">
         <div className="model-ops-rail-title">
-          <strong>模型</strong>
-          <span>{opsPreviewServices.length} models</span>
+          {centerViewMode && onCenterViewModeChange ? (
+            <div className="ataas-center-view-segmented" role="tablist" aria-label="中心视图切换">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={centerViewMode === 'compute'}
+                className={centerViewMode === 'compute' ? 'active' : ''}
+                onClick={() => onCenterViewModeChange('compute')}
+              >
+                算力中心视图
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={centerViewMode === 'inference'}
+                className={centerViewMode === 'inference' ? 'active' : ''}
+                onClick={() => onCenterViewModeChange('inference')}
+              >
+                推理中心视图
+              </button>
+            </div>
+          ) : (
+            <>
+              <strong>模型</strong>
+              <span>{opsPreviewServices.length} models</span>
+            </>
+          )}
         </div>
-        {opsPreviewServices.map((service) => {
-          const rows = allOpsRows.filter((row) => row.serviceId === service.id);
-          const rowKeys = new Set(rows.map((row) => row.key));
-          const instanceTotal = allDeployRows.filter((item) => rowKeys.has(item.opsRowKey)).length;
-          const badCount = rows.filter((row) => row.status !== 'running').length;
-          return (
-            <button key={service.id} type="button" className={`model-ops-model-filter${selectedServiceId === service.id ? ' active' : ''}`} onClick={() => selectService(service.id)}>
-              <i className={`status-dot ${badCount ? 'warning' : ''}`} />
-              <span><strong>{service.model}</strong><em>{rows.length} 个集群 · {instanceTotal} 实例</em></span>
-            </button>
-          );
-        })}
-        <div className="model-ops-rail-se-grid">
-          <button
-            type="button"
-            aria-pressed={selectedClusterCode === 'all'}
-            className={selectedClusterCode === 'all' ? 'active' : ''}
-            onClick={() => selectCluster('all')}
-          >
-            <strong>全部</strong>
-            <em>{modelScopedDeployRows.length} 个实例</em>
-          </button>
-          {clusterOptions.map(({ clusterCode, count }) => (
-            <button
-              key={clusterCode}
-              type="button"
-              aria-pressed={selectedClusterCode === clusterCode}
-              className={selectedClusterCode === clusterCode ? 'active' : ''}
-              onClick={() => selectCluster(clusterCode)}
-            >
-              <strong>{clusterCode}</strong>
-              <em>{count} 个实例</em>
-            </button>
-          ))}
-        </div>
+        {!isEmbeddedCenter || centerWorkspaceView === 'groups' ? (
+          <>
+            {opsPreviewServices.map((service) => {
+              const rows = allOpsRows.filter((row) => row.serviceId === service.id);
+              const rowKeys = new Set(rows.map((row) => row.key));
+              const instanceTotal = allDeployRows.filter((item) => rowKeys.has(item.opsRowKey)).length;
+              const badCount = rows.filter((row) => row.status !== 'running').length;
+              return (
+                <button key={service.id} type="button" className={`model-ops-model-filter${selectedServiceId === service.id ? ' active' : ''}`} onClick={() => selectService(service.id)}>
+                  <i className={`status-dot ${badCount ? 'warning' : ''}`} />
+                  <span><strong>{service.model}</strong><em>{rows.length} 个集群 · {instanceTotal} 实例</em></span>
+                </button>
+              );
+            })}
+            <div className="model-ops-rail-se-grid">
+              <button
+                type="button"
+                aria-pressed={selectedClusterCode === 'all'}
+                className={selectedClusterCode === 'all' ? 'active' : ''}
+                onClick={() => selectCluster('all')}
+              >
+                <strong>全部</strong>
+                <em>{modelScopedDeployRows.length} 个实例</em>
+              </button>
+              {clusterOptions.map(({ clusterCode, count }) => (
+                <button
+                  key={clusterCode}
+                  type="button"
+                  aria-pressed={selectedClusterCode === clusterCode}
+                  className={selectedClusterCode === clusterCode ? 'active' : ''}
+                  onClick={() => selectCluster(clusterCode)}
+                >
+                  <strong>{clusterCode}</strong>
+                  <em>{count} 个实例</em>
+                </button>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="model-ops-global-pod-rail-note">
+            <strong>全局 Pods</strong>
+            <span>已汇总全部供应商、数据中心和集群资源</span>
+          </div>
+        )}
       </aside>
 
       <main className="model-ops-main">
+        {isEmbeddedCenter && (
+          <nav className="model-ops-center-view-tabs" aria-label="推理中心资源视图">
+            <button
+              type="button"
+              className={centerWorkspaceView === 'groups' ? 'active' : ''}
+              aria-current={centerWorkspaceView === 'groups' ? 'page' : undefined}
+              onClick={() => setCenterWorkspaceView('groups')}
+            >
+              Groups
+            </button>
+            <button
+              type="button"
+              className={centerWorkspaceView === 'pods' ? 'active' : ''}
+              aria-current={centerWorkspaceView === 'pods' ? 'page' : undefined}
+              onClick={() => setCenterWorkspaceView('pods')}
+            >
+              Pods
+            </button>
+          </nav>
+        )}
+        {centerWorkspaceView === 'groups' ? (
+          <>
         <section className="model-ops-se-panel">
           <div className="model-ops-section-head">
             <strong>模型权重</strong>
@@ -1499,6 +1562,12 @@ const ModelOpsPage = ({
             />
           </div>
         </section>
+          </>
+        ) : (
+          <div className="model-ops-global-pods-scope cluster-operations-homepage">
+            <ClusterResourceTables view="pod" globalPodView className="model-ops-global-pods" />
+          </div>
+        )}
       </main>
 
       <Modal

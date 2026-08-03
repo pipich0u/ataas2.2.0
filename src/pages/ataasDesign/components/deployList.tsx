@@ -270,6 +270,13 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
   const runtimeBaseRef = useRef(Date.now());
   const modelInfoHoveringRef = useRef(false);
 
+  const syncInlineTableEndShadow = (node: HTMLDivElement | null) => {
+    if (!node) return;
+    const isAtEnd = node.scrollWidth <= node.clientWidth + 1
+      || node.scrollLeft + node.clientWidth >= node.scrollWidth - 1;
+    node.classList.toggle('is-at-scroll-end', isAtEnd);
+  };
+
   useEffect(() => {
     if (mode !== 'modelOps') {
       setViewMode('mooncake');
@@ -946,7 +953,13 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
           )}
           {mode === 'modelOps' ? (
             <div className="ataas-deploy-inline-monitoring">
-              <div className="ataas-deploy-inline-table">
+              <div
+                className="ataas-deploy-inline-table ataas-model-ops-shadow-scroll"
+                ref={(node) => {
+                  if (node) window.requestAnimationFrame(() => syncInlineTableEndShadow(node));
+                }}
+                onScroll={(event) => syncInlineTableEndShadow(event.currentTarget)}
+              >
               <table className="ataas-deploy-inline-native-table model-ops-pod-table">
                 <colgroup>
                   <col style={{ width: 190 }} />
@@ -975,7 +988,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
                     <th>NODE GPU</th>
                     <th>运行时间</th>
                     <th>接流来源</th>
-                    <th className="ataas-model-ops-pod-action-cell">操作</th>
+                    <th className="ataas-model-ops-pod-action-cell ataas-unified-table-action-cell">操作</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1024,7 +1037,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
                           ))}
                         </div>
                       </td>
-                      <td className="ataas-model-ops-pod-action-cell">
+                      <td className="ataas-model-ops-pod-action-cell ataas-unified-table-action-cell">
                         <div className="ataas-model-ops-row-actions">
                           <Button className="ataas-model-ops-row-action-button" type="text" size="small" icon={<FileSearchOutlined />} onClick={() => onLog(item, row.logId, row.podName)}>日志</Button>
                           {row.role === 'R' ? (
@@ -1339,7 +1352,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
     { title: 'Worker', key: 'workerYaml', width: 130, render: (_, r) => renderModelOpsYamlFile(`${r.modelInfo.name}/worker.yaml`, r, 'worker') },
     { title: 'TTFT', key: 'ttft', width: 76, render: (_, r) => renderModelOpsPerfValue(r, 'ttft') },
     { title: 'TPOT', key: 'tpot', width: 76, render: (_, r) => renderModelOpsPerfValue(r, 'tpot') },
-    { title: '操作', key: 'action', width: 216, fixed: 'right' as const, className: 'ataas-model-ops-unified-action-cell', render: (_, r) => (
+    { title: <span className="ataas-model-ops-action-title">操作</span>, key: 'action', width: 216, fixed: 'right' as const, className: 'ataas-model-ops-unified-action-cell ataas-unified-table-action-cell', render: (_, r) => (
       <div className="ataas-model-ops-table-actions">
         <button type="button" className="ataas-model-ops-icon-action" onClick={(event) => event.stopPropagation()} aria-label="重建"><ReloadOutlined /><span>重建</span></button>
         <button type="button" className="ataas-model-ops-icon-action danger" onClick={(event) => { event.stopPropagation(); onStop(r); }} aria-label="整组下线"><PoweroffOutlined /><span>下线</span></button>

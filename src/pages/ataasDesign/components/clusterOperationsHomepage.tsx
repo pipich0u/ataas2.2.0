@@ -13,7 +13,6 @@ import {
   initializeClusterOperations,
 } from './clusterOperationsRuntime';
 import ClusterResourceTables from './clusterResourceTables';
-import PdGroupsPage from './pdGroupsPage';
 import {
   SupplierResourceCreateFlow,
   supplierResourceCreateMenuItems,
@@ -22,7 +21,6 @@ import type { SupplierResourceCreateKind } from './supplierResourcesPage';
 import type { ClusterCreateTaskSummary } from './bareMetalClusterWizard';
 import { K8sPodResource, useK8sResourceStore } from './k8sResourceStore';
 import './clusterOperationsHomepage.less';
-import './pdGroupsPage.less';
 
 const OverviewCardHeader = ({
   icon,
@@ -664,6 +662,13 @@ type ClusterProvisionTask = ClusterCreateTaskSummary & {
 const CLUSTER_TASK_STORAGE_KEY = 'ataas.cluster-provision-tasks.v1';
 const CLUSTER_WIZARD_RESUME_KEY = 'ataas.cluster-wizard.resume';
 
+type ClusterTaskMilestone = {
+  threshold: number;
+  offset: number;
+  stage: string;
+  detail: string;
+};
+
 const clusterTaskMilestones = [
   { threshold: 8, offset: 0, stage: '创建部署任务', detail: '任务已提交，开始生成节点部署计划。' },
   { threshold: 18, offset: 2200, stage: 'SSH 检查', detail: '目标机器 SSH 连通性与 sudo 权限校验通过。' },
@@ -672,7 +677,15 @@ const clusterTaskMilestones = [
   { threshold: 70, offset: 13800, stage: '初始化控制面', detail: 'Master 控制面初始化并生成 Worker 加入凭据。' },
   { threshold: 86, offset: 17600, stage: '节点加入', detail: 'Worker 节点正在加入集群并等待 Ready。' },
   { threshold: 100, offset: 22200, stage: '创建完成', detail: '全部节点 Ready，集群资源已同步到算力中心。' },
-];
+] satisfies ClusterTaskMilestone[];
+
+const tokenTaskMilestones = [
+  { threshold: 100, offset: 0, stage: '接入完成', detail: '已使用 API Server 和 Token 建立访问配置。' },
+] satisfies ClusterTaskMilestone[];
+
+const getClusterTaskMilestones = (task: ClusterProvisionTask) => (
+  task.accessMode === 'token' ? tokenTaskMilestones : clusterTaskMilestones
+);
 
 const loadClusterProvisionTasks = (): ClusterProvisionTask[] => {
   try {
@@ -683,7 +696,9 @@ const loadClusterProvisionTasks = (): ClusterProvisionTask[] => {
 };
 
 const getClusterTaskProgress = (task: ClusterProvisionTask, now: number) => (
-  Math.min(100, 8 + Math.max(0, Math.floor((now - task.startedAt) / 240)))
+  task.accessMode === 'token'
+    ? 100
+    : Math.min(100, 8 + Math.max(0, Math.floor((now - task.startedAt) / 240)))
 );
 
 const formatTaskTime = (timestamp: number) => new Intl.DateTimeFormat('zh-CN', {
@@ -695,7 +710,15 @@ const formatTaskTime = (timestamp: number) => new Intl.DateTimeFormat('zh-CN', {
   hour12: false,
 }).format(new Date(timestamp));
 
-const ClusterOperationsHomepage = () => {
+type ClusterOperationsHomepageProps = {
+  centerViewMode: 'compute' | 'inference';
+  onCenterViewModeChange: (mode: 'compute' | 'inference') => void;
+};
+
+const ClusterOperationsHomepage = ({
+  centerViewMode,
+  onCenterViewModeChange,
+}: ClusterOperationsHomepageProps) => {
   const rootRef = useRef<HTMLDivElement>(null);
   const [hierarchyScope, setHierarchyScope] = useState<HierarchyScope | null>(null);
   const [resourceCreateKind, setResourceCreateKind] = useState<SupplierResourceCreateKind | null>(null);
@@ -787,7 +810,26 @@ const ClusterOperationsHomepage = () => {
     <div ref={rootRef} className={`cluster-operations-homepage${hierarchyScope ? ' hierarchy-mode' : ''}`}>
     <aside className="resource-tree">
       <div className="tree-header">
-        <span className="tree-title">算力中心</span>
+        <div className="ataas-center-view-segmented" role="tablist" aria-label="中心视图切换">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={centerViewMode === 'compute'}
+            className={centerViewMode === 'compute' ? 'active' : ''}
+            onClick={() => onCenterViewModeChange('compute')}
+          >
+            算力中心视图
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={centerViewMode === 'inference'}
+            className={centerViewMode === 'inference' ? 'active' : ''}
+            onClick={() => onCenterViewModeChange('inference')}
+          >
+            推理中心视图
+          </button>
+        </div>
         <div className="tree-header-actions">
           <Button
             className="resource-tree-task-button"
@@ -849,8 +891,6 @@ const ClusterOperationsHomepage = () => {
         <nav className="module-nav">
           <div className="module-tab active" data-view="overview">总览</div>
           <div className="module-tab" data-view="nodes" title="Kubernetes Node对象及Ready、压力和调度状态">节点</div>
-          <div className="module-tab" data-view="workloads" title="Deployment、StatefulSet、DaemonSet、Job和CronJob等工作负载">Groups</div>
-          <div className="module-tab" data-view="pods" title="Pod运行阶段、容器状态、重启和调度情况">Pods</div>
           <div className="module-tab" data-view="services" title="展示后端运行在上海资源段的Services；ServiceEntry为集群级配置">Services</div>
           <div className="module-tab" data-view="serviceentry" title="K8s ServiceEntry资源，用于定义网格出口流量规则">ServiceEntry</div>
 	        </nav>
@@ -1126,13 +1166,6 @@ const ClusterOperationsHomepage = () => {
           <NodeTable selectedClusterKey={selectedClusterKey} />
         </section>
 
-        <section className="workloads-view">
-          <PdGroupsPage selectedClusterKey={selectedClusterKey} />
-        </section>
-        <section className="pods-view">
-          <ClusterResourceTables view="pod" selectedClusterKey={selectedClusterKey} />
-        </section>
-
         <section className="services-view">
           <ClusterResourceTables view="svc" selectedClusterKey={selectedClusterKey} />
         </section>
@@ -1155,7 +1188,7 @@ const ClusterOperationsHomepage = () => {
     />
     <Drawer
       rootClassName="cluster-task-drawer"
-      title="集群创建任务"
+      title="集群创建 / 接入任务"
       open={taskDrawerOpen}
       onClose={() => setTaskDrawerOpen(false)}
       size={720}
@@ -1166,15 +1199,21 @@ const ClusterOperationsHomepage = () => {
           {clusterTasks.map((task) => {
             const progress = getClusterTaskProgress(task, taskClock);
             const finished = progress >= 100;
-            const currentStage = [...clusterTaskMilestones].reverse().find((item) => progress >= item.threshold);
+            const milestones = getClusterTaskMilestones(task);
+            const currentStage = [...milestones].reverse().find((item) => progress >= item.threshold);
+            const taskStatusLabel = finished ? (task.accessMode === 'token' ? '已接入' : '已完成') : '执行中';
             return (
               <article key={task.key} className={finished ? 'finished' : ''}>
                 <header>
                   <div>
                     <strong>{task.clusterName}</strong>
-                    <small>{task.machineCount} 台机器 · Master {task.masterCount} · Worker {task.workerCount}</small>
+                    <small>
+                      {task.accessMode === 'token'
+                        ? 'Token 接入 · 兼容旧版接入'
+                        : `${task.machineCount} 台机器 · Master ${task.masterCount} · Worker ${task.workerCount}`}
+                    </small>
                   </div>
-                  <Tag color={finished ? 'success' : 'processing'}>{finished ? '已完成' : '执行中'}</Tag>
+                  <Tag color={finished ? 'success' : 'processing'}>{taskStatusLabel}</Tag>
                 </header>
                 <div className="cluster-task-package">
                   <span>{task.k8sVersion}</span>
@@ -1191,7 +1230,7 @@ const ClusterOperationsHomepage = () => {
           })}
         </div>
       ) : (
-        <Empty description="还没有集群创建任务" />
+        <Empty description="还没有集群创建 / 接入任务" />
       )}
     </Drawer>
     <Modal
@@ -1204,7 +1243,7 @@ const ClusterOperationsHomepage = () => {
     >
       {selectedLogTask && (
         <div className="cluster-task-logs">
-          {clusterTaskMilestones
+          {getClusterTaskMilestones(selectedLogTask)
             .filter((item) => getClusterTaskProgress(selectedLogTask, taskClock) >= item.threshold)
             .map((item) => (
               <div key={item.stage}>
@@ -1260,9 +1299,27 @@ type NodeRow = {
   memoryCache: string;
   disk: string;
   diskUsed: string;
-  disks: Array<{ name: string; total: string; used: string; type: string; mountPath: string; status: string; readSpeed: string; writeSpeed: string; iops: string; latency: string; readPressure: number; writePressure: number }>;
+  disks: NodeDisk[];
   networkCards: Array<{ name: string; ip: string; speed: string; status: string; type: string; mac: string; driver: string; pcie: string; linkStatus: string; duplex: string; lossRate: string; errors: number; inbound: string; outbound: string; bandwidthUtil: number; pps: string; tcpConns: number; avgLatency: string; connStatus: string }>;
   pods: Array<{ name: string; status: string; namespace: string; ready: string }>;
+};
+
+type NodeDisk = {
+  name: string;
+  total: string;
+  used: string;
+  free: string;
+  type: string;
+  source: 'local' | 'external';
+  mountNode: string;
+  mountPath: string;
+  status: string;
+  readSpeed: string;
+  writeSpeed: string;
+  iops: string;
+  latency: string;
+  readPressure: number;
+  writePressure: number;
 };
 
 const getCapacityPercent = (used: string | number, total: string | number) => {
@@ -1295,7 +1352,7 @@ const UsageRing = ({ percent, sub }: { percent: number; sub?: string }) => {
 
 const nodeTabs = ['故障定位', 'CPU', '内存', 'GPU', '磁盘详情', '网卡详情', 'Pods列表'];
 
-const DiskDetailDrawer = ({ disk, nodeName, open, onClose }: { disk: { name: string; total: string; used: string; type: string; mountPath: string; status: string; readSpeed: string; writeSpeed: string; iops: string; latency: string; readPressure: number; writePressure: number } | null; nodeName: string; open: boolean; onClose: () => void }) => {
+const DiskDetailDrawer = ({ disk, nodeName, open, onClose }: { disk: NodeDisk | null; nodeName: string; open: boolean; onClose: () => void }) => {
   if (!disk) return null;
   const totalValue = Number(disk.total.match(/[\d.]+/)?.[0] || 0);
   const usedValue = Number(disk.used.match(/[\d.]+/)?.[0] || 0);
@@ -1314,7 +1371,7 @@ const DiskDetailDrawer = ({ disk, nodeName, open, onClose }: { disk: { name: str
       title={(
         <div className="disk-drawer-title">
           <strong>{disk.name}</strong>
-          <span>{disk.type} · {nodeName}</span>
+          <span>{disk.type} · 挂载到 {disk.mountNode || nodeName}</span>
         </div>
       )}
       placement="right"
@@ -1329,7 +1386,7 @@ const DiskDetailDrawer = ({ disk, nodeName, open, onClose }: { disk: { name: str
             <i />
             {isHealthy ? '运行正常' : '存在告警'}
           </span>
-          <span>{disk.mountPath}</span>
+          <span>{disk.mountNode || nodeName} · {disk.mountPath}</span>
         </div>
 
         <section className={`disk-capacity-overview ${usageTone}`}>
@@ -1345,7 +1402,7 @@ const DiskDetailDrawer = ({ disk, nodeName, open, onClose }: { disk: { name: str
           </div>
           <div className="disk-capacity-legend">
             <div><span>已使用</span><strong>{usedValue.toFixed(2)} {capacityUnit}</strong></div>
-            <div><span>可用</span><strong>{freeValue.toFixed(2)} {capacityUnit}</strong></div>
+            <div><span>可用</span><strong>{disk.free || `${freeValue.toFixed(2)} ${capacityUnit}`}</strong></div>
             <div><span>总容量</span><strong>{totalValue.toFixed(2)} {capacityUnit}</strong></div>
           </div>
         </section>
@@ -1357,8 +1414,10 @@ const DiskDetailDrawer = ({ disk, nodeName, open, onClose }: { disk: { name: str
           </div>
           <div className="disk-detail-basic-grid">
             <div><span>设备类型</span><strong>{disk.type}</strong></div>
-            <div><span>所属节点</span><strong>{nodeName}</strong></div>
+            <div><span>存储来源</span><strong>{disk.source === 'external' ? '外置存储' : '本地磁盘'}</strong></div>
+            <div><span>挂载机器</span><strong>{disk.mountNode || nodeName}</strong></div>
             <div><span>挂载路径</span><strong>{disk.mountPath}</strong></div>
+            <div><span>可用空间</span><strong>{disk.free || `${freeValue.toFixed(2)} ${capacityUnit}`}</strong></div>
             <div><span>设备状态</span><strong className={isHealthy ? 'is-healthy' : 'is-abnormal'}>{isHealthy ? '正常' : '告警'}</strong></div>
           </div>
         </section>
@@ -1558,7 +1617,7 @@ const GpuDetailDrawer = ({ card, nodeName, open, onClose }: {
 
 const NodeExpandContent = ({ node, initialTab = 'CPU' }: { node: NodeRow; initialTab?: string }) => {
   const [activeTab, setActiveTab] = useState(initialTab);
-  const [diskDetail, setDiskDetail] = useState<{ name: string; total: string; used: string; type: string; mountPath: string; status: string; readSpeed: string; writeSpeed: string; iops: string; latency: string; readPressure: number; writePressure: number } | null>(null);
+  const [diskDetail, setDiskDetail] = useState<NodeDisk | null>(null);
   const [netDetail, setNetDetail] = useState<NetCardDetail | null>(null);
   const [gpuDetail, setGpuDetail] = useState<{ index: number; model: string; spec: string; memoryTotal: string; memoryUsed: string; memoryFree: string; utilization: number; power: number; temperature: number; status: string } | null>(null);
 
@@ -1765,19 +1824,29 @@ const NodeExpandContent = ({ node, initialTab = 'CPU' }: { node: NodeRow; initia
               <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>名称</th>
               <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>总量</th>
               <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>已用</th>
+              <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>可用</th>
               <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>类型</th>
-              <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>挂载路径</th>
+              <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>挂载位置</th>
               <th style={{ padding: '8px 12px', borderBottom: '1px solid #E5E6EB' }}>状态</th>
             </tr>
           </thead>
           <tbody>
             {node.disks.map((d) => (
-              <tr key={d.name}>
-                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}><a style={{ cursor: 'pointer', color: '#6951FF', fontWeight: 500 }} onClick={() => setDiskDetail(d)}>{d.name}</a></td>
+              <tr key={d.name} className={d.source === 'external' ? 'node-detail-external-storage-row' : undefined}>
+                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}>
+                  <a style={{ cursor: 'pointer', color: '#6951FF', fontWeight: 500 }} onClick={() => setDiskDetail(d)}>{d.name}</a>
+                  {d.source === 'external' && <span className="node-detail-storage-kind">外置</span>}
+                </td>
                 <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5', color: '#4E5969' }}>{d.total}</td>
                 <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5', color: '#4E5969' }}>{d.used}</td>
+                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5', color: '#4E5969' }}>{d.free}</td>
                 <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5', color: '#4E5969' }}>{d.type}</td>
-                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5', color: '#4E5969' }}>{d.mountPath}</td>
+                <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5', color: '#4E5969' }}>
+                  <span className="node-detail-storage-location">
+                    <strong>{d.mountNode || node.name}</strong>
+                    <small>{d.mountPath}</small>
+                  </span>
+                </td>
                 <td style={{ padding: '8px 12px', borderBottom: '1px solid #F2F3F5' }}>
                   <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: d.status === 'normal' ? '#00B42A' : '#FF7D00', marginRight: 6 }} />
                   <span style={{ color: d.status === 'normal' ? '#00B42A' : '#FF7D00' }}>{d.status === 'normal' ? '正常' : '告警'}</span>
@@ -1887,14 +1956,44 @@ const buildMockNodeRow = (name: string, matchedPods: NodeRow['pods'], index: num
     temperature: 55 + (gi * 5 + s * 3) % 30,
     status: 'active' as const,
   }));
-  const disks: NodeRow['disks'] = [{
-    name: '/dev/sda', total: '3.86 TB',
-    used: `${(1.2 + (s * 0.1) % 1.5).toFixed(2)} TB`,
-    type: 'NVMe SSD', mountPath: '/data', status: 'normal',
-    readSpeed: `${700 + (s * 50) % 300} MB/s`, writeSpeed: `${350 + (s * 25) % 200} MB/s`,
-    iops: `${70 + (s * 5) % 30}K`, latency: `${(0.5 + (s * 0.1) % 1.5).toFixed(1)} ms`,
-    readPressure: 40 + (s * 8) % 40, writePressure: 25 + (s * 5) % 30,
-  }];
+  const localDiskUsed = 1.2 + (s * 0.1) % 1.5;
+  const externalStorageUsed = 54 + (s * 2.7) % 24;
+  const disks: NodeRow['disks'] = [
+    {
+      name: '/dev/sda',
+      total: '3.86 TB',
+      used: `${localDiskUsed.toFixed(2)} TB`,
+      free: `${Math.max(0, 3.86 - localDiskUsed).toFixed(2)} TB`,
+      type: 'NVMe SSD',
+      source: 'local',
+      mountNode: name,
+      mountPath: '/data',
+      status: 'normal',
+      readSpeed: `${700 + (s * 50) % 300} MB/s`,
+      writeSpeed: `${350 + (s * 25) % 200} MB/s`,
+      iops: `${70 + (s * 5) % 30}K`,
+      latency: `${(0.5 + (s * 0.1) % 1.5).toFixed(1)} ms`,
+      readPressure: 40 + (s * 8) % 40,
+      writePressure: 25 + (s * 5) % 30,
+    },
+    {
+      name: 'external-model-store',
+      total: '120.00 TB',
+      used: `${externalStorageUsed.toFixed(2)} TB`,
+      free: `${Math.max(0, 120 - externalStorageUsed).toFixed(2)} TB`,
+      type: '外置存储',
+      source: 'external',
+      mountNode: name,
+      mountPath: '/mnt/external/model-store',
+      status: 'normal',
+      readSpeed: `${460 + (s * 17) % 140} MB/s`,
+      writeSpeed: `${280 + (s * 13) % 120} MB/s`,
+      iops: `${32 + (s * 3) % 18}K`,
+      latency: `${(1.8 + (s * 0.13) % 1.1).toFixed(1)} ms`,
+      readPressure: 28 + (s * 5) % 36,
+      writePressure: 22 + (s * 4) % 30,
+    },
+  ];
   const networkCards: NodeRow['networkCards'] = [
     { name: 'eth0', ip: baseIp, speed: '25Gbps', status: 'active', type: 'Ethernet', mac: `00:1A:2B:3C:${String(s).padStart(2, '0').slice(-2)}:01`, driver: 'mlx5_core', pcie: '0000:3b:00.0', linkStatus: 'UP', duplex: 'Full Duplex', lossRate: '0.001%', errors: 0, inbound: `${(5 + (s * 0.5) % 15).toFixed(1)} Gbps`, outbound: `${(8 + (s * 0.7) % 12).toFixed(1)} Gbps`, bandwidthUtil: 35 + (s * 5) % 45, pps: `${600 + (s * 50) % 400}K`, tcpConns: 8000 + (s * 300) % 5000, avgLatency: `${(0.25 + (s * 0.02) % 0.3).toFixed(2)}ms`, connStatus: '正常' },
     { name: 'ib0', ip: `192.168.200.${(s % 254) + 1}`, speed: '200Gbps', status: 'active', type: 'InfiniBand', mac: 'N/A', driver: 'mlx5_ib', pcie: '0000:3b:00.1', linkStatus: 'UP', duplex: 'Full Duplex', lossRate: '0.000%', errors: 0, inbound: `${(80 + (s * 10) % 100).toFixed(1)} Gbps`, outbound: `${(60 + (s * 8) % 90).toFixed(1)} Gbps`, bandwidthUtil: 55 + (s * 5) % 35, pps: `${(2 + (s * 0.3) % 4).toFixed(1)}M`, tcpConns: 0, avgLatency: `${(0.08 + (s * 0.02) % 0.12).toFixed(2)}ms`, connStatus: '正常' },
@@ -1918,7 +2017,7 @@ const buildMockNodeRow = (name: string, matchedPods: NodeRow['pods'], index: num
     memoryShared: '—', memoryBalloon: '0 GB', memoryCompression: '—',
     memorySwap: '—', memoryCache: '—',
     disk: '3.86 TB',
-    diskUsed: `${(1.2 + (s * 0.1) % 1.5).toFixed(2)} TB`,
+    diskUsed: `${localDiskUsed.toFixed(2)} TB`,
     disks, networkCards, pods: matchedPods,
   };
 };
@@ -2207,7 +2306,7 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
   }), [faultFocus, keyword, scopedNodeRows]);
 
   const columns: ColumnsType<NodeRow> = [
-    { title: '节点', key: 'name', width: 250, render: (_, r) => (
+    { title: '节点', key: 'name', width: 200, render: (_, r) => (
       <div className="node-list-identity">
         <div className="node-list-name-line">
           <strong>{r.name}</strong>
@@ -2228,7 +2327,7 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
         <span>{r.ip} · {r.clusterName}</span>
       </div>
     ) },
-    { title: '角色与标签', key: 'label', width: 250, render: (_, r) => {
+    { title: '角色与标签', key: 'label', width: 180, render: (_, r) => {
       const tags = getNodeTags(r);
       const visibleTags = tags.slice(0, 3);
       const hiddenTags = tags.slice(3);
@@ -2264,7 +2363,7 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
         </div>
       );
     } },
-    { title: 'CPU / 内存', key: 'compute', width: 255, render: (_, r) => {
+    { title: 'CPU / 内存', key: 'compute', width: 320, render: (_, r) => {
       if (r.status === 'pending') return <span className="node-list-awaiting">接入后自动采集</span>;
       const cpuPercent = r.cpu > 0 ? Math.round((r.cpuUsed / r.cpu) * 100) : 0;
       const memoryPercent = Math.round(getCapacityPercent(r.memoryUsed, r.memory));
@@ -2283,7 +2382,7 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
         </div>
       );
     } },
-    { title: 'GPU / 显存', key: 'accelerator', width: 225, render: (_, r) => (
+    { title: 'GPU / 显存', key: 'accelerator', width: 250, render: (_, r) => (
       r.status === 'pending'
         ? <span className="node-list-awaiting">待采集</span>
         : (
@@ -2303,13 +2402,13 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
           </div>
         )
     ) },
-    { title: '状态', key: 'status', width: 120, render: (_, r) => (
+    { title: '状态', key: 'status', width: 112, render: (_, r) => (
       <span className={`node-list-status is-${r.status}`}>
         <i />
         {nodeStatusText[r.status]}
       </span>
     ) },
-    { title: '操作', key: 'action', width: 196, fixed: 'right', className: 'node-list-action-cell', render: (_, r) => (
+    { title: '操作', key: 'action', width: 174, fixed: 'right', className: 'node-list-action-cell', render: (_, r) => (
       <div className="node-row-actions" onClick={(event) => event.stopPropagation()}>
         <Tooltip title="执行 Drain，自动迁移业务负载" placement="top">
           <Button
@@ -2397,7 +2496,8 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
             rowKey="key"
             columns={columns}
             dataSource={filteredData}
-            scroll={{ x: 1520 }}
+            scroll={{ x: 1416 }}
+            tableLayout="fixed"
             pagination={{ pageSize: 10, size: 'small', showTotal: (total) => '共 ' + total + ' 个' }}
             rowClassName={(row) => [
               faultFocus?.nodeKey === row.key ? 'node-fault-focus-row' : '',

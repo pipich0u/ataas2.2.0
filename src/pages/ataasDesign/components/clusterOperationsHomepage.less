@@ -7024,15 +7024,17 @@
   }
 
   .node-list-resource-stack {
+    width: 100%;
+    max-width: 258px;
     display: grid;
     gap: 10px;
   }
 
   .node-list-resource-line {
     display: grid;
-    grid-template-columns: 38px minmax(84px, 1fr) 38px;
+    grid-template-columns: 36px minmax(132px, 1fr) 42px;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
   }
 
   .node-list-resource-line > span {
@@ -7067,6 +7069,8 @@
   }
 
   .node-list-capacity {
+    width: 100%;
+    max-width: 218px;
     display: grid;
     gap: 8px;
   }
@@ -7074,9 +7078,9 @@
   .node-list-capacity > div {
     min-width: 0;
     display: grid;
-    grid-template-columns: 48px minmax(0, 1fr);
+    grid-template-columns: 44px minmax(0, 1fr);
     align-items: center;
-    gap: 8px;
+    gap: 10px;
   }
 
   .node-list-capacity span {
@@ -7597,6 +7601,46 @@
 
   .node-detail-table strong { font-weight: 400; }
 
+  .node-detail-storage-kind {
+    margin-left: 8px;
+    padding: 1px 6px;
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid #bcebd9;
+    border-radius: 4px;
+    color: #008a5d;
+    background: #f2fffa;
+    font-size: 10px;
+    line-height: 16px;
+    vertical-align: middle;
+  }
+
+  .node-detail-storage-location {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .node-detail-storage-location strong {
+    overflow: hidden;
+    color: #344054;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 18px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .node-detail-storage-location small {
+    overflow: hidden;
+    color: #86909c;
+    font-size: 11px;
+    line-height: 17px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .node-fault-locator {
     padding: 24px 26px;
     border-color: #e5e6eb;
@@ -7729,6 +7773,15 @@
     gap: 8px;
   }
 
+  .resource-pod-toolbar.is-global {
+    align-items: flex-start;
+  }
+
+  .resource-pod-toolbar.is-global .resource-table-toolbar-left {
+    flex: 1 1 auto;
+    flex-wrap: wrap;
+  }
+
   .resource-namespace-select {
     width: 156px;
   }
@@ -7737,8 +7790,20 @@
     width: 124px;
   }
 
+  .resource-pod-role-select {
+    width: 130px;
+  }
+
+  .resource-provider-select { width: 128px; }
+  .resource-datacenter-select { width: 180px; }
+  .resource-cluster-select { width: 150px; }
+
   .resource-namespace-select.ant-select,
-  .resource-pod-status-select.ant-select {
+  .resource-pod-status-select.ant-select,
+  .resource-pod-role-select.ant-select,
+  .resource-provider-select.ant-select,
+  .resource-datacenter-select.ant-select,
+  .resource-cluster-select.ant-select {
     height: 32px;
     padding: 4px 10px;
     border: 1px solid #e5e6eb !important;
@@ -7748,7 +7813,11 @@
   }
 
   .resource-namespace-select .ant-select-selector,
-  .resource-pod-status-select .ant-select-selector {
+  .resource-pod-status-select .ant-select-selector,
+  .resource-pod-role-select .ant-select-selector,
+  .resource-provider-select .ant-select-selector,
+  .resource-datacenter-select .ant-select-selector,
+  .resource-cluster-select .ant-select-selector {
     height: 32px !important;
     padding: 0 10px !important;
     border-color: #e5e6eb !important;
@@ -7758,14 +7827,68 @@
 
   .resource-namespace-select .ant-select-selection-item,
   .resource-pod-status-select .ant-select-selection-item,
+  .resource-pod-role-select .ant-select-selection-item,
+  .resource-provider-select .ant-select-selection-item,
+  .resource-datacenter-select .ant-select-selection-item,
+  .resource-cluster-select .ant-select-selection-item,
   .resource-namespace-select .ant-select-selection-placeholder,
   .resource-pod-status-select .ant-select-selection-placeholder,
+  .resource-pod-role-select .ant-select-selection-placeholder,
+  .resource-provider-select .ant-select-selection-placeholder,
+  .resource-datacenter-select .ant-select-selection-placeholder,
+  .resource-cluster-select .ant-select-selection-placeholder,
   .resource-namespace-select .ant-select-content,
-  .resource-pod-status-select .ant-select-content {
+  .resource-pod-status-select .ant-select-content,
+  .resource-pod-role-select .ant-select-content,
+  .resource-provider-select .ant-select-content,
+  .resource-datacenter-select .ant-select-content,
+  .resource-cluster-select .ant-select-content {
     color: #4e5969;
     font-size: 13px;
     font-weight: 400;
     line-height: 22px !important;
+  }
+
+  .resource-ownership-tags {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+  }
+
+  .resource-ownership-tags > span {
+    display: inline-flex;
+    min-width: 0;
+    align-items: center;
+    max-width: 160px;
+    padding: 2px 6px;
+    overflow: hidden;
+    border: 1px solid #e5eaf2;
+    border-radius: 4px;
+    background: #f7f8fa;
+    color: #4e5969;
+    font-size: 12px;
+    line-height: 18px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .resource-ownership-tags > span:first-child {
+    max-width: 72px;
+  }
+
+  .resource-ownership-tags > span:last-child {
+    max-width: 88px;
+  }
+
+  .is-global-pod-table .ant-table-thead > tr > th {
+    padding-right: 12px !important;
+    padding-left: 12px !important;
+  }
+
+  .is-global-pod-table .ant-table-tbody > tr > td {
+    padding-right: 12px !important;
+    padding-left: 12px !important;
   }
 
   .resource-create-devpod.ant-btn {
@@ -10152,10 +10275,25 @@
 }
 
 .cluster-operations-homepage {
+  .tree-header {
+    box-sizing: border-box;
+    height: 104px;
+    flex: 0 0 104px;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 12px;
+  }
+
   .tree-header-actions {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    height: 30px;
     align-items: center;
-    gap: 6px;
+    justify-content: flex-start;
+    gap: 8px;
   }
 
   .resource-tree-task-button.ant-btn {
@@ -10236,6 +10374,15 @@
 
   .resource-tree-create-button.ant-btn .anticon {
     font-size: 11px;
+  }
+
+  .tree-header .tree-header-actions .resource-tree-task-button.ant-btn,
+  .tree-header .tree-header-actions .resource-tree-create-button.ant-btn.ant-btn-primary {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: 30px !important;
+    min-height: 30px !important;
+    max-height: 30px !important;
   }
 
   .overview-view {
@@ -10539,6 +10686,48 @@
   .devpod-create-mode .ant-segmented-item-selected {
     color: #6951ff;
     box-shadow: none;
+  }
+
+  .devpod-create-target {
+    margin-bottom: 18px;
+    display: grid;
+    grid-template-columns: 88px minmax(0, 1fr);
+    align-items: center;
+    gap: 14px;
+    padding: 12px 14px;
+    border: 1px solid #eef0f4;
+    border-radius: 6px;
+    background: #f7f8fa;
+  }
+
+  .devpod-create-target > span {
+    color: #4e5969;
+    font-size: 13px;
+    line-height: 20px;
+  }
+
+  .devpod-create-target .ant-select {
+    width: 100%;
+  }
+
+  .devpod-create-target .ant-select-selector {
+    height: 34px !important;
+    border-color: #e5e6eb !important;
+    border-radius: 6px !important;
+    background: #fff !important;
+    box-shadow: none !important;
+  }
+
+  .devpod-create-target .ant-select-selection-item,
+  .devpod-create-target .ant-select-selection-placeholder {
+    color: #4e5969;
+    font-size: 13px;
+    line-height: 32px !important;
+  }
+
+  .devpod-create-target .ant-select:hover .ant-select-selector,
+  .devpod-create-target .ant-select-focused .ant-select-selector {
+    border-color: #6951ff !important;
   }
 
   .devpod-yaml-input {

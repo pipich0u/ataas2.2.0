@@ -25,6 +25,7 @@ import type { ColumnsType } from 'antd/es/table';
 import deepseekLogo from '../deepseek-logo.svg';
 import glmLogo from '../glm-logo.svg';
 import kimiLogo from '../kimi-logo.svg';
+import { CLUSTER_OPERATIONS_CLUSTER_DATA } from './clusterOperationsRuntime';
 import ModelDownloadTaskModal, { type ModelDownloadTaskValues } from './modelDownloadTaskModal';
 import './distributionCenterPage.less';
 
@@ -64,6 +65,7 @@ type ClusterNode = {
   name: string;
   ip: string;
   status: 'Ready' | 'NotReady' | 'Disabled';
+  diskTotalGb: number;
   diskFreeGb: number;
 };
 
@@ -115,67 +117,56 @@ const createClusterNodes = (
   count: number,
   notReady: number[] = [],
   disabled: number[] = [],
+  startNumber = 1,
 ) => Array.from({ length: count }, (_, index): ClusterNode => {
-  const number = index + 1;
-  const status = notReady.includes(number) ? 'NotReady' : disabled.includes(number) ? 'Disabled' : 'Ready';
+  const number = startNumber + index;
+  const sequence = index + 1;
+  const status = notReady.includes(sequence) ? 'NotReady' : disabled.includes(sequence) ? 'Disabled' : 'Ready';
+  const diskTotalGb = number % 9 === 0 ? 4096 : number % 4 === 0 ? 2048 : 1024;
+  const regularFreeGb = 260 + ((number * 137) % Math.max(520, diskTotalGb - 360));
+  const nearlyFullFreeGb = number % 17 === 0 ? 96 + ((number * 11) % 90) : undefined;
+  const diskFreeGb = Math.min(diskTotalGb - 80, nearlyFullFreeGb ?? regularFreeGb);
   return {
     id: `${prefix}-${String(number).padStart(2, '0')}`,
     name: `${prefix}-${String(number).padStart(2, '0')}`,
-    ip: `10.${24 + (prefix.length % 5)}.${16 + Math.floor(index / 250)}.${20 + (index % 220)}`,
+    ip: prefix.startsWith('st-')
+      ? `192.168.${100 + index}.${index + 1}`
+      : `10.${24 + (prefix.length % 5)}.${16 + Math.floor(index / 250)}.${20 + (index % 220)}`,
     status,
-    diskFreeGb: 420 + ((number * 137) % 1860),
+    diskTotalGb,
+    diskFreeGb,
   };
 });
 
+const createOperationsCluster = (
+  key: keyof typeof CLUSTER_OPERATIONS_CLUSTER_DATA,
+  prefix: string,
+  startNumber: number,
+  credential: string,
+): ClusterRecord => {
+  const cluster = CLUSTER_OPERATIONS_CLUSTER_DATA[key];
+  const total = Number(cluster.nodes) || 0;
+  const abnormal = Number(cluster.abnormal) || 0;
+  const notReady = Array.from({ length: abnormal }, (_, index) => Math.max(1, total - index));
+  return {
+    id: cluster.name,
+    name: cluster.name,
+    supplier: cluster.provider,
+    dataCenter: cluster.dc,
+    credential,
+    nodes: createClusterNodes(prefix, total, notReady, [], startNumber),
+  };
+};
+
 const clusters: ClusterRecord[] = [
-  {
-    id: 'gpu-prod-01',
-    name: 'gpu-prod-01',
-    supplier: '厂商A · xxx科技',
-    dataCenter: '上海一号数据中心',
-    credential: 'sh-prod-model-key',
-    nodes: createClusterNodes('gpu-node', 82, [7, 42, 57], [19, 20]),
-  },
-  {
-    id: 'cluster-sh-02',
-    name: 'cluster-sh-02',
-    supplier: '厂商A · xxx科技',
-    dataCenter: '上海一号数据中心',
-    credential: 'sh-prod-model-key',
-    nodes: createClusterNodes('sh-node', 24, [4], [18]),
-  },
-  {
-    id: 'gpu-test-sh-01',
-    name: 'gpu-test-sh-01',
-    supplier: '厂商A · xxx科技',
-    dataCenter: '上海二号数据中心',
-    credential: 'sh-test-model-key',
-    nodes: createClusterNodes('test-node', 12, [9]),
-  },
-  {
-    id: 'gpu-prod-zz-01',
-    name: 'gpu-prod-zz-01',
-    supplier: '厂商B · 中原算力',
-    dataCenter: '郑州高新数据中心',
-    credential: 'zz-prod-model-key',
-    nodes: createClusterNodes('zz-node', 64, [11, 36], [52]),
-  },
-  {
-    id: 'training-zz-02',
-    name: 'training-zz-02',
-    supplier: '厂商B · 中原算力',
-    dataCenter: '郑州高新数据中心',
-    credential: 'zz-prod-model-key',
-    nodes: createClusterNodes('train-node', 32, [15]),
-  },
-  {
-    id: 'gpu-prod-bj-01',
-    name: 'gpu-prod-bj-01',
-    supplier: '厂商C · 华北云',
-    dataCenter: '北京亦庄数据中心',
-    credential: 'bj-prod-model-key',
-    nodes: createClusterNodes('bj-node', 40, [23], [31]),
-  },
+  createOperationsCluster('st', 'st-b300', 11, 'st-model-deploy-key'),
+  createOperationsCluster('shanghai-inference-02', 'st-b300', 31, 'st-model-deploy-key'),
+  createOperationsCluster('shanghai-inference-03', 'st-b300', 51, 'st-model-deploy-key'),
+  createOperationsCluster('shanghai-lingang', 'lg-b300', 11, 'lingang-model-deploy-key'),
+  createOperationsCluster('suzhou-prod', 'sz-b300', 11, 'suzhou-model-deploy-key'),
+  createOperationsCluster('hangzhou-online', 'hz-b300', 11, 'hangzhou-model-deploy-key'),
+  createOperationsCluster('guangzhou-test', 'bx-b300', 11, 'gz-model-deploy-key'),
+  createOperationsCluster('beijing-prod', 'bd-b300', 11, 'yc-model-deploy-key'),
 ];
 
 const initialModels: ModelRecord[] = [
@@ -186,17 +177,17 @@ const initialModels: ModelRecord[] = [
     copies: [
       { id: 'glm-52-a', host: 'ops-transfer-01', ip: '10.24.16.21', path: '/data/models/GLM-5.2', sizeGb: 238 },
       { id: 'glm-52-b', host: 'model-store-02', ip: '10.24.16.32', path: '/models/GLM-5.2', sizeGb: 238 },
-      { id: 'glm-52-c', host: 'gpu-node-07', ip: '10.24.18.107', path: '/data/models/GLM-5.2', sizeGb: 238 },
-      { id: 'glm-52-d', host: 'gpu-node-12', ip: '10.24.18.112', path: '/data/models/GLM-5.2', sizeGb: 238 },
-      { id: 'glm-52-e', host: 'gpu-node-18', ip: '10.24.18.118', path: '/data/models/GLM-5.2', sizeGb: 238 },
+      { id: 'glm-52-c', host: 'st-b300-11', ip: '192.168.100.1', path: '/data/models/GLM-5.2', sizeGb: 238 },
+      { id: 'glm-52-d', host: 'st-b300-12', ip: '192.168.101.2', path: '/data/models/GLM-5.2', sizeGb: 238 },
+      { id: 'glm-52-e', host: 'st-b300-13', ip: '192.168.102.3', path: '/data/models/GLM-5.2', sizeGb: 238 },
     ],
   },
   { id: 'deepseek-v4', name: 'DeepSeek-V4-Flash-Base', type: '大语言模型', copies: [{ id: 'dsv4-a', host: 'model-store-02', ip: '10.24.16.32', path: '/models/DeepSeek-V4-Flash-Base', sizeGb: 315 }] },
-  { id: 'kimi-k27', name: 'Kimi-K2.7-Code', type: '代码模型', copies: [{ id: 'kimi-k27-a', host: 'ops-transfer-01', ip: '10.24.16.21', path: '/data/models/Kimi-K2.7-Code', sizeGb: 284 }, { id: 'kimi-k27-b', host: 'gpu-node-03', ip: '10.24.18.103', path: '/models/Kimi-K2.7-Code', sizeGb: 284 }] },
+  { id: 'kimi-k27', name: 'Kimi-K2.7-Code', type: '代码模型', copies: [{ id: 'kimi-k27-a', host: 'ops-transfer-01', ip: '10.24.16.21', path: '/data/models/Kimi-K2.7-Code', sizeGb: 284 }, { id: 'kimi-k27-b', host: 'st-b300-31', ip: '192.168.100.1', path: '/models/Kimi-K2.7-Code', sizeGb: 284 }] },
   { id: 'kimi-k25', name: 'Kimi-K2.5', type: '大语言模型', copies: [{ id: 'kimi-k25-a', host: 'model-store-02', ip: '10.24.16.32', path: '/models/Kimi-K2.5', sizeGb: 276 }] },
-  { id: 'deepseek-r1', name: 'DeepSeek-R1-0528', type: '推理模型', copies: [{ id: 'dsr1-a', host: 'model-store-02', ip: '10.24.16.32', path: '/models/DeepSeek-R1-0528', sizeGb: 642 }, { id: 'dsr1-b', host: 'gpu-node-01', ip: '10.24.18.101', path: '/data/models/DeepSeek-R1-0528', sizeGb: 642 }] },
+  { id: 'deepseek-r1', name: 'DeepSeek-R1-0528', type: '推理模型', copies: [{ id: 'dsr1-a', host: 'model-store-02', ip: '10.24.16.32', path: '/models/DeepSeek-R1-0528', sizeGb: 642 }, { id: 'dsr1-b', host: 'st-b300-11', ip: '192.168.100.1', path: '/data/models/DeepSeek-R1-0528', sizeGb: 642 }] },
   { id: 'glm-51', name: 'GLM-5.1-FP8', type: '量化模型', copies: [{ id: 'glm-51-a', host: 'model-store-02', ip: '10.24.16.32', path: '/models/GLM-5.1-FP8', sizeGb: 132 }] },
-  { id: 'kimi-k2', name: 'Kimi-K2-Instruct', type: '大语言模型', copies: [{ id: 'kimi-k2-a', host: 'gpu-node-06', ip: '10.24.18.106', path: '/data/models/Kimi-K2-Instruct', sizeGb: 278 }, { id: 'kimi-k2-b', host: 'model-store-02', ip: '10.24.16.32', path: '/models/Kimi-K2-Instruct', sizeGb: 278 }] },
+  { id: 'kimi-k2', name: 'Kimi-K2-Instruct', type: '大语言模型', copies: [{ id: 'kimi-k2-a', host: 'st-b300-12', ip: '192.168.101.2', path: '/data/models/Kimi-K2-Instruct', sizeGb: 278 }, { id: 'kimi-k2-b', host: 'model-store-02', ip: '10.24.16.32', path: '/models/Kimi-K2-Instruct', sizeGb: 278 }] },
 ];
 
 const makeTaskNodes = (
@@ -244,7 +235,7 @@ const initialTasks: DistributionTask[] = [
     model: 'GLM-5.2',
     type: 'distribution',
     source: 'ops-transfer-01',
-    target: 'gpu-prod-01 · 指定 8 个 Nodes',
+    target: 'st · 指定 2 个 Nodes',
     progress: 42,
     speed: '3.24 GB/s',
     status: 'running',
@@ -252,12 +243,12 @@ const initialTasks: DistributionTask[] = [
     updatedText: '2 分钟前',
     sourcePath: '/data/models/GLM-5.2',
     targetPath: '/data/models/GLM-5.2',
-    targetCluster: 'gpu-prod-01',
+    targetCluster: 'st',
     targetMode: 'nodes',
-    credential: 'sh-prod-model-key',
+    credential: 'st-model-deploy-key',
     verify: true,
     sizeGb: 238,
-    nodes: makeTaskNodes('gpu-prod-01', 8, 'running'),
+    nodes: makeTaskNodes('st', 2, 'running'),
   },
   {
     id: 1005,
@@ -279,11 +270,11 @@ const initialTasks: DistributionTask[] = [
   },
   {
     id: 1004,
-    name: '同步 DeepSeek-R1 至测试集群',
+    name: '同步 DeepSeek-R1 至广州测试集群',
     model: 'DeepSeek-R1-0528',
     type: 'distribution',
     source: 'model-store-02',
-    target: 'gpu-test-sh-01 · 指定 4 个 Nodes',
+    target: 'guangzhou-test · 指定 1 个 Nodes',
     progress: 100,
     speed: '—',
     status: 'completed',
@@ -291,12 +282,12 @@ const initialTasks: DistributionTask[] = [
     updatedText: '1 小时前',
     sourcePath: '/models/DeepSeek-R1-0528',
     targetPath: '/data/models/DeepSeek-R1-0528',
-    targetCluster: 'gpu-test-sh-01',
+    targetCluster: 'guangzhou-test',
     targetMode: 'nodes',
-    credential: 'sh-test-model-key',
+    credential: 'gz-model-deploy-key',
     verify: true,
     sizeGb: 642,
-    nodes: makeTaskNodes('gpu-test-sh-01', 4, 'completed'),
+    nodes: makeTaskNodes('guangzhou-test', 1, 'completed'),
   },
 ];
 
@@ -314,6 +305,11 @@ const fileRows = [
 
 const formatSize = (sizeGb: number) => sizeGb < 10 ? `${sizeGb.toFixed(1)} GB` : `${Math.round(sizeGb)} GB`;
 const formatTotalSize = (sizeGb: number) => sizeGb >= 1024 ? `${(sizeGb / 1024).toFixed(1)} TB` : formatSize(sizeGb);
+const canNodeReceiveModel = (node: ClusterNode, modelSizeGb: number) => node.status === 'Ready' && node.diskFreeGb >= modelSizeGb;
+const getSelectableNodeIds = (nodes: ClusterNode[], modelSizeGb: number, limit?: number) => {
+  const ids = nodes.filter((node) => canNodeReceiveModel(node, modelSizeGb)).map((node) => node.id);
+  return typeof limit === 'number' ? ids.slice(0, limit) : ids;
+};
 const getTaskStatusLabel = (status: DistributionTask['status']) => ({
   running: '执行中',
   completed: '已完成',
@@ -324,13 +320,10 @@ const getTaskStatusLabel = (status: DistributionTask['status']) => ({
 const hostFreeSpace: Record<string, number> = {
   'ops-transfer-01': 1860,
   'model-store-02': 2940,
-  'gpu-node-01': 1160,
-  'gpu-node-02': 980,
-  'gpu-node-03': 1420,
-  'gpu-node-06': 880,
-  'gpu-node-07': 760,
-  'gpu-node-12': 1240,
-  'gpu-node-18': 1520,
+  'st-b300-11': 1160,
+  'st-b300-12': 980,
+  'st-b300-13': 1420,
+  'st-b300-31': 1180,
 };
 
 const DistributionCenterPage = () => {
@@ -353,7 +346,7 @@ const DistributionCenterPage = () => {
   const [selectedCopyId, setSelectedCopyId] = useState(initialModels[0].copies[0].id);
   const [targetMode, setTargetMode] = useState<TargetMode>('nodes');
   const [selectedClusterId, setSelectedClusterId] = useState(clusters[0].id);
-  const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>(clusters[0].nodes.filter((node) => node.status === 'Ready').slice(0, 8).map((node) => node.id));
+  const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const [nodeSearch, setNodeSearch] = useState('');
   const [distributionForm] = Form.useForm();
 
@@ -427,13 +420,15 @@ const DistributionCenterPage = () => {
   const selectedCopy = selectedModel.copies.find((copy) => copy.id === selectedCopyId) || selectedModel.copies[0];
   const selectedCluster = clusters.find((cluster) => cluster.id === selectedClusterId) || clusters[0];
   const readyNodes = selectedCluster.nodes.filter((node) => node.status === 'Ready');
+  const selectableNodes = selectedCluster.nodes.filter((node) => canNodeReceiveModel(node, selectedCopy.sizeGb));
   const notReadyCount = selectedCluster.nodes.filter((node) => node.status === 'NotReady').length;
   const disabledCount = selectedCluster.nodes.filter((node) => node.status === 'Disabled').length;
+  const spaceBlockedCount = readyNodes.length - selectableNodes.length;
   const selectedTargetNodes = targetMode === 'cluster'
-    ? readyNodes
-    : selectedCluster.nodes.filter((node) => selectedNodeIds.includes(node.id) && node.status === 'Ready');
+    ? selectableNodes
+    : selectedCluster.nodes.filter((node) => selectedNodeIds.includes(node.id) && canNodeReceiveModel(node, selectedCopy.sizeGb));
   const visibleClusterNodes = selectedCluster.nodes.filter((node) => `${node.name} ${node.ip}`.toLowerCase().includes(nodeSearch.trim().toLowerCase()));
-  const lowSpaceCount = selectedTargetNodes.filter((node) => node.diskFreeGb < selectedCopy.sizeGb * 1.1).length;
+  const targetSpaceBlockedCount = targetMode === 'cluster' ? spaceBlockedCount : 0;
   const estimatedTransferGb = selectedCopy.sizeGb * selectedTargetNodes.length;
 
   const openDistribution = (modelId: string, copyId?: string) => {
@@ -441,12 +436,11 @@ const DistributionCenterPage = () => {
     if (!model) return;
     const copy = model.copies.find((item) => item.id === copyId) || model.copies[0];
     const defaultCluster = clusters[0];
-    const defaultNodeIds = defaultCluster.nodes.filter((node) => node.status === 'Ready').slice(0, 8).map((node) => node.id);
     setSelectedModelId(model.id);
     setSelectedCopyId(copy.id);
     setTargetMode('nodes');
     setSelectedClusterId(defaultCluster.id);
-    setSelectedNodeIds(defaultNodeIds);
+    setSelectedNodeIds([]);
     setNodeSearch('');
     distributionForm.setFieldsValue({
       taskName: `同步 ${model.name} 至生产集群`,
@@ -454,7 +448,7 @@ const DistributionCenterPage = () => {
       copyId: copy.id,
       targetMode: 'nodes',
       targetCluster: defaultCluster.id,
-      targetNodeIds: defaultNodeIds,
+      targetNodeIds: [],
       credential: defaultCluster.credential,
       targetPath: `/data/models/${model.name}`,
       verify: true,
@@ -468,8 +462,8 @@ const DistributionCenterPage = () => {
 
   const changeTargetMode = (mode: TargetMode) => {
     const nextNodeIds = mode === 'nodes'
-      ? readyNodes.slice(0, Math.min(8, readyNodes.length)).map((node) => node.id)
-      : readyNodes.map((node) => node.id);
+      ? []
+      : getSelectableNodeIds(selectedCluster.nodes, selectedCopy.sizeGb);
     setTargetMode(mode);
     setSelectedNodeIds(nextNodeIds);
     distributionForm.setFieldsValue({ targetMode: mode, targetNodeIds: nextNodeIds });
@@ -477,10 +471,9 @@ const DistributionCenterPage = () => {
 
   const changeTargetCluster = (clusterId: string) => {
     const cluster = clusters.find((item) => item.id === clusterId) || clusters[0];
-    const clusterReadyNodes = cluster.nodes.filter((node) => node.status === 'Ready');
     const nextNodeIds = targetMode === 'cluster'
-      ? clusterReadyNodes.map((node) => node.id)
-      : clusterReadyNodes.slice(0, Math.min(8, clusterReadyNodes.length)).map((node) => node.id);
+      ? getSelectableNodeIds(cluster.nodes, selectedCopy.sizeGb)
+      : [];
     setSelectedClusterId(cluster.id);
     setSelectedNodeIds(nextNodeIds);
     setNodeSearch('');
@@ -522,9 +515,10 @@ const DistributionCenterPage = () => {
     const copy = model?.copies.find((item) => item.id === values.copyId);
     const cluster = clusters.find((item) => item.id === values.targetCluster);
     if (!model || !copy || !cluster) return;
+    const targetNodeIds = Array.isArray(values.targetNodeIds) ? values.targetNodeIds : [];
     const nodes = values.targetMode === 'cluster'
-      ? cluster.nodes.filter((node) => node.status === 'Ready')
-      : cluster.nodes.filter((node) => values.targetNodeIds?.includes(node.id) && node.status === 'Ready');
+      ? cluster.nodes.filter((node) => canNodeReceiveModel(node, copy.sizeGb))
+      : cluster.nodes.filter((node) => targetNodeIds.includes(node.id) && canNodeReceiveModel(node, copy.sizeGb));
     if (!nodes.length) {
       message.warning('请至少选择一个可用的目标 Node');
       return;
@@ -671,7 +665,7 @@ const DistributionCenterPage = () => {
                     {model.copies.map((copy) => (
                       <div key={copy.id} className="distribution-copy-row">
                         <span><strong>{copy.host} · {copy.ip} · {formatSize(copy.sizeGb)}</strong><small title={copy.path}>{copy.path}</small></span>
-                        <Button type="link" size="small" onClick={() => openDistribution(model.id, copy.id)}>从此副本分发</Button>
+                        <Button className="distribution-copy-row-action" type="link" size="small" onClick={() => openDistribution(model.id, copy.id)}>从此副本分发</Button>
                       </div>
                     ))}
                   </div>
@@ -792,7 +786,16 @@ const DistributionCenterPage = () => {
         onCancel={() => setDownloadOpen(false)}
       />
 
-      <Modal title="创建模型分发" open={distributionOpen} width={900} okText="创建并分发" onOk={createDistributionTask} onCancel={() => setDistributionOpen(false)}>
+      <Modal
+        className="distribution-create-modal"
+        title="创建模型分发"
+        open={distributionOpen}
+        width={1040}
+        style={{ top: 24 }}
+        okText="创建并分发"
+        onOk={createDistributionTask}
+        onCancel={() => setDistributionOpen(false)}
+      >
         <p className="distribution-modal-note">从已有模型副本向目标集群或指定 Nodes 分发。提交前会检查 SSH 连通性、目录权限、节点状态和磁盘空间。</p>
         <Form form={distributionForm} layout="vertical">
           <section className="distribution-form-section">
@@ -803,17 +806,32 @@ const DistributionCenterPage = () => {
                 <Select showSearch optionFilterProp="label" options={models.map((model) => ({ value: model.id, label: model.name }))} onChange={(modelId) => {
                   const model = models.find((item) => item.id === modelId);
                   if (!model) return;
+                  const copy = model.copies[0];
+                  const nextNodeIds = targetMode === 'cluster'
+                    ? getSelectableNodeIds(selectedCluster.nodes, copy.sizeGb)
+                    : [];
                   setSelectedModelId(modelId);
-                  setSelectedCopyId(model.copies[0].id);
+                  setSelectedCopyId(copy.id);
+                  setSelectedNodeIds(nextNodeIds);
                   distributionForm.setFieldsValue({
-                    copyId: model.copies[0].id,
+                    copyId: copy.id,
                     targetPath: `/data/models/${model.name}`,
+                    targetNodeIds: nextNodeIds,
                   });
                 }} />
               </Form.Item>
               <Form.Item label="源副本（主机）" name="copyId" extra="同一模型存在于多台主机时，可选择本次使用的源副本。" rules={[{ required: true, message: '请选择源副本' }]}>
                 <Select
-                  onChange={setSelectedCopyId}
+                  onChange={(copyId) => {
+                    const copy = selectedModel.copies.find((item) => item.id === copyId);
+                    setSelectedCopyId(copyId);
+                    if (!copy) return;
+                    const nextNodeIds = targetMode === 'cluster'
+                      ? getSelectableNodeIds(selectedCluster.nodes, copy.sizeGb)
+                      : [];
+                    setSelectedNodeIds(nextNodeIds);
+                    distributionForm.setFieldsValue({ targetNodeIds: nextNodeIds });
+                  }}
                   options={selectedModel.copies.map((copy) => ({
                     value: copy.id,
                     label: `${copy.host} · ${copy.ip} · ${formatSize(copy.sizeGb)}`,
@@ -841,6 +859,7 @@ const DistributionCenterPage = () => {
                 <Select
                   showSearch
                   optionFilterProp="label"
+                  popupClassName="distribution-cluster-select-popup"
                   filterOption={(input, option) => String((option as { searchText?: string })?.searchText || option?.label || '').toLowerCase().includes(input.toLowerCase())}
                   options={clusterOptions}
                   onChange={changeTargetCluster}
@@ -850,33 +869,71 @@ const DistributionCenterPage = () => {
               <div className="distribution-target-summary wide">
                 <div><span>所属位置</span><strong>{selectedCluster.supplier} / {selectedCluster.dataCenter}</strong></div>
                 <div><span>集群 Nodes</span><strong>{selectedCluster.nodes.length}</strong></div>
-                <div><span>可参与分发</span><strong>{readyNodes.length} Ready</strong></div>
-                <div><span>自动排除</span><strong>{notReadyCount} NotReady · {disabledCount} 已停用</strong></div>
+                <div><span>可参与分发</span><strong>{selectableNodes.length} Ready</strong></div>
+                <div><span>自动排除</span><strong>{notReadyCount} NotReady · {disabledCount} 已停用 · {spaceBlockedCount} 空间不足</strong></div>
               </div>
 
               {targetMode === 'nodes' && (
                 <>
                   <div className="wide distribution-node-search">
                     <Input.Search value={nodeSearch} onChange={(event) => setNodeSearch(event.target.value)} allowClear placeholder="搜索 Node 名称或 IP" />
-                    <span>NotReady 和已停用 Nodes 仅供查看，不能选中。</span>
+                    <span>NotReady、已停用和空间不足 Nodes 仅供查看，不能选中。</span>
                   </div>
                   <Form.Item
                     className="wide distribution-node-field"
-                    label={`选择目标 Nodes（已选 ${selectedNodeIds.length} 个）`}
+                    label={`选择目标 Nodes（已选 ${selectedTargetNodes.length} 个）`}
                     name="targetNodeIds"
                     rules={[{ required: true, message: '请至少选择一个目标 Node' }]}
                   >
-                    <Checkbox.Group onChange={(values) => setSelectedNodeIds(values as string[])}>
+                    <Checkbox.Group onChange={(values) => {
+                      const nextNodeIds = (values as string[]).filter((nodeId) => (
+                        selectedCluster.nodes.some((node) => node.id === nodeId && canNodeReceiveModel(node, selectedCopy.sizeGb))
+                      ));
+                      setSelectedNodeIds(nextNodeIds);
+                      distributionForm.setFieldsValue({ targetNodeIds: nextNodeIds });
+                    }}>
                       <div className="distribution-node-picker">
-                        {visibleClusterNodes.map((node) => (
-                          <label key={node.id} className={`distribution-node-option ${node.status.toLowerCase()}`}>
-                            <Checkbox value={node.id} disabled={node.status !== 'Ready'} />
-                            <span>
-                              <strong>{node.name} · {node.ip}</strong>
-                              <small>{node.status} · 磁盘可用 {formatSize(node.diskFreeGb)}</small>
-                            </span>
-                          </label>
-                        ))}
+                        {visibleClusterNodes.map((node) => {
+                          const selectable = canNodeReceiveModel(node, selectedCopy.sizeGb);
+                          const selected = selectedNodeIds.includes(node.id) && selectable;
+                          const diskTotalGb = node.diskTotalGb;
+                          const existingUsedGb = Math.max(0, diskTotalGb - node.diskFreeGb);
+                          const remainingGb = Math.max(0, node.diskFreeGb - (selected ? selectedCopy.sizeGb : 0));
+                          const projectedRemainingGb = Math.max(0, node.diskFreeGb - selectedCopy.sizeGb);
+                          const shortageGb = Math.max(0, selectedCopy.sizeGb - node.diskFreeGb);
+                          const usedPercent = Math.min(100, Math.round((existingUsedGb / diskTotalGb) * 100));
+                          const modelPercent = selected ? Math.min(100 - usedPercent, Math.round((selectedCopy.sizeGb / diskTotalGb) * 100)) : 0;
+                          const disabledLabel = node.status === 'Ready' ? '空间不足' : node.status;
+                          const className = [
+                            'distribution-node-option',
+                            node.status.toLowerCase(),
+                            selected ? 'selected' : '',
+                            selectable ? '' : 'unavailable',
+                            node.status === 'Ready' && !selectable ? 'insufficient' : '',
+                          ].filter(Boolean).join(' ');
+
+                          return (
+                            <label key={node.id} className={className}>
+                              <Checkbox value={node.id} disabled={!selectable} />
+                              <span className="distribution-node-main">
+                                <strong>{node.name}</strong>
+                                <small>{node.ip} · {node.status}</small>
+                              </span>
+                              <span className="distribution-node-capacity">
+                                <strong>{selected ? `剩余 ${formatSize(remainingGb)}` : `当前可用 ${formatSize(node.diskFreeGb)}`}</strong>
+                                <small>总量 {formatTotalSize(diskTotalGb)} · 已用 {formatSize(existingUsedGb)}</small>
+                                <span className="distribution-node-meter">
+                                  <i className="used" style={{ width: `${usedPercent}%` }} />
+                                  <i className="model" style={{ left: `${usedPercent}%`, width: `${modelPercent}%` }} />
+                                </span>
+                              </span>
+                              <span className="distribution-node-impact">
+                                <small>{selectable ? `${selected ? '模型占用' : '选择后占用'} ${formatSize(selectedCopy.sizeGb)}` : disabledLabel}</small>
+                                <strong>{selectable ? `${selected ? '分发后剩余' : '预计剩余'} ${formatSize(selected ? remainingGb : projectedRemainingGb)}` : shortageGb ? `缺口 ${formatSize(shortageGb)}` : '不可选'}</strong>
+                              </span>
+                            </label>
+                          );
+                        })}
                       </div>
                     </Checkbox.Group>
                   </Form.Item>
@@ -891,11 +948,11 @@ const DistributionCenterPage = () => {
               </Form.Item>
               <Form.Item label="目标目录" name="targetPath" rules={[{ required: true, message: '请输入目标目录' }]}><Input /></Form.Item>
 
-              <div className={`distribution-preflight wide${lowSpaceCount ? ' warning' : ''}`}>
+              <div className={`distribution-preflight wide${targetSpaceBlockedCount ? ' warning' : ''}`}>
                 <div><span>本次目标</span><strong>{selectedTargetNodes.length} 个 Nodes</strong></div>
                 <div><span>模型大小</span><strong>{formatSize(selectedCopy.sizeGb)}</strong></div>
                 <div><span>预计传输总量</span><strong>{formatTotalSize(estimatedTransferGb)}</strong></div>
-                <div><span>空间预检</span><strong>{lowSpaceCount ? `${lowSpaceCount} 个 Nodes 预计不足` : '当前选择可用'}</strong></div>
+                <div><span>空间预检</span><strong>{targetSpaceBlockedCount ? `已排除 ${targetSpaceBlockedCount} 个空间不足` : '当前选择可用'}</strong></div>
               </div>
 
               <Form.Item className="wide distribution-checks" name="verify" valuePropName="checked">

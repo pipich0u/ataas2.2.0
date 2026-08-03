@@ -375,6 +375,7 @@ export const SupplierResourceCreateFlow = ({
   const handleClusterTaskCreated = (summary: ClusterCreateTaskSummary) => {
     const dataCenter = resourceSnapshot.dataCenters.find((item) => item.key === summary.dataCenterKey);
     if (!dataCenter) return;
+    const tokenAccess = summary.accessMode === 'token';
     publishSnapshot({
       suppliers: resourceSnapshot.suppliers.map((item) => (
         item.key === dataCenter.supplierKey
@@ -387,14 +388,14 @@ export const SupplierResourceCreateFlow = ({
               ...item,
               clusters: item.clusters + 1,
               machines: item.machines + summary.machineCount,
-              status: 'pending',
-              statusLabel: '集群创建中',
+              status: tokenAccess ? 'normal' : 'pending',
+              statusLabel: tokenAccess ? '运行中' : '集群创建中',
             }
           : item
       )),
     });
     onClusterTaskCreated?.(summary);
-    message.success(`集群 ${summary.clusterName} 创建任务已启动`);
+    message.success(tokenAccess ? `集群 ${summary.clusterName} 已接入` : `集群 ${summary.clusterName} 创建任务已启动`);
   };
 
   const openPackageManager = (

@@ -703,7 +703,7 @@
 
 .model-ops-rail-title {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
   padding: 0 16px 8px;
@@ -847,6 +847,84 @@
   padding: 10px 18px 18px;
   overflow: auto;
   background: #fff;
+}
+
+.model-ops-center-view-tabs {
+  display: flex;
+  min-height: 42px;
+  flex: 0 0 42px;
+  align-items: stretch;
+  gap: 28px;
+  padding: 0 4px;
+  border-bottom: 1px solid #e5eaf2;
+}
+
+.model-ops-center-view-tabs button {
+  position: relative;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  color: #4e5969;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 42px;
+}
+
+.model-ops-center-view-tabs button:hover,
+.model-ops-center-view-tabs button.active {
+  color: #6951ff;
+}
+
+.model-ops-center-view-tabs button.active {
+  font-weight: 600;
+}
+
+.model-ops-center-view-tabs button.active::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: #6951ff;
+  content: '';
+}
+
+.model-ops-global-pod-rail-note {
+  margin: 10px 12px;
+  padding: 14px;
+  border: 1px solid #e5eaf2;
+  border-radius: 8px;
+  background: #f7f8ff;
+}
+
+.model-ops-global-pod-rail-note strong {
+  color: #1d2129;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.model-ops-global-pod-rail-note span {
+  display: block;
+  margin-top: 4px;
+  color: #86909c;
+  font-size: 12px;
+  line-height: 19px;
+}
+
+.model-ops-global-pods-scope.cluster-operations-homepage {
+  display: block;
+  grid-template-columns: none;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  overflow: visible;
+  background: #fff;
+}
+
+.model-ops-global-pods {
+  width: 100%;
 }
 
 .model-ops-header,
