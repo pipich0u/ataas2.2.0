@@ -331,11 +331,17 @@ export default function ClusterResourceTables({
   view: initialView,
   selectedClusterKey,
   globalPodView = false,
+  podClusterKeys,
+  globalResourceView = false,
+  resourceClusterKeys,
 }: {
   className?: string;
   view: ResourceView;
   selectedClusterKey?: string;
   globalPodView?: boolean;
+  podClusterKeys?: string[];
+  globalResourceView?: boolean;
+  resourceClusterKeys?: string[];
 }) {
   const [keyword, setKeyword] = useState('');
   const [viewMode, setViewMode] = useState<'table' | 'card'>('card');
@@ -374,10 +380,15 @@ export default function ClusterResourceTables({
     collaborators: '',
     expiresIn: '24h',
   });
-  const currentCluster = selectedClusterKey || 'default';
+  const clusterScopeKeys = resourceClusterKeys ?? podClusterKeys;
+  const usesGlobalClusterScope = globalPodView || globalResourceView;
+  const currentCluster = selectedClusterKey || clusterScopeKeys?.[0] || 'default';
   const normalizedKeyword = keyword.trim().toLowerCase();
   const resourceStore = useK8sResourceStore();
   const { serviceEntries, services, pods } = resourceStore.state;
+  const resourceClusterScopeKey = clusterScopeKeys === undefined
+    ? '*'
+    : [...new Set(clusterScopeKeys)].sort((a, b) => a.localeCompare(b)).join('|');
 
   const seNameMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -454,7 +465,7 @@ export default function ClusterResourceTables({
     setKeyword('');
     setDevPodOpen(false);
     setDevPodStep('form');
-  }, [globalPodView, selectedClusterKey]);
+  }, [globalPodView, globalResourceView, resourceClusterScopeKey, selectedClusterKey]);
 
   useEffect(() => {
     if (initialView !== 'pod' || globalPodView) return undefined;
@@ -486,21 +497,30 @@ export default function ClusterResourceTables({
   }, [initialView]);
 
   const scopedServiceRows = useMemo(
-    () => storeServiceRows.filter((row) => row.cluster === currentCluster),
-    [currentCluster, storeServiceRows],
+    () => {
+      if (!usesGlobalClusterScope) return storeServiceRows.filter((row) => row.cluster === currentCluster);
+      if (resourceClusterScopeKey === '*') return storeServiceRows;
+      if (!resourceClusterScopeKey) return [];
+      const allowedClusters = new Set(resourceClusterScopeKey.split('|'));
+      return storeServiceRows.filter((row) => allowedClusters.has(row.cluster));
+    },
+    [currentCluster, resourceClusterScopeKey, storeServiceRows, usesGlobalClusterScope],
   );
-  const scopedPodRows = useMemo(
-    () => globalPodView ? storePodRows : storePodRows.filter((row) => row.cluster === currentCluster),
-    [currentCluster, globalPodView, storePodRows],
-  );
+  const scopedPodRows = useMemo(() => {
+    if (!globalPodView) return storePodRows.filter((row) => row.cluster === currentCluster);
+    if (resourceClusterScopeKey === '*') return storePodRows;
+    if (!resourceClusterScopeKey) return [];
+    const allowedClusters = new Set(resourceClusterScopeKey.split('|'));
+    return storePodRows.filter((row) => allowedClusters.has(row.cluster));
+  }, [currentCluster, globalPodView, resourceClusterScopeKey, storePodRows]);
   const effectivePodRows = useMemo(() => {
-    if (globalPodView) return storePodRows;
+    if (globalPodView) return scopedPodRows;
     if (podScope?.pods) return podScope.pods.map((row) => ({ ...row, canOpenGroup: true }));
     if (!podScope) return scopedPodRows;
     return scopedPodRows.filter((row) => (
       row.cluster === podScope.cluster && row.group === podScope.group
     ));
-  }, [globalPodView, podScope, scopedPodRows, storePodRows]);
+  }, [globalPodView, podScope, scopedPodRows]);
 
   const providerOptions = useMemo(() => [
     { value: 'all', label: '全部供应商' },
@@ -530,42 +550,6 @@ export default function ClusterResourceTables({
     && (dataCenterFilter === 'all' || row.dataCenter === dataCenterFilter)
     && (clusterFilter === 'all' || row.cluster === clusterFilter)
   )), [clusterFilter, dataCenterFilter, effectivePodRows, providerFilter]);
-
-  const podNamespaceRows = useMemo(
-    () => ownerFilteredPodRows.filter((row) => namespaceFilter === 'all' || row.group === namespaceFilter),
-    [namespaceFilter, ownerFilteredPodRows],
-  );
-  const serviceNamespaceRows = useMemo(
-    () => scopedServiceRows.filter((row) => namespaceFilter === 'all' || row.namespace === namespaceFilter),
-    [namespaceFilter, scopedServiceRows],
-  );
-  const namespaceOptions = useMemo(() => {
-    const values = initialView === 'pod'
-      ? ownerFilteredPodRows.map((row) => row.group)
-      : scopedServiceRows.map((row) => row.namespace);
-    return [
-      { value: 'all', label: initialView === 'pod' ? '全部组' : '全部命名空间' },
-      ...Array.from(new Set(values))
-        .sort((a, b) => a.localeCompare(b))
-        .map((value) => ({ value, label: value })),
-    ];
-  }, [initialView, ownerFilteredPodRows, scopedServiceRows]);
-  const roleOptions = useMemo(() => {
-    const roles = Array.from(new Set(ownerFilteredPodRows.map((row) => row.role)));
-    return [
-      { value: 'all', label: '全部角色' },
-      ...roles.sort((a, b) => a.localeCompare(b)).map((role) => ({ value: role, label: role.toUpperCase() })),
-    ];
-  }, [ownerFilteredPodRows]);
-  const nodeOptions = useMemo(() => {
-    const clusterNodes = scopedPodRows
-      .filter((row) => !globalPodView || row.cluster === devPodDraft.cluster)
-      .map((row) => row.node)
-      .filter((node) => node && node !== '自动调度');
-    return Array.from(new Set(clusterNodes))
-      .sort((a, b) => a.localeCompare(b))
-      .map((node) => ({ value: node, label: node }));
-  }, [devPodDraft.cluster, globalPodView, scopedPodRows]);
 
   const storeRouteData = useMemo<RouteEntry[]>(() => serviceEntries.map((entry) => {
     const entryServices = services.filter((service) => entry.serviceIds.includes(service.id));
@@ -600,10 +584,55 @@ export default function ClusterResourceTables({
       endpoints,
     };
   }), [serviceEntries, services]);
-  const scopedRouteData = useMemo(
-    () => storeRouteData.filter((row) => row.cluster === currentCluster),
-    [currentCluster, storeRouteData],
+  const scopedRouteData = useMemo(() => {
+    if (!usesGlobalClusterScope) return storeRouteData.filter((row) => row.cluster === currentCluster);
+    if (resourceClusterScopeKey === '*') return storeRouteData;
+    if (!resourceClusterScopeKey) return [];
+    const allowedClusters = new Set(resourceClusterScopeKey.split('|'));
+    return storeRouteData.filter((row) => allowedClusters.has(row.cluster));
+  }, [currentCluster, resourceClusterScopeKey, storeRouteData, usesGlobalClusterScope]);
+
+  const podNamespaceRows = useMemo(
+    () => ownerFilteredPodRows.filter((row) => namespaceFilter === 'all' || row.group === namespaceFilter),
+    [namespaceFilter, ownerFilteredPodRows],
   );
+  const serviceNamespaceRows = useMemo(
+    () => scopedServiceRows.filter((row) => namespaceFilter === 'all' || row.namespace === namespaceFilter),
+    [namespaceFilter, scopedServiceRows],
+  );
+  const routeNamespaceRows = useMemo(
+    () => scopedRouteData.filter((row) => namespaceFilter === 'all' || row.namespace === namespaceFilter),
+    [namespaceFilter, scopedRouteData],
+  );
+  const namespaceOptions = useMemo(() => {
+    const values = initialView === 'pod'
+      ? ownerFilteredPodRows.map((row) => row.group)
+      : initialView === 'se'
+      ? scopedRouteData.map((row) => row.namespace)
+      : scopedServiceRows.map((row) => row.namespace);
+    return [
+      { value: 'all', label: initialView === 'pod' ? '全部组' : '全部命名空间' },
+      ...Array.from(new Set(values))
+        .sort((a, b) => a.localeCompare(b))
+        .map((value) => ({ value, label: value })),
+    ];
+  }, [initialView, ownerFilteredPodRows, scopedRouteData, scopedServiceRows]);
+  const roleOptions = useMemo(() => {
+    const roles = Array.from(new Set(ownerFilteredPodRows.map((row) => row.role)));
+    return [
+      { value: 'all', label: '全部角色' },
+      ...roles.sort((a, b) => a.localeCompare(b)).map((role) => ({ value: role, label: role.toUpperCase() })),
+    ];
+  }, [ownerFilteredPodRows]);
+  const nodeOptions = useMemo(() => {
+    const clusterNodes = scopedPodRows
+      .filter((row) => !globalPodView || row.cluster === devPodDraft.cluster)
+      .map((row) => row.node)
+      .filter((node) => node && node !== '自动调度');
+    return Array.from(new Set(clusterNodes))
+      .sort((a, b) => a.localeCompare(b))
+      .map((node) => ({ value: node, label: node }));
+  }, [devPodDraft.cluster, globalPodView, scopedPodRows]);
 
   const filteredServices = useMemo(() => serviceNamespaceRows.filter((row) => includesKeyword(
     `${row.name} ${row.se} ${row.namespace} ${row.clusterIP} ${row.type}`,
@@ -619,10 +648,10 @@ export default function ClusterResourceTables({
     );
   }), [normalizedKeyword, podNamespaceRows, podStatus, podRole]);
 
-  const filteredRoutes = useMemo(() => scopedRouteData.filter((row) => includesKeyword(
+  const filteredRoutes = useMemo(() => routeNamespaceRows.filter((row) => includesKeyword(
     `${row.name} ${row.namespace} ${row.hosts.join(' ')} ${row.endpoints.map((endpoint) => endpoint.address).join(' ')}`,
     normalizedKeyword,
-  )), [scopedRouteData, normalizedKeyword]);
+  )), [normalizedKeyword, routeNamespaceRows]);
 
   const filteredPVs = useMemo(() => pvRows.filter((row) => includesKeyword(
     `${row.name} ${row.storageType} ${row.status}`,
@@ -666,7 +695,9 @@ export default function ClusterResourceTables({
     if (initialView === 'svc') {
       return {
         title: 'Services',
-        description: '查看 Service 的访问地址、端口与关联后端',
+        description: globalResourceView
+          ? '查看当前左侧筛选范围内的 Service 访问地址、端口与关联后端'
+          : '查看 Service 的访问地址、端口与关联后端',
         placeholder: '搜索 Service / ServiceEntry / Cluster IP',
         summary: [
           { label: 'Service 总数', value: serviceNamespaceRows.length },
@@ -680,13 +711,15 @@ export default function ClusterResourceTables({
     if (initialView === 'se') {
       return {
         title: 'ServiceEntry',
-        description: '查看网格出口服务、主机与端点配置',
+        description: globalResourceView
+          ? '查看当前左侧筛选范围内的网格出口服务、主机与端点配置'
+          : '查看网格出口服务、主机与端点配置',
         placeholder: '搜索 ServiceEntry / Host / Endpoint',
         summary: [
-          { label: 'ServiceEntry 总数', value: scopedRouteData.length },
-          { label: 'Hosts', value: scopedRouteData.reduce((sum, row) => sum + row.hosts.length, 0) },
-          { label: 'Ports', value: scopedRouteData.reduce((sum, row) => sum + row.ports.length, 0) },
-          { label: 'Endpoints', value: scopedRouteData.reduce((sum, row) => sum + row.endpoints.length, 0) },
+          { label: 'ServiceEntry 总数', value: routeNamespaceRows.length },
+          { label: 'Hosts', value: routeNamespaceRows.reduce((sum, row) => sum + row.hosts.length, 0) },
+          { label: 'Ports', value: routeNamespaceRows.reduce((sum, row) => sum + row.ports.length, 0) },
+          { label: 'Endpoints', value: routeNamespaceRows.reduce((sum, row) => sum + row.endpoints.length, 0) },
         ],
       };
     }
@@ -706,7 +739,7 @@ export default function ClusterResourceTables({
       placeholder: '搜索 PVC 名称 / 命名空间 / 存储类',
       summary: [{ label: 'PVC 总数', value: pvcRows.length }],
     };
-  }, [globalPodView, initialView, podNamespaceRows, podScope, scopedRouteData, serviceNamespaceRows]);
+  }, [globalPodView, globalResourceView, initialView, podNamespaceRows, podScope, routeNamespaceRows, serviceNamespaceRows]);
 
   const selectedDevPodTemplate = devPodTemplates.find((template) => template.value === devPodDraft.template)
     || devPodTemplates[0];
@@ -774,7 +807,7 @@ export default function ClusterResourceTables({
     setDevPodDraft({
       name: '',
       cluster: globalPodView
-        ? (clusterFilter !== 'all' ? clusterFilter : storePodRows[0]?.cluster || 'st')
+        ? (clusterFilter !== 'all' ? clusterFilter : clusterScopeKeys?.[0] || scopedPodRows[0]?.cluster || 'st')
         : currentCluster,
       namespace: 'devpods',
       owner: 'admin',
@@ -855,10 +888,57 @@ export default function ClusterResourceTables({
     message.success(`${previewDevPod.name} 已提交创建`);
   };
 
+  const ownershipColumnWidth = useMemo(() => {
+    const clusters = initialView === 'pod'
+      ? effectivePodRows.map((row) => row.cluster)
+      : initialView === 'svc'
+      ? scopedServiceRows.map((row) => row.cluster)
+      : scopedRouteData.map((row) => row.cluster);
+    const estimateLabelWidth = (value: string) => (
+      [...value].reduce((width, char) => width + (/^[\x00-\x7F]$/.test(char) ? 7 : 12), 16)
+    );
+    const widest = clusters.reduce((width, cluster) => {
+      const ownership = getPodOwnership(cluster);
+      return Math.max(width, estimateLabelWidth(ownership.provider)
+        + estimateLabelWidth(ownership.dataCenter)
+        + estimateLabelWidth(cluster)
+        + 12);
+    }, 320);
+    return Math.min(520, Math.max(320, widest));
+  }, [effectivePodRows, initialView, scopedRouteData, scopedServiceRows]);
+
+  const renderResourceOwnership = (cluster: string) => {
+    const ownership = getPodOwnership(cluster);
+    return (
+      <div className="resource-ownership-tags">
+        <span title={ownership.provider}>{ownership.provider}</span>
+        <span title={ownership.dataCenter}>{ownership.dataCenter}</span>
+        <span title={cluster}>{cluster}</span>
+      </div>
+    );
+  };
+
+  const serviceOwnershipColumns: ColumnsType<ServiceRow> = globalResourceView ? [{
+    title: '资源归属',
+    key: 'ownership',
+    width: ownershipColumnWidth,
+    className: 'resource-ownership-column',
+    render: (_value, row) => renderResourceOwnership(row.cluster),
+  }] : [];
+
+  const routeOwnershipColumns: ColumnsType<RouteEntry> = globalResourceView ? [{
+    title: '资源归属',
+    key: 'ownership',
+    width: ownershipColumnWidth,
+    className: 'resource-ownership-column',
+    render: (_value, row) => renderResourceOwnership(row.cluster),
+  }] : [];
+
   const serviceColumns: ColumnsType<ServiceRow> = [
     { title: 'SVC', dataIndex: 'name', key: 'name', width: 190, render: (value) => <span className="resource-list-name">{value}</span> },
     { title: 'SE', dataIndex: 'se', key: 'se', width: 150, render: (value) => <span className="resource-list-text">{value}</span> },
     { title: '命名空间', dataIndex: 'namespace', key: 'namespace', width: 140 },
+    ...serviceOwnershipColumns,
     { title: 'Cluster IP', dataIndex: 'clusterIP', key: 'clusterIP', width: 160, render: (value) => <span className="resource-list-code">{value}</span> },
     { title: '类型', dataIndex: 'type', key: 'type', width: 120, render: (value) => <span className="resource-kind-tag">{value}</span> },
     {
@@ -977,15 +1057,9 @@ export default function ClusterResourceTables({
   const podOwnershipColumns: ColumnsType<PodRow> = globalPodView ? [{
     title: '资源归属',
     key: 'ownership',
-    width: 273,
+    width: ownershipColumnWidth,
     className: 'resource-ownership-column',
-    render: (_value, row) => (
-      <div className="resource-ownership-tags">
-        <span title={row.provider}>{row.provider}</span>
-        <span title={row.dataCenter}>{row.dataCenter}</span>
-        <span title={row.cluster}>{row.cluster}</span>
-      </div>
-    ),
+    render: (_value, row) => renderResourceOwnership(row.cluster),
   }] : [];
 
   const podColumns: ColumnsType<PodRow> = [
@@ -1135,6 +1209,7 @@ export default function ClusterResourceTables({
   const serviceEntryColumns: ColumnsType<RouteEntry> = [
     { title: 'Name', dataIndex: 'name', key: 'name', width: 190, render: (value) => <span className="resource-list-name">{value}</span> },
     { title: '命名空间', dataIndex: 'namespace', key: 'namespace', width: 140 },
+    ...routeOwnershipColumns,
     {
       title: 'Hosts',
       dataIndex: 'hosts',
@@ -1222,21 +1297,23 @@ export default function ClusterResourceTables({
 
   const table = initialView === 'se' ? (
     <Table<RouteEntry>
-      className="group-list-table cluster-resource-list-table"
+      className={`group-list-table cluster-resource-list-table${globalResourceView ? ' is-global-resource-table' : ''}`}
       rowKey="key"
       columns={serviceEntryColumns}
       dataSource={filteredRoutes}
-      scroll={{ x: 1110 }}
+      tableLayout="fixed"
+      scroll={{ x: 1110 + (globalResourceView ? ownershipColumnWidth : 0) }}
       pagination={pagination}
       locale={{ emptyText: '暂无 ServiceEntry 数据' }}
     />
   ) : initialView === 'svc' ? (
     <Table<ServiceRow>
-      className="group-list-table cluster-resource-list-table"
+      className={`group-list-table cluster-resource-list-table${globalResourceView ? ' is-global-resource-table' : ''}`}
       rowKey="key"
       columns={serviceColumns}
       dataSource={filteredServices}
-      scroll={{ x: 1920 }}
+      tableLayout="fixed"
+      scroll={{ x: 1920 + (globalResourceView ? ownershipColumnWidth : 0) }}
       pagination={pagination}
       locale={{ emptyText: '暂无 Service 数据' }}
     />
@@ -1247,7 +1324,7 @@ export default function ClusterResourceTables({
       columns={podColumns}
       dataSource={filteredPods}
       tableLayout="fixed"
-      scroll={{ x: globalPodView ? 1687 : 1460 }}
+      scroll={{ x: globalPodView ? 1687 - 273 + ownershipColumnWidth : 1460 }}
       pagination={pagination}
       locale={{ emptyText: '暂无 Pod 数据' }}
     />
@@ -1335,7 +1412,7 @@ export default function ClusterResourceTables({
                 options={clusterOptions}
               />
             )}
-            {(initialView === 'pod' || initialView === 'svc') && (
+            {(initialView === 'pod' || initialView === 'svc' || initialView === 'se') && (
               <Select
                 className="resource-namespace-select"
                 value={namespaceFilter}

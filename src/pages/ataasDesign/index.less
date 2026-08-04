@@ -140,17 +140,18 @@ body,
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   width: 100%;
-  height: 40px;
-  padding: 3px;
-  border: 1px solid #E3E7EE;
-  border-radius: 8px;
-  background: #F3F5F8;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  gap: 4px;
 
   button {
     min-width: 0;
     padding: 0 5px;
     overflow: hidden;
-    border: 0;
+    border: 1px solid transparent;
     border-radius: 5px;
     background: transparent;
     color: #697386;
@@ -158,7 +159,7 @@ body,
     font-family: inherit;
     font-size: 12px;
     font-weight: 500;
-    line-height: 32px;
+    line-height: 30px;
     text-overflow: ellipsis;
     white-space: nowrap;
     transition: background-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
@@ -168,10 +169,11 @@ body,
     }
 
     &.active {
-      background: #FFFFFF;
+      border-color: #DAD6FF;
+      background: #F5F3FF;
       color: #5F35D5;
       font-weight: 600;
-      box-shadow: 0 1px 4px rgba(29, 33, 41, 0.13);
+      box-shadow: none;
     }
 
     &:focus-visible {
@@ -182,7 +184,7 @@ body,
 }
 
 .ataas-content-cluster-operations > .model-ops-page.center-view-embedded {
-  grid-template-columns: 268px minmax(0, 1fr);
+  grid-template-columns: 260px minmax(0, 1fr);
 }
 
 .model-ops-page.center-view-embedded .model-ops-rail {
@@ -191,10 +193,25 @@ body,
 
 .model-ops-page.center-view-embedded .model-ops-rail-title {
   box-sizing: border-box;
-  height: 64px;
-  flex: 0 0 64px;
+  height: 58px;
+  flex: 0 0 58px;
   align-items: flex-start;
-  padding: 12px;
+  padding: 12px 14px 12px 20px;
+}
+
+.model-ops-page.center-view-embedded .model-ops-model-filter {
+  margin-left: 14px;
+  margin-right: 10px;
+}
+
+.model-ops-page.center-view-embedded .model-ops-rail-cluster-head {
+  padding-left: 18px;
+  padding-right: 14px;
+}
+
+.model-ops-page.center-view-embedded .model-ops-rail-se-grid {
+  padding-left: 14px;
+  padding-right: 10px;
 }
 
 .ataas-minimal-hint {
@@ -25971,11 +25988,11 @@ button.ataas-page-create-button.ant-btn.ant-btn-primary,
   box-shadow: inset -10px 0 8px -8px rgba(5, 5, 5, 0.06) !important;
 }
 
-/* The one-line model instance table fits without horizontal scrolling, so its
-   fixed action column does not need a shadow. Expanded detail tables keep it. */
+/* Keep the model instance action divider consistent with the expanded Pod
+   action lane, even when the parent table itself does not overflow. */
 .model-ops-page .model-ops-original-table .ataas-model-ops-detail-table-wrap .ataas-model-ops-unified-action-cell.ataas-unified-table-action-cell::after {
-  display: none !important;
-  box-shadow: none !important;
+  display: block !important;
+  box-shadow: inset -10px 0 8px -8px rgba(5, 5, 5, 0.06) !important;
 }
 
 .model-ops-page .model-ops-original-table th.ataas-unified-table-action-cell {

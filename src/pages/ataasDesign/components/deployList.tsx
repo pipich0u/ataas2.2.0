@@ -2,7 +2,7 @@ import { Button, ConfigProvider, Dropdown, Image, Input, InputNumber, message, M
 import type { ThemeConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { BarChartOutlined, CloudDownloadOutlined, CopyOutlined, DisconnectOutlined, EyeOutlined, FileSearchOutlined, FileTextOutlined, InfoCircleOutlined, LinkOutlined, PlayCircleOutlined, PlusOutlined, PoweroffOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
-import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import deepseekLogo from '../deepseek-logo.svg';
 import glmLogo from '../glm-logo.svg';
@@ -314,7 +314,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
     });
   }, [data, statusFilter, categoryFilter, clusterFilter, searchText]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (mode !== 'modelOps' || !defaultExpandAllModelOps) return;
     setExpandedServiceIds(filtered.map((item) => item.id));
   }, [defaultExpandAllModelOps, filtered, mode]);
@@ -1578,7 +1578,8 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
               pagination={mode === 'modelOps'
                 ? { pageSize: Math.max(filtered.length, 1), showTotal: (t) => `共 ${t} 条`, showSizeChanger: false }
                 : { pageSize: 10, showTotal: (t) => `共 ${t} 条`, showSizeChanger: true }}
-              scroll={{ x: mode === 'modelOps' ? 'max-content' : 1180 }}
+              tableLayout={mode === 'modelOps' ? 'fixed' : undefined}
+              scroll={{ x: mode === 'modelOps' ? 1260 : 1180 }}
               expandable={mode === 'modelOps' ? {
                 expandedRowKeys: expandedServiceIds,
                 expandRowByClick: true,

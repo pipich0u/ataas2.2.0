@@ -14,6 +14,10 @@ import {
 import { Button, Checkbox, Empty, Input, InputNumber, message, Modal, Select, Slider, Switch, Tooltip } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import ClusterResourceTables from './clusterResourceTables';
+import {
+  CLUSTER_OPERATIONS_CLUSTER_DATA,
+  CLUSTER_OPERATIONS_RESOURCE_TREE,
+} from './clusterOperationsRuntime';
 import DeployList, { MOCK_DEPLOY_DATA, type DeployServiceItem } from './deployList';
 import {
   modelOpsServices,
@@ -107,13 +111,42 @@ const getOpsServiceById = (serviceId: string) => (
   opsPreviewServices.find((service) => service.id === serviceId) || opsPreviewServices[0]
 );
 
-const clusterFullNameByCode: Record<string, string> = {
-  bj: 'beijing-prod',
-  sh: 'shanghai-online',
-  gz: 'guangzhou-test',
-  wh: 'wuhan-kunpeng',
-  zz: 'zhengzhou-prod',
+type OpsCluster = {
+  code: string;
+  name: string;
+  meta: string;
+  provider: string;
+  dataCenter: string;
+  nodeCount: number;
+  serviceEntry: string;
 };
+
+// Keep inference-center cluster metadata on the same source of truth as the
+// compute center resource tree. This avoids maintaining a second alias list.
+const opsCreateClusters: OpsCluster[] = CLUSTER_OPERATIONS_RESOURCE_TREE.flatMap((provider) => (
+  provider.dcs.flatMap((dataCenter) => dataCenter.clusters.map((cluster) => ({
+    code: cluster.key,
+    name: cluster.name,
+    meta: cluster.meta,
+    provider: provider.name,
+    dataCenter: dataCenter.name,
+    nodeCount: Number(CLUSTER_OPERATIONS_CLUSTER_DATA[cluster.key]?.nodes) || 0,
+    serviceEntry: `${cluster.key}-higress-prod`,
+  })))
+));
+
+const opsTotalNodeCount = opsCreateClusters.reduce((sum, cluster) => sum + cluster.nodeCount, 0);
+
+const opsClusterByCode = new Map(opsCreateClusters.map((cluster) => [cluster.code, cluster]));
+
+const getOpsClusterLabel = (clusterCode: string) => {
+  const cluster = opsClusterByCode.get(clusterCode);
+  return cluster ? `${cluster.name} / ${cluster.meta}` : clusterCode;
+};
+
+const clusterFullNameByCode: Record<string, string> = Object.fromEntries(
+  opsCreateClusters.map((cluster) => [cluster.code, cluster.name]),
+);
 
 const createOpsSeRows = () => {
   const glm52 = getOpsServiceById('svc-glm52-yc');
@@ -122,8 +155,8 @@ const createOpsSeRows = () => {
     makeRow(glm52, {
       key: 'glm52-beijing-prod',
       name: 'glm-5.2-bj-prod',
-      clusterCode: 'bj',
-      clusterName: 'bj / A100-H20',
+      clusterCode: 'beijing-prod',
+      clusterName: getOpsClusterLabel('beijing-prod'),
       traffic: [['glm52-bj-router-1', 60], ['glm52-bj-router-2', 40]],
       routerReady: '2/2',
       prefillReady: '4/4',
@@ -134,11 +167,11 @@ const createOpsSeRows = () => {
       seed: 1,
     }),
     makeRow(glm52, {
-      key: 'glm52-shanghai-online',
-      name: 'glm-5.2-sh-online',
-      clusterCode: 'sh',
-      clusterName: 'sh / H20-910B',
-      traffic: [['glm52-sh-router-1', 45], ['glm52-sh-router-2', 35], ['shanghai-higress', 20]],
+      key: 'glm52-st',
+      name: 'glm-5.2-st-online',
+      clusterCode: 'st',
+      clusterName: getOpsClusterLabel('st'),
+      traffic: [['glm52-st-router-1', 45], ['glm52-st-router-2', 35], ['st-higress', 20]],
       routerReady: '2/2',
       prefillReady: '4/4',
       decodeReady: '3/3',
@@ -150,8 +183,8 @@ const createOpsSeRows = () => {
     makeRow(glm52, {
       key: 'glm52-guangzhou-test',
       name: 'glm-5.2-gz-test',
-      clusterCode: 'gz',
-      clusterName: 'gz / L20-A100',
+      clusterCode: 'guangzhou-test',
+      clusterName: getOpsClusterLabel('guangzhou-test'),
       traffic: [['glm52-gz-router-1', 100]],
       status: 'warning',
       routerReady: '1/1',
@@ -164,11 +197,12 @@ const createOpsSeRows = () => {
       seed: 3,
     }),
     makeRow(glm52, {
-      key: 'glm52-wuhan-kunpeng',
-      name: 'glm-5.2-wh-kunpeng',
-      clusterCode: 'wh',
-      clusterName: 'wh / 910B-L20',
-      traffic: [['glm52-wh-router-1', 55], ['glm52-wh-router-2', 45, 'warning']],
+      key: 'glm52-shanghai-inference-03',
+      name: 'glm-5.2-sh03-canary',
+      clusterCode: 'shanghai-inference-03',
+      clusterName: getOpsClusterLabel('shanghai-inference-03'),
+      traffic: [['glm52-sh03-router-1', 55], ['glm52-sh03-router-2', 45, 'warning']],
+      status: 'warning',
       routerReady: '1/1',
       prefillReady: '4/4',
       decodeReady: '2/2',
@@ -178,11 +212,11 @@ const createOpsSeRows = () => {
       seed: 4,
     }),
     makeRow(glm52, {
-      key: 'glm52-zhengzhou-prod',
-      name: 'glm-5.2-zz-prod',
-      clusterCode: 'zz',
-      clusterName: 'zz / H20',
-      traffic: [['zhengzhou-higress', 14, 'warning'], ['glm52-zz-router-2', 45], ['glm52-zz-router-1', 41]],
+      key: 'glm52-shanghai-inference-02',
+      name: 'glm-5.2-sh02-prod',
+      clusterCode: 'shanghai-inference-02',
+      clusterName: getOpsClusterLabel('shanghai-inference-02'),
+      traffic: [['sh02-higress', 14, 'warning'], ['glm52-sh02-router-2', 45], ['glm52-sh02-router-1', 41]],
       status: 'warning',
       routerReady: '2/2',
       prefillReady: '4/4',
@@ -207,6 +241,8 @@ type OpsDeployPreviewItem = DeployServiceItem & {
 type ModelOpsPageProps = {
   centerViewMode?: 'compute' | 'inference';
   onCenterViewModeChange?: (mode: 'compute' | 'inference') => void;
+  selectedClusterCode?: string;
+  onSelectedClusterCodeChange?: (clusterCode: string) => void;
   selectedModelName?: string;
   onDetail?: (item: DeployServiceItem) => void;
   onStop?: (item: DeployServiceItem) => void;
@@ -227,16 +263,16 @@ const getReadyTotal = (value: string) => {
   return Number.isFinite(total) && total > 0 ? total : 1;
 };
 const opsInstanceNamesByCluster: Record<string, string[]> = {
-  bj: ['glm-5.2-bj-router', 'glm-5.2-bj-llm-1', 'glm-5.2-bj-llm-2'],
-  sh: ['glm-5.2-sh-router', 'glm-5.2-sh-llm-1', 'glm-5.2-sh-cache'],
-  gz: ['glm-5.2-gz-router', 'glm-5.2-gz-canary'],
-  wh: ['glm-5.2-wh-router', 'glm-5.2-wh-llm-1'],
-  zz: ['glm-5.2-zz-router', 'glm-5.2-zz-llm-1', 'glm-5.2-zz-llm-2'],
+  'beijing-prod': ['glm-5.2-bj-router', 'glm-5.2-bj-llm-1', 'glm-5.2-bj-llm-2'],
+  st: ['glm-5.2-st-router', 'glm-5.2-st-llm-1', 'glm-5.2-st-cache'],
+  'guangzhou-test': ['glm-5.2-gz-router', 'glm-5.2-gz-canary'],
+  'shanghai-inference-03': ['glm-5.2-sh03-router', 'glm-5.2-sh03-llm-1'],
+  'shanghai-inference-02': ['glm-5.2-sh02-router', 'glm-5.2-sh02-llm-1', 'glm-5.2-sh02-llm-2'],
 };
 
 const opsPrefillIssueIndexes: Record<string, number[]> = {
   'glm52-guangzhou-test': [1],
-  'glm52-zhengzhou-prod': [0],
+  'glm52-shanghai-inference-02': [0],
 };
 
 const makeReadyText = (total: number, degraded = false) => {
@@ -303,10 +339,6 @@ const opsDeployPreviewData: OpsDeployPreviewItem[] = opsSeRows.flatMap((row, row
   })
 ));
 
-const getInitialActiveRowKey = (serviceId: string) => (
-  opsSeRows.find((row) => serviceId === 'all' || row.serviceId === serviceId)?.key || opsSeRows[0].key
-);
-
 const getServiceIdByModelName = (modelName?: string) => {
   const normalized = modelName?.trim().toLowerCase();
   if (!normalized) return opsPreviewServices[0]?.id || 'all';
@@ -358,14 +390,6 @@ const opsCreateModelOptions = [
   { value: 'DeepSeek-v4-flash', label: 'DeepSeek-v4-flash', serviceId: 'svc-deepseek-v4-bj' },
 ];
 
-const opsCreateClusters = [
-  { code: 'bj', name: 'beijing-prod', meta: '北京一区 / A100-H20', serviceEntry: 'bj-higress-prod' },
-  { code: 'sh', name: 'shanghai-online', meta: '上海二区 / H20-910B', serviceEntry: 'sh-higress-prod' },
-  { code: 'gz', name: 'guangzhou-test', meta: '广州测试 / L20-A100', serviceEntry: 'gz-higress-test' },
-  { code: 'wh', name: 'wuhan-kunpeng', meta: '武汉专区 / 910B-L20', serviceEntry: 'wh-higress-prod' },
-  { code: 'zz', name: 'zhengzhou-prod', meta: '郑州一区 / H20', serviceEntry: 'zz-higress-prod' },
-];
-
 const getCreateServiceEntryOptions = (clusterCode: string) => {
   const cluster = opsCreateClusters.find((item) => item.code === clusterCode) || opsCreateClusters[0];
   return [
@@ -376,7 +400,7 @@ const getCreateServiceEntryOptions = (clusterCode: string) => {
 };
 
 const opsCreateNodes: OpsCreateNode[] = opsCreateClusters.flatMap((cluster, clusterIndex) => (
-  Array.from({ length: 64 }, (_, index) => {
+  Array.from({ length: cluster.nodeCount }, (_, index) => {
     const occupied = index % 17 === 16;
     const occupiedGroupIndex = Math.floor(index / 17) + 1;
     const occupiedRole = occupiedGroupIndex % 2 === 0 ? 'decode' : 'prefill';
@@ -385,7 +409,11 @@ const opsCreateNodes: OpsCreateNode[] = opsCreateClusters.flatMap((cluster, clus
       name: `${cluster.code}-gpu-${String(index + 1).padStart(3, '0')}`,
       clusterCode: cluster.code,
       ip: `10.${24 + clusterIndex}.${110 + Math.floor(index / 200)}.${20 + (index % 200)}`,
-      gpu: cluster.code === 'wh' ? 'Ascend 910B' : cluster.code === 'gz' ? (index % 2 ? 'A100' : 'L20') : 'H20',
+      gpu: cluster.code === 'wuhan-kunpeng'
+        ? 'Ascend 910B'
+        : cluster.code === 'guangzhou-test'
+        ? (index % 2 ? 'A100' : 'L20')
+        : 'H20',
       availableCards: index % 3 === 0 ? 8 : index % 3 === 1 ? 6 : 4,
       totalCards: 8,
       state: occupied ? 'occupied' : 'idle',
@@ -420,7 +448,9 @@ const getGroupNameFromDraft = (draft: OpsCreateGroupDraft) => (
 
 const makeDefaultCreateDraft = (row?: OpsSeRow | null): OpsCreateGroupDraft => {
   const model = opsCreateModelOptions.some((option) => option.value === row?.model) ? row?.model || 'GLM-5.2' : 'GLM-5.2';
-  const clusterCode = row?.clusterCode && opsCreateClusters.some((cluster) => cluster.code === row.clusterCode) ? row.clusterCode : 'bj';
+  const clusterCode = row?.clusterCode && opsCreateClusters.some((cluster) => cluster.code === row.clusterCode)
+    ? row.clusterCode
+    : 'beijing-prod';
   return {
     clusterCode,
     model,
@@ -714,7 +744,10 @@ const OpsCreateGroupPage = ({
                     decodeNodes: [],
                     serviceEntry: '',
                   })}
-                  options={opsCreateClusters.map((cluster) => ({ value: cluster.code, label: `${cluster.name} · ${cluster.meta}` }))}
+                  options={opsCreateClusters.map((cluster) => ({
+                    value: cluster.code,
+                    label: `${cluster.name} · ${cluster.meta} · ${cluster.dataCenter} / ${cluster.provider}`,
+                  }))}
                 />
               </label>
               <label>
@@ -984,7 +1017,7 @@ const OpsCreateGroupPage = ({
                 </span>
               </Checkbox>
               <div>
-                <Button onClick={onBack} disabled={isRunning}>{executionPhase === 'success' ? '返回 Groups' : '取消'}</Button>
+                <Button onClick={onBack} disabled={isRunning}>{executionPhase === 'success' ? '返回 Ops' : '取消'}</Button>
                 <Button
                   type="primary"
                   icon={executionPhase === 'running' ? <LoadingOutlined /> : executionPhase === 'success' ? <CheckCircleFilled /> : <PlayCircleOutlined />}
@@ -1005,6 +1038,8 @@ const OpsCreateGroupPage = ({
 const ModelOpsPage = ({
   centerViewMode,
   onCenterViewModeChange,
+  selectedClusterCode: selectedClusterCodeValue,
+  onSelectedClusterCodeChange,
   selectedModelName,
   onDetail,
   onStop,
@@ -1018,10 +1053,12 @@ const ModelOpsPage = ({
 }: ModelOpsPageProps) => {
   const initialServiceId = getServiceIdByModelName(selectedModelName);
   const isEmbeddedCenter = Boolean(centerViewMode && onCenterViewModeChange);
-  const [centerWorkspaceView, setCenterWorkspaceView] = useState<'groups' | 'pods'>('groups');
+  const [centerWorkspaceView, setCenterWorkspaceView] = useState<'ops' | 'pods' | 'services' | 'serviceEntries'>('ops');
   const [selectedServiceId, setSelectedServiceId] = useState(initialServiceId);
-  const [selectedClusterCode, setSelectedClusterCode] = useState('all');
-  const [activeRowKey, setActiveRowKey] = useState(getInitialActiveRowKey(initialServiceId));
+  const [internalSelectedClusterCode, setInternalSelectedClusterCode] = useState('all');
+  const selectedClusterCode = selectedClusterCodeValue ?? internalSelectedClusterCode;
+  const [clusterSearch, setClusterSearch] = useState('');
+  const [activeRowKey, setActiveRowKey] = useState<string | null>(null);
   const [weightRowKey, setWeightRowKey] = useState<string | null>(null);
   const [bulkWeightOpen, setBulkWeightOpen] = useState(false);
   const [weightTargetSearch, setWeightTargetSearch] = useState('');
@@ -1042,10 +1079,6 @@ const ModelOpsPage = ({
   const allOpsRows = useMemo(() => [...opsSeRows, ...createdRows], [createdRows]);
   const allDeployRows = useMemo(() => [...opsDeployPreviewData, ...createdDeployRows], [createdDeployRows]);
 
-  const getInitialRowKey = (serviceId: string) => (
-    allOpsRows.find((row) => serviceId === 'all' || row.serviceId === serviceId)?.key || allOpsRows[0]?.key || ''
-  );
-
   const selectedService = selectedServiceId === 'all' ? null : getOpsServiceById(selectedServiceId);
   const modelScopedRows = useMemo(() => (
     allOpsRows.filter((row) => !selectedService || row.serviceId === selectedService.id)
@@ -1056,23 +1089,49 @@ const ModelOpsPage = ({
     return allDeployRows.filter((item) => rowKeys.has(item.opsRowKey));
   }, [allDeployRows, modelScopedRowKeys]);
   const clusterOptions = useMemo(() => (
-    [...new Set(modelScopedRows.map((row) => row.clusterCode))].map((clusterCode) => {
+    opsCreateClusters.map((cluster) => {
+      const clusterCode = cluster.code;
       const clusterRowKeys = new Set(modelScopedRows.filter((row) => row.clusterCode === clusterCode).map((row) => row.key));
       return {
         clusterCode,
+        nodeCount: cluster.nodeCount,
         count: allDeployRows.filter((item) => clusterRowKeys.has(item.opsRowKey)).length,
       };
     })
   ), [allDeployRows, modelScopedRows]);
+  const normalizedClusterSearch = clusterSearch.trim().toLowerCase();
+  const filteredClusterOptions = useMemo(() => (
+    clusterOptions.filter(({ clusterCode }) => {
+      if (!normalizedClusterSearch) return true;
+      const cluster = opsClusterByCode.get(clusterCode);
+      return [
+        clusterCode,
+        cluster?.name,
+        cluster?.meta,
+        cluster?.provider,
+        cluster?.dataCenter,
+      ].some((value) => value?.toLowerCase().includes(normalizedClusterSearch));
+    })
+  ), [clusterOptions, normalizedClusterSearch]);
   const visibleRows = selectedClusterCode === 'all'
     ? modelScopedRows
     : modelScopedRows.filter((row) => row.clusterCode === selectedClusterCode);
-  const activeRow = visibleRows.find((row) => row.key === activeRowKey) || visibleRows[0] || allOpsRows[0];
+  const selectedWeightRow = activeRowKey
+    ? visibleRows.find((row) => row.key === activeRowKey) || null
+    : null;
   const linkedDeployRows = useMemo(() => {
     const visibleRowKeys = new Set(visibleRows.map((row) => row.key));
-    return allDeployRows.filter((item) => visibleRowKeys.has(item.opsRowKey));
-  }, [allDeployRows, visibleRows]);
-  const activeDeployRow = linkedDeployRows.find((item) => item.opsRowKey === activeRow?.key) || linkedDeployRows[0];
+    return allDeployRows.filter((item) => (
+      visibleRowKeys.has(item.opsRowKey)
+      && (!selectedWeightRow || item.opsRowKey === selectedWeightRow.key)
+    ));
+  }, [allDeployRows, selectedWeightRow, visibleRows]);
+  const activeDeployRow = selectedWeightRow
+    ? linkedDeployRows.find((item) => item.opsRowKey === selectedWeightRow.key)
+    : linkedDeployRows[0];
+  const visiblePodClusterKeys = useMemo(() => (
+    [...new Set(visibleRows.map((row) => row.clusterCode))]
+  ), [visibleRows]);
   const weightRow = weightRowKey ? allOpsRows.find((row) => row.key === weightRowKey) || null : null;
   const visibleTrafficTargets = weightRow?.traffic.filter((target) => (
     matchesKeyword([target.name, target.cluster, target.health], weightTargetSearch.trim().toLowerCase())
@@ -1208,18 +1267,20 @@ const ModelOpsPage = ({
   }, [createDraft]);
   const canExecuteCreate = createCompletion.every((step) => step.ready) && createDraft.confirmed;
 
+  const updateSelectedClusterCode = (clusterCode: string) => {
+    setInternalSelectedClusterCode(clusterCode);
+    onSelectedClusterCodeChange?.(clusterCode);
+  };
+
   const selectService = (serviceId: string) => {
     setSelectedServiceId(serviceId);
-    const nextRowKey = getInitialRowKey(serviceId);
-    setActiveRowKey(nextRowKey);
-    setSelectedClusterCode('all');
+    setActiveRowKey(null);
   };
 
   useEffect(() => {
     const nextServiceId = getServiceIdByModelName(selectedModelName);
     setSelectedServiceId(nextServiceId);
-    setActiveRowKey(getInitialRowKey(nextServiceId));
-    setSelectedClusterCode('all');
+    setActiveRowKey(null);
   }, [selectedModelName]);
 
   useEffect(() => {
@@ -1239,7 +1300,7 @@ const ModelOpsPage = ({
             model: createDraft.model,
             mode: 'PD 分离',
             clusterCode: createDraft.clusterCode,
-            clusterName: `${createDraft.clusterCode} / ${cluster.meta.split('/').slice(-1)[0].trim()}`,
+            clusterName: getOpsClusterLabel(createDraft.clusterCode),
             status: 'running',
             traffic: [{ key: `${rowKey}-traffic-router`, name: `${groupName}-router`, cluster: createDraft.clusterCode, weight: 100, health: 'healthy' }],
             instanceCount: createDraft.routerReplicas + createDraft.prefillReplicas + createDraft.decodeReplicas,
@@ -1256,10 +1317,10 @@ const ModelOpsPage = ({
           setCreatedDeployRows((rows) => [...rows, deployRow]);
           setWeights((currentWeights) => ({ ...currentWeights, [row.traffic[0].key]: 100 }));
           setSelectedServiceId(service.id);
-          setSelectedClusterCode(createDraft.clusterCode);
-          setActiveRowKey(row.key);
+          updateSelectedClusterCode(createDraft.clusterCode);
+          setActiveRowKey(null);
           setCreateExecutionPhase('success');
-          message.success(`${groupName} 已创建并接入 Groups`);
+          message.success(`${groupName} 已创建并接入 Ops`);
           return current;
         }
         return current + 1;
@@ -1269,11 +1330,8 @@ const ModelOpsPage = ({
   }, [createCompletion.length, createExecutionPhase]);
 
   const selectCluster = (clusterCode: string) => {
-    setSelectedClusterCode(clusterCode);
-    if (clusterCode !== 'all') {
-      const firstRow = modelScopedRows.find((row) => row.clusterCode === clusterCode);
-      if (firstRow) setActiveRowKey(firstRow.key);
-    }
+    updateSelectedClusterCode(clusterCode);
+    setActiveRowKey(null);
   };
 
   const updateWeight = (targetKey: string, value: number) => {
@@ -1331,7 +1389,7 @@ const ModelOpsPage = ({
   const openCreateGroup = (item?: DeployServiceItem) => {
     const sourceRow = item
       ? allOpsRows.find((row) => row.key === (item as OpsDeployPreviewItem).opsRowKey)
-      : activeRow;
+      : selectedWeightRow || visibleRows[0] || allOpsRows[0];
     const modelFromService = opsCreateModelOptions.find((option) => (
       option.serviceId === (sourceRow?.serviceId || selectedService?.id)
     ))?.value;
@@ -1340,7 +1398,7 @@ const ModelOpsPage = ({
       : modelFromService || 'GLM-5.2';
     const clusterCode = selectedClusterCode !== 'all'
       ? selectedClusterCode
-      : sourceRow?.clusterCode || 'bj';
+      : sourceRow?.clusterCode || 'beijing-prod';
     const serviceId = getCreateServiceId(model);
     const groupIndex = Math.max(1, allOpsRows.filter((row) => (
       row.clusterCode === clusterCode && row.serviceId === serviceId
@@ -1395,20 +1453,20 @@ const ModelOpsPage = ({
               <button
                 type="button"
                 role="tab"
-                aria-selected={centerViewMode === 'compute'}
-                className={centerViewMode === 'compute' ? 'active' : ''}
-                onClick={() => onCenterViewModeChange('compute')}
-              >
-                算力中心视图
-              </button>
-              <button
-                type="button"
-                role="tab"
                 aria-selected={centerViewMode === 'inference'}
                 className={centerViewMode === 'inference' ? 'active' : ''}
                 onClick={() => onCenterViewModeChange('inference')}
               >
                 推理中心视图
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={centerViewMode === 'compute'}
+                className={centerViewMode === 'compute' ? 'active' : ''}
+                onClick={() => onCenterViewModeChange('compute')}
+              >
+                算力中心视图
               </button>
             </div>
           ) : (
@@ -1418,50 +1476,61 @@ const ModelOpsPage = ({
             </>
           )}
         </div>
-        {!isEmbeddedCenter || centerWorkspaceView === 'groups' ? (
-          <>
-            {opsPreviewServices.map((service) => {
-              const rows = allOpsRows.filter((row) => row.serviceId === service.id);
-              const rowKeys = new Set(rows.map((row) => row.key));
-              const instanceTotal = allDeployRows.filter((item) => rowKeys.has(item.opsRowKey)).length;
-              const badCount = rows.filter((row) => row.status !== 'running').length;
-              return (
-                <button key={service.id} type="button" className={`model-ops-model-filter${selectedServiceId === service.id ? ' active' : ''}`} onClick={() => selectService(service.id)}>
-                  <i className={`status-dot ${badCount ? 'warning' : ''}`} />
-                  <span><strong>{service.model}</strong><em>{rows.length} 个集群 · {instanceTotal} 实例</em></span>
-                </button>
-              );
-            })}
-            <div className="model-ops-rail-se-grid">
-              <button
-                type="button"
-                aria-pressed={selectedClusterCode === 'all'}
-                className={selectedClusterCode === 'all' ? 'active' : ''}
-                onClick={() => selectCluster('all')}
-              >
-                <strong>全部</strong>
-                <em>{modelScopedDeployRows.length} 个实例</em>
-              </button>
-              {clusterOptions.map(({ clusterCode, count }) => (
-                <button
-                  key={clusterCode}
-                  type="button"
-                  aria-pressed={selectedClusterCode === clusterCode}
-                  className={selectedClusterCode === clusterCode ? 'active' : ''}
-                  onClick={() => selectCluster(clusterCode)}
-                >
-                  <strong>{clusterCode}</strong>
-                  <em>{count} 个实例</em>
-                </button>
-              ))}
-            </div>
-          </>
-        ) : (
-          <div className="model-ops-global-pod-rail-note">
-            <strong>全局 Pods</strong>
-            <span>已汇总全部供应商、数据中心和集群资源</span>
-          </div>
-        )}
+        {opsPreviewServices.map((service) => {
+          const rows = allOpsRows.filter((row) => row.serviceId === service.id);
+          const rowKeys = new Set(rows.map((row) => row.key));
+          const instanceTotal = allDeployRows.filter((item) => rowKeys.has(item.opsRowKey)).length;
+          const badCount = rows.filter((row) => row.status !== 'running').length;
+          return (
+            <button key={service.id} type="button" className={`model-ops-model-filter${selectedServiceId === service.id ? ' active' : ''}`} onClick={() => selectService(service.id)}>
+              <i className={`status-dot ${badCount ? 'warning' : ''}`} />
+              <span><strong>{service.model}</strong><em>{rows.length} 个部署集群 · {instanceTotal} 实例</em></span>
+            </button>
+          );
+        })}
+        <div className="model-ops-rail-cluster-head">
+          <strong>算力集群</strong>
+          <em>{normalizedClusterSearch
+            ? `${filteredClusterOptions.length}/${opsCreateClusters.length} 个`
+            : `${opsCreateClusters.length} 个 · ${opsTotalNodeCount} 节点`}</em>
+          <Input
+            size="small"
+            allowClear
+            value={clusterSearch}
+            prefix={<SearchOutlined />}
+            placeholder="搜索集群"
+            aria-label="搜索算力集群"
+            onChange={(event) => setClusterSearch(event.target.value)}
+            className="model-ops-rail-cluster-search"
+          />
+        </div>
+        <div className="model-ops-rail-se-grid">
+          <button
+            type="button"
+            aria-pressed={selectedClusterCode === 'all'}
+            className={selectedClusterCode === 'all' ? 'active' : ''}
+            onClick={() => selectCluster('all')}
+          >
+            <strong>全部集群</strong>
+            <em>{opsTotalNodeCount} 节点 · {modelScopedDeployRows.length} 实例</em>
+          </button>
+          {filteredClusterOptions.map(({ clusterCode, nodeCount, count }) => (
+            <button
+              key={clusterCode}
+              type="button"
+              title={getOpsClusterLabel(clusterCode)}
+              aria-pressed={selectedClusterCode === clusterCode}
+              className={selectedClusterCode === clusterCode ? 'active' : ''}
+              onClick={() => selectCluster(clusterCode)}
+            >
+              <strong>{clusterCode}</strong>
+              <em>{nodeCount} 节点 · {count} 实例</em>
+            </button>
+          ))}
+          {normalizedClusterSearch && filteredClusterOptions.length === 0 && (
+            <div className="model-ops-rail-cluster-empty">没有匹配的集群</div>
+          )}
+        </div>
       </aside>
 
       <main className="model-ops-main">
@@ -1469,11 +1538,11 @@ const ModelOpsPage = ({
           <nav className="model-ops-center-view-tabs" aria-label="推理中心资源视图">
             <button
               type="button"
-              className={centerWorkspaceView === 'groups' ? 'active' : ''}
-              aria-current={centerWorkspaceView === 'groups' ? 'page' : undefined}
-              onClick={() => setCenterWorkspaceView('groups')}
+              className={centerWorkspaceView === 'ops' ? 'active' : ''}
+              aria-current={centerWorkspaceView === 'ops' ? 'page' : undefined}
+              onClick={() => setCenterWorkspaceView('ops')}
             >
-              Groups
+              Ops
             </button>
             <button
               type="button"
@@ -1483,9 +1552,25 @@ const ModelOpsPage = ({
             >
               Pods
             </button>
+            <button
+              type="button"
+              className={centerWorkspaceView === 'services' ? 'active' : ''}
+              aria-current={centerWorkspaceView === 'services' ? 'page' : undefined}
+              onClick={() => setCenterWorkspaceView('services')}
+            >
+              Service
+            </button>
+            <button
+              type="button"
+              className={centerWorkspaceView === 'serviceEntries' ? 'active' : ''}
+              aria-current={centerWorkspaceView === 'serviceEntries' ? 'page' : undefined}
+              onClick={() => setCenterWorkspaceView('serviceEntries')}
+            >
+              ServiceEntry
+            </button>
           </nav>
         )}
-        {centerWorkspaceView === 'groups' ? (
+        {centerWorkspaceView === 'ops' ? (
           <>
         <section className="model-ops-se-panel">
           <div className="model-ops-section-head">
@@ -1504,12 +1589,13 @@ const ModelOpsPage = ({
                     key={row.key}
                     role="button"
                     tabIndex={0}
-                    className={activeRow?.key === row.key ? 'model-ops-weight-item active' : 'model-ops-weight-item'}
-                    onClick={() => setActiveRowKey(row.key)}
+                    className={activeRowKey === row.key ? 'model-ops-weight-item active' : 'model-ops-weight-item'}
+                    aria-pressed={activeRowKey === row.key}
+                    onClick={() => setActiveRowKey((current) => current === row.key ? null : row.key)}
                     onKeyDown={(event) => {
                       if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault();
-                        setActiveRowKey(row.key);
+                        setActiveRowKey((current) => current === row.key ? null : row.key);
                       }
                     }}
                   >
@@ -1564,8 +1650,15 @@ const ModelOpsPage = ({
         </section>
           </>
         ) : (
-          <div className="model-ops-global-pods-scope cluster-operations-homepage">
-            <ClusterResourceTables view="pod" globalPodView className="model-ops-global-pods" />
+          <div className="model-ops-global-resource-scope cluster-operations-homepage">
+            <ClusterResourceTables
+              key={centerWorkspaceView}
+              view={centerWorkspaceView === 'pods' ? 'pod' : centerWorkspaceView === 'services' ? 'svc' : 'se'}
+              globalPodView={centerWorkspaceView === 'pods'}
+              globalResourceView
+              resourceClusterKeys={visiblePodClusterKeys}
+              className="model-ops-global-resource"
+            />
           </div>
         )}
       </main>

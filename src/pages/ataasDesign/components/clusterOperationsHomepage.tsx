@@ -5,14 +5,13 @@ import {
 } from '@ant-design/icons';
 import { Button, ConfigProvider, Drawer, Dropdown, Empty, Form, Input, message, Modal, Popover, Progress, Select, Table, Tag, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { ArrowRightLeft, CircleAlert, CircuitBoard, Cpu, Database, FileText, HardDrive, MemoryStick, MonitorCog, Network, Search, Server, Trash2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ArrowRightLeft, CircleAlert, CircuitBoard, Cpu, Database, FileText, HardDrive, MemoryStick, MonitorCog, Network, Search, Server, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   CLUSTER_OPERATIONS_CLUSTER_DATA,
   CLUSTER_OPERATIONS_RESOURCE_TREE,
   initializeClusterOperations,
 } from './clusterOperationsRuntime';
-import ClusterResourceTables from './clusterResourceTables';
 import {
   SupplierResourceCreateFlow,
   supplierResourceCreateMenuItems,
@@ -220,14 +219,15 @@ const faultDetails: Record<string, FaultData> = {
 };
 
 type HierarchyScope = {
-  type: 'provider' | 'datacenter';
-  provider: string;
+  type: 'all' | 'provider' | 'datacenter';
+  provider?: string;
   datacenter?: string;
 };
 
 type HierarchyClusterRow = {
   key: string;
   name: string;
+  provider: string;
   datacenter: string;
   location: string;
   k8s: string;
@@ -254,19 +254,29 @@ type HierarchyClusterRow = {
 
 const HierarchyOverviewPage = ({
   scope,
+  onSelectProvider,
   onSelectDataCenter,
   onSelectCluster,
 }: {
   scope: HierarchyScope | null;
+  onSelectProvider: (provider: string) => void;
   onSelectDataCenter: (provider: string, datacenter: string) => void;
   onSelectCluster: (clusterKey: string) => void;
 }) => {
   if (!scope) return null;
 
-  const provider = CLUSTER_OPERATIONS_RESOURCE_TREE.find((item) => item.name === scope.provider);
-  const datacenters = provider?.dcs.filter((item) => scope.type === 'provider' || item.name === scope.datacenter) || [];
+  const providers = scope.type === 'all'
+    ? CLUSTER_OPERATIONS_RESOURCE_TREE
+    : CLUSTER_OPERATIONS_RESOURCE_TREE.filter((item) => item.name === scope.provider);
+  const datacenters = providers.flatMap((provider) => provider.dcs
+    .filter((item) => scope.type !== 'datacenter' || item.name === scope.datacenter)
+    .map((datacenter) => ({
+      ...datacenter,
+      provider: provider.name,
+    })));
   const clusters = datacenters.flatMap((datacenter) => datacenter.clusters.map((cluster) => ({
     ...cluster,
+    provider: datacenter.provider,
     datacenter: datacenter.name,
   })));
   const clusterRows: HierarchyClusterRow[] = clusters.map((cluster) => {
@@ -274,6 +284,7 @@ const HierarchyOverviewPage = ({
     return {
       key: cluster.key,
       name: detail?.name || cluster.name,
+      provider: cluster.provider,
       datacenter: cluster.datacenter,
       location: detail?.location || cluster.meta,
       k8s: detail?.k8s || '—',
@@ -404,7 +415,24 @@ const HierarchyOverviewPage = ({
     },
   ];
 
-  const childRows = scope.type === 'provider'
+  const childRows = scope.type === 'all'
+    ? providers.map((provider) => {
+      const rows = clusterRows.filter((row) => row.provider === provider.name);
+      return {
+        key: provider.name,
+        name: provider.name,
+        meta: `${provider.dcs.length} 个数据中心`,
+        clusters: rows.length,
+        nodes: rows.reduce((sum, row) => sum + row.nodes, 0),
+        abnormal: rows.reduce((sum, row) => sum + row.abnormal, 0),
+        alerts: {
+          critical: rows.reduce((sum, row) => sum + row.alerts.critical, 0),
+          warning: rows.reduce((sum, row) => sum + row.alerts.warning, 0),
+        },
+        resources: aggregateResources(rows),
+      };
+    })
+    : scope.type === 'provider'
     ? datacenters.map((datacenter) => {
       const rows = clusterRows.filter((row) => row.datacenter === datacenter.name);
       return {
@@ -439,6 +467,7 @@ const HierarchyOverviewPage = ({
     .map((row) => ({
       key: row.key,
       name: row.name,
+      provider: row.provider,
       datacenter: row.datacenter,
       location: row.location,
       critical: row.alerts.critical,
@@ -450,21 +479,31 @@ const HierarchyOverviewPage = ({
       right.critical - left.critical || right.total - left.total
     ));
 
-  const title = scope.type === 'provider' ? scope.provider : scope.datacenter || '';
-  const description = scope.type === 'provider'
-    ? `覆盖 ${datacenters.length} 个数据中心、${clusterRows.length} 个集群的资源运行情况`
-    : `所属供应商 ${scope.provider}，当前纳管 ${clusterRows.length} 个集群`;
+  const title = scope.type === 'all'
+    ? '全部机器'
+    : scope.type === 'provider' ? scope.provider : scope.datacenter || '';
+  const description = scope.type === 'all'
+    ? `覆盖 ${providers.length} 个供应商、${datacenters.length} 个数据中心、${clusterRows.length} 个集群的资源运行情况`
+    : scope.type === 'provider'
+      ? `覆盖 ${datacenters.length} 个数据中心、${clusterRows.length} 个集群的资源运行情况`
+      : `所属供应商 ${scope.provider}，当前纳管 ${clusterRows.length} 个集群`;
 
   return (
     <ConfigProvider theme={{ token: { colorPrimary: '#6951FF' }, components: { Table: { headerBg: '#F7F8FA' } } }}>
       <section className="hierarchy-overview-view">
         <header className="hierarchy-overview-head">
           <div className="hierarchy-overview-title">
-            <span>{scope.type === 'provider' ? '供应商总览' : '数据中心总览'}</span>
+            <span>{scope.type === 'all' ? '全局总览' : scope.type === 'provider' ? '供应商总览' : '数据中心总览'}</span>
             <h2>{title}</h2>
             <p>{description}</p>
           </div>
           <div className="hierarchy-overview-stats">
+            {scope.type === 'all' && (
+              <>
+                <span><small>供应商</small><strong>{providers.length}</strong></span>
+                <span><small>数据中心</small><strong>{datacenters.length}</strong></span>
+              </>
+            )}
             {scope.type === 'provider' && (
               <span><small>数据中心</small><strong>{datacenters.length}</strong></span>
             )}
@@ -553,7 +592,7 @@ const HierarchyOverviewPage = ({
                 >
                   <span>
                     <strong>{row.name}</strong>
-                    <small>{scope.type === 'provider' ? row.datacenter : row.location}</small>
+                    <small>{scope.type === 'all' ? `${row.provider} · ${row.datacenter}` : scope.type === 'provider' ? row.datacenter : row.location}</small>
                   </span>
                   <span className="hierarchy-alert-cluster-track">
                     <i
@@ -580,16 +619,18 @@ const HierarchyOverviewPage = ({
 
         <section className="hierarchy-child-resource-section">
           <div className="hierarchy-section-title">
-            <strong>{scope.type === 'provider' ? '数据中心资源' : '集群资源'}</strong>
+            <strong>{scope.type === 'all' ? '供应商资源' : scope.type === 'provider' ? '数据中心资源' : '集群资源'}</strong>
             <span>
-              {scope.type === 'provider'
+              {scope.type === 'all'
+                ? `共 ${providers.length} 个供应商`
+                : scope.type === 'provider'
                 ? `共 ${datacenters.length} 个数据中心`
                 : `共 ${clusterRows.length} 个集群`}
             </span>
           </div>
           <div className="hierarchy-child-resource-table">
             <div className="hierarchy-child-resource-head">
-              <span>{scope.type === 'provider' ? '数据中心' : '集群'}</span>
+              <span>{scope.type === 'all' ? '供应商' : scope.type === 'provider' ? '数据中心' : '集群'}</span>
               <span>集群 / 节点</span>
               <span>CPU</span>
               <span>GPU</span>
@@ -605,8 +646,13 @@ const HierarchyOverviewPage = ({
               return (
                 <div key={row.key} className="hierarchy-child-resource-row">
                   <div className="hierarchy-child-name">
-                    {scope.type === 'provider' ? (
-                      <button type="button" onClick={() => onSelectDataCenter(scope.provider, row.name)}>
+                    {scope.type === 'all' ? (
+                      <button type="button" onClick={() => onSelectProvider(row.name)}>
+                        <strong>{row.name}</strong>
+                        <span>{row.meta}</span>
+                      </button>
+                    ) : scope.type === 'provider' ? (
+                      <button type="button" onClick={() => onSelectDataCenter(scope.provider || '', row.name)}>
                         <strong>{row.name}</strong>
                         <span>{row.meta}</span>
                       </button>
@@ -713,16 +759,19 @@ const formatTaskTime = (timestamp: number) => new Intl.DateTimeFormat('zh-CN', {
 type ClusterOperationsHomepageProps = {
   centerViewMode: 'compute' | 'inference';
   onCenterViewModeChange: (mode: 'compute' | 'inference') => void;
+  selectedClusterKey: string;
+  onSelectedClusterKeyChange: (clusterKey: string) => void;
 };
 
 const ClusterOperationsHomepage = ({
   centerViewMode,
   onCenterViewModeChange,
+  selectedClusterKey,
+  onSelectedClusterKeyChange,
 }: ClusterOperationsHomepageProps) => {
   const rootRef = useRef<HTMLDivElement>(null);
   const [hierarchyScope, setHierarchyScope] = useState<HierarchyScope | null>(null);
   const [resourceCreateKind, setResourceCreateKind] = useState<SupplierResourceCreateKind | null>(null);
-  const [selectedClusterKey, setSelectedClusterKey] = useState('st');
   const [clusterTasks, setClusterTasks] = useState<ClusterProvisionTask[]>(loadClusterProvisionTasks);
   const [taskDrawerOpen, setTaskDrawerOpen] = useState(false);
   const [logTaskKey, setLogTaskKey] = useState<string | null>(null);
@@ -731,7 +780,10 @@ const ClusterOperationsHomepage = ({
   useEffect(() => {
     const handleHierarchyScopeChange = (event: Event) => {
       const detail = (event as CustomEvent).detail;
-      if (detail?.type === 'provider') {
+      if (detail?.type === 'all') {
+        onSelectedClusterKeyChange('all');
+        setHierarchyScope({ type: 'all' });
+      } else if (detail?.type === 'provider') {
         setHierarchyScope({ type: 'provider', provider: detail.provider });
       } else if (detail?.type === 'datacenter') {
         setHierarchyScope({
@@ -740,7 +792,7 @@ const ClusterOperationsHomepage = ({
           datacenter: detail.datacenter,
         });
       } else if (detail?.type === 'cluster') {
-        setSelectedClusterKey(detail.key || 'st');
+        onSelectedClusterKeyChange(detail.key || 'st');
         setHierarchyScope(null);
       }
     };
@@ -750,7 +802,7 @@ const ClusterOperationsHomepage = ({
       window.sessionStorage.removeItem(CLUSTER_WIZARD_RESUME_KEY);
       setResourceCreateKind('cluster');
     }
-    if (rootRef.current) initializeClusterOperations(rootRef.current);
+    if (rootRef.current) initializeClusterOperations(rootRef.current, selectedClusterKey);
     return () => window.removeEventListener('ataas:hierarchy-scope-change', handleHierarchyScopeChange);
   }, []);
 
@@ -776,9 +828,14 @@ const ClusterOperationsHomepage = ({
 
   const runningTaskCount = clusterTasks.filter((task) => getClusterTaskProgress(task, taskClock) < 100).length;
   const selectedLogTask = clusterTasks.find((task) => task.key === logTaskKey) || null;
+  const selectedCluster = CLUSTER_OPERATIONS_CLUSTER_DATA[selectedClusterKey] || CLUSTER_OPERATIONS_CLUSTER_DATA.st;
+
+  const openNodePage = () => {
+    rootRef.current?.querySelector<HTMLElement>('.cluster-node-entry[data-view="nodes"]')?.click();
+  };
 
   const focusNodeIssue = (kind: 'node' | 'network' | 'disk') => {
-    rootRef.current?.querySelector<HTMLElement>('.module-tab[data-view="nodes"]')?.click();
+    openNodePage();
     window.dispatchEvent(new CustomEvent('ataas:cluster-node-focus', {
       detail: { kind, nodeKey: 'n4' },
     }));
@@ -799,6 +856,18 @@ const ClusterOperationsHomepage = ({
     setHierarchyScope({ type: 'datacenter', provider, datacenter });
   };
 
+  const selectProvider = (provider: string) => {
+    const heads = Array.from(
+      rootRef.current?.querySelectorAll<HTMLElement>('.tree-provider-head') || [],
+    );
+    const target = heads.find((head) => head.dataset.providerName === provider);
+    if (target) {
+      target.click();
+      return;
+    }
+    setHierarchyScope({ type: 'provider', provider });
+  };
+
   const selectCluster = (clusterKey: string) => {
     const target = rootRef.current?.querySelector<HTMLElement>(
       `.tree-cluster-link[data-cluster-key="${clusterKey}"]`,
@@ -814,20 +883,20 @@ const ClusterOperationsHomepage = ({
           <button
             type="button"
             role="tab"
-            aria-selected={centerViewMode === 'compute'}
-            className={centerViewMode === 'compute' ? 'active' : ''}
-            onClick={() => onCenterViewModeChange('compute')}
-          >
-            算力中心视图
-          </button>
-          <button
-            type="button"
-            role="tab"
             aria-selected={centerViewMode === 'inference'}
             className={centerViewMode === 'inference' ? 'active' : ''}
             onClick={() => onCenterViewModeChange('inference')}
           >
             推理中心视图
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={centerViewMode === 'compute'}
+            className={centerViewMode === 'compute' ? 'active' : ''}
+            onClick={() => onCenterViewModeChange('compute')}
+          >
+            算力中心视图
           </button>
         </div>
         <div className="tree-header-actions">
@@ -872,28 +941,51 @@ const ClusterOperationsHomepage = ({
       <main className="content">
         <HierarchyOverviewPage
           scope={hierarchyScope}
+          onSelectProvider={selectProvider}
           onSelectDataCenter={selectDataCenter}
           onSelectCluster={selectCluster}
         />
         <div className="cluster-scope-view">
         <div className="page-title-row">
-          <div>
+          <div className="cluster-overview-heading overview-only-action">
             <div className="page-title" id="clusterTitle">gpu-prod-01</div>
             <div className="page-title-line">
               <span className="cluster-running">正常</span>
               <span className="k8s-badge" id="clusterK8sBadge">Kubernetes v1.36.2</span>
             </div>
           </div>
+          <div className="cluster-node-heading nodes-only-action">
+            <button
+              type="button"
+              className="cluster-node-back module-tab"
+              data-view="overview"
+              aria-label="返回集群总览"
+            >
+              <ArrowLeft />
+            </button>
+            <div>
+              <div className="cluster-node-breadcrumb">
+                <span>{selectedCluster.name}</span>
+                <i>/</i>
+                <strong>节点管理</strong>
+              </div>
+              <div className="cluster-node-context">共 {selectedCluster.nodes} 个节点</div>
+            </div>
+          </div>
           <div className="page-actions">
+            <button
+              type="button"
+              className="cluster-node-entry overview-only-action module-tab"
+              data-view="nodes"
+              title="查看当前集群的节点清单"
+            >
+              <Server />
+              <span>节点管理</span>
+              <b>{selectedCluster.nodes}</b>
+              <ArrowRight />
+            </button>
           </div>
         </div>
-
-        <nav className="module-nav">
-          <div className="module-tab active" data-view="overview">总览</div>
-          <div className="module-tab" data-view="nodes" title="Kubernetes Node对象及Ready、压力和调度状态">节点</div>
-          <div className="module-tab" data-view="services" title="展示后端运行在上海资源段的Services；ServiceEntry为集群级配置">Services</div>
-          <div className="module-tab" data-view="serviceentry" title="K8s ServiceEntry资源，用于定义网格出口流量规则">ServiceEntry</div>
-	        </nav>
 
         <div className="overview-view">
         <div className="overview-card-grid">
@@ -954,7 +1046,13 @@ const ClusterOperationsHomepage = ({
 
             <section className="resource-canvas resource-canvas-refined" aria-label="资源运行">
               <div className="resource-node-summary">
-                <div className="resource-visual-title module-title"><Server className="module-line-icon" /><span>节点</span></div>
+                <div className="resource-visual-title module-title">
+                  <Server className="module-line-icon" />
+                  <span>节点</span>
+                  <button type="button" className="node-summary-entry" onClick={openNodePage}>
+                    查看节点清单 <ArrowRight />
+                  </button>
+                </div>
                 <div className="node-summary-body">
                   <div className="node-summary-primary">
                     <span><strong id="overviewNodeTotal">3</strong><small>节点总数</small></span>
@@ -1166,13 +1264,6 @@ const ClusterOperationsHomepage = ({
           <NodeTable selectedClusterKey={selectedClusterKey} />
         </section>
 
-        <section className="services-view">
-          <ClusterResourceTables view="svc" selectedClusterKey={selectedClusterKey} />
-        </section>
-
-        <section className="serviceentry-view">
-          <ClusterResourceTables view="se" selectedClusterKey={selectedClusterKey} />
-        </section>
         </div>
       </main>
     </section>
@@ -1937,12 +2028,17 @@ const NodeExpandContent = ({ node, initialTab = 'CPU' }: { node: NodeRow; initia
   return null;
 };
 
-const buildMockNodeRow = (name: string, matchedPods: NodeRow['pods'], index: number): NodeRow => {
+const buildMockNodeRow = (
+  name: string,
+  matchedPods: NodeRow['pods'],
+  index: number,
+  clusterNameOverride?: string,
+): NodeRow => {
   const gpuCount = 8;
-  const clusterName = name.startsWith('st-') ? 'st'
+  const clusterName = clusterNameOverride || (name.startsWith('st-') ? 'st'
     : name.startsWith('bd-') ? 'beijing-prod'
     : name.startsWith('bx-') ? 'guangzhou-test'
-    : 'default';
+    : 'default');
   const runningCount = matchedPods.filter(p => p.status === 'Running').length;
   const baseIp = `192.168.${100 + (index % 200)}.${(index % 254) + 1}`;
   const s = index;
@@ -2023,14 +2119,38 @@ const buildMockNodeRow = (name: string, matchedPods: NodeRow['pods'], index: num
 };
 
 const generateNodeRows = (pods: K8sPodResource[]): NodeRow[] => {
-  const nodeMap = new Map<string, NodeRow['pods']>();
+  const nodeMap = new Map<string, Map<string, NodeRow['pods']>>();
   pods.forEach(p => {
     if (!p.node || p.node === '自动调度') return;
     if (p.role === 'router' || p.role === 'store' || p.role === 'master' || p.role === 'etcd') return;
-    if (!nodeMap.has(p.node)) nodeMap.set(p.node, []);
-    nodeMap.get(p.node)!.push({ name: p.name, status: p.status, namespace: p.namespace, ready: p.ready });
+    if (!nodeMap.has(p.cluster)) nodeMap.set(p.cluster, new Map());
+    const clusterNodes = nodeMap.get(p.cluster)!;
+    if (!clusterNodes.has(p.node)) clusterNodes.set(p.node, []);
+    clusterNodes.get(p.node)!.push({ name: p.name, status: p.status, namespace: p.namespace, ready: p.ready });
   });
-  return Array.from(nodeMap.entries()).map(([name, matchedPods], i) => buildMockNodeRow(name, matchedPods, i));
+
+  let nodeIndex = 0;
+  return Object.entries(CLUSTER_OPERATIONS_CLUSTER_DATA).flatMap(([clusterKey, cluster]) => {
+    const nodeTotal = Math.max(0, Number(cluster.nodes) || 0);
+    const abnormalTotal = Math.min(nodeTotal, Math.max(0, Number(cluster.abnormal) || 0));
+    const podNodes = Array.from(nodeMap.get(clusterKey)?.entries() || []);
+
+    return Array.from({ length: nodeTotal }, (_, clusterNodeIndex) => {
+      const podNode = podNodes[clusterNodeIndex];
+      const nodeName = podNode?.[0]
+        || `${clusterKey}-node-${String(clusterNodeIndex + 1).padStart(2, '0')}`;
+      const row = buildMockNodeRow(nodeName, podNode?.[1] || [], nodeIndex, clusterKey);
+      nodeIndex += 1;
+      if (clusterNodeIndex < abnormalTotal) {
+        return {
+          ...row,
+          status: 'error' as const,
+          tags: [...(row.tags || []), 'node.kubernetes.io/not-ready=true'],
+        };
+      }
+      return row;
+    });
+  });
 };
 
 const nodeStatusText: Record<NodeRow['status'], string> = {
@@ -2277,10 +2397,17 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
   useEffect(() => {
     const handleFocus = (event: Event) => {
       const detail = (event as CustomEvent<{ kind?: 'node' | 'network' | 'disk'; nodeKey?: string }>).detail;
-      if (!detail?.kind || !detail.nodeKey) return;
+      if (!detail?.kind) return;
+      const requestedNode = detail.nodeKey
+        ? scopedNodeRows.find((row) => row.key === detail.nodeKey)
+        : null;
+      const targetNode = requestedNode
+        || scopedNodeRows.find((row) => row.status === 'error' || row.status === 'warning')
+        || scopedNodeRows[0];
+      if (!targetNode) return;
       setKeyword('');
-      setFaultFocus({ kind: detail.kind, nodeKey: detail.nodeKey });
-      setExpandedRowKeys([detail.nodeKey]);
+      setFaultFocus({ kind: detail.kind, nodeKey: targetNode.key });
+      setExpandedRowKeys([targetNode.key]);
     };
 
     const handleNodeFocus = (event: Event) => {
@@ -2297,7 +2424,7 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
       window.removeEventListener('ataas:cluster-node-focus', handleFocus);
       window.removeEventListener('ataas:node-focus', handleNodeFocus);
     };
-  }, []);
+  }, [scopedNodeRows]);
 
   const filteredData = useMemo(() => scopedNodeRows.filter((row) => {
     if (faultFocus) return row.key === faultFocus.nodeKey;

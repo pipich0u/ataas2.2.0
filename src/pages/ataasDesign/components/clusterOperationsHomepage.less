@@ -813,9 +813,7 @@
   .overview-view,
   .nodes-view,
   .workloads-view,
-  .pods-view,
-  .services-view,
-  .serviceentry-view { --bg: #fff; }
+  .pods-view { --bg: #fff; }
   .resource-tree, .topbar, .card, .summary-card { background: #fff; }
   .resource-tree, .topbar, .card, .summary-card, .module-nav,
   .card-head, .overview-item, .fault-row, .quick-actions, .asset-list,
@@ -962,19 +960,10 @@
   &.workloads-mode .overview-only-action { display: none; }
   &.workloads-mode .workloads-view { display: block; }
 
-  .pods-view, .services-view, .serviceentry-view { display: none; }
+  .pods-view { display: none; }
   &.pods-mode .overview-view, &.pods-mode .overview-only-action,
-  &.pods-mode .nodes-view, &.pods-mode .workloads-view,
-  &.pods-mode .services-view, &.pods-mode .serviceentry-view { display: none; }
+  &.pods-mode .nodes-view, &.pods-mode .workloads-view { display: none; }
   &.pods-mode .pods-view { display: block; }
-  &.services-mode .overview-view, &.services-mode .overview-only-action,
-  &.services-mode .nodes-view, &.services-mode .workloads-view,
-  &.services-mode .pods-view, &.services-mode .serviceentry-view { display: none; }
-  &.services-mode .services-view { display: block; }
-  &.serviceentry-mode .overview-view, &.serviceentry-mode .overview-only-action,
-  &.serviceentry-mode .nodes-view, &.serviceentry-mode .workloads-view,
-  &.serviceentry-mode .pods-view, &.serviceentry-mode .services-view { display: none; }
-  &.serviceentry-mode .serviceentry-view { display: block; }
 
   // Embedded in the existing ATaaS shell: its sidebar is provided by the host page.
   box-sizing: border-box;
@@ -6450,6 +6439,59 @@
     font-weight: 500;
   }
 
+  .tree-all-machines {
+    width: 100%;
+    min-height: 36px;
+    margin: 0 0 8px;
+    padding: 0 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 0;
+    border-radius: 6px;
+    color: #344054;
+    background: transparent;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .tree-all-machines:hover,
+  .tree-all-machines:focus-visible {
+    background: #f7f8fa;
+    outline: none;
+  }
+
+  .tree-all-machines.active,
+  .tree-all-machines.scope-active {
+    background: #f2f6ff;
+    box-shadow: inset 3px 0 0 #3568ff;
+  }
+
+  .tree-all-machines strong,
+  .tree-all-machines small {
+    min-width: 0;
+    white-space: nowrap;
+  }
+
+  .tree-all-machines strong {
+    color: #1d2129;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 18px;
+  }
+
+  .tree-all-machines small {
+    color: #86909c;
+    font-size: 12px;
+    line-height: 18px;
+  }
+
+  .tree-all-machines.active strong,
+  .tree-all-machines.scope-active strong {
+    color: #5f46e8;
+  }
+
   .tree-provider,
   .tree-provider:hover {
     margin: 0 0 14px;
@@ -6662,6 +6704,166 @@
     height: 21px;
     flex-basis: 21px;
     font-size: 19px;
+  }
+
+  /* Cluster overview is the landing page; node management is a drill-down page. */
+  .cluster-overview-heading {
+    min-width: 0;
+  }
+
+  .cluster-node-heading {
+    min-width: 0;
+    align-items: center;
+    gap: 11px;
+  }
+
+  .cluster-node-back.module-tab {
+    box-sizing: border-box;
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border: 1px solid #e5e6eb;
+    border-radius: 6px;
+    color: #4e5969;
+    background: #fff;
+    box-shadow: none;
+    cursor: pointer;
+  }
+
+  .cluster-node-back.module-tab:hover {
+    border-color: #c9cdd4;
+    color: #1d2129;
+    background: #f7f8fa;
+  }
+
+  .cluster-node-back.module-tab::before,
+  .cluster-node-back.module-tab::after,
+  .cluster-node-entry.module-tab::before,
+  .cluster-node-entry.module-tab::after {
+    display: none;
+  }
+
+  .cluster-node-back svg {
+    width: 15px;
+    height: 15px;
+    stroke-width: 1.6;
+  }
+
+  .cluster-node-breadcrumb {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #86909c;
+    font-size: 12px;
+    line-height: 18px;
+  }
+
+  .cluster-node-breadcrumb span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .cluster-node-breadcrumb i {
+    color: #c9cdd4;
+    font-style: normal;
+  }
+
+  .cluster-node-breadcrumb strong {
+    color: #1d2129;
+    font-size: 16px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .cluster-node-context {
+    margin-top: 2px;
+    color: #86909c;
+    font-size: 10px;
+    line-height: 15px;
+  }
+
+  .cluster-node-entry.module-tab {
+    box-sizing: border-box;
+    width: auto;
+    height: 34px;
+    padding: 0 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border: 1px solid #e5e6eb;
+    border-radius: 6px;
+    color: #4e5969;
+    background: #fff;
+    box-shadow: none;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .cluster-node-entry.module-tab:hover {
+    border-color: #c8c0fa;
+    color: #5d43e8;
+    background: #faf9ff;
+  }
+
+  .cluster-node-entry svg {
+    width: 14px;
+    height: 14px;
+    stroke-width: 1.5;
+  }
+
+  .cluster-node-entry svg:last-child {
+    width: 12px;
+    height: 12px;
+    margin-left: 1px;
+  }
+
+  .cluster-node-entry b {
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 9px;
+    color: #6951ff;
+    background: #f3f1ff;
+    font-size: 10px;
+    font-weight: 500;
+  }
+
+  &.nodes-mode .cluster-node-entry.overview-only-action {
+    display: none;
+  }
+
+  .node-summary-entry {
+    margin-left: auto;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    border: 0;
+    color: #6951ff;
+    background: transparent;
+    font: inherit;
+    font-size: 10px;
+    font-weight: 400;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .node-summary-entry:hover {
+    color: #4d37da;
+  }
+
+  .node-summary-entry svg {
+    width: 11px;
+    height: 11px;
+    stroke-width: 1.6;
   }
 
   /* Node workspace: follows the same quiet table and detail rhythm as 运营调度. */
@@ -7851,34 +8053,26 @@
 
   .resource-ownership-tags {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
+    flex-wrap: wrap;
     gap: 4px;
-    white-space: nowrap;
+    white-space: normal;
   }
 
   .resource-ownership-tags > span {
     display: inline-flex;
     min-width: 0;
+    max-width: 100%;
     align-items: center;
-    max-width: 160px;
     padding: 2px 6px;
-    overflow: hidden;
     border: 1px solid #e5eaf2;
     border-radius: 4px;
     background: #f7f8fa;
     color: #4e5969;
     font-size: 12px;
     line-height: 18px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .resource-ownership-tags > span:first-child {
-    max-width: 72px;
-  }
-
-  .resource-ownership-tags > span:last-child {
-    max-width: 88px;
+    overflow-wrap: anywhere;
+    white-space: normal;
   }
 
   .is-global-pod-table .ant-table-thead > tr > th {

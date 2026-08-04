@@ -168,22 +168,20 @@ export const CLUSTER_OPERATIONS_RESOURCE_TREE: ClusterOperationsResourceTreeProv
   ]},
 ];
 
-export const initializeClusterOperations = (root: HTMLElement) => {
+export const initializeClusterOperations = (root: HTMLElement, selectedClusterKey = 'st') => {
   if (root.dataset.clusterOperationsInitialized === 'true') return;
   root.dataset.clusterOperationsInitialized = 'true';
 
   const getById = (id: string) => root.querySelector(`#${id}`);
 
   const tabs = Array.from(root.querySelectorAll('.module-tab[data-view]'));
-  const allModes = ['nodes-mode', 'workloads-mode', 'pods-mode', 'services-mode', 'serviceentry-mode', 'se-view-mode'];
+  const allModes = ['nodes-mode', 'workloads-mode', 'pods-mode', 'se-view-mode'];
   const applyView = (view = 'overview') => {
     root.classList.remove(...allModes);
     tabs.forEach((tab) => tab.classList.toggle('active', tab.dataset.view === view));
     if (view === 'nodes') root.classList.add('nodes-mode');
     else if (view === 'workloads') root.classList.add('workloads-mode');
     else if (view === 'pods') root.classList.add('pods-mode');
-    else if (view === 'services') root.classList.add('services-mode');
-    else if (view === 'serviceentry') root.classList.add('serviceentry-mode');
   };
   tabs.forEach((tab) => tab.addEventListener('click', () => {
     applyView(tab.dataset.view || 'overview');
@@ -195,7 +193,11 @@ export const initializeClusterOperations = (root: HTMLElement) => {
   const clusterData = CLUSTER_OPERATIONS_CLUSTER_DATA;
 
   const applyCluster = (clusterKey: string) => {
-    applyView('overview');
+    const activeView = root.classList.contains('nodes-mode') ? 'nodes' : 'overview';
+    applyView(activeView);
+    root.querySelectorAll('.tree-all-machines.active, .tree-all-machines.scope-active').forEach((item) => {
+      item.classList.remove('active', 'scope-active');
+    });
     root.querySelectorAll('.tree-provider-head.scope-active, .tree-dc-head.scope-active').forEach((item) => item.classList.remove('scope-active'));
     root.querySelectorAll('.tree-cluster-link').forEach((l) => l.classList.remove('active'));
     const link = root.querySelector(`.tree-cluster-link[data-cluster-key="${clusterKey}"]`);
@@ -247,6 +249,9 @@ export const initializeClusterOperations = (root: HTMLElement) => {
 
   const selectHierarchyScope = (head, detail) => {
     applyView('overview');
+    root.querySelectorAll('.tree-all-machines.active, .tree-all-machines.scope-active').forEach((item) => {
+      item.classList.remove('active', 'scope-active');
+    });
     root.querySelectorAll('.tree-cluster-link').forEach((item) => item.classList.remove('active'));
     root.querySelectorAll('.tree-provider-head.scope-active, .tree-dc-head.scope-active').forEach((item) => item.classList.remove('scope-active'));
     head.classList.add('scope-active');
@@ -279,14 +284,31 @@ export const initializeClusterOperations = (root: HTMLElement) => {
 
     let firstClusterKey = '';
 
+    const allMachinesButton = el('button', 'tree-all-machines',
+      el('strong', null, '全部机器'),
+      el('small', null, `${totalBms} 节点 · ${totalClusters} 集群`),
+    );
+    allMachinesButton.type = 'button';
+    allMachinesButton.setAttribute('aria-label', `全部机器，${totalBms} 个节点，${totalClusters} 个集群`);
+    allMachinesButton.addEventListener('click', () => {
+      selectHierarchyScope(allMachinesButton, { type: 'all' });
+      allMachinesButton.classList.add('active');
+    });
+    container.appendChild(allMachinesButton);
+
     resourceTreeData.forEach((provider, pi) => {
-      const providerDiv = el('div', 'tree-provider' + (provider.expanded ? '' : ' collapsed'));
+      const providerContainsSelectedCluster = provider.dcs.some((dc) => (
+        dc.clusters.some((cluster) => cluster.key === selectedClusterKey)
+      ));
+      const providerExpanded = provider.expanded || providerContainsSelectedCluster;
+      const providerDiv = el('div', 'tree-provider' + (providerExpanded ? '' : ' collapsed'));
       providerDiv.dataset.searchName = provider.name.toLowerCase();
-      const providerChevron = el('span', 'tree-chevron', provider.expanded ? '⌄' : '›');
+      const providerChevron = el('span', 'tree-chevron', providerExpanded ? '⌄' : '›');
       const head = el('div', 'tree-provider-head',
         providerChevron,
         el('span', null, provider.name),
       );
+      head.dataset.providerName = provider.name;
       providerDiv.appendChild(head);
       const toggleProvider = () => {
         providerDiv.classList.toggle('collapsed');
@@ -299,9 +321,11 @@ export const initializeClusterOperations = (root: HTMLElement) => {
       });
 
       provider.dcs.forEach((dc) => {
-        const dcDiv = el('div', 'tree-dc' + (dc.expanded ? '' : ' collapsed'));
+        const dcContainsSelectedCluster = dc.clusters.some((cluster) => cluster.key === selectedClusterKey);
+        const dcExpanded = dc.expanded || dcContainsSelectedCluster;
+        const dcDiv = el('div', 'tree-dc' + (dcExpanded ? '' : ' collapsed'));
         dcDiv.dataset.searchName = dc.name.toLowerCase();
-        const dcChevron = el('span', 'tree-chevron', dc.expanded ? '⌄' : '›');
+        const dcChevron = el('span', 'tree-chevron', dcExpanded ? '⌄' : '›');
         const dcHead = el('div', 'tree-dc-head',
           dcChevron,
           el('span', null, dc.name),
@@ -323,7 +347,7 @@ export const initializeClusterOperations = (root: HTMLElement) => {
         dc.clusters.forEach((cl, ci) => {
           const isFirst = pi === 0 && ci === 0 && !firstClusterKey;
           if (isFirst) firstClusterKey = cl.key;
-          const linkCls = 'tree-cluster-link' + (isFirst ? ' active' : '');
+          const linkCls = 'tree-cluster-link' + (cl.key === selectedClusterKey ? ' active' : '');
           const link = el('div', linkCls,
             el('span', null),
             el('span', null, cl.name + (cl.meta ? '' : ''), cl.meta ? el('small', 'tree-link-meta', cl.meta) : null),
@@ -340,8 +364,13 @@ export const initializeClusterOperations = (root: HTMLElement) => {
 
     container.appendChild(el('div', 'tree-empty', '未找到匹配的资源'));
 
-    // Initialize with the first cluster
-    if (firstClusterKey) applyCluster(firstClusterKey);
+    // “全部集群”与算力中心的“全部机器”使用同一个筛选值。
+    if (selectedClusterKey === 'all') {
+      allMachinesButton.click();
+    } else {
+      const initialClusterKey = clusterData[selectedClusterKey] ? selectedClusterKey : firstClusterKey;
+      if (initialClusterKey) applyCluster(initialClusterKey);
+    }
   };
 
 

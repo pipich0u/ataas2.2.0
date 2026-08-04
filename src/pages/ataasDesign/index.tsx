@@ -6598,9 +6598,8 @@ const AtAasDesign = () => {
     return 'clusterOperations';
   });
   const [themeSettings, setThemeSettings] = useState<ThemeSettingsState>(defaultThemeSettings);
-  const [centerViewMode, setCenterViewMode] = useState<'compute' | 'inference'>(() => (
-    window.location.pathname.includes('/model-ops') ? 'inference' : 'compute'
-  ));
+  const [centerViewMode, setCenterViewMode] = useState<'compute' | 'inference'>('inference');
+  const [centerSelectedClusterKey, setCenterSelectedClusterKey] = useState('all');
   const [clusterViewMode, setClusterViewMode] = useState<'cluster' | 'gpu'>('cluster');
   const [callRankMode, setCallRankMode] = useState<'tpm' | 'rpm'>('tpm');
   const [clusterPanel, setClusterPanel] = useState<'clusters' | 'nodes'>('clusters');
@@ -10778,7 +10777,7 @@ const AtAasDesign = () => {
   const handleSidebarItemSelect = (item: (typeof SIDEBAR_ITEMS)[number]) => {
     setActiveTab(item.key);
     setMegaMenuOpen(false);
-    if (item.key === 'clusterOperations') setCenterViewMode('compute');
+    if (item.key === 'clusterOperations') setCenterViewMode('inference');
     if (item.key === 'clusters') setClusterPanel('clusters');
     if (item.key === 'nodes') setClusterPanel('nodes');
     const pathMap: Record<string, string> = {
@@ -10803,6 +10802,8 @@ const AtAasDesign = () => {
     <ModelOpsPage
       centerViewMode={withinCenterView ? centerViewMode : undefined}
       onCenterViewModeChange={withinCenterView ? setCenterViewMode : undefined}
+      selectedClusterCode={withinCenterView ? centerSelectedClusterKey : undefined}
+      onSelectedClusterCodeChange={withinCenterView ? setCenterSelectedClusterKey : undefined}
       selectedModelName={modelOpsSelectedModel}
       onDetail={handleDeployDetail}
       onStop={handleDeployStop}
@@ -12540,7 +12541,14 @@ const AtAasDesign = () => {
       case 'containerManagement': return <ContainerManagementPage />;
       case 'routeWorkbench': return <RouteWorkbenchPage />;
       case 'clusterOperations': return centerViewMode === 'compute'
-        ? <ClusterOperationsHomepage centerViewMode={centerViewMode} onCenterViewModeChange={setCenterViewMode} />
+        ? (
+          <ClusterOperationsHomepage
+            centerViewMode={centerViewMode}
+            onCenterViewModeChange={setCenterViewMode}
+            selectedClusterKey={centerSelectedClusterKey}
+            onSelectedClusterKeyChange={setCenterSelectedClusterKey}
+          />
+        )
         : renderModelOpsPage(true);
       case 'supplierResources': return <SupplierResourcesPage />;
       case 'distributionCenter': return <DistributionCenterPage />;
@@ -12563,28 +12571,39 @@ const AtAasDesign = () => {
       <header
         ref={minimalNavRef}
         className={'ataas-minimal-nav' + (megaMenuOpen ? ' open' : '')}
-        onMouseLeave={closeMegaMenu}
+        onMouseLeave={() => {
+          resetNavHoverSuppression();
+          closeMegaMenu();
+        }}
       >
-        <div
-          className="ataas-minimal-leading"
-          onMouseEnter={openMegaMenuOnHover}
-          onMouseMove={openMegaMenuOnHover}
-          onMouseLeave={resetNavHoverSuppression}
-        >
+        <div className="ataas-minimal-leading">
           <button
             className={'ataas-minimal-brand' + (megaBrandHovered ? ' hovered' : '')}
             type="button"
             aria-label={megaMenuOpen ? '收起主菜单' : '打开主菜单'}
             aria-expanded={megaMenuOpen}
-            onMouseEnter={() => setMegaBrandHovered(true)}
-            onMouseMove={() => setMegaBrandHovered(true)}
+            onMouseEnter={() => {
+              setMegaBrandHovered(true);
+              openMegaMenuOnHover();
+            }}
+            onMouseMove={() => {
+              setMegaBrandHovered(true);
+              openMegaMenuOnHover();
+            }}
             onMouseLeave={() => setMegaBrandHovered(false)}
             onClick={toggleMegaMenu}
           >
             <img src={ataasLogo} alt="ATaaS" />
           </button>
           <span className="ataas-minimal-divider" aria-hidden="true" />
-          <button className="ataas-minimal-hint" type="button" onClick={toggleMegaMenu} aria-expanded={megaMenuOpen}>
+          <button
+            className="ataas-minimal-hint"
+            type="button"
+            onMouseEnter={openMegaMenuOnHover}
+            onMouseMove={openMegaMenuOnHover}
+            onClick={toggleMegaMenu}
+            aria-expanded={megaMenuOpen}
+          >
             <AppstoreOutlined className="ataas-minimal-hint-grid" />
             <span>全部页面</span>
             <DownOutlined className="ataas-minimal-hint-chevron" />
