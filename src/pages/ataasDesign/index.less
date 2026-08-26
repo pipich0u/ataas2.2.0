@@ -20194,6 +20194,16 @@ button.ataas-page-create-button.ant-btn.ant-btn-primary,
     border-color: #FFE0A3;
     color: #D98500;
   }
+
+  &.ops {
+    border-color: #CFC7FF;
+    color: #6738E8;
+  }
+
+  &.viewer {
+    border-color: #CDE8D5;
+    color: #12A150;
+  }
 }
 
 .ataas-user-create-modal {
@@ -26471,6 +26481,13 @@ body.ataas-density-professional {
     min-height: 28px !important;
   }
 
+  .ant-drawer .ant-input-affix-wrapper > input.ant-input,
+  .ant-modal-root .ant-input-affix-wrapper > input.ant-input {
+    min-height: 0 !important;
+    height: auto !important;
+    padding-block: 0 !important;
+  }
+
   .ant-drawer .ant-select-single,
   .ant-modal-root .ant-select-single {
     height: 28px !important;
@@ -26506,3 +26523,11 @@ body.ataas-density-professional {
     padding-block: 8px !important;
   }
 }
+.ataas-mooncake-create-modal .ant-modal-content { padding: 0; overflow: hidden; border-radius: 8px; }
+.ataas-mooncake-create-modal .ant-modal-header { margin: 0; padding: 18px 22px 14px; border-bottom: 1px solid #edf0f5; }
+.ataas-mooncake-create-modal .ant-modal-body { padding: 18px 22px 8px; }
+.ataas-mooncake-create-modal .ant-modal-footer { margin: 0; padding: 12px 22px; border-top: 1px solid #edf0f5; }
+.ataas-mooncake-create-modal .ant-form-item { margin-bottom: 16px; }
+.ataas-form-grid-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.ataas-form-grid-three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.ataas-mooncake-create-tip { margin-bottom: 10px; padding: 10px 12px; border-radius: 5px; background: #f7f8fa; color: #86909c; font-size: 12px; line-height: 1.6; }

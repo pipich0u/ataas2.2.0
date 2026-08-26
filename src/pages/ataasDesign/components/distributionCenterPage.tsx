@@ -256,10 +256,46 @@ const imageRows = [
   { key: 'image-3', name: 'platform/node-agent:v2.6.0', desc: '节点管理组件', source: '离线镜像仓库', size: '628 MB', updated: '昨天 18:20' },
 ];
 
+type ImageRow = typeof imageRows[number];
+type ImageDistributionTask = {
+  id: number;
+  image: string;
+  source: string;
+  targetCluster: string;
+  targetLocation: string;
+  progress: number;
+  status: DistributionTask['status'];
+  updated: string;
+};
+
+const initialImageTasks: ImageDistributionTask[] = [
+  { id: 2003, image: imageRows[0].name, source: imageRows[0].source, targetCluster: PLATFORM_CLUSTER.name, targetLocation: '并行科技 / 广州科学城数据中心', progress: 72, status: 'running', updated: '刚刚' },
+  { id: 2002, image: imageRows[1].name, source: imageRows[1].source, targetCluster: PLATFORM_CLUSTER.name, targetLocation: '并行科技 / 广州科学城数据中心', progress: 100, status: 'completed', updated: '今天 09:58' },
+  { id: 2001, image: imageRows[2].name, source: imageRows[2].source, targetCluster: PLATFORM_CLUSTER.name, targetLocation: '并行科技 / 广州科学城数据中心', progress: 100, status: 'completed', updated: '昨天 18:32' },
+];
+
 const fileRows = [
   { key: 'file-1', name: 'NVIDIA-Linux-x86_64-550.54.run', desc: '/data/packages/drivers/', type: '驱动包', size: '326 MB', source: 'ops-transfer-01', updated: '今天 10:08' },
   { key: 'file-2', name: 'kubernetes-v1.36.2-offline.tar.gz', desc: '/data/packages/kubernetes/', type: '软件包', size: '1.86 GB', source: 'model-store-02', updated: '今天 09:36' },
   { key: 'file-3', name: 'node-agent-config-20260722.zip', desc: '/data/packages/config/', type: '配置文件', size: '12.4 MB', source: 'ops-transfer-01', updated: '今天 08:54' },
+];
+type FileRow = typeof fileRows[number];
+type FileDistributionTask = {
+  id: number;
+  file: string;
+  type: string;
+  source: string;
+  targetCluster: string;
+  targetMode: 'cluster';
+  progress: number;
+  speed: string;
+  status: DistributionTask['status'];
+  updated: string;
+};
+const initialFileTasks: FileDistributionTask[] = [
+  { id: 3003, file: fileRows[1].name, type: fileRows[1].type, source: fileRows[1].source, targetCluster: PLATFORM_CLUSTER.name, targetMode: 'cluster', progress: 64, speed: '286 MB/s', status: 'running', updated: '刚刚' },
+  { id: 3002, file: fileRows[0].name, type: fileRows[0].type, source: fileRows[0].source, targetCluster: PLATFORM_CLUSTER.name, targetMode: 'cluster', progress: 100, speed: '—', status: 'completed', updated: '今天 10:21' },
+  { id: 3001, file: fileRows[2].name, type: fileRows[2].type, source: fileRows[2].source, targetCluster: PLATFORM_CLUSTER.name, targetMode: 'cluster', progress: 100, speed: '—', status: 'completed', updated: '今天 09:07' },
 ];
 
 const formatSize = (sizeGb: number) => sizeGb < 10 ? `${sizeGb.toFixed(1)} GB` : `${Math.round(sizeGb)} GB`;
@@ -295,13 +331,24 @@ const distributionPageMeta: Record<DistributionResourceKind, { title: string; de
 
 const DistributionCenterPage = ({ resourceKind = 'models' }: { resourceKind?: DistributionResourceKind }) => {
   const [modelSubview, setModelSubview] = useState<'catalog' | 'tasks'>('catalog');
+  const [imageSubview, setImageSubview] = useState<'catalog' | 'tasks'>('catalog');
   const [models, setModels] = useState(initialModels);
   const [tasks, setTasks] = useState(initialTasks);
   const [modelSearch, setModelSearch] = useState('');
   const [hostFilter, setHostFilter] = useState('all');
   const [taskSearch, setTaskSearch] = useState('');
   const [imageSearch, setImageSearch] = useState('');
+  const [imageTaskSearch, setImageTaskSearch] = useState('');
+  const [imageTasks, setImageTasks] = useState(initialImageTasks);
+  const [imageDistributionOpen, setImageDistributionOpen] = useState(false);
+  const [selectedImageKey, setSelectedImageKey] = useState(imageRows[0].key);
+  const [imageDistributionForm] = Form.useForm();
   const [fileSearch, setFileSearch] = useState('');
+  const [fileSubview, setFileSubview] = useState<'catalog' | 'tasks'>('catalog');
+  const [fileTaskSearch, setFileTaskSearch] = useState('');
+  const [fileTasks, setFileTasks] = useState(initialFileTasks);
+  const [fileDistributionOpen, setFileDistributionOpen] = useState(false);
+  const [fileDistributionForm] = Form.useForm();
   const [taskTypeFilter, setTaskTypeFilter] = useState<'all' | 'download' | 'distribution'>('all');
   const [taskStatusFilter, setTaskStatusFilter] = useState<'all' | DistributionTask['status']>('all');
   const [expandedModel, setExpandedModel] = useState<string | null>(null);
@@ -377,10 +424,19 @@ const DistributionCenterPage = ({ resourceKind = 'models' }: { resourceKind?: Di
     return imageRows.filter((image) => !keyword || `${image.name} ${image.desc} ${image.source}`.toLowerCase().includes(keyword));
   }, [imageSearch]);
 
+  const visibleImageTasks = useMemo(() => {
+    const keyword = imageTaskSearch.trim().toLowerCase();
+    return imageTasks.filter((task) => !keyword || `${task.image} ${task.source} ${task.targetCluster} ${task.targetLocation}`.toLowerCase().includes(keyword));
+  }, [imageTaskSearch, imageTasks]);
+
   const visibleFiles = useMemo(() => {
     const keyword = fileSearch.trim().toLowerCase();
     return fileRows.filter((file) => !keyword || `${file.name} ${file.desc} ${file.type} ${file.source}`.toLowerCase().includes(keyword));
   }, [fileSearch]);
+  const visibleFileTasks = useMemo(() => {
+    const keyword = fileTaskSearch.trim().toLowerCase();
+    return fileTasks.filter((task) => !keyword || `${task.file} ${task.type} ${task.source} ${task.targetCluster}`.toLowerCase().includes(keyword));
+  }, [fileTaskSearch, fileTasks]);
 
   const selectedModel = models.find((model) => model.id === selectedModelId) || models[0];
   const selectedCopy = selectedModel.copies.find((copy) => copy.id === selectedCopyId) || selectedModel.copies[0];
@@ -526,6 +582,65 @@ const DistributionCenterPage = ({ resourceKind = 'models' }: { resourceKind?: Di
     setTaskTypeFilter('all');
     setTaskStatusFilter('all');
     setModelSubview('tasks');
+  };
+
+  const openImageDistribution = (image?: ImageRow) => {
+    const selectedImage = image || imageRows[0];
+    const cluster = clusters[0];
+    setSelectedImageKey(selectedImage.key);
+    imageDistributionForm.setFieldsValue({
+      taskName: `分发 ${selectedImage.name} 至 ${cluster.name}`,
+      imageKey: selectedImage.key,
+      targetCluster: cluster.id,
+    });
+    setImageDistributionOpen(true);
+  };
+
+  const createImageDistributionTask = async () => {
+    const values = await imageDistributionForm.validateFields();
+    const image = imageRows.find((item) => item.key === values.imageKey);
+    const cluster = clusters.find((item) => item.id === values.targetCluster);
+    if (!image || !cluster) return;
+    setImageTasks((items) => [{
+      id: Date.now(),
+      image: image.name,
+      source: image.source,
+      targetCluster: cluster.name,
+      targetLocation: `${cluster.supplier} / ${cluster.dataCenter}`,
+      progress: 0,
+      status: 'running',
+      updated: '刚刚',
+    }, ...items]);
+    setImageDistributionOpen(false);
+    setImageSubview('tasks');
+    message.success('镜像分发任务已创建');
+  };
+
+  const openFileDistribution = (file?: FileRow) => {
+    const selectedFile = file || fileRows[0];
+    fileDistributionForm.setFieldsValue({
+      taskName: `分发 ${selectedFile.name} 至 ${PLATFORM_CLUSTER.name}`,
+      fileKey: selectedFile.key,
+      targetCluster: PLATFORM_CLUSTER.id,
+      targetPath: selectedFile.desc,
+      verify: true,
+    });
+    setFileDistributionOpen(true);
+  };
+
+  const createFileDistributionTask = async () => {
+    const values = await fileDistributionForm.validateFields();
+    const file = fileRows.find((item) => item.key === values.fileKey);
+    const cluster = clusters.find((item) => item.id === values.targetCluster);
+    if (!file || !cluster) return;
+    setFileTasks((items) => [{
+      id: Date.now(), file: file.name, type: file.type, source: file.source,
+      targetCluster: cluster.name, targetMode: 'cluster', progress: 0,
+      speed: '等待预检', status: 'running', updated: '刚刚',
+    }, ...items]);
+    setFileDistributionOpen(false);
+    setFileSubview('tasks');
+    message.success('文件分发任务已创建');
   };
 
   const taskColumns: ColumnsType<DistributionTask> = [
@@ -683,12 +798,12 @@ const DistributionCenterPage = ({ resourceKind = 'models' }: { resourceKind?: Di
     />
   );
 
-  const imagePane = (
+  const imageCatalog = (
     <div className="distribution-simple-pane">
       <div className="distribution-simple-toolbar">
         <Input.Search value={imageSearch} onChange={(event) => setImageSearch(event.target.value)} allowClear placeholder="搜索镜像名称或来源仓库" />
         <span />
-        <Button className="distribution-pane-create-button ataas-page-create-button" type="primary" icon={<PlusOutlined />} onClick={() => message.info('创建镜像分发')}>创建镜像分发</Button>
+        <Button className="distribution-pane-create-button ataas-page-create-button" type="primary" icon={<PlusOutlined />} onClick={() => openImageDistribution()}>创建镜像分发</Button>
       </div>
       <Table tableLayout="fixed" dataSource={visibleImages} pagination={false} columns={[
         { title: '镜像', key: 'name', width: '22%', render: (_, record) => <span className="distribution-table-main"><strong>{record.name}</strong><small>{record.desc}</small></span> },
@@ -696,18 +811,48 @@ const DistributionCenterPage = ({ resourceKind = 'models' }: { resourceKind?: Di
         { title: '镜像大小', dataIndex: 'size', key: 'size', width: '13%' },
         { title: '可用状态', key: 'status', width: '14%', render: () => <span className="distribution-task-status completed">可分发</span> },
         { title: '最近更新', dataIndex: 'updated', key: 'updated', width: '16%' },
-        { title: '操作', key: 'action', width: '10%', align: 'center', className: 'distribution-action-column', render: () => <Button className="distribution-table-action" type="link" icon={<SendOutlined />} onClick={() => message.info('创建镜像分发')}>分发</Button> },
+        { title: '操作', key: 'action', width: '10%', align: 'center', className: 'distribution-action-column', render: (_, record) => <Button className="distribution-table-action" type="link" icon={<SendOutlined />} onClick={() => openImageDistribution(record)}>分发</Button> },
         { title: '', key: 'spacer', width: '8%', className: 'distribution-flex-spacer', render: () => null },
       ]} />
     </div>
   );
 
-  const filePane = (
+  const imageTaskList = (
+    <div className="distribution-task-view">
+      <div className="distribution-toolbar">
+        <Input.Search value={imageTaskSearch} onChange={(event) => setImageTaskSearch(event.target.value)} allowClear placeholder="搜索镜像、来源仓库或目标集群" />
+        <span />
+        <Button icon={<ReloadOutlined />} onClick={() => message.success('镜像任务列表已刷新')} />
+        <Button className="ataas-page-create-button" type="primary" icon={<PlusOutlined />} onClick={() => openImageDistribution()}>创建分发</Button>
+      </div>
+      <Table className="distribution-task-table" rowKey="id" dataSource={visibleImageTasks} pagination={{ pageSize: 10, showSizeChanger: false, showTotal: (total) => `共 ${total} 条任务` }} columns={[
+        { title: '镜像', dataIndex: 'image', key: 'image', width: 260, render: (value, record) => <span className="distribution-table-main"><strong>{value}</strong><small>{record.source}</small></span> },
+        { title: '分发方式', key: 'mode', width: 120, render: () => <span>按集群分发</span> },
+        { title: '目标集群', key: 'cluster', width: 250, render: (_, record) => <span className="distribution-table-main"><strong>{record.targetCluster}</strong><small>{record.targetLocation}</small></span> },
+        { title: '任务进度', dataIndex: 'progress', key: 'progress', width: 220, render: (value, record) => <Progress percent={value} size="small" status={record.status === 'failed' ? 'exception' : record.status === 'completed' ? 'success' : 'active'} /> },
+        { title: '状态', dataIndex: 'status', key: 'status', width: 100, render: (value) => <span className={`distribution-task-status ${value}`}>{getTaskStatusLabel(value)}</span> },
+        { title: '更新时间', dataIndex: 'updated', key: 'updated', width: 110 },
+      ]} />
+    </div>
+  );
+
+  const imagePane = (
+    <Tabs
+      activeKey={imageSubview}
+      onChange={(key) => setImageSubview(key as 'catalog' | 'tasks')}
+      items={[
+        { key: 'catalog', label: <span>镜像列表 <Tag bordered={false}>{imageRows.length}</Tag></span>, children: imageCatalog },
+        { key: 'tasks', label: <span>任务列表 <Tag bordered={false}>{imageTasks.length}</Tag></span>, children: imageTaskList },
+      ]}
+    />
+  );
+
+  const fileCatalog = (
     <div className="distribution-simple-pane">
       <div className="distribution-simple-toolbar">
         <Input.Search value={fileSearch} onChange={(event) => setFileSearch(event.target.value)} allowClear placeholder="搜索文件、类型或来源主机" />
         <span />
-        <Button className="distribution-pane-create-button ataas-page-create-button" type="primary" icon={<PlusOutlined />} onClick={() => message.info('创建文件分发')}>创建文件分发</Button>
+        <Button className="distribution-pane-create-button ataas-page-create-button" type="primary" icon={<PlusOutlined />} onClick={() => openFileDistribution()}>创建文件分发</Button>
       </div>
       <Table tableLayout="fixed" dataSource={visibleFiles} pagination={false} columns={[
         { title: '文件／软件包', key: 'name', width: '23%', render: (_, record) => <span className="distribution-table-main"><strong>{record.name}</strong><small>{record.desc}</small></span> },
@@ -715,11 +860,36 @@ const DistributionCenterPage = ({ resourceKind = 'models' }: { resourceKind?: Di
         { title: '文件大小', dataIndex: 'size', key: 'size', width: '13%' },
         { title: '来源主机', dataIndex: 'source', key: 'source', width: '17%' },
         { title: '最近更新', dataIndex: 'updated', key: 'updated', width: '17%' },
-        { title: '操作', key: 'action', width: '10%', align: 'center', className: 'distribution-action-column', render: () => <Button className="distribution-table-action" type="link" icon={<FileOutlined />} onClick={() => message.info('创建文件分发')}>分发</Button> },
+        { title: '操作', key: 'action', width: '10%', align: 'center', className: 'distribution-action-column', render: (_, record) => <Button className="distribution-table-action" type="link" icon={<FileOutlined />} onClick={() => openFileDistribution(record)}>分发</Button> },
         { title: '', key: 'spacer', width: '8%', className: 'distribution-flex-spacer', render: () => null },
       ]} />
     </div>
   );
+
+  const fileTaskList = (
+    <div className="distribution-task-view">
+      <div className="distribution-toolbar">
+        <Input.Search value={fileTaskSearch} onChange={(event) => setFileTaskSearch(event.target.value)} allowClear placeholder="搜索文件、类型、来源主机或目标集群" />
+        <span />
+        <Button icon={<ReloadOutlined />} onClick={() => message.success('文件任务列表已刷新')} />
+        <Button className="ataas-page-create-button" type="primary" icon={<PlusOutlined />} onClick={() => openFileDistribution()}>创建分发</Button>
+      </div>
+      <Table className="distribution-task-table" rowKey="id" dataSource={visibleFileTasks} pagination={{ pageSize: 10, showSizeChanger: false, showTotal: (total) => `共 ${total} 条任务` }} columns={[
+        { title: '文件／软件包', dataIndex: 'file', key: 'file', width: 310, render: (value, record) => <span className="distribution-table-main"><strong>{value}</strong><small>{record.type} · {record.source}</small></span> },
+        { title: '分发方式', key: 'mode', width: 130, render: () => '按集群分发' },
+        { title: '目标集群', dataIndex: 'targetCluster', key: 'targetCluster', width: 180 },
+        { title: '任务进度', dataIndex: 'progress', key: 'progress', width: 230, render: (value, record) => <Progress percent={value} size="small" status={record.status === 'failed' ? 'exception' : record.status === 'completed' ? 'success' : 'active'} /> },
+        { title: '实时速度', dataIndex: 'speed', key: 'speed', width: 110 },
+        { title: '状态', dataIndex: 'status', key: 'status', width: 100, render: (value) => <span className={`distribution-task-status ${value}`}>{getTaskStatusLabel(value)}</span> },
+        { title: '更新时间', dataIndex: 'updated', key: 'updated', width: 110 },
+      ]} />
+    </div>
+  );
+
+  const filePane = <Tabs activeKey={fileSubview} onChange={(key) => setFileSubview(key as 'catalog' | 'tasks')} items={[
+    { key: 'catalog', label: <span>文件列表 <Tag bordered={false}>{fileRows.length}</Tag></span>, children: fileCatalog },
+    { key: 'tasks', label: <span>任务列表 <Tag bordered={false}>{fileTasks.length}</Tag></span>, children: fileTaskList },
+  ]} />;
 
   return (
     <div className="distribution-center-page">
@@ -742,6 +912,42 @@ const DistributionCenterPage = ({ resourceKind = 'models' }: { resourceKind?: Di
         onSubmit={createDownloadTask}
         onCancel={() => setDownloadOpen(false)}
       />
+
+      <Modal title="创建文件分发" open={fileDistributionOpen} width={620} okText="创建分发" cancelText="取消" onOk={createFileDistributionTask} onCancel={() => setFileDistributionOpen(false)}>
+        <Form form={fileDistributionForm} layout="vertical">
+          <Form.Item label="任务名称" name="taskName" rules={[{ required: true, message: '请输入任务名称' }]}><Input /></Form.Item>
+          <Form.Item label="文件／软件包" name="fileKey" rules={[{ required: true, message: '请选择文件' }]}><Select options={fileRows.map((file) => ({ value: file.key, label: `${file.name} · ${file.size}` }))} /></Form.Item>
+          <Form.Item label="分发方式"><Input value="按集群分发" disabled /></Form.Item>
+          <Form.Item label="目标集群" name="targetCluster" rules={[{ required: true, message: '请选择目标集群' }]}><Select options={[{ value: PLATFORM_CLUSTER.id, label: `${PLATFORM_CLUSTER.name} · ${PLATFORM_GPU_NODES.length} Nodes` }]} /></Form.Item>
+          <Form.Item label="目标目录" name="targetPath" rules={[{ required: true, message: '请输入目标目录' }]}><Input /></Form.Item>
+          <Form.Item name="verify" valuePropName="checked"><Checkbox>分发完成后校验文件大小与校验值</Checkbox></Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        className="distribution-create-modal"
+        title="创建镜像分发"
+        open={imageDistributionOpen}
+        width={680}
+        okText="创建并分发"
+        onOk={createImageDistributionTask}
+        onCancel={() => setImageDistributionOpen(false)}
+      >
+        <p className="distribution-modal-note">将镜像分发到目标集群，任务进度按集群维度跟踪。</p>
+        <Form form={imageDistributionForm} layout="vertical">
+          <Form.Item label="任务名称" name="taskName" rules={[{ required: true, message: '请输入任务名称' }]}><Input /></Form.Item>
+          <Form.Item label="镜像" name="imageKey" rules={[{ required: true, message: '请选择镜像' }]}>
+            <Select options={imageRows.map((image) => ({ value: image.key, label: `${image.name} · ${image.size}` }))} onChange={setSelectedImageKey} />
+          </Form.Item>
+          <Form.Item label="目标集群" name="targetCluster" extra="镜像以集群为最小分发单位，不选择单个 Node。" rules={[{ required: true, message: '请选择目标集群' }]}>
+            <Select showSearch optionFilterProp="label" options={clusterOptions} />
+          </Form.Item>
+          <div className="distribution-image-summary">
+            <span>来源仓库</span><strong>{imageRows.find((image) => image.key === selectedImageKey)?.source}</strong>
+            <span>镜像大小</span><strong>{imageRows.find((image) => image.key === selectedImageKey)?.size}</strong>
+          </div>
+        </Form>
+      </Modal>
 
       <Modal
         className="distribution-create-modal"

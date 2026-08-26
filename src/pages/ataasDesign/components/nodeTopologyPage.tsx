@@ -3,7 +3,6 @@ import {
   CheckCircleFilled,
   EditOutlined,
   ExclamationCircleFilled,
-  ReloadOutlined,
   SearchOutlined,
 } from '@ant-design/icons';
 import { Button, Input, message, Modal, Select, Segmented, Tag } from 'antd';
@@ -60,7 +59,6 @@ const NodeTopologyPage = () => {
   const [vendor, setVendor] = useState('all');
   const [role, setRole] = useState('all');
   const [status, setStatus] = useState('all');
-  const [fillMode, setFillMode] = useState<'group' | 'utilization'>('group');
   const [hovered, setHovered] = useState<TopologyNode>();
   const [hoveredGroup, setHoveredGroup] = useState<string>();
   const [editTarget, setEditTarget] = useState<TopologyNode>();
@@ -97,7 +95,6 @@ const NodeTopologyPage = () => {
     <div className="node-topology-page">
       <div className="node-topology-heading">
         <div><h1>节点拓扑</h1><p>集中查看 GPU 节点角色、推理组归属与实时运行状态</p></div>
-        <Button icon={<ReloadOutlined />} onClick={() => message.success('节点状态已刷新')}>刷新</Button>
       </div>
 
       <section className="node-topology-toolbar">
@@ -107,7 +104,6 @@ const NodeTopologyPage = () => {
         <Select value={role} onChange={setRole} options={[{ value: 'all', label: '全部角色' }, ...Object.entries(ROLE_META).map(([value, meta]) => ({ value, label: meta.label }))]} />
         <Select value={status} onChange={setStatus} options={[{ value: 'all', label: '全部状态' }, { value: 'ready', label: '运行正常' }, { value: 'warning', label: '存在异常' }, { value: 'empty', label: '未分配' }]} />
         <Button onClick={reset}>重置</Button>
-        <Segmented value={fillMode} onChange={(value) => setFillMode(value as typeof fillMode)} options={[{ value: 'group', label: '推理组' }, { value: 'utilization', label: '利用率' }]} />
       </section>
 
       <section className="node-topology-legend">
@@ -130,9 +126,8 @@ const NodeTopologyPage = () => {
           {filtered.length ? <div className="node-topology-grid">
             {filtered.map((node) => {
               const groupColor = GROUPS.find((item) => item.id === node.groupId)?.color || '#6951ff';
-              const utilColor = node.utilization >= 85 ? '#f53f3f' : node.utilization >= 65 ? '#ff7d00' : node.utilization >= 40 ? '#6951ff' : '#14b8a6';
-              const accent = fillMode === 'utilization' ? utilColor : groupColor;
-              return <button key={node.id} type="button" className={`node-topology-node ${node.status} ${hoveredGroup === node.groupId ? 'group-active' : ''} ${hoveredGroup && hoveredGroup !== node.groupId ? 'group-muted' : ''}`} style={{ '--node-accent': accent, '--node-util': `${node.utilization}%` } as React.CSSProperties} onMouseEnter={() => setHovered(node)} onMouseLeave={() => setHovered(undefined)} onFocus={() => setHovered(node)} onBlur={() => setHovered(undefined)} onClick={() => openEdit(node)}>
+              const accent = groupColor;
+              return <button key={node.id} type="button" className={`node-topology-node ${node.status} ${hoveredGroup === node.groupId ? 'group-active' : ''}`} style={{ '--node-accent': accent, '--node-util': `${node.utilization}%` } as React.CSSProperties} onMouseEnter={() => { setHovered(node); setHoveredGroup(node.groupId); }} onMouseLeave={() => { setHovered(undefined); setHoveredGroup(undefined); }} onFocus={() => { setHovered(node); setHoveredGroup(node.groupId); }} onBlur={() => { setHovered(undefined); setHoveredGroup(undefined); }} onClick={() => openEdit(node)}>
                   <span className="node-topology-node-role">{ROLE_META[node.role].short}</span>
                   {node.bookable && <em>B</em>}
                   <strong>{node.name}</strong>

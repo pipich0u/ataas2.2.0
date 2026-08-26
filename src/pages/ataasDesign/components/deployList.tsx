@@ -1413,7 +1413,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
                 <img className="ataas-deploy-view-mooncake-icon" src={mooncakeLogo} alt="" />Mooncake 卡片
               </button>
             </div>
-            <Button className="ataas-deploy-create-button ataas-page-create-button" type="primary" icon={<PlusOutlined />} onClick={onOpenCreate}>创建模型服务</Button>
+            <Button className="ataas-deploy-create-button ataas-page-create-button" type="primary" icon={<PlusOutlined />} onClick={onOpenCreate}>创建 Mooncake</Button>
           </>
         )}
       </div>}

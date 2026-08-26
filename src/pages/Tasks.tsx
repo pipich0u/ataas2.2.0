@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Plus, PlayCircle, XCircle, RotateCcw } from 'lucide-react'
 import { TaskProgress } from '@/components/shared/TaskProgress'
 import type { TaskSnapshot } from '@/lib/types'
+import './Tasks.less'
 
 const STATUS_COLOR: Record<string, string> = {
   running: 'var(--color-secondary)',
@@ -99,13 +100,13 @@ export default function Tasks({ onCreateWorkflow }: TasksProps) {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="tasks-route-style-page flex flex-col h-full">
       <PageHeader
         crumbs={[{ label: '任务流程' }]}
         title="任务流程"
         subtitle={`共 ${total} 个任务 · 当前页 ${active.length} 个活跃任务`}
         right={
-          <Button size="sm" onClick={() => onCreateWorkflow ? onCreateWorkflow() : navigate('/workflow/new')}>
+          <Button className="tasks-create-button" size="sm" onClick={() => onCreateWorkflow ? onCreateWorkflow() : navigate('/workflow/new')}>
             <Plus className="h-3.5 w-3.5 mr-1" /> 新建流程
           </Button>
         }
@@ -113,17 +114,17 @@ export default function Tasks({ onCreateWorkflow }: TasksProps) {
 
       {err && <div className="px-6 py-2 text-xs" style={{ color: 'var(--color-error)' }}>{err}</div>}
 
-      <div className="flex-1 overflow-auto p-6">
+      <div className="tasks-route-style-content flex-1 overflow-auto">
         {filteredTasks.length === 0 && (
           <div className="text-xs py-12 text-center" style={{ color: 'var(--color-muted)' }}>
             暂无任务，点击“新建流程”创建一个任务。
           </div>
         )}
 
-        <div className="rounded-lg border overflow-hidden" style={{ borderColor: 'var(--color-border)', backgroundColor: '#fff' }}>
-          <table className="w-full text-xs" style={{ backgroundColor: '#fff' }}>
+        <div className="tasks-route-style-table-shell rounded-lg border overflow-hidden" style={{ backgroundColor: '#fff' }}>
+          <table className="tasks-route-style-table w-full" style={{ backgroundColor: '#fff' }}>
             <thead style={{ backgroundColor: 'var(--color-elevated)', color: 'var(--color-muted)' }}>
-              <tr className="border-b" style={{ borderColor: 'var(--color-border)' }}>
+              <tr className="tasks-route-style-head-row border-b">
                 <th className="px-4 py-3 text-left font-medium">状态</th>
                 <th className="px-4 py-3 text-left font-medium">任务名称</th>
                 <th className="px-4 py-3 text-left font-medium">目标集群</th>
@@ -145,7 +146,7 @@ export default function Tasks({ onCreateWorkflow }: TasksProps) {
             return (
               <Fragment key={t.id}>
               <tr
-                className="border-b cursor-pointer transition-colors last:border-b-0"
+                className={`tasks-route-style-row border-b cursor-pointer transition-colors last:border-b-0${isWaiting ? ' waiting' : ''}`}
                 style={{
                   borderColor: selected === t.id ? statusColor : isWaiting ? 'var(--color-warning)' : 'var(--color-border)',
                   backgroundColor: selected === t.id ? 'var(--color-elevated)' : isWaiting ? 'color-mix(in srgb, var(--color-warning) 5%, transparent)' : 'transparent',
@@ -159,17 +160,17 @@ export default function Tasks({ onCreateWorkflow }: TasksProps) {
                 }}
               >
                 <td className="px-4 py-3 whitespace-nowrap">
-                  <Badge variant="outline" className="text-[10px]"
+                  <Badge variant="outline" className="tasks-route-status text-[10px]"
                     style={{ color: statusColor, borderColor: statusColor }}>
                     {displayStatus}
                   </Badge>
                 </td>
-                <td className="px-4 py-3 font-mono whitespace-nowrap" style={{ color: 'var(--color-text-heading)' }}>
+                <td className="tasks-route-name px-4 py-3 whitespace-nowrap" style={{ color: 'var(--color-text-heading)' }}>
                     {t.meta?.name || t.type}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
                   {t.cluster && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded font-mono leading-none"
+                    <span className="tasks-route-cluster text-[10px] px-1.5 py-0.5 rounded leading-none"
                       style={{ backgroundColor: 'var(--color-info-subtle)', color: 'var(--color-info)' }}>
                       {t.cluster}
                     </span>
@@ -201,7 +202,7 @@ export default function Tasks({ onCreateWorkflow }: TasksProps) {
                   <div className="flex justify-end items-center gap-1.5 whitespace-nowrap">
                     {/* Workflow continue button */}
                     {isWaiting && (
-                      <Button size="sm" className="h-6 text-[10px] gap-1"
+                      <Button size="sm" className="tasks-route-confirm h-6 text-[10px] gap-1"
                         style={{ backgroundColor: 'var(--color-success)', color: '#fff' }}
                         disabled={busy === t.id}
                         onClick={(e) => { e.stopPropagation(); handleConfirm(t.id, waitingStepIdx, waitingNonce, t.cluster) }}>
@@ -210,7 +211,7 @@ export default function Tasks({ onCreateWorkflow }: TasksProps) {
                     )}
                     {/* Abort button for running/waiting workflows */}
                     {(t.status === 'running' || t.status === 'awaiting') && (
-                      <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1"
+                      <Button size="sm" variant="outline" className="tasks-route-action h-6 text-[10px] gap-1"
                         disabled={busy === t.id}
                         onClick={(e) => { e.stopPropagation(); handleAbort(t.id, t.cluster) }}>
                         <XCircle className="h-3 w-3" /> 终止
@@ -218,7 +219,7 @@ export default function Tasks({ onCreateWorkflow }: TasksProps) {
                     )}
                     {/* Resume button for interrupted/failed tasks */}
                     {(t.status === 'interrupted' || t.status === 'failed' || t.status === 'aborted') && (
-                      <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1"
+                      <Button size="sm" variant="outline" className="tasks-route-action h-6 text-[10px] gap-1"
                         disabled={busy === t.id}
                         onClick={(e) => { e.stopPropagation(); handleResume(t.id) }}>
                         <RotateCcw className="h-3 w-3" /> 恢复
@@ -230,7 +231,7 @@ export default function Tasks({ onCreateWorkflow }: TasksProps) {
 
                 {isWaiting && waitingStepIdx >= 0 && t.steps?.[waitingStepIdx]?.preview && (
                   <tr className="border-b" style={{ borderColor: 'var(--color-border)' }}><td colSpan={7} className="px-4 pb-3">
-                  <div className="rounded border text-xs" style={{ borderColor: 'var(--color-warning)', backgroundColor: 'color-mix(in srgb, var(--color-warning) 5%, transparent)' }}>
+                  <div className="tasks-route-next-step rounded border text-xs">
                     <div className="px-3 py-2" style={{ color: 'var(--color-warning)' }}>
                       下一步：<span className="font-semibold">{waitingStepName ?? '未知步骤'}</span>
                     </div>

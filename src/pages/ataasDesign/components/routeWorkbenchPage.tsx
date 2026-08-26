@@ -14,7 +14,7 @@ import {
   SaveOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
-import { Button, Checkbox, Drawer, Dropdown, Input, InputNumber, message, Modal, Select, Space, Switch, Tooltip } from 'antd';
+import { Button, Checkbox, Drawer, Dropdown, Input, InputNumber, message, Modal, Select, Space, Switch, Tag, Tooltip } from 'antd';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Background,
@@ -43,6 +43,7 @@ import kimiLogo from '../kimi-logo.svg';
 import '@xyflow/react/dist/style.css';
 import { rpc } from '@/lib/bus/rpc';
 import type { ConfigTreeNode } from '@/lib/types';
+import { MonacoEditor } from '../../../components/shared/MonacoEditor';
 import {
   buildServiceEntryYaml as buildStoreServiceEntryYaml,
   createManualService,
@@ -50,7 +51,7 @@ import {
   useK8sResourceStore,
   type K8sResourceState,
 } from './k8sResourceStore';
-import { DEFAULT_ROUTE_CONFIGS, routeConfigStore, useRouteConfigStore, type SharedRouteRecord } from './routeConfigStore';
+import { canvasServiceEntryEndpoints, DEFAULT_ROUTE_CONFIGS, routeConfigStore, useRouteConfigStore, useServiceEntryStore, type SharedRouteRecord, type SharedServiceEntryRecord } from './routeConfigStore';
 import { buildRoutePluginConfigDefaults, ROUTE_PLUGIN_CONFIG_SCHEMAS, type RoutePluginConfigValue } from './routePluginConfig';
 import { PLATFORM_GROUP_BY_ID, platformNodeNames } from './platformMockData';
 import { PLUGIN_MANAGEMENT_MOCK_DATA } from './pluginManagementPage';
@@ -468,7 +469,63 @@ const routeWorkbenchHistory = [
 const routeWorkbenchPluginCatalog = PLUGIN_MANAGEMENT_MOCK_DATA.filter((plugin) =>
   plugin.status === 'enabled' && plugin.scope.includes('路由') && !plugin.scope.includes('全局'));
 
-const routeWorkbenchYaml = (kind: string, name: string) => `apiVersion: networking.istio.io/v1beta1
+const routeWorkbenchYaml = (kind: string, name: string, options?: { domain?: string; path?: string; destination?: string }) => kind === 'Ingress' ? `apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    higress.io/destination: ${options?.destination || `${name}-cluster.local`}
+    higress.io/exact-match-header-authorization: Bearer xxxx
+    higress.io/exact-match-header-ingress-disable: "true"
+    higress.io/http2-max-concurrent-streams: "10000"
+    higress.io/ignore-path-case: "false"
+    higress.io/max-requests-per-connection: "0"
+    higress.io/proxy-body-size: 10240m
+    higress.io/proxy-buffering: "off"
+    higress.io/proxy-idle-timeout: 3600s
+    higress.io/proxy-read-timeout: "86400"
+    higress.io/proxy-send-timeout: 3600s
+    higress.io/stream-idle-timeout: 3600s
+    higress.io/upstream-idle-timeout: "86400"
+    nginx.ingress.kubernetes.io/proxy-next-upstream: error timeout http_500 http_502 http_503 http_504 non_idempotent
+    nginx.ingress.kubernetes.io/proxy-next-upstream-timeout: "0"
+    nginx.ingress.kubernetes.io/proxy-next-upstream-tries: "3"
+  creationTimestamp: "2026-04-23T17:21:11Z"
+  generation: 4
+  labels:
+    higress.io/domain_higress-default-domain: "true"
+    higress.io/resource-definer: higress
+  name: ${name}
+  namespace: higress-system
+  resourceVersion: "86497945"
+spec:
+  ingressClassName: higress
+  rules:
+    - http:
+        paths:
+          - backend:
+              resource:
+                apiGroup: networking.higress.io
+                kind: McpBridge
+                name: default
+            path: ${options?.path || '/'}
+            pathType: Prefix
+    - host: ${options?.domain || 'ktaas.llmapi.approaching-ai.com'}
+      http:
+        paths:
+          - backend:
+              resource:
+                apiGroup: networking.higress.io
+                kind: McpBridge
+                name: default
+            path: ${options?.path || '/'}
+            pathType: Prefix
+  tls:
+    - hosts:
+        - ${options?.domain || 'ktaas.llmapi.approaching-ai.com'}
+      secretName: 3m.${options?.domain || 'ktaas.llmapi.approaching-ai.com'}
+    - secretName: default
+status:
+  loadBalancer: {}` : `apiVersion: networking.istio.io/v1beta1
 kind: ${kind}
 metadata:
   name: ${name}
@@ -613,9 +670,10 @@ const routeWorkbenchMockGraph: { nodes: Node[]; edges: Edge[] } = {
 };
 
 // 来源于 ST1 集群链路清单的独立 Mock。入口资源维持平铺，同类资源以连线汇聚，避免展开成多层树。
-const buildSt1RouteWorkbenchMockGraph = (routeConfigs: SharedRouteRecord[]): { nodes: Node[]; edges: Edge[] } => {
+const buildSt1RouteWorkbenchMockGraph = (routeConfigs: SharedRouteRecord[], standaloneServiceEntries: SharedServiceEntryRecord[] = []): { nodes: Node[]; edges: Edge[] } => {
   const st1IngressMocks = routeConfigs.map((route) => route.name);
-  const st1ServiceEntryMocks = Array.from(new Set(routeConfigs.map((route) => route.serviceEntry)));
+  const st1ServiceEntryMocks = Array.from(new Set([...routeConfigs.map((route) => route.serviceEntry), ...standaloneServiceEntries.map((entry) => entry.name)]));
+  const standaloneByName = new Map(standaloneServiceEntries.map((entry) => [entry.name, entry]));
   const nodes: Node[] = [
     {
       id: 'st1-domain-glm', type: 'domainNode', position: { x: 9800, y: -420 },
@@ -643,7 +701,7 @@ const buildSt1RouteWorkbenchMockGraph = (routeConfigs: SharedRouteRecord[]): { n
     const qps = 18 + (index % 7) * 9;
     nodes.push({
       id: `st1-ingress-${name}`, type: 'ingressNode', position: { x: ingressX(name), y: 210 },
-      data: { kind: 'ingressNode', title: name, subtitle: `${routeConfig?.path || '/'} · ${mockClusterForServiceEntry(ingressToSe[name])}`, domain: routeConfig?.domain, cluster: mockClusterForServiceEntry(ingressToSe[name]), endpoints: 1, qps, weight: 100, health: warning ? 'warning' : 'healthy', yaml: routeWorkbenchYaml('Ingress', name), history: routeWorkbenchHistory },
+      data: { kind: 'ingressNode', title: name, subtitle: `${routeConfig?.path || '/'} · ${mockClusterForServiceEntry(ingressToSe[name])}`, domain: routeConfig?.domain, cluster: mockClusterForServiceEntry(ingressToSe[name]), endpoints: 1, qps, weight: 100, health: warning ? 'warning' : 'healthy', yaml: routeWorkbenchYaml('Ingress', name, { domain: routeConfig?.domain, path: routeConfig?.path, destination: `${ingressToSe[name]}.cluster.local` }), history: routeWorkbenchHistory },
     });
     edges.push({ id: `st1-domain-${name}`, source: 'st1-domain-glm', target: `st1-ingress-${name}`, type: 'trafficEdge', markerEnd: routeWorkbenchMarkerEnd, data: { type: 'direct', qps, flowKey: name } });
   });
@@ -652,7 +710,7 @@ const buildSt1RouteWorkbenchMockGraph = (routeConfigs: SharedRouteRecord[]): { n
     const cluster = mockClusterForServiceEntry(name);
     nodes.push({
       id: `st1-se-${name}`, type: 'clusterNode', position: { x: serviceEntryLaneX(index), y: 455 },
-      data: { kind: 'clusterNode', title: name, subtitle: `${cluster} · ServiceEntry`, cluster, hosts: `${name}.internal.dns`, endpoints: 1, qps: 28 + (index % 6) * 13, weight: 100, health: 'healthy', yaml: routeWorkbenchYaml('ServiceEntry', name), history: routeWorkbenchHistory },
+      data: { kind: 'clusterNode', title: name, subtitle: `${cluster} · ServiceEntry`, cluster, hosts: standaloneByName.get(name)?.host || `${name}.internal.dns`, endpoints: standaloneByName.get(name)?.endpoints.length || 1, qps: 28 + (index % 6) * 13, weight: 100, health: 'healthy', yaml: routeWorkbenchYaml('ServiceEntry', name), history: routeWorkbenchHistory },
     });
   });
   Object.entries(ingressToSe).forEach(([ingress, serviceEntry]) => {
@@ -669,8 +727,9 @@ const buildSt1RouteWorkbenchMockGraph = (routeConfigs: SharedRouteRecord[]): { n
     const centerX = serviceEntryLaneX(serviceEntryIndex);
     const cluster = mockClusterForServiceEntry(serviceEntry);
     const totalQps = 36 + (serviceEntryIndex % 6) * 12;
-    const hasParallelSvc = serviceEntry === 'night-traffic-2';
-    const primaryWeight = hasParallelSvc ? 70 : 100;
+    const canvasEndpoints = standaloneByName.get(serviceEntry)?.endpoints || canvasServiceEntryEndpoints(serviceEntry);
+    const hasParallelSvc = canvasEndpoints.length > 1;
+    const primaryWeight = canvasEndpoints[0]?.weight ?? 100;
     const serviceId = `st1-svc-${serviceEntry}`;
     const routerId = `st1-router-${serviceEntry}`;
     const primaryOffset = hasParallelSvc ? -220 : 0;
@@ -689,7 +748,7 @@ const buildSt1RouteWorkbenchMockGraph = (routeConfigs: SharedRouteRecord[]): { n
       { id: `st1-${serviceEntry}-router`, source: serviceId, target: routerId, type: 'trafficEdge', markerEnd: routeWorkbenchMarkerEnd, data: { type: 'service', active: Math.round(totalQps * primaryWeight / 100) } },
     );
     if (hasParallelSvc) {
-      const secondaryWeight = 30;
+      const secondaryWeight = canvasEndpoints[1]?.weight ?? 0;
       const secondaryQps = Math.round(totalQps * secondaryWeight / 100);
       const secondaryServiceId = `st1-svc-${serviceEntry}-canary`;
       const secondaryRouterId = `st1-router-${serviceEntry}-canary`;
@@ -1351,6 +1410,7 @@ const RouteWorkbenchPage = ({
 }) => {
   const resourceStore = useK8sResourceStore();
   const sharedRouteConfigs = useRouteConfigStore();
+  const sharedServiceEntries = useServiceEntryStore();
   // 该页面暂使用独立 Mock，不随资源管理页面的数据变更而重绘。
   const routeList: RouteEntry[] = [];
   const podList: PodRecord[] = [];
@@ -1372,11 +1432,11 @@ const RouteWorkbenchPage = ({
   const [routeWorkbenchNodes, setRouteWorkbenchNodes, onRouteWorkbenchNodesChange] = useNodesState(st1RouteWorkbenchMockGraph.nodes);
   const [routeWorkbenchEdges, setRouteWorkbenchEdges, onRouteWorkbenchEdgesChange] = useEdgesState(st1RouteWorkbenchMockGraph.edges);
   useEffect(() => {
-    const graph = buildSt1RouteWorkbenchMockGraph(sharedRouteConfigs);
+    const graph = buildSt1RouteWorkbenchMockGraph(sharedRouteConfigs, sharedServiceEntries);
     setRouteWorkbenchNodes(graph.nodes);
     setRouteWorkbenchEdges(graph.edges);
     setRouteWorkbenchSelected('');
-  }, [sharedRouteConfigs, setRouteWorkbenchEdges, setRouteWorkbenchNodes]);
+  }, [sharedRouteConfigs, sharedServiceEntries, setRouteWorkbenchEdges, setRouteWorkbenchNodes]);
   useEffect(() => {
     // 布局算法升级后清理 Fast Refresh 保留下来的旧坐标锁，避免旧错误位置继续污染新布局。
     setRouteWorkbenchNodes((nodes) => nodes.map((node) => ({
@@ -2805,6 +2865,18 @@ const RouteWorkbenchPage = ({
             setRouteWorkbenchChanges((changes) => [...changes, { type, desc }]);
             message.success(desc);
           };
+          const selectedExitRoutes = selectedData.kind === 'clusterNode'
+            ? sharedRouteConfigs.filter((route) => route.serviceEntry === selectedData.title)
+            : [];
+          const selectedStandaloneExit = selectedData.kind === 'clusterNode'
+            ? sharedServiceEntries.find((entry) => entry.name === selectedData.title)
+            : undefined;
+          const selectedExitHost = selectedStandaloneExit?.host
+            || selectedExitRoutes[0]?.serviceEntryHost
+            || `${selectedData.title}.cluster.local`;
+          const selectedExitEndpoints = selectedStandaloneExit?.endpoints
+            || selectedExitRoutes[0]?.serviceEntryEndpoints
+            || (selectedData.kind === 'clusterNode' ? canvasServiceEntryEndpoints(selectedData.title) : []);
           const renderPanelBody = () => {
             if (routeWorkbenchPanelTab === 'relation') {
               return (
@@ -2844,12 +2916,29 @@ const RouteWorkbenchPage = ({
               };
               return (
                 <div className="ataas-route-workbench-yaml-editor">
-                  <Input.TextArea
+                  <MonacoEditor
                     className="ataas-route-workbench-yaml-input"
                     value={routeWorkbenchYamlDraft}
-                    onChange={(event) => setRouteWorkbenchYamlDraft(event.target.value)}
-                    autoSize={{ minRows: 16, maxRows: 30 }}
-                    spellCheck={false}
+                    language="yaml"
+                    height="100%"
+                    onChange={setRouteWorkbenchYamlDraft}
+                    options={{
+                      lineNumbers: 'on',
+                      lineNumbersMinChars: 3,
+                      glyphMargin: false,
+                      folding: true,
+                      foldingHighlight: true,
+                      showFoldingControls: 'mouseover',
+                      minimap: { enabled: false },
+                      renderLineHighlight: 'line',
+                      guides: { indentation: true, highlightActiveIndentation: true },
+                      overviewRulerLanes: 0,
+                      hideCursorInOverviewRuler: true,
+                      wordWrap: 'on',
+                      wrappingIndent: 'indent',
+                      scrollbar: { horizontal: 'hidden', vertical: 'auto' },
+                      padding: { top: 8, bottom: 8 },
+                    }}
                   />
                   {yamlChanged && (
                     <div className="ataas-route-workbench-yaml-change">
@@ -3188,7 +3277,7 @@ const RouteWorkbenchPage = ({
                     <label><span>目标服务（SE Hosts）</span><Input value={ingressServiceHosts} readOnly /></label>
                   </div>
                 )}
-                {selectedData.kind !== 'ingressGroupNode' && selectedData.kind !== 'ingressNode' && selectedData.kind !== 'serviceNode' && (
+                {selectedData.kind !== 'ingressGroupNode' && selectedData.kind !== 'ingressNode' && selectedData.kind !== 'serviceNode' && selectedData.kind !== 'clusterNode' && (
                   <>
                     <label><span>显示名称</span><Input value={selectedData.title} readOnly /></label>
                     <label><span>资源类型</span><Input value={typeLabel} readOnly /></label>
@@ -3197,25 +3286,13 @@ const RouteWorkbenchPage = ({
                 )}
                 {selectedData.kind === 'clusterNode' && (
                   <>
-                    <label><span>Hosts</span><Input value="glm-5.1-cluster.local" readOnly /></label>
-                    <label><span>LB 策略</span><Select defaultValue="ROUND_ROBIN" options={['ROUND_ROBIN', 'LEAST_CONN', 'RANDOM', 'consistentHash'].map((value) => ({ value, label: value }))} onChange={(value) => pushWorkbenchChange('修改', `${selectedData.title} LB 策略改为 ${value}`)} /></label>
-                    <label><span>Endpoint</span><Input value={`${selectedData.endpoints || 0} 个下游服务`} readOnly /></label>
-                    <div className="ataas-route-workbench-edit-card">
-                      <div className="ataas-route-workbench-edit-title">
-                        <strong>Endpoint 权重</strong>
-                        <Button size="small" type="text" icon={<PlusOutlined />} onClick={() => pushWorkbenchChange('新增', `${selectedData.title} 新增 endpoint`)}>新增</Button>
-                      </div>
-                      {[
-                        ['glm51-router-1.default.svc.cluster.local', 33],
-                        ['glm51-router-2.default.svc.cluster.local', 33],
-                        ['glm51-router-3.default.svc.cluster.local', 34],
-                      ].map(([address, weight]) => (
-                        <div className="ataas-route-workbench-endpoint-row" key={String(address)}>
-                          <Input value={String(address)} readOnly />
-                          <InputNumber min={0} max={100} defaultValue={Number(weight)} controls={false} addonAfter="%" onChange={(value) => pushWorkbenchChange('修改', `${address} 权重改为 ${value}%`)} />
-                          <Button type="text" danger icon={<DeleteOutlined />} onClick={() => pushWorkbenchChange('删除', `${selectedData.title} 删除 endpoint ${address}`)} />
-                        </div>
-                      ))}
+                    <label><span>名称</span><Input value={selectedData.title} readOnly /></label>
+                    <label><span>集群 / 命名空间</span><Input value={`${selectedStandaloneExit?.cluster || selectedData.cluster || 'ST1'} / ${selectedStandaloneExit?.namespace || 'higress-system'}`} readOnly /></label>
+                    <label><span>Hosts</span><Input value={selectedExitHost} readOnly /></label>
+                    <label><span>Ports</span><Input value={selectedStandaloneExit?.port || '8000/tcp'} readOnly /></label>
+                    <div className="ataas-route-workbench-exit-section">
+                      <strong>Endpoints · {selectedExitEndpoints.length}</strong>
+                      <div>{selectedExitEndpoints.map((endpoint) => <Tag key={`${endpoint.address}-${endpoint.weight}`}>{endpoint.address}（{endpoint.weight}%）</Tag>)}</div>
                     </div>
                   </>
                 )}
@@ -3304,7 +3381,7 @@ const RouteWorkbenchPage = ({
                     <label><span>部署节点</span><Input value={`${selectedData.nodeCount || 0} 个节点`} readOnly /></label>
                   </>
                 )}
-                {selectedData.kind !== 'ingressGroupNode' && selectedData.kind !== 'ingressNode' && (
+                {selectedData.kind !== 'ingressGroupNode' && selectedData.kind !== 'ingressNode' && selectedData.kind !== 'clusterNode' && (
                   <div className="ataas-route-workbench-checks">
                     <div><span>链路健康</span><strong>{selectedData.health === 'warning' ? '需关注' : selectedData.health === 'error' ? '异常' : '正常'}</strong></div>
                     <div><span>配置来源</span><strong>资源文件 / 表单生成</strong></div>
@@ -3342,7 +3419,7 @@ const RouteWorkbenchPage = ({
                   )}
                 </div>
               )}
-              <div className="ataas-route-workbench-form">
+              <div className={`ataas-route-workbench-form${routeWorkbenchPanelTab === 'yaml' ? ' yaml-mode' : ''}`}>
                 {renderPanelBody()}
               </div>
               {selectedData.isDraft && (
@@ -3351,7 +3428,7 @@ const RouteWorkbenchPage = ({
                   <Button type="primary" onClick={() => confirmWorkbenchDraft(selectedNode.id)}>创建</Button>
                 </div>
               )}
-              {selectedData.kind !== 'ingressNode' && selectedData.kind !== 'domainNode' && !selectedData.isDraft && (
+              {selectedData.kind !== 'ingressNode' && selectedData.kind !== 'domainNode' && selectedData.kind !== 'clusterNode' && !selectedData.isDraft && (
                 <div className="ataas-route-workbench-next">
                   <span>关联资源</span>
                   <button onClick={() => message.info('编辑模式下从节点右侧连接点拖到下游节点即可关联')}><PlusOutlined /> 关联下游资源</button>

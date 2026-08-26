@@ -6,8 +6,7 @@
 .node-topology-toolbar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
 .node-topology-toolbar > .ant-input-affix-wrapper { width: 320px; }
 .node-topology-toolbar > .ant-select { width: 124px; }
-.node-topology-toolbar .ant-input-affix-wrapper, .node-topology-toolbar .ant-select-selector, .node-topology-toolbar .ant-btn, .node-topology-toolbar .ant-segmented { height: 32px; border-radius: 4px; box-shadow: none; }
-.node-topology-toolbar .ant-segmented { margin-left: auto; }
+.node-topology-toolbar .ant-input-affix-wrapper, .node-topology-toolbar .ant-select-selector, .node-topology-toolbar .ant-btn { height: 32px; border-radius: 4px; box-shadow: none; }
 .node-topology-legend { margin-bottom: 14px; padding: 14px 16px; border: 1px solid #e5e6eb; border-radius: 8px; background: #fafbfc; }
 .node-topology-legend-title { display: flex; align-items: center; gap: 7px; margin-bottom: 10px; font-weight: 600; }
 .node-topology-legend-rules { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; color: #4e5969; font-size: 12px; }
@@ -31,8 +30,6 @@
 .node-topology-node::before { position: absolute; inset: 0 auto 0 0; width: 3px; background: var(--node-accent); content: ''; }
 .node-topology-node:hover { border-color: var(--node-accent); box-shadow: 0 3px 12px rgba(29,33,41,.09); transform: translateY(-1px); }.node-topology-node.selected { border-color: #6951ff; box-shadow: 0 0 0 2px rgba(105,81,255,.16); }
 .node-topology-node.group-active { z-index: 1; border-color: var(--node-accent); background: color-mix(in srgb, var(--node-accent) 5%, #fff); box-shadow: 0 0 0 2px color-mix(in srgb, var(--node-accent) 72%, transparent), 0 0 14px color-mix(in srgb, var(--node-accent) 45%, transparent); }
-.node-topology-node.group-muted { opacity: .3; filter: saturate(.45); }
-.node-topology-node.group-muted:hover { opacity: .72; filter: none; }
 .node-topology-node.warning { border-color: #ffb6b6; background: #fffafa; }.node-topology-node.empty { border-color: #e5e6eb; background: #fafbfc; color: #86909c; }
 .node-topology-node-role { display: block; color: var(--node-accent); font-size: 18px; font-weight: 700; line-height: 20px; }
 .node-topology-node > em { position: absolute; top: 8px; right: 8px; display: inline-flex; width: 15px; height: 15px; align-items: center; justify-content: center; border-radius: 4px; background: #6951ff; color: #fff; font-size: 9px; font-style: normal; }
@@ -47,4 +44,4 @@
 .node-topology-pods { margin-top: 15px; }.node-topology-pods h3 span { color: #86909c; font-weight: 400; }.node-topology-pods > div { display: flex; min-width: 0; align-items: center; gap: 7px; padding: 7px 0; border-bottom: 1px solid #edf0f5; }.node-topology-pods > div i { width: 6px; height: 6px; flex: none; border-radius: 50%; background: #00a854; }.node-topology-pods > div span { min-width: 0; flex: 1; overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }.node-topology-pods > div .ant-tag { margin: 0; font-size: 9px; }.node-topology-pods p { color: #86909c; font-size: 11px; }
 .node-topology-detail-empty, .node-topology-empty { display: flex; min-height: 400px; align-items: center; justify-content: center; flex-direction: column; color: #c9cdd4; }.node-topology-detail-empty .anticon, .node-topology-empty .anticon { margin-bottom: 10px; font-size: 34px; }.node-topology-detail-empty strong, .node-topology-empty strong { color: #4e5969; font-size: 13px; }.node-topology-detail-empty span, .node-topology-empty span { max-width: 210px; margin-top: 5px; font-size: 11px; line-height: 18px; text-align: center; }
 .node-topology-edit-modal .ant-modal-body > label { display: block; margin: 14px 0 6px; color: #4e5969; font-size: 12px; font-weight: 600; }.node-topology-edit-modal .ant-select { width: 100%; }.node-topology-edit-note, .node-topology-group-note { margin: 0 0 12px; color: #86909c; font-size: 12px; }.node-topology-label-preview { margin-top: 16px; padding: 12px; border-radius: 6px; background: #f7f8fa; }.node-topology-label-preview span { display: block; margin-bottom: 6px; color: #86909c; font-size: 11px; }.node-topology-label-preview code { color: #6951ff; }.node-topology-group-list { max-height: 300px; overflow: auto; margin: 0; padding: 14px; border: 1px solid #e5e6eb; border-radius: 6px; background: #fafbfc; font-size: 12px; line-height: 24px; }
-@media (max-width: 1100px) { .node-topology-workspace { grid-template-columns: 1fr; }.node-topology-detail { min-height: 260px; border-top: 1px solid #edf0f5; border-left: 0; }.node-topology-toolbar { flex-wrap: wrap; }.node-topology-toolbar .ant-segmented { margin-left: 0; } }
+@media (max-width: 1100px) { .node-topology-workspace { grid-template-columns: 1fr; }.node-topology-detail { min-height: 260px; border-top: 1px solid #edf0f5; border-left: 0; }.node-topology-toolbar { flex-wrap: wrap; } }

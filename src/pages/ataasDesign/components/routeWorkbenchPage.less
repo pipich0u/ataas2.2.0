@@ -1239,9 +1239,12 @@
   }
 
   > label {
-    display: flex;
-    flex-direction: column;
+    display: grid !important;
+    grid-template-rows: auto minmax(28px, auto);
+    align-items: start !important;
     gap: 7px;
+    min-height: 56px;
+    margin: 0 !important;
 
     > span {
       color: #4E5969;
@@ -1269,6 +1272,8 @@
   .field-checkbox {
     align-items: flex-start;
   }
+
+  .field-switch { min-height: 62px; }
 
   .ant-switch {
     width: 44px !important;
@@ -1298,10 +1303,14 @@
 }
 
 .ataas-route-workbench-plugin-modal-footer {
-  display: grid;
-  grid-template-columns: auto 1fr auto auto;
+  display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
+
+  > span { flex: 1; }
+
+  .ant-btn { width: auto !important; flex: none; }
 }
 
 .ataas-route-workbench-plugin-save {
@@ -1350,23 +1359,23 @@
 
 .ataas-route-workbench-yaml-editor {
   display: flex;
+  min-height: 0;
+  flex: 1;
   flex-direction: column;
   gap: 14px;
 }
 
-.ataas-route-workbench-yaml-input.ant-input {
-  padding: 12px 14px;
-  border-color: #E5EAF2;
-  background: #FBFCFE;
-  color: #1764B1;
-  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-  font-size: 12px;
-  line-height: 22px;
-  resize: vertical;
-  tab-size: 2;
+.ataas-route-workbench-yaml-input {
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+  border: 1px solid #E5EAF2;
+  border-radius: 4px;
+  background: #fff;
 }
 
 .ataas-route-workbench-yaml-change {
+  flex: none;
   padding: 14px;
   border: 1px solid #D9E6FF;
   border-radius: 8px;
@@ -1390,11 +1399,27 @@
   }
 }
 
+.ataas-route-workbench-form.yaml-mode {
+  overflow: hidden;
+}
+
 .ataas-route-workbench-yaml-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
   margin-top: 14px;
+}
+
+.ataas-route-workbench-exit-section {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 12px 0;
+
+  > strong { color: #4e5969; font-size: 12px; font-weight: 500; }
+  > div { display: flex; flex-wrap: wrap; gap: 6px; }
+  .ant-tag { max-width: 100%; margin: 0; overflow-wrap: anywhere; white-space: normal; border-color: #ccebf2; color: #0787a8; background: #f1fbfd; font-size: 11px; line-height: 20px; }
+  > div > span:not(.ant-tag) { color: #86909c; font-size: 12px; }
 }
 
 .ataas-route-workbench-history-full {

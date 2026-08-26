@@ -219,7 +219,7 @@ const PluginManagementPage = () => {
       width={720}
       open={!!configuring}
       onClose={() => setConfiguring(undefined)}
-      extra={<Space><Button onClick={() => setConfiguring(undefined)}>取消</Button><Button type="primary" onClick={saveConfiguration}>保存</Button></Space>}
+      footer={<div className="ataas-drawer-footer"><Button onClick={() => setConfiguring(undefined)}>取消</Button><Button type="primary" onClick={saveConfiguration}>保存</Button></div>}
     >
       {configuring && <>
         <section className="plugin-config-enabled"><div><strong>开启状态</strong><span>启用后，该配置将在所有未被路由级配置覆盖的请求上生效。</span></div><Switch checked={configEnabled} onChange={setConfigEnabled} /></section>

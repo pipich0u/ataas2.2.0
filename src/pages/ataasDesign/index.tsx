@@ -24,6 +24,7 @@ import {
   DeleteOutlined,
   RocketOutlined,
   ReloadOutlined,
+  SafetyCertificateOutlined,
   SettingOutlined,
   SwapRightOutlined,
   TagOutlined,
@@ -77,6 +78,8 @@ import DistributionCenterPage from './components/distributionCenterPage';
 import ModelOpsPage from './components/modelOpsPage';
 import SoftwarePackagePage from './components/softwarePackagePage';
 import WorkflowCreatePage from './components/workflowCreatePage';
+import UserPermissionsPage from './components/userPermissionsPage';
+import PlatformLicensePage from './components/platformLicensePage';
 import './index.less';
 
 type ClusterRecord = {
@@ -507,7 +510,7 @@ type EngineManageRecord = {
 type UserManageRecord = {
   key: string;
   username: string;
-  role: 'admin' | 'user';
+  role: 'admin' | 'ops' | 'viewer';
   remark: string;
 };
 
@@ -6592,6 +6595,8 @@ const AtAasDesign = () => {
     if (window.location.pathname.includes('/plugin-management')) return 'pluginConfig';
     if (window.location.pathname.includes('/route-workbench')) return 'routeWorkbench';
     if (window.location.pathname.includes('/task-flow')) return 'taskFlow';
+    if (window.location.pathname.includes('/user-permissions')) return 'userPermissions';
+    if (window.location.pathname.includes('/platform-license')) return 'platformLicense';
     if (window.location.pathname.includes('/playground/chat')) return 'playgroundChat';
     if (window.location.pathname.includes('/playground/vision')) return 'playgroundChat';
     if (window.location.pathname.includes('/playground/visual')) return 'playgroundVisual';
@@ -6808,7 +6813,7 @@ const AtAasDesign = () => {
   const [apiKeyList, setApiKeyList] = useState<Array<{ key: string; name: string; description: string; token: string; createdAt: string; expiresAt: string }>>([]);
   const [userSearchText, setUserSearchText] = useState('');
   const [userCreateOpen, setUserCreateOpen] = useState(false);
-  const [userCreateRole, setUserCreateRole] = useState<'admin' | 'user'>('user');
+  const [userCreateRole, setUserCreateRole] = useState<'admin' | 'ops' | 'viewer'>('ops');
   const [userForm] = Form.useForm();
   const [userList, setUserList] = useState<UserManageRecord[]>(userManageSeed);
   const [engineSearchText, setEngineSearchText] = useState('');
@@ -6852,18 +6857,18 @@ const AtAasDesign = () => {
     setMonitorReportDate(value.isAfter(dayjs(), 'day') ? dayjs() : value);
   };
   const logData: Array<{ user: string; action: string; object: string; objectType: string; cluster: string; node: string; status: string; time: string; detail: string }> = [
-    { user: 'admin', action: '创建服务', object: 'deepseek-prod', objectType: '模型服务', cluster: 'beijing-a100-prod', node: 'bj-a100-worker-012', status: '成功', time: '2026-05-29 14:35', detail: '部署模式: PD 分离, 引擎: SGLang, GPU: H20 x 4, 分组: 2' },
-    { user: 'ops-lilei', action: '上传镜像', object: 'sglang:v0.4.8-h20', objectType: '引擎镜像', cluster: '-', node: '-', status: '成功', time: '2026-05-29 14:18', detail: '镜像大小: 21.3 GB, 标签: h20-pd-cache, 来源: 在线拉取' },
-    { user: 'zhaomin', action: '调整参数', object: 'qwen3-coding-slo', objectType: '模型服务', cluster: 'shanghai-h20-online', node: 'sh-h20-worker-021', status: '成功', time: '2026-05-29 13:57', detail: 'TTFT 阈值: 500ms → 300ms, TPOT 阈值: 50ms → 30ms' },
-    { user: 'admin', action: '修改标签', object: 'gpu-worker-021', objectType: '节点', cluster: 'shanghai-h20-online', node: 'sh-h20-worker-021', status: '成功', time: '2026-05-29 13:42', detail: '标签变更: GPU=H20 → GPU=H20_PD, 节点: sh-h20-worker-021' },
-    { user: 'system', action: '节点隔离', object: 'worker-a100-017', objectType: '节点', cluster: 'beijing-a100-prod', node: 'worker-a100-017', status: '失败', time: '2026-05-29 13:20', detail: '原因: GPU 温度过高(89°C), 自动隔离, 影响服务: deepseek-prod' },
-    { user: 'admin', action: '部署模型', object: 'glm-air-batch', objectType: '模型服务', cluster: 'guangzhou-l20-test', node: 'gz-l20-worker-003', status: '成功', time: '2026-05-29 12:58', detail: '模型: GLM-4.5-Air, 引擎: vLLM, 集群: guangzhou-l20-test, 分组: 2' },
-    { user: 'ops-wang', action: '集群扩容', object: 'guangzhou-test', objectType: '集群', cluster: 'guangzhou-l20-test', node: 'gz-l20-worker-019', status: '成功', time: '2026-05-29 12:15', detail: '新增节点: 4 台, GPU: L20 x 16, 扩容后总量: 19 台 / 72 卡' },
-    { user: 'zhaomin', action: '更新配置', object: 'vLLM 0.9.1', objectType: '引擎镜像', cluster: '-', node: '-', status: '成功', time: '2026-05-29 11:42', detail: '配置参数: max_model_len=8192, gpu_memory_utilization=0.9' },
-    { user: 'admin', action: '删除镜像', object: 'triton:23.12-py3', objectType: '引擎镜像', cluster: '-', node: '-', status: '成功', time: '2026-05-29 11:08', detail: '镜像标签: triton:23.12-py3, 大小: 12.4 GB, 已清理存储' },
-    { user: 'system', action: '节点恢复', object: 'gz-l20-worker-005', objectType: '节点', cluster: 'guangzhou-l20-test', node: 'gz-l20-worker-005', status: '成功', time: '2026-05-29 10:35', detail: '节点离线后自动恢复, 当前状态: 正常, 运行服务: 3 个' },
-    { user: 'ops-lilei', action: '创建命名空间', object: 'ns-aimon-002', objectType: '命名空间', cluster: '-', node: '-', status: '成功', time: '2026-05-29 09:54', detail: '命名空间: ns-aimon-002, 配额: CPU 32核, 内存 128GB, GPU 8卡' },
-    { user: 'admin', action: '绑定配额', object: 'aimon-team', objectType: '配额', cluster: '-', node: '-', status: '成功', time: '2026-05-29 09:12', detail: '团队: aimon-team, GPU 配额: 32 卡, 有效期: 永久' },
+    { user: 'admin', action: '更新路由策略', object: 'img-limit-test', objectType: '服务网格入口', cluster: 'ST1', node: '-', status: '成功', time: '2026-08-26 16:42', detail: '已更新路由插件配置：Basic 认证、请求重写、HMAC 认证。目标服务：hash-test-se-svc.production.svc:8000。' },
+    { user: 'admin', action: '编辑插件配置', object: 'basic-auth', objectType: '路由插件', cluster: 'ST1', node: '-', status: '成功', time: '2026-08-26 16:31', detail: '认证领域：ataas-route；消费者来源：当前路由消费者；隐藏认证凭据：开启。' },
+    { user: 'ops', action: '创建网格出口', object: 'night-traffic-2', objectType: '服务网格出口', cluster: 'ST1', node: '-', status: '成功', time: '2026-08-26 15:56', detail: 'Hosts：night-traffic-2.cluster.local；LB 策略：ROUND_ROBIN；配置 2 个 Endpoint，权重分别为 70% 和 30%。' },
+    { user: 'ops', action: '创建模型分发', object: 'GLM-5.2', objectType: '模型分发任务', cluster: 'ST1', node: 'st-gpu-001', status: '成功', time: '2026-08-26 15:24', detail: '从模型主机向 ST1 集群分发 GLM-5.2，目标方式：指定 Nodes，已进入任务列表。' },
+    { user: 'ops', action: '创建镜像分发', object: 'vllm/vllm-openai:v0.10.2', objectType: '镜像分发任务', cluster: 'ST1', node: '-', status: '成功', time: '2026-08-26 14:48', detail: '按集群方式创建镜像分发任务；来源：Harbor 主仓库；镜像大小：8.42 GB。' },
+    { user: 'admin', action: '创建文件分发', object: 'kubernetes-v1.36.2-offline.tar.gz', objectType: '文件分发任务', cluster: 'ST1', node: '-', status: '成功', time: '2026-08-26 14:15', detail: '已创建文件分发任务并加入任务列表，目标集群：ST1。' },
+    { user: 'admin', action: '创建推理服务', object: 'GLM-5.2', objectType: '推理服务', cluster: 'ST1', node: '-', status: '成功', time: '2026-08-26 13:36', detail: '已创建 GLM-5.2 推理服务，关联模型副本与 Router 推理组资源。' },
+    { user: 'ops', action: '更新资源文件', object: 'codeserver.yaml', objectType: '资源文件', cluster: 'ST1', node: '-', status: '成功', time: '2026-08-26 12:57', detail: '已保存资源文件 YAML 配置，资源类型：DevPod。' },
+    { user: 'admin', action: '执行任务流程', object: 'GLM-5.1 新增模型服务', objectType: '任务流程', cluster: 'ST1', node: '-', status: '成功', time: '2026-08-26 11:43', detail: '任务流程已执行，当前步骤：确认接入 ServiceEntry。' },
+    { user: 'ops', action: '更新节点配置', object: 'st-gpu-046', objectType: 'GPU 节点', cluster: 'ST1', node: 'st-gpu-046', status: '失败', time: '2026-08-26 11:08', detail: '节点配置校验未通过，未写入变更；节点原配置保持不变。' },
+    { user: 'admin', action: '创建权限模板', object: '只读用户', objectType: '权限模板', cluster: '-', node: '-', status: '成功', time: '2026-08-26 10:26', detail: '已创建只读权限模板，按平台栏目配置资源查看权限。' },
+    { user: 'admin', action: '更新用户角色', object: 'ops', objectType: '用户权限', cluster: '-', node: '-', status: '成功', time: '2026-08-26 09:52', detail: '用户角色更新为运维人员，并应用对应权限模板。' },
   ];
   const filteredLogs = useMemo(() => {
     let list = logData;
@@ -6995,6 +7000,8 @@ const AtAasDesign = () => {
   const [imageDrawerRecord, setImageDrawerRecord] = useState<ImageRecord | null>(null);
   const [imageUploadOpen, setImageUploadOpen] = useState(false);
   const [deployDrawerOpen, setDeployDrawerOpen] = useState(false);
+  const [mooncakeCreateOpen, setMooncakeCreateOpen] = useState(false);
+  const [mooncakeCreateForm] = Form.useForm();
   const [deployServices, setDeployServices] = useState<DeployServiceItem[]>(MOCK_DEPLOY_DATA);
   const [scheduleDetailTarget, setScheduleDetailTarget] = useState<DeployServiceItem | null>(null);
   const [deployDetailItem, setDeployDetailItem] = useState<DeployServiceItem | null>(null);
@@ -7736,8 +7743,45 @@ const AtAasDesign = () => {
     setDeployDrawerOpen(false);
   };
   const handleOpenCreate = () => {
-    resetDeployForm();
-    setDeployDrawerOpen(true);
+    mooncakeCreateForm.setFieldsValue({
+      name: '',
+      cluster: 'ST1',
+      model: deployServices[0]?.name,
+      storeReplicas: 8,
+      masterReplicas: 3,
+      etcdReplicas: 3,
+      masterCapacity: 16,
+    });
+    setMooncakeCreateOpen(true);
+  };
+  const handleCreateMooncake = async () => {
+    const values = await mooncakeCreateForm.validateFields();
+    const source = deployServices.find((item) => item.name === values.model) || deployServices[0];
+    if (!source) return;
+    const id = Date.now();
+    const storeCount = Math.max(1, Number(values.storeReplicas) || 1);
+    const works = Array.from({ length: storeCount }, (_, index) => `${values.name}-store-${index}`).join(', ');
+    setDeployServices((items) => [{
+      ...source,
+      id,
+      name: values.name,
+      status: 'loading',
+      timeStr: '刚刚',
+      updateTime: dayjs().format('YYYY-MM-DD HH:mm'),
+      modelOpsCluster: values.cluster,
+      modelOpsInstanceKey: values.name,
+      modelInfo: {
+        ...source.modelInfo,
+        number: storeCount,
+        works,
+        restartPage: [],
+        logs: [{ id: id + 1, name: `${values.name} Mooncake 日志` }],
+        updateTime: dayjs().format('YYYY-MM-DD'),
+      },
+    }, ...items]);
+    setDeployListViewMode('mooncake');
+    setMooncakeCreateOpen(false);
+    message.success(`Mooncake ${values.name} 已创建`);
   };
   const [clusterNodeModal, setClusterNodeModal] = useState(false);
   const [clusterNodeModalTitle, setClusterNodeModalTitle] = useState('');
@@ -10417,7 +10461,7 @@ const AtAasDesign = () => {
     { title: '节点', dataIndex: 'node', key: 'node', width: 140 },
     { title: '操作时间', dataIndex: 'time', key: 'time', width: 160 },
     { title: '操作人', dataIndex: 'user', key: 'user', width: 80 },
-    { title: '操作', key: 'action', width: 100, render: (_, r) => (
+    { title: '操作', key: 'detailAction', width: 100, render: (_, r) => (
       <span className="ataas-monitor-table-actions ataas-log-table-actions">
         <Button type="link" onClick={() => setLogDetailRecord(r)}><i><EyeOutlined /></i>查看详情</Button>
       </span>
@@ -10783,6 +10827,8 @@ const AtAasDesign = () => {
     { key: 'alerts', icon: <SidebarIcon name="alert" />, label: '告警详情' },
     // { key: 'apiKeys', icon: <SidebarIcon name="apiKey" />, label: 'API Key' },
     { key: 'users', icon: <SidebarIcon name="user" />, label: '用户管理' },
+    { key: 'userPermissions', icon: <SidebarIcon name="user" />, label: '用户权限' },
+    { key: 'platformLicense', icon: <SafetyCertificateOutlined className="ataas-sidebar-icon" />, label: '平台授权' },
     { key: 'engines', icon: <SidebarIcon name="engine" />, label: '镜像管理' },
     // { key: 'containerManagement', icon: <SidebarIcon name="pod" />, label: '容器管理' },
     // { key: 'routeWorkbench', icon: <SidebarIcon name="service" />, label: '链路编排' },
@@ -10797,7 +10843,7 @@ const AtAasDesign = () => {
     { title: '节点管理', items: getSidebarItems(['clusterOperations', 'nodeTopology', 'supplierResources']) },
     { title: '配置中心', items: getSidebarItems(['configCenter', 'modelManagement', 'imageRepository', 'fileManagement']) },
     { title: '任务流程', items: getSidebarItems(['taskFlow']) },
-    { title: '身份权限', items: getSidebarItems(['users']) },
+    { title: '身份权限', items: getSidebarItems(['users', 'userPermissions', 'platformLicense']) },
     { title: '系统监控', items: getSidebarItems(['logs']) },
   ];
   const handleSidebarItemSelect = (item: (typeof SIDEBAR_ITEMS)[number]) => {
@@ -10825,6 +10871,8 @@ const AtAasDesign = () => {
       pluginConfig: '/plugin-management',
       routeWorkbench: '/route-workbench',
       taskFlow: '/task-flow',
+      userPermissions: '/user-permissions',
+      platformLicense: '/platform-license',
       benchmark: '/benchmark',
       playgroundChat: '/playground/chat',
       playgroundVisual: '/playground/visual',
@@ -12016,7 +12064,8 @@ const AtAasDesign = () => {
               const keyword = userSearchText.trim().toLowerCase();
               return item.username.toLowerCase().includes(keyword) || item.remark.toLowerCase().includes(keyword);
             });
-            const openCreateUser = (role: 'admin' | 'user') => {
+            const roleLabels: Record<UserManageRecord['role'], string> = { admin: 'admin', ops: '运维人员', viewer: '只读' };
+            const openCreateUser = (role: UserManageRecord['role'] = 'ops') => {
               setUserCreateRole(role);
               userForm.resetFields();
               setUserCreateOpen(true);
@@ -12034,11 +12083,11 @@ const AtAasDesign = () => {
               ]);
               userForm.resetFields();
               setUserCreateOpen(false);
-              message.success(userCreateRole === 'admin' ? '管理员已创建' : '普通用户已创建');
+              message.success(`${roleLabels[userCreateRole]}用户已创建`);
             };
             const userColumns: ColumnsType<UserManageRecord> = [
               { title: '用户名', dataIndex: 'username', key: 'username', render: (value) => <strong className="ataas-api-key-name">{value}</strong> },
-              { title: '权限', dataIndex: 'role', key: 'role', render: (value) => <span className={'ataas-user-role ' + value}>{value === 'admin' ? '管理员' : '普通用户'}</span> },
+              { title: '角色', dataIndex: 'role', key: 'role', render: (value: UserManageRecord['role']) => <span className={'ataas-user-role ' + value}>{roleLabels[value]}</span> },
               { title: '备注', dataIndex: 'remark', key: 'remark', render: (value) => value || '-' },
               { title: '操作', key: 'action', width: 120, render: (_, record) => (
                 <div className="ataas-table-actions">
@@ -12062,8 +12111,7 @@ const AtAasDesign = () => {
                     <div className="ataas-user-toolbar ataas-api-key-toolbar ataas-deploy-list-toolbar">
                       <Input.Search className="ataas-deploy-list-search ataas-user-search" placeholder="名称/备注查询" value={userSearchText} onChange={(e) => setUserSearchText(e.target.value)} allowClear size="middle" />
                       <div className="ataas-api-key-toolbar-spacer" />
-                      <Button className="ataas-deploy-create-button ataas-page-create-button" type="primary" onClick={() => openCreateUser('user')}>新建普通用户</Button>
-                      <Button className="ataas-deploy-create-button ataas-page-create-button" type="primary" onClick={() => openCreateUser('admin')}>新建管理员</Button>
+                      <Button className="ataas-deploy-create-button ataas-page-create-button" type="primary" onClick={() => openCreateUser()}>新建用户</Button>
                     </div>
                     <div className="ataas-deploy-table-wrap ataas-api-key-table-wrap ataas-user-table-wrap">
                       <Table
@@ -12075,7 +12123,7 @@ const AtAasDesign = () => {
                     </div>
                   </div>
                   <Modal
-                    title={userCreateRole === 'admin' ? '新建管理员' : '新建普通用户'}
+                    title="新建用户"
                     open={userCreateOpen}
                     onCancel={() => setUserCreateOpen(false)}
                     onOk={createUser}
@@ -12090,6 +12138,13 @@ const AtAasDesign = () => {
                       </Form.Item>
                       <Form.Item label="密码" name="password" rules={[{ required: true, message: '请输入密码' }]}>
                         <Input.Password placeholder="请输入密码" />
+                      </Form.Item>
+                      <Form.Item label="用户角色" required>
+                        <Select value={userCreateRole} onChange={setUserCreateRole} options={[
+                          { value: 'admin', label: 'admin' },
+                          { value: 'ops', label: '运维人员' },
+                          { value: 'viewer', label: '只读' },
+                        ]} />
                       </Form.Item>
                       <Form.Item label="备注" name="remark" rules={[{ required: true, message: '请输入备注' }]}>
                         <Input placeholder="请输入备注" />
@@ -12614,6 +12669,8 @@ const AtAasDesign = () => {
           )}
         </div>
       );
+      case 'userPermissions': return <UserPermissionsPage />;
+      case 'platformLicense': return <PlatformLicensePage />;
 	      case 'configCenter': return (
         <div className="ataas-config-migrated">
           <ConfigsPage />
@@ -12987,6 +13044,9 @@ subjects:
             <div><span>操作人</span><strong>{logDetailRecord.user}</strong></div>
             <div><span>操作</span><strong>{logDetailRecord.action}</strong></div>
             <div><span>操作对象</span><strong>{logDetailRecord.object}</strong></div>
+            <div><span>对象类型</span><strong>{logDetailRecord.objectType}</strong></div>
+            <div><span>集群</span><strong>{logDetailRecord.cluster}</strong></div>
+            <div><span>节点</span><strong>{logDetailRecord.node}</strong></div>
             <div><span>状态</span><strong>{logDetailRecord.status}</strong></div>
             <div><span>时间</span><strong>{logDetailRecord.time}</strong></div>
             <div><span>详情</span><strong style={{ fontSize: 12, fontWeight: 400, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{logDetailRecord.detail}</strong></div>
@@ -13619,6 +13679,39 @@ sudo bash download.sh --update-model ${modelRepoOfflineTarget?.name || 'model-na
           </div>
         )}
       </Drawer>
+      <Modal
+        className="ataas-mooncake-create-modal"
+        title="创建 Mooncake"
+        open={mooncakeCreateOpen}
+        width={620}
+        okText="创建"
+        cancelText="取消"
+        onOk={handleCreateMooncake}
+        onCancel={() => setMooncakeCreateOpen(false)}
+      >
+        <Form form={mooncakeCreateForm} layout="vertical" requiredMark>
+          <div className="ataas-form-grid-two">
+            <Form.Item label="Mooncake 名称" name="name" rules={[{ required: true, message: '请输入 Mooncake 名称' }, { pattern: /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/, message: '仅支持小写字母、数字和中划线' }]}>
+              <Input placeholder="例如：glm51-mooncake-10" />
+            </Form.Item>
+            <Form.Item label="部署集群" name="cluster" rules={[{ required: true, message: '请选择部署集群' }]}>
+              <Select options={[{ value: 'ST1', label: 'ST1' }]} />
+            </Form.Item>
+          </div>
+          <Form.Item label="关联模型实例" name="model" rules={[{ required: true, message: '请选择模型实例' }]}>
+            <Select showSearch optionFilterProp="label" options={deployServices.map((item) => ({ value: item.name, label: item.name }))} />
+          </Form.Item>
+          <div className="ataas-form-grid-three">
+            <Form.Item label="Store 副本" name="storeReplicas" rules={[{ required: true }]}><InputNumber min={1} max={64} style={{ width: '100%' }} /></Form.Item>
+            <Form.Item label="Master 副本" name="masterReplicas" rules={[{ required: true }]}><InputNumber min={1} max={9} style={{ width: '100%' }} /></Form.Item>
+            <Form.Item label="Etcd 副本" name="etcdReplicas" rules={[{ required: true }]}><InputNumber min={1} max={9} style={{ width: '100%' }} /></Form.Item>
+          </div>
+          <Form.Item label="Master 容量" name="masterCapacity" rules={[{ required: true }]}>
+            <InputNumber min={1} addonAfter="TiB" style={{ width: '100%' }} />
+          </Form.Item>
+          <div className="ataas-mooncake-create-tip">创建后会生成 Mooncake Store、Master 与 Etcd 资源，并在当前卡片列表中展示启动状态。</div>
+        </Form>
+      </Modal>
       <Drawer className="ataas-deploy-drawer" title="模型部署" open={deployDrawerOpen} onClose={() => { setDeployDrawerOpen(false); setProtectedStartupTemplateName(''); }} size={560}>
         <ConfigProvider theme={{ token: { colorPrimary: '#6738E8', colorPrimaryHover: '#5D30D8', colorPrimaryActive: '#5127C7', controlOutline: 'rgba(103, 56, 232, 0.12)' } }}>
             <div className="ataas-deploy-page">

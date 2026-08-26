@@ -864,7 +864,6 @@ const ClusterOperationsHomepage = () => {
           <div className="module-tab" data-view="overview">总览</div>
           <div className="module-tab active" data-view="nodes" title="Kubernetes Node对象及Ready、压力和调度状态">节点</div>
           <div className="module-tab" data-view="services" title="展示后端运行在上海资源段的Services；ServiceEntry为集群级配置">Services</div>
-          <div className="module-tab" data-view="serviceentry" title="K8s ServiceEntry资源，用于定义网格出口流量规则">ServiceEntry</div>
 	        </nav>
 
         <div className="overview-view">
@@ -1142,9 +1141,6 @@ const ClusterOperationsHomepage = () => {
           <ClusterResourceTables view="svc" selectedClusterKey={selectedClusterKey} />
         </section>
 
-        <section className="serviceentry-view">
-          <ClusterResourceTables view="se" selectedClusterKey={selectedClusterKey} />
-        </section>
         </div>
       </main>
     </section>
