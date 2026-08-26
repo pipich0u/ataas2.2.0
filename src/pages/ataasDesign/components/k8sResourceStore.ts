@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { MODEL_OPS_RESOURCE_SPECS } from './modelOpsResourceSpec';
-import { initialGroups } from './pdGroupsPage';
 
 export type K8sResourceSource = 'model-deploy' | 'manual' | 'imported-yaml';
 export type K8sResourceStatus = 'Running' | 'Pending' | 'Failed' | 'Draft';
@@ -80,31 +79,18 @@ export type K8sResourceState = {
   pods: K8sPodResource[];
 };
 
-const STORE_KEY = 'ataas.k8s.resources.v3';
+const STORE_KEY = 'ataas.k8s.resources.v4';
 const STORE_EVENT = 'ataas-k8s-resources-change';
 
 const nowLabel = () => '2026-07-06 10:00';
 const MODEL_OPS_SEED = MODEL_OPS_RESOURCE_SPECS
   .map((spec) => `${spec.name}:${spec.cluster}:${spec.routerReady}/${spec.routerTotal}:${spec.prefillReady}/${spec.prefillTotal}:${spec.decodeReady}/${spec.decodeTotal}:${spec.weight}`)
-  .join('|') + '|only-group-pods-v2|with-serving-se';
+  .join('|') + '|canvas-canonical-topology-v2';
 
-const resolveResourceCluster = (name: string) => {
-  if (/^(sh|zj)-/.test(name)) return 'st';
-  if (/^bj-/.test(name)) return 'beijing-prod';
-  if (/^(zz|cd|gy)-/.test(name)) return 'guangzhou-test';
-  return 'wuhan-kunpeng';
-};
+const resolveResourceCluster = (_name?: string) => 'ST1';
 
 export const clusterGroupNames: Record<string, string[]> = {
-  'st': ['glm51_1', 'glm51_3', 'glm51_4'],
-  'beijing-prod': ['glm51_1', 'glm51_2'],
-  'guangzhou-test': ['glm51_1'],
-  'wuhan-kunpeng': ['default'],
-};
-
-const resolveGroupName = (name: string, cluster: string, index: number): string => {
-  const groups = clusterGroupNames[cluster] || ['default'];
-  return groups[index % groups.length];
+  ST1: MODEL_OPS_RESOURCE_SPECS.map((spec) => spec.name),
 };
 
 export const buildServiceYaml = (service: K8sServiceResource) => `apiVersion: v1
@@ -167,12 +153,12 @@ const getMockServiceEntryId = (name: string, cluster: string, index: number) => 
 };
 
 const getMockServiceEntryName = (id: string, cluster: string) => {
-  return id;
+  return id.replace(/^se-/, '');
 };
 
 const makeService = (index: number): K8sServiceResource => {
   const spec = MODEL_OPS_RESOURCE_SPECS[index];
-  const name = spec.name;
+  const name = spec.serviceName;
   const cluster = resolveResourceCluster(name);
   const serviceEntryId = getMockServiceEntryId(spec.name, cluster, index);
   const service: K8sServiceResource = {
@@ -203,11 +189,11 @@ const makePodsForService = (service: K8sServiceResource, index: number): K8sPodR
   const base = {
     cluster: service.cluster,
     namespace: service.namespace,
-    group: '',
+    group: spec.name,
     age: `${2 + (index % 9)}d ${index % 20}h`,
     source: 'model-deploy' as K8sResourceSource,
     serviceId: service.id,
-    trafficSource: service.name,
+    trafficSource: spec.name,
     nodeGPU: 'B300 192G x 8',
     gpuUtil: 24 + (index % 6) * 5,
     gpuVram: 20 + (index % 5) * 4,
@@ -223,7 +209,7 @@ const makePodsForService = (service: K8sServiceResource, index: number): K8sPodR
     restart: index % 5,
     image: 'sglang/router:v0.5.10',
     podIP: `10.0.${index % 8}.${20 + index}`,
-    node: spec.workerNames[0] || `worker-${String(index % 12).padStart(3, '0')}`,
+    node: spec.routerNodeNames[0],
     yaml: '',
     load: 28 + (index % 7) * 6,
     ttftP50: 38 + (index % 6) * 4,
@@ -242,7 +228,7 @@ const makePodsForService = (service: K8sServiceResource, index: number): K8sPodR
       restart: (index + podIndex) % 4,
       image: 'sglang/worker:v0.5.10',
       podIP: `10.1.${index % 8}.${30 + podIndex}`,
-      node: spec.workerNames[podIndex % spec.workerNames.length] || `worker-${String(index % 12).padStart(3, '0')}`,
+      node: spec.prefillNodeNames[podIndex],
       yaml: '',
       load: 18 + ((index + podIndex) % 8) * 7,
       ttftP50: 180 + (index % 7) * 24 + podIndex * 9,
@@ -263,7 +249,7 @@ const makePodsForService = (service: K8sServiceResource, index: number): K8sPodR
       restart: (index + podIndex + 1) % 5,
       image: 'sglang/worker:v0.5.10',
       podIP: `10.2.${index % 8}.${40 + podIndex}`,
-      node: spec.workerNames[(podIndex + spec.prefillTotal) % spec.workerNames.length] || `worker-${String((index + 4) % 12).padStart(3, '0')}`,
+      node: spec.decodeNodeNames[podIndex],
       yaml: '',
       load: 22 + ((index + podIndex) % 6) * 9,
       tpotP50: 12 + (index % 5) * 2 + podIndex,
@@ -289,7 +275,7 @@ const makePodsForService = (service: K8sServiceResource, index: number): K8sPodR
         restart: (index + podIndex + 2) % 3,
         image,
         podIP: `10.26.${baseIP}.${30 + podIndex}`,
-        node: spec.workerNames[podIndex % spec.workerNames.length] || `worker-${String(index % 12).padStart(3, '0')}`,
+        node: spec.mooncakeNodeNames[(podIndex + baseIP) % spec.mooncakeNodeNames.length],
         yaml: '',
         load: 5 + (index % 3),
       };
@@ -300,47 +286,12 @@ const makePodsForService = (service: K8sServiceResource, index: number): K8sPodR
 };
 
 export const createInitialK8sResourceState = (): K8sResourceState => {
-  const services = MODEL_OPS_RESOURCE_SPECS.map((_, index) => makeService(index));
-
-  const groupPods = initialGroups.flatMap((group) =>
-    group.pods.map((pod, podIndex) => {
-      const id = `pod-${group.key}-${pod.role}-${podIndex}`;
-      const prefillNodes = group.roles.prefill?.nodes || [];
-      const prefillNode = prefillNodes.length > 0 ? prefillNodes[0] : pod.node;
-      const isReusableRole = pod.role === 'router' || pod.role === 'store' || pod.role === 'master' || pod.role === 'etcd';
-      return {
-        id,
-        kind: 'Pod' as const,
-        name: pod.name,
-        cluster: group.clusterKey,
-        namespace: group.namespace,
-        role: (pod.role === 'store' || pod.role === 'master' || pod.role === 'etcd' ? pod.role : pod.role === 'router' || pod.role === 'prefill' || pod.role === 'decode' ? pod.role : 'prefill') as K8sPodRole,
-        serviceId: services.find((s) => s.cluster === group.clusterKey)?.id,
-        group: group.name,
-        ready: pod.readyLabel,
-        status: pod.status,
-        restart: pod.restarts,
-        image: pod.role === 'router' ? 'sglang/router:v0.5.10'
-          : ['store', 'master', 'etcd'].includes(pod.role) ? `mooncake/${pod.role}:v3.2.1`
-          : 'sglang/worker:v0.5.10',
-        podIP: pod.podIP,
-        node: isReusableRole ? prefillNode : pod.node,
-        nodeGPU: 'B300 192G x 8',
-        gpuUtil: 30 + (podIndex % 5) * 8,
-        gpuVram: 24 + (podIndex % 4) * 6,
-        age: `${3 + (podIndex % 7)}d ${podIndex * 3 % 24}h`,
-        source: 'model-deploy' as K8sResourceSource,
-        yaml: '',
-        load: 15 + (podIndex % 6) * 10,
-        tpotP50: 12 + podIndex * 3,
-        tpotP99: 28 + podIndex * 5,
-        ttftP50: 40 + podIndex * 8,
-        ttftP99: 90 + podIndex * 12,
-        trafficSource: group.name,
-      } satisfies K8sPodResource;
-    }),
-  );
-  const pods = groupPods.map((pod) => ({ ...pod, yaml: buildPodYaml(pod) }));
+  const bareServices = MODEL_OPS_RESOURCE_SPECS.map((_, index) => makeService(index));
+  const pods = bareServices.flatMap((service, index) => makePodsForService(service, index));
+  const services = bareServices.map((service) => ({
+    ...service,
+    podIds: pods.filter((pod) => pod.serviceId === service.id).map((pod) => pod.id),
+  }));
   const serviceEntryGroups = services.reduce<Record<string, K8sServiceResource[]>>((acc, service) => {
     const serviceEntryId = service.serviceEntryId || `se-${service.cluster}-main`;
     acc[serviceEntryId] = [...(acc[serviceEntryId] || []), service];
@@ -357,7 +308,7 @@ export const createInitialK8sResourceState = (): K8sResourceState => {
       hosts: [`${getMockServiceEntryName(serviceEntryId, cluster)}.cluster.local`],
       serviceIds: clusterServices.map((service) => service.id),
       endpoints: clusterServices.map((service) => {
-        const spec = MODEL_OPS_RESOURCE_SPECS.find((item) => item.name === service.name);
+        const spec = MODEL_OPS_RESOURCE_SPECS.find((item) => item.serviceName === service.name);
         return { serviceId: service.id, address: `${service.name}.default.svc.cluster.local`, weight: spec?.weight || 0 };
       }),
       source: 'model-deploy',
@@ -369,32 +320,7 @@ export const createInitialK8sResourceState = (): K8sResourceState => {
     return { ...serviceEntry, yaml: buildServiceEntryYaml(serviceEntry) };
   });
 
-  const groupEntrySeNames = [
-    { name: 'glm51-1-serving-se', cluster: 'st', hosts: ['glm51-1.model-serving.model.internal'] },
-    { name: 'glm51-3-serving-se', cluster: 'st', hosts: ['glm51-3.model-serving.model.internal'] },
-    { name: 'glm51-4-serving-se', cluster: 'st', hosts: ['glm51-4.model-serving.model.internal'] },
-    { name: 'glm51-1-serving-se', cluster: 'beijing-prod', hosts: ['glm51-1.bd.model-serving.model.internal'] },
-    { name: 'glm51-2-serving-se', cluster: 'beijing-prod', hosts: ['glm51-2.bd.model-serving.model.internal'] },
-    { name: 'glm51-1-serving-se', cluster: 'guangzhou-test', hosts: ['glm51-1.bx.model-serving.model.internal'] },
-  ];
-  const extraServiceEntries: K8sServiceEntryResource[] = groupEntrySeNames.map((se, i) => ({
-    id: `se-group-${se.cluster}-${i}`,
-    kind: 'ServiceEntry' as const,
-    name: se.name,
-    cluster: se.cluster,
-    namespace: 'higress-system',
-    hosts: se.hosts,
-    serviceIds: [],
-    endpoints: [{ serviceId: '', address: `${se.name}.${se.cluster}.svc.cluster.local`, weight: 100 }],
-    source: 'manual' as const,
-    status: 'Running' as const,
-    yaml: '',
-    createdAt: '2026-06-15 08:00',
-    updatedAt: '2026-06-28 14:30',
-  }));
-  const extraWithYaml = extraServiceEntries.map((entry) => ({ ...entry, yaml: buildServiceEntryYaml(entry) }));
-
-  return { serviceEntries: [...serviceEntries, ...extraWithYaml], services, pods };
+  return { serviceEntries, services, pods };
 };
 
 const readState = (): K8sResourceState => {

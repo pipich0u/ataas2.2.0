@@ -1,6 +1,6 @@
 import '@/b300/index.css'
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { rpc } from '@/lib/bus/rpc'
 import { useZone } from '@/contexts/ClusterContext'
@@ -31,7 +31,11 @@ const STATUS_TEXT: Record<string, string> = {
 
 const PAGE_SIZE = 10
 
-export default function Tasks() {
+type TasksProps = {
+  onCreateWorkflow?: () => void
+}
+
+export default function Tasks({ onCreateWorkflow }: TasksProps) {
   const navigate = useNavigate()
   const [tasks, setTasks] = useState<TaskSnapshot[]>([])
   const [err, setErr] = useState<string>()
@@ -101,9 +105,9 @@ export default function Tasks() {
         title="任务流程"
         subtitle={`共 ${total} 个任务 · 当前页 ${active.length} 个活跃任务`}
         right={
-          <Link to="/workflow/new">
-            <Button size="sm"><Plus className="h-3.5 w-3.5 mr-1" /> 新建流程</Button>
-          </Link>
+          <Button size="sm" onClick={() => onCreateWorkflow ? onCreateWorkflow() : navigate('/workflow/new')}>
+            <Plus className="h-3.5 w-3.5 mr-1" /> 新建流程
+          </Button>
         }
       />
 
@@ -116,7 +120,20 @@ export default function Tasks() {
           </div>
         )}
 
-        <div className="flex flex-col gap-3">
+        <div className="rounded-lg border overflow-hidden" style={{ borderColor: 'var(--color-border)', backgroundColor: '#fff' }}>
+          <table className="w-full text-xs" style={{ backgroundColor: '#fff' }}>
+            <thead style={{ backgroundColor: 'var(--color-elevated)', color: 'var(--color-muted)' }}>
+              <tr className="border-b" style={{ borderColor: 'var(--color-border)' }}>
+                <th className="px-4 py-3 text-left font-medium">状态</th>
+                <th className="px-4 py-3 text-left font-medium">任务名称</th>
+                <th className="px-4 py-3 text-left font-medium">目标集群</th>
+                <th className="px-4 py-3 text-left font-medium">执行人</th>
+                <th className="px-4 py-3 text-left font-medium">参数</th>
+                <th className="px-4 py-3 text-right font-medium">创建时间</th>
+                <th className="px-4 py-3 text-right font-medium">操作</th>
+              </tr>
+            </thead>
+            <tbody style={{ backgroundColor: '#fff' }}>
           {filteredTasks.map((t) => {
             const isWaiting = t.status === 'awaiting'
             const waitingStepIdx = t.awaiting_step ?? -1
@@ -126,9 +143,9 @@ export default function Tasks() {
             const statusColor = isWaiting ? 'var(--color-warning)' : (STATUS_COLOR[t.status] ?? 'var(--color-muted)')
 
             return (
-              <div
-                key={t.id}
-                className="rounded-lg border p-4 cursor-pointer transition-colors"
+              <Fragment key={t.id}>
+              <tr
+                className="border-b cursor-pointer transition-colors last:border-b-0"
                 style={{
                   borderColor: selected === t.id ? statusColor : isWaiting ? 'var(--color-warning)' : 'var(--color-border)',
                   backgroundColor: selected === t.id ? 'var(--color-elevated)' : isWaiting ? 'color-mix(in srgb, var(--color-warning) 5%, transparent)' : 'transparent',
@@ -141,34 +158,47 @@ export default function Tasks() {
                   }
                 }}
               >
-                <div className="flex items-center gap-2 text-xs">
+                <td className="px-4 py-3 whitespace-nowrap">
                   <Badge variant="outline" className="text-[10px]"
                     style={{ color: statusColor, borderColor: statusColor }}>
                     {displayStatus}
                   </Badge>
-                  <span className="font-mono" style={{ color: 'var(--color-text-heading)' }}>
+                </td>
+                <td className="px-4 py-3 font-mono whitespace-nowrap" style={{ color: 'var(--color-text-heading)' }}>
                     {t.meta?.name || t.type}
-                  </span>
-                  {/* cluster chip —— TaskSnapshot.cluster 由 backend 写入，
-                      跟 Routes/Services/Groups 卡片同视觉。 */}
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
                   {t.cluster && (
                     <span className="text-[10px] px-1.5 py-0.5 rounded font-mono leading-none"
                       style={{ backgroundColor: 'var(--color-info-subtle)', color: 'var(--color-info)' }}>
                       {t.cluster}
                     </span>
                   )}
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
                   {(t.exec_user || t.meta?.exec_user) && (
                     <span className="text-[10px]" style={{ color: 'var(--color-info)' }}>
                       {t.exec_user || t.meta?.exec_user}
                     </span>
                   )}
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex flex-wrap gap-x-2 gap-y-1">
                   {t.meta && ['model', 'group_index'].map((k) => t.meta![k] && (
                     <span key={k} className="font-mono text-[10px]" style={{ color: 'var(--color-muted)' }}>
                       {k}={t.meta![k]}
                     </span>
                   ))}
+                  </div>
+                </td>
 
-                  <div className="ml-auto flex items-center gap-1.5 shrink-0">
+                <td className="px-4 py-3 text-right whitespace-nowrap">
+                  <span className="text-[10px] tabular-nums" style={{ color: 'var(--color-muted)' }}>
+                    {new Date(t.created_at).toLocaleString()}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex justify-end items-center gap-1.5 whitespace-nowrap">
                     {/* Workflow continue button */}
                     {isWaiting && (
                       <Button size="sm" className="h-6 text-[10px] gap-1"
@@ -194,15 +224,13 @@ export default function Tasks() {
                         <RotateCcw className="h-3 w-3" /> 恢复
                       </Button>
                     )}
-                    <span className="text-[10px] tabular-nums" style={{ color: 'var(--color-muted)' }}>
-                      {new Date(t.created_at).toLocaleString()}
-                    </span>
                   </div>
-                </div>
+                </td>
+              </tr>
 
-                {/* Deep preview for waiting step */}
                 {isWaiting && waitingStepIdx >= 0 && t.steps?.[waitingStepIdx]?.preview && (
-                  <div className="mt-2 rounded border text-xs" style={{ borderColor: 'var(--color-warning)', backgroundColor: 'color-mix(in srgb, var(--color-warning) 5%, transparent)' }}>
+                  <tr className="border-b" style={{ borderColor: 'var(--color-border)' }}><td colSpan={7} className="px-4 pb-3">
+                  <div className="rounded border text-xs" style={{ borderColor: 'var(--color-warning)', backgroundColor: 'color-mix(in srgb, var(--color-warning) 5%, transparent)' }}>
                     <div className="px-3 py-2" style={{ color: 'var(--color-warning)' }}>
                       下一步：<span className="font-semibold">{waitingStepName ?? '未知步骤'}</span>
                     </div>
@@ -212,16 +240,19 @@ export default function Tasks() {
                       </div>
                     )}
                   </div>
+                  </td></tr>
                 )}
 
                 {selected === t.id && (
-                  <div className="mt-3 pt-3 border-t" style={{ borderColor: 'var(--color-border)' }}>
+                  <tr><td colSpan={7} className="px-4 pb-4"><div className="pt-3 border-t" style={{ borderColor: 'var(--color-border)' }}>
                     <TaskProgress taskId={t.id} />
-                  </div>
+                  </div></td></tr>
                 )}
-              </div>
+              </Fragment>
             )
           })}
+            </tbody>
+          </table>
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-1 mt-4">
               <Button variant="outline" size="sm" className="h-7 text-xs"

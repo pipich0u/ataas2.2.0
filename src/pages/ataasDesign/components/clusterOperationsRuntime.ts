@@ -1,6 +1,7 @@
 // @ts-nocheck
 // The prototype data and interaction handlers stay isolated in this module so the
 // page component remains readable while backend APIs are connected later.
+import { PLATFORM_CLUSTER, PLATFORM_GPU_NODES } from './platformMockData';
 export type ClusterOperationsClusterData = {
   name: string;
   location: string;
@@ -50,11 +51,11 @@ export type ClusterOperationsResourceTreeProvider = {
 };
 
 export const CLUSTER_OPERATIONS_CLUSTER_DATA: Record<string, ClusterOperationsClusterData> = {
-  'st': {
-    name: 'st', location: '上海二区', provider: '商汤', dc: '上海外高桥数据中心', k8s: 'v1.36.2',
-    bms: '3', nodes: '3', normal: '2', abnormal: '1', health: '正常', running: true, code: '上海二区',
-    alerts: { critical: 3, warning: 2 },
-    resources: { cpuTotal: 512, cpuUsed: 166, gpuTotal: 24, gpuUtilization: 64.5, vramTotal: 1.13, vramUsed: 0.27, memoryTotal: 3.45, memoryUsed: 1.33, storageTotal: 20.32, storageUsed: 8.7 },
+  'ST1': {
+    name: 'ST1', location: '上海二区', provider: '商汤', dc: '上海外高桥数据中心', k8s: 'v1.36.2',
+    bms: String(PLATFORM_GPU_NODES.length), nodes: String(PLATFORM_GPU_NODES.length), normal: String(PLATFORM_GPU_NODES.length), abnormal: '0', health: '正常', running: true, code: '上海二区',
+    alerts: { critical: 0, warning: 0 },
+    resources: { cpuTotal: PLATFORM_GPU_NODES.length * 64, cpuUsed: PLATFORM_GPU_NODES.length * 29, gpuTotal: PLATFORM_GPU_NODES.reduce((total, node) => total + node.gpuCount, 0), gpuUtilization: 64.5, vramTotal: PLATFORM_GPU_NODES.length * 1.5, vramUsed: PLATFORM_GPU_NODES.length * 0.72, memoryTotal: PLATFORM_GPU_NODES.length, memoryUsed: PLATFORM_GPU_NODES.length * 0.42, storageTotal: PLATFORM_GPU_NODES.length * 4, storageUsed: PLATFORM_GPU_NODES.length * 1.7 },
   },
   'shanghai-inference-02': {
     name: 'shanghai-inference-02', location: '上海三区', provider: '商汤', dc: '上海外高桥数据中心', k8s: 'v1.36.2',
@@ -132,38 +133,8 @@ export const CLUSTER_OPERATIONS_CLUSTER_DATA: Record<string, ClusterOperationsCl
 
 export const CLUSTER_OPERATIONS_RESOURCE_TREE: ClusterOperationsResourceTreeProvider[] = [
   { name: '商汤', providerFull: '', expanded: true, dcs: [
-    { name: '上海外高桥数据中心', count: '6', expanded: true, clusters: [
-      { key: 'st', name: 'st', meta: '上海二区', count: '3台' },
-      { key: 'shanghai-inference-02', name: 'shanghai-inference-02', meta: '上海三区', count: '4台' },
-      { key: 'shanghai-inference-03', name: 'shanghai-inference-03', meta: '上海四区', count: '5台', bad: true },
-      { key: 'shanghai-batch', name: 'shanghai-batch', meta: '离线推理区', count: '3台' },
-      { key: 'shanghai-dev', name: 'shanghai-dev', meta: '研发验证区', count: '2台' },
-      { key: 'shanghai-canary', name: 'shanghai-canary', meta: '灰度发布区', count: '2台', bad: true },
-    ]},
-    { name: '上海临港数据中心', count: '1', expanded: false, clusters: [
-      { key: 'shanghai-lingang', name: 'shanghai-lingang', meta: '临港一区', count: '4台' },
-    ]},
-    { name: '上海张江数据中心', count: '1', expanded: false, clusters: [
-      { key: 'shanghai-zhangjiang', name: 'shanghai-zhangjiang', meta: '张江一区', count: '3台' },
-    ]},
-    { name: '苏州工业园数据中心', count: '1', expanded: false, clusters: [
-      { key: 'suzhou-prod', name: 'suzhou-prod', meta: '苏州一区', count: '3台', bad: true },
-    ]},
-    { name: '杭州萧山数据中心', count: '1', expanded: false, clusters: [
-      { key: 'hangzhou-online', name: 'hangzhou-online', meta: '杭州一区', count: '4台' },
-    ]},
-  ]},
-  { name: '并行科技', providerFull: '', expanded: true, dcs: [
-    { name: '广州科学城数据中心', count: '1', expanded: true, clusters: [
-      { key: 'guangzhou-test', name: 'guangzhou-test', meta: '广州测试', count: '1台' },
-    ]},
-    { name: '武汉光谷数据中心', count: '1', expanded: true, clusters: [
-      { key: 'wuhan-kunpeng', name: 'wuhan-kunpeng', meta: '武汉专区', count: '0台' },
-    ]},
-  ]},
-  { name: '盐城', providerFull: '', expanded: true, dcs: [
-    { name: '北京亦庄数据中心', count: '1', expanded: true, clusters: [
-      { key: 'beijing-prod', name: 'beijing-prod', meta: '北京一区', count: '6台' },
+    { name: '上海外高桥数据中心', count: '1', expanded: true, clusters: [
+      { key: PLATFORM_CLUSTER.key, name: PLATFORM_CLUSTER.name, meta: '上海二区', count: `${PLATFORM_GPU_NODES.length}台` },
     ]},
   ]},
 ];
@@ -176,7 +147,7 @@ export const initializeClusterOperations = (root: HTMLElement) => {
 
   const tabs = Array.from(root.querySelectorAll('.module-tab[data-view]'));
   const allModes = ['nodes-mode', 'workloads-mode', 'pods-mode', 'services-mode', 'serviceentry-mode', 'se-view-mode'];
-  const applyView = (view = 'overview') => {
+  const applyView = (view = 'nodes') => {
     root.classList.remove(...allModes);
     tabs.forEach((tab) => tab.classList.toggle('active', tab.dataset.view === view));
     if (view === 'nodes') root.classList.add('nodes-mode');
@@ -195,12 +166,12 @@ export const initializeClusterOperations = (root: HTMLElement) => {
   const clusterData = CLUSTER_OPERATIONS_CLUSTER_DATA;
 
   const applyCluster = (clusterKey: string) => {
-    applyView('overview');
+    applyView('nodes');
     root.querySelectorAll('.tree-provider-head.scope-active, .tree-dc-head.scope-active').forEach((item) => item.classList.remove('scope-active'));
     root.querySelectorAll('.tree-cluster-link').forEach((l) => l.classList.remove('active'));
     const link = root.querySelector(`.tree-cluster-link[data-cluster-key="${clusterKey}"]`);
     if (link) link.classList.add('active');
-    const data = clusterData[clusterKey] || clusterData['beijing-prod'];
+    const data = clusterData[clusterKey] || clusterData.ST1;
     setText('clusterBreadcrumbName', data.name);
     setText('clusterTitle', data.name);
     setText('clusterCode', data.code);

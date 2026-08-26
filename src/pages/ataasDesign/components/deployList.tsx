@@ -1,7 +1,7 @@
 import { Button, ConfigProvider, Dropdown, Image, Input, InputNumber, message, Modal, Popconfirm, Select, Slider, Table, Tag, Tooltip } from 'antd';
 import type { ThemeConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { BarChartOutlined, CloudDownloadOutlined, CopyOutlined, DisconnectOutlined, EyeOutlined, FileSearchOutlined, FileTextOutlined, InfoCircleOutlined, LinkOutlined, PlayCircleOutlined, PlusOutlined, PoweroffOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
+import { BarChartOutlined, CopyOutlined, DisconnectOutlined, EyeOutlined, FileSearchOutlined, FileTextOutlined, InfoCircleOutlined, LinkOutlined, PlayCircleOutlined, PlusOutlined, PoweroffOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import deepseekLogo from '../deepseek-logo.svg';
@@ -12,6 +12,7 @@ import minicpmLogo from '../minicpm-logo.svg';
 import qwenLogo from '../qwen-logo.svg';
 import mooncakeLogo from '../mooncake-logo.png';
 import { MODEL_OPS_RESOURCE_SPECS, getModelOpsRoleSummary as getModelOpsSpecRoleSummary, type ModelOpsResourceSpec } from './modelOpsResourceSpec';
+import { PLATFORM_GPU_NODES } from './platformMockData';
 
 export type DeployStatus = 'running' | 'loading' | 'error' | 'ready' | 'updating' | 'updatable' | 'warning';
 export type DeployCategory = 'llm' | 'embedding' | 'rerank' | 'vlm';
@@ -211,9 +212,6 @@ const createModelOpsMockService = (id: number, spec: ModelOpsResourceSpec): Depl
 
 export const MOCK_DEPLOY_DATA: DeployServiceItem[] = [
   ...MODEL_OPS_RESOURCE_SPECS.map((spec, index) => createModelOpsMockService(100 + index, spec)),
-  { id: 1, name: 'deepseek-r1-prod', description: '生产环境 DeepSeek-R1 模型服务，671B 参数规模', logo: 'https://api.dicebear.com/7.x/identicon/svg?seed=deepseek', status: 'running', category: 'llm', typeStr: 'DeepSeek-R1-671B', timeStr: '运行 12天', updateTime: '2026-05-28 10:30', deployMode: 'PD 分离', modelInfo: { name: 'DeepSeek-R1-671B', supplier: '深度求索', number: 2, works: 'qujing4, qujing7', size: '671B', tokens: '4.82B', point: 'BF16', memory: '128 GB', disk: '256 GB', vram: '320 GB', contextLength: '128K', attentionHeads: '96', layers: '64', engine: 'vLLM', engineVersion: '0.6.2', restartStatus: true, restartNumber: 0, restartCount: 3, restartPage: [], concurrencyControllStatus: true, concurrencyControllCount: 100, logs: [{ id: 1, name: '实例-1 运行日志' }, { id: 2, name: '实例-2 运行日志' }], updateTime: '2026-05-28' } },
-  { id: 2, name: 'glm-4-air-prod', description: '生产环境 GLM-4-Air 模型服务，9B 参数规模', logo: glmLogo, status: 'running', category: 'llm', typeStr: 'GLM-4-Air', timeStr: '运行 15天', updateTime: '2026-05-27 08:00', deployMode: '单机部署', modelInfo: { name: 'GLM-4-Air', supplier: '智谱AI', number: 1, works: 'qujing4', size: '9B', tokens: '1.26B', point: 'BF16', memory: '48 GB', disk: '96 GB', vram: '48 GB', contextLength: '128K', attentionHeads: '64', layers: '40', engine: 'vLLM', engineVersion: '0.6.1', restartStatus: true, restartNumber: 0, restartCount: 3, restartPage: [], concurrencyControllStatus: true, concurrencyControllCount: 200, logs: [{ id: 6, name: '运行日志' }], updateTime: '2026-05-27' } },
-  { id: 3, name: 'glm-4-air-dist-prod', description: '生产环境 GLM-4-Air 分布式模型服务，9B 参数规模', logo: glmLogo, status: 'running', category: 'llm', typeStr: 'GLM-4-Air', timeStr: '运行 8天', updateTime: '2026-05-29 09:20', deployMode: '分布式部署', modelInfo: { name: 'GLM-4-Air', supplier: '智谱AI', number: 2, works: 'gz-l20-worker-003, gz-l20-worker-005', size: '9B', tokens: '1.92B', point: 'BF16', memory: '96 GB', disk: '180 GB', vram: '96 GB', contextLength: '128K', attentionHeads: '64', layers: '40', engine: 'SGLang', engineVersion: '0.5.8', restartStatus: true, restartNumber: 0, restartCount: 3, restartPage: [], concurrencyControllStatus: true, concurrencyControllCount: 320, logs: [{ id: 7, name: '实例-1 运行日志' }, { id: 8, name: '实例-2 运行日志' }], updateTime: '2026-05-29' } },
 ];
 
 interface DeployListProps {
@@ -228,7 +226,6 @@ interface DeployListProps {
   onAddInstance?: (item: DeployServiceItem) => void;
   onAllocateWeight?: (item: DeployServiceItem) => void;
   onOpenCreate: () => void;
-  onDownloadModel?: () => void;
   onScalePd?: (item: DeployServiceItem) => void;
   onNodeFilter?: (item: DeployServiceItem) => void;
   onScheduleDetail?: (item: DeployServiceItem) => void;
@@ -244,7 +241,7 @@ interface DeployListProps {
   mode?: 'deploy' | 'modelOps';
 }
 
-export default function DeployList({ data, onDetail, onStop, onMonitor, onMooncakeMonitor, onExperience, onLog, onDeleteInstance, onAddInstance, onAllocateWeight, onOpenCreate, onDownloadModel, onScalePd, onNodeFilter, onScheduleDetail, onModelOpsYamlPreview, viewModeValue, onViewModeChange, clusterFilterValue, onClusterFilterChange, getModelOpsRowWeight, hideToolbar = false, aggregateModelOpsPods = false, defaultExpandAllModelOps = false, mode = 'deploy' }: DeployListProps) {
+export default function DeployList({ data, onDetail, onStop, onMonitor, onMooncakeMonitor, onExperience, onLog, onDeleteInstance, onAddInstance, onAllocateWeight, onOpenCreate, onScalePd, onNodeFilter, onScheduleDetail, onModelOpsYamlPreview, viewModeValue, onViewModeChange, clusterFilterValue, onClusterFilterChange, getModelOpsRowWeight, hideToolbar = false, aggregateModelOpsPods = false, defaultExpandAllModelOps = false, mode = 'deploy' }: DeployListProps) {
   const [, setViewMode] = useState<ViewMode>('mooncake');
   const [statusFilter, setStatusFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -705,6 +702,19 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
       const roleReady = Number.isFinite(row.roleReady) ? row.roleReady : 1;
       const roleIndex = Number.isFinite(row.roleIndex) ? row.roleIndex : 0;
       const isPodWarning = roleIndex >= roleReady;
+      const deployedNodeNames = item.modelInfo.works.split(',').map((name) => name.trim()).filter(Boolean);
+      const prefillTotal = item.modelOpsRoleSummary ? parseReadyTotal(item.modelOpsRoleSummary.prefill) : 1;
+      const nodeName = compText.includes('router')
+        ? deployedNodeNames[0]
+        : compText.includes('prefill')
+          ? deployedNodeNames[roleIndex]
+          : compText.includes('decode')
+            ? deployedNodeNames[prefillTotal + roleIndex]
+            : row.node;
+      const platformNodeIndex = PLATFORM_GPU_NODES.findIndex((node) => node.name === nodeName);
+      const nodeIp = platformNodeIndex >= 0
+        ? `192.168.${100 + (platformNodeIndex % 200)}.${(platformNodeIndex % 254) + 1}`
+        : `10.25.110.${ipLast}`;
       const trafficSources = compText.includes('router')
         ? [item.modelInfo.name]
         : [`${item.serviceGroupName || getDeployClusterName(item)}-${item.name}-ha-1`, `${item.serviceGroupName || getDeployClusterName(item)}-${item.name}-router-0`];
@@ -723,8 +733,8 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
             ? { label: 'TTFT', avg: avgTtft, p99: p99Ttft }
             : { label: 'TPOT', avg: avgTpot, p99: p99Tpot },
         image,
-        ip: `10.25.110.${ipLast}`,
-        nodeName: `pod11-b300gpu${nodeIndex}`,
+        ip: nodeIp,
+        nodeName: nodeName || `pod11-b300gpu${nodeIndex}`,
         util,
         vram,
         age,
@@ -1403,7 +1413,6 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
                 <img className="ataas-deploy-view-mooncake-icon" src={mooncakeLogo} alt="" />Mooncake 卡片
               </button>
             </div>
-            {onDownloadModel && <Button icon={<CloudDownloadOutlined />} onClick={onDownloadModel}>下载模型</Button>}
             <Button className="ataas-deploy-create-button ataas-page-create-button" type="primary" icon={<PlusOutlined />} onClick={onOpenCreate}>创建模型服务</Button>
           </>
         )}
@@ -1576,7 +1585,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
               rowKey="id"
               rowClassName={() => mode === 'modelOps' ? 'ataas-model-ops-click-row' : ''}
               pagination={mode === 'modelOps'
-                ? { pageSize: Math.max(filtered.length, 1), showTotal: (t) => `共 ${t} 条`, showSizeChanger: false }
+                ? false
                 : { pageSize: 10, showTotal: (t) => `共 ${t} 条`, showSizeChanger: true }}
               scroll={{ x: mode === 'modelOps' ? 'max-content' : 1180 }}
               expandable={mode === 'modelOps' ? {

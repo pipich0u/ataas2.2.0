@@ -1,0 +1,163 @@
+.route-config-page { box-sizing: border-box; min-height: 100%; padding: 20px 24px 32px; background: #fff; color: #1d2129; font-family: PingFangSC, "PingFang SC", "Helvetica Neue", Helvetica, Arial, "Hiragino Sans GB", "Microsoft YaHei", sans-serif; font-size: 13px; }
+.route-config-page-heading { margin-bottom: 18px; }
+.route-config-page-heading h1 { margin: 0; color: #1d2129; font-size: 16px; font-weight: 600; line-height: 24px; }
+.route-config-page-heading p { margin: 4px 0 0; color: #86909c; font-size: 12px; line-height: 18px; }
+.route-config-resource-tabs { margin-top: -4px; margin-bottom: 12px; }
+.route-config-resource-tabs .ant-tabs-nav { margin-bottom: 0; }
+.route-config-resource-tabs .ant-tabs-tab { padding: 9px 2px; font-size: 13px; }
+.route-config-toolbar { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0; margin-bottom: 14px; border: 0; border-radius: 0; background: transparent; }
+.route-config-search { display: flex; width: 360px; height: 32px; overflow: hidden; border: 1px solid #e5e6eb; border-radius: 4px; background: #fff; transition: border-color .18s ease, box-shadow .18s ease; }
+.route-config-search:focus-within { border-color: #6951ff; box-shadow: 0 0 0 2px rgb(105 81 255 / 10%); }
+.route-config-search .ant-input-affix-wrapper { height: 30px; border: 0 !important; border-radius: 0; box-shadow: none !important; }
+.route-config-search > .ant-btn { width: 34px; height: 30px; margin: 0; padding: 0; border: 0; border-left: 1px solid #e5e6eb; border-radius: 0; color: #4e5969; background: #fff; box-shadow: none; }
+.route-config-search > .ant-btn:hover { color: #6951ff; background: #f7f5ff; }
+.route-config-toolbar > .ant-btn { height: 36px; border-radius: 4px; box-shadow: none; }
+.route-config-toolbar-actions { display: flex; flex-direction: row-reverse; gap: 8px; margin-left: auto; }
+.route-config-toolbar-actions .ant-btn { height: 32px; padding-inline: 16px; border-radius: 4px; box-shadow: none; }
+.route-config-card { overflow: hidden; border: 1px solid #e5e6eb; border-radius: 8px; background: #fff; box-shadow: none; }
+.route-config-card-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid #edf0f5; }
+.route-config-card-head h1 { margin: 0; font-size: 18px; line-height: 26px; }
+.route-config-card-head div > span { color: #86909c; font-size: 13px; }
+.route-config-table { min-width: 1180px; overflow-x: auto; }
+.route-config-row { display: grid; grid-template-columns: 36px minmax(190px, 1.1fr) minmax(150px, .85fr) minmax(210px, 1.15fr) minmax(220px, 1.2fr) minmax(130px, .75fr) 120px 250px; align-items: center; min-height: 70px; padding: 0 18px; border-bottom: 1px solid #edf0f5; column-gap: 12px; }
+.route-config-table-head { min-height: 52px; background: #f7f8fa; color: #4e5969; }
+.route-config-row > span { min-width: 0; overflow: hidden; color: #4e5969; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.route-config-row > span > em { display: inline-block; margin-right: 8px; color: #1d2129; font-style: normal; }
+.route-config-row code { color: #4e5969; font-family: inherit; }
+.route-config-name { display: flex; align-items: flex-start; flex-direction: column; gap: 2px; color: #1d2129 !important; }
+.route-config-name small { color: #86909c; font-size: 11px; font-weight: 400; }
+.route-config-name .anticon { color: #6b3df0; }
+.route-config-service { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.route-config-ingress-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.route-config-ingress-tags .ant-tag { margin: 0; color: #5b45e8; background: #f3f0ff; border-color: #ded7ff; }
+.route-config-exit-status { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; color: #00a854; }
+.route-config-exit-status i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.route-config-exit-status.disabled { color: #86909c; }
+.route-config-exit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; min-width: 0; padding: 16px; background: #fff; }
+.route-config-exit-card { min-width: 0; overflow: hidden; border: 1px solid #e5e9f0; border-radius: 8px; background: #fff; box-shadow: 0 1px 3px rgb(29 33 41 / 4%); transition: border-color .18s, box-shadow .18s; }
+.route-config-exit-card:hover { border-color: #cfc5ff; box-shadow: 0 5px 16px rgb(105 81 255 / 9%); }
+.route-config-exit-card > header { display: flex; min-height: 62px; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-bottom: 1px solid #edf0f5; }
+.route-config-exit-card > header > div { display: flex; min-width: 0; flex-direction: column; }
+.route-config-exit-card > header strong { overflow: hidden; color: #1d2129; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.route-config-exit-card > header small { margin-top: 3px; color: #86909c; font-size: 11px; }
+.route-config-exit-field { display: grid; grid-template-columns: 72px minmax(0, 1fr); align-items: center; gap: 8px; padding: 11px 14px 0; }
+.route-config-exit-field > span { color: #86909c; font-size: 12px; }
+.route-config-exit-field code { overflow: hidden; color: #4e5969; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.route-config-exit-card > footer { margin-top: 12px; padding: 11px 14px 13px; border-top: 1px solid #edf0f5; background: #fafbfc; }
+.route-config-exit-card > footer > span { display: block; margin-bottom: 8px; color: #86909c; font-size: 11px; }
+.route-config-exit-empty { grid-column: 1 / -1; padding: 80px 24px; color: #86909c; text-align: center; }
+.route-config-ellipsis { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.route-config-white-tooltip .ant-tooltip-inner { color: #1d2129; background: #fff; box-shadow: 0 4px 16px rgb(29 33 41 / 16%); }
+.route-config-white-tooltip .ant-tooltip-arrow::before { background: #fff; }
+.route-config-row > span > i { margin-left: 7px; color: #86909c; font-style: normal; }
+.route-config-row > span > i.enabled { color: #00a854; }
+.route-config-expand { width: 24px; height: 24px; padding: 0; border: 1px solid #d9dfe8; border-radius: 4px; background: #fff; color: #4e5969; cursor: pointer; font-size: 18px; line-height: 20px; transition: .16s; }
+.route-config-expand.active { border-color: #6b3df0; color: #6b3df0; transform: rotate(45deg); }
+.route-config-actions { display: flex; overflow: visible !important; }
+.route-config-actions .ant-btn { padding-inline: 5px; font-size: 12px; }
+.route-config-policy-detail { margin: 0; background: #fff; }
+.route-config-policy-detail-head, .route-config-policy-detail-row { display: grid; grid-template-columns: 220px minmax(0, 1fr); align-items: center; }
+.route-config-policy-detail-head { min-height: 54px; border-bottom: 1px solid #edf0f5; background: #fafafa; }
+.route-config-policy-detail-head strong { padding: 0 30px; color: #1d2129; font-size: 13px; font-weight: 600; }
+.route-config-policy-detail-head strong + strong { border-left: 1px solid #e5e6eb; }
+.route-config-policy-detail-row { min-height: 58px; border-bottom: 1px solid #edf0f5; }
+.route-config-policy-detail-row span, .route-config-policy-detail-row p { margin: 0; padding: 14px 30px; color: #1d2129; font-size: 13px; line-height: 22px; }
+.route-config-policy-detail-row p { border-left: 1px solid #f2f3f5; }
+.route-config-policy-detail-empty { padding: 24px 30px; color: #86909c; font-size: 13px; text-align: center; }
+.route-config-table > .ant-empty { margin: 70px 0; }
+.route-config-card .ant-table-thead > tr > th { height: 48px; padding-top: 12px !important; padding-bottom: 12px !important; background: #f7f8fa !important; }
+.route-config-card .ant-table-tbody > tr:not(.ant-table-measure-row) > td { height: 54px; padding-top: 11px !important; padding-bottom: 11px !important; }
+.route-config-card .ant-table-tbody > tr.ant-table-measure-row,
+.route-config-card .ant-table-tbody > tr.ant-table-measure-row > td { height: 0 !important; padding: 0 !important; border: 0 !important; }
+.route-config-card .ant-table-cell { border-bottom-color: #edf0f5 !important; }
+.route-config-card .ant-table-tbody > tr:nth-child(even) > td { background: #fafbfc; }
+.route-config-card .ant-table-tbody > tr:hover > td { background: #f7f8ff !important; }
+.route-config-card .ant-table-expanded-row > td { padding: 0 !important; background: #fafbff !important; }
+.route-config-card .ant-pagination { min-height: 48px; margin: 0 !important; padding: 8px 12px; border-top: 1px solid #edf0f5; }
+.route-config-card .ant-table-row-expand-icon { border-radius: 2px; }
+.route-config-status { display: inline-flex; align-items: center; white-space: nowrap; }
+.route-config-condition { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.route-config-condition em { flex: none; color: #4e5969; font-style: normal; }
+.route-config-condition code { overflow: hidden; color: #1d2129; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; text-overflow: ellipsis; }
+.route-config-actions .ant-btn { height: 28px; padding-inline: 4px; }
+.route-config-drawer .ant-drawer-header { padding: 18px 22px 14px; border-bottom: 1px solid #f2f3f5; }
+.route-config-drawer .ant-drawer-title { color: #1d2129; font-size: 16px; font-weight: 600; }
+.route-config-drawer .ant-drawer-header-title + .ant-drawer-extra { display: flex; gap: 8px; }
+.route-config-drawer .ant-drawer-extra .ant-btn { min-width: 72px; height: 36px; }
+.route-config-drawer .ant-drawer-footer { padding: 12px 22px; border-top: 1px solid #f2f3f5; }
+.route-config-drawer .ant-drawer-body { padding: 18px 22px 24px; font-family: PingFangSC, "PingFang SC", "Helvetica Neue", Helvetica, Arial, "Hiragino Sans GB", "Microsoft YaHei", sans-serif; font-size: 13px; }
+.route-config-drawer .ant-form-item { margin-bottom: 14px; }
+.route-config-drawer .ant-form-item-label { padding-bottom: 4px; }
+.route-config-drawer .ant-form-item-label > label { color: #1d2129; font-size: 13px; font-weight: 500; line-height: 20px; }
+.route-config-drawer .ant-input, .route-config-drawer .ant-input-number-input, .route-config-drawer .ant-select-selector { color: #1d2129; font-family: inherit; font-size: 13px; }
+.route-config-drawer .ant-input-affix-wrapper > input.ant-input { min-height: 0 !important; padding: 0; border: 0 !important; border-radius: 0 !important; }
+.route-config-drawer .ant-input::placeholder, .route-config-drawer .ant-select-selection-placeholder { color: #b8bcc4; font-size: 13px; }
+.route-config-drawer textarea.ant-input { min-height: 96px !important; padding: 8px 11px; line-height: 20px; }
+.route-config-drawer .ant-input-show-count-suffix { color: #86909c; font-size: 12px; }
+.route-config-drawer .ant-select-selection-item { font-size: 13px; }
+.route-config-drawer .ant-input, .route-config-drawer .ant-select-selector { border-radius: 6px !important; border-color: #e5e6eb !important; box-shadow: none !important; }
+.route-config-drawer .anticon-question-circle { margin-left: 5px; color: #86909c; font-size: 13px; }
+.route-create-match-section, .route-create-rule-section, .route-create-auth-section { margin-bottom: 14px; }
+.route-create-match-section > h3, .route-create-rule-section > h3, .route-create-auth-section > h3 { margin: 0 0 14px; color: #1d2129; font-size: 14px; font-weight: 600; }
+.route-create-match-section > h3 > i, .required-dot { margin-right: 4px; color: #f53f3f; font-style: normal; }
+.route-create-path-row { display: grid; grid-template-columns: 128px minmax(0, 1fr) auto; align-items: center; }
+.route-create-path-row .ant-select-selector { border-radius: 4px 0 0 4px !important; }
+.route-create-path-row .ant-input { border-left: 0; border-radius: 0 4px 4px 0; }
+.route-create-path-row .ant-checkbox-wrapper { margin-left: 12px; white-space: nowrap; }
+.route-create-mini-table { overflow: hidden; border-bottom: 1px solid #edf0f5; background: #fff; }
+.route-create-mini-head, .route-create-mini-row { display: grid; grid-template-columns: 1.4fr .8fr 1.4fr 70px; align-items: center; column-gap: 0; }
+.route-create-mini-head { height: 40px; padding: 0 10px; color: #1d2129; background: #f7f8fa; font-size: 12px; font-weight: 600; }
+.route-create-mini-head span + span { padding-left: 12px; border-left: 1px solid #e5e6eb; }
+.route-create-mini-row { gap: 8px; padding: 8px; border-top: 1px solid #edf0f5; }
+.route-create-mini-table.annotation .route-create-mini-head, .route-create-mini-table.annotation .route-create-mini-row { grid-template-columns: 1.4fr 1.4fr 70px; }
+.route-create-empty { display: flex; min-height: 96px; flex-direction: column; align-items: center; justify-content: center; color: #c9cdd4; font-size: 12px; }
+.route-create-empty span { font-size: 32px; line-height: 36px; }
+.route-create-empty em { margin-top: 5px; font-style: normal; }
+.route-create-add-link { height: 38px; padding-inline: 8px; }
+.route-create-auth-section > .ant-switch { margin-bottom: 8px; }
+.route-create-auth-section > p { margin: 0 0 20px; color: #86909c; font-size: 13px; }
+.route-create-consumer-row { display: grid; grid-template-columns: minmax(0, 1fr) 40px; gap: 8px; }
+.route-create-consumer-link { height: 28px; padding: 2px 0; }
+.route-create-advanced { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.route-config-form-section { margin-bottom: 26px; padding: 18px; border: 1px solid #e5e9f0; border-radius: 8px; background: #fff; }
+.route-config-form-section h3 { margin: 0; font-size: 15px; }
+.route-config-form-section > p { margin: 3px 0 18px; color: #86909c; font-size: 12px; }
+.route-config-form-section .ant-form-item:last-child { margin-bottom: 0; }
+.route-config-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.route-config-policy-list { display: flex; max-height: 62vh; flex-direction: column; gap: 10px; margin-top: 16px; overflow-y: auto; padding-right: 4px; }
+.route-config-policy-plugin { overflow: hidden; border: 1px solid #e5e9f0; border-radius: 8px; background: #fff; }
+.route-config-policy-plugin.enabled { border-color: #cfc5ff; }
+.route-config-policy-plugin > header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; }
+.route-config-policy-plugin > header > span { display: flex; flex-direction: column; }
+.route-config-policy-list small { margin-top: 3px; color: #86909c; }
+.route-config-policy-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; padding: 14px; border-top: 1px solid #edf0f5; background: #fafbfc; }
+.route-config-policy-fields label { display: flex; min-width: 0; flex-direction: column; gap: 6px; color: #4e5969; font-size: 12px; }
+.route-config-policy-fields label.field-textarea, .route-config-policy-fields label.field-checkbox { grid-column: 1 / -1; }
+.route-config-policy-fields label.field-switch { align-items: flex-start; }
+.route-config-policy-fields label.field-switch > .ant-switch { width: auto; min-width: 32px; flex: none; align-self: flex-start; }
+.route-config-policy-fields label > span > em { margin-right: 3px; color: #f53f3f; font-style: normal; }
+.route-config-policy-fields .ant-input-number, .route-config-policy-fields .ant-select { width: 100%; }
+@media (max-width: 1100px) { .route-config-page { padding: 16px; } .route-config-search { flex: 1; width: auto; } }
+.route-config-type {
+  display: inline-flex;
+  min-width: 64px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  border-radius: 5px;
+  color: #245bdb;
+  background: #edf4ff;
+  font-size: 12px;
+  line-height: 24px;
+
+  &-mirror {
+    color: #7a4b00;
+    background: #fff4d6;
+  }
+
+  &-coordination {
+    color: #5b3cc4;
+    background: #f1edff;
+  }
+}

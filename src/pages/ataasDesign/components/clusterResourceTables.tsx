@@ -6,8 +6,7 @@ import { FileCode2, Pencil, RefreshCw, Search, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { MonacoEditor } from '../../../components/shared/MonacoEditor';
 import { CLUSTER_OPERATIONS_RESOURCE_TREE } from './clusterOperationsRuntime';
-import { MODEL_OPS_RESOURCE_SPECS } from './modelOpsResourceSpec';
-import { buildPodYaml, buildServiceEntryYaml, buildServiceYaml, clusterGroupNames, createManualPod, createManualService, createManualServiceEntry, K8sPodResource, K8sServiceEntryResource, K8sServiceResource, useK8sResourceStore } from './k8sResourceStore';
+import { buildPodYaml, buildServiceEntryYaml, buildServiceYaml, createManualPod, createManualService, createManualServiceEntry, K8sPodResource, K8sServiceEntryResource, K8sServiceResource, useK8sResourceStore } from './k8sResourceStore';
 
 type ResourceView = 'svc' | 'se' | 'pod' | 'pv' | 'pvc';
 type PortInfo = { port: number; targetPort: number; nodePort?: number; protocol: string };
@@ -396,13 +395,7 @@ export default function ClusterResourceTables({
   }, [serviceEntries]);
 
   const storeServiceRows = useMemo<ServiceRow[]>(() => services.map((service) => {
-    const specIndex = MODEL_OPS_RESOURCE_SPECS.findIndex((s) => s.name === service.name);
-    const groups = clusterGroupNames[service.cluster] || [];
-    let routerPod: K8sPodResource | undefined;
-    if (specIndex !== -1 && groups.length > 0) {
-      const groupName = groups[specIndex % groups.length];
-      routerPod = pods.find((p) => p.role === 'router' && p.group === groupName);
-    }
+    const routerPod = pods.find((pod) => pod.role === 'router' && pod.serviceId === service.id);
     return {
       key: service.id,
       name: service.name,

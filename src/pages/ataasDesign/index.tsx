@@ -1,5 +1,4 @@
 import {
-  AppstoreOutlined,
   ApartmentOutlined,
   ArrowLeftOutlined,
   ArrowRightOutlined,
@@ -69,20 +68,16 @@ import { rpc } from '../../lib/bus/rpc';
 import type { ConfigCommitEntry, ConfigTreeNode } from '../../lib/types';
 import ContainerManagementPage from './components/containerManagementPage';
 import RouteWorkbenchPage from './components/routeWorkbenchPage';
+import RouteConfigPage from './components/routeConfigPage';
+import PluginManagementPage from './components/pluginManagementPage';
+import NodeTopologyPage from './components/nodeTopologyPage';
 import ClusterOperationsHomepage from './components/clusterOperationsHomepage';
 import SupplierResourcesPage from './components/supplierResourcesPage';
 import DistributionCenterPage from './components/distributionCenterPage';
-import ModelDownloadTaskModal from './components/modelDownloadTaskModal';
 import ModelOpsPage from './components/modelOpsPage';
 import SoftwarePackagePage from './components/softwarePackagePage';
+import WorkflowCreatePage from './components/workflowCreatePage';
 import './index.less';
-
-const DEPLOY_DOWNLOAD_HOST_OPTIONS = [
-  { value: 'model-store-02', label: 'model-store-02 · 10.24.16.32 · 可用 2.1 TiB', ip: '10.24.16.32', freeGb: 2150 },
-  { value: 'ops-transfer-01', label: 'ops-transfer-01 · 10.24.16.21 · 可用 860 GiB', ip: '10.24.16.21', freeGb: 860 },
-  { value: 'gpu-node-02', label: 'gpu-node-02 · 10.24.18.102 · 可用 980 GiB', ip: '10.24.18.102', freeGb: 980 },
-  { value: 'gpu-node-07', label: 'gpu-node-07 · 10.24.18.107 · 可用 760 GiB', ip: '10.24.18.107', freeGb: 760 },
-];
 
 type ClusterRecord = {
   key: string;
@@ -6579,14 +6574,22 @@ const LogBoardCard = ({ icon, label, detail, time, status }: { icon: React.React
 
 const AtAasDesign = () => {
   const [activeTab, setActiveTab] = useState(() => {
+    if (window.location.pathname.includes('/resource-overview')) return 'resourceOverview';
+    if (window.location.pathname.includes('/operations-canvas')) return 'operationsCanvas';
     if (window.location.pathname.includes('/cluster-operations')) return 'clusterOperations';
+    if (window.location.pathname.includes('/node-topology')) return 'nodeTopology';
     if (window.location.pathname.includes('/management-center')) return 'themeSettings';
     if (window.location.pathname.includes('/supplier-resources')) return 'supplierResources';
     if (window.location.pathname.includes('/model-deploy')) return 'deploy';
-    if (window.location.pathname.includes('/model-ops')) return 'clusterOperations';
-    if (window.location.pathname.includes('/distribution-center')) return 'distributionCenter';
+    if (window.location.pathname.includes('/model-ops')) return 'inferenceOps';
+    if (window.location.pathname.includes('/model-management') || window.location.pathname.includes('/distribution-center')) return 'modelManagement';
+    if (window.location.pathname.includes('/image-repository')) return 'imageRepository';
+    if (window.location.pathname.includes('/file-management')) return 'fileManagement';
     if (window.location.pathname.includes('/software-packages')) return 'softwarePackages';
     if (window.location.pathname.includes('/containers')) return 'containerManagement';
+    if (window.location.pathname.includes('/ops-link')) return 'opsLink';
+    if (window.location.pathname.includes('/route-config')) return 'routeConfig';
+    if (window.location.pathname.includes('/plugin-management')) return 'pluginConfig';
     if (window.location.pathname.includes('/route-workbench')) return 'routeWorkbench';
     if (window.location.pathname.includes('/task-flow')) return 'taskFlow';
     if (window.location.pathname.includes('/playground/chat')) return 'playgroundChat';
@@ -6595,8 +6598,10 @@ const AtAasDesign = () => {
     if (window.location.pathname.includes('/playground/embedding')) return 'playgroundEmbedding';
     if (window.location.pathname.includes('/playground/rerank')) return 'playgroundRerank';
     if (window.location.pathname.includes('/benchmark')) return 'benchmark';
-    return 'clusterOperations';
+    return 'operationsCanvas';
   });
+  const [workflowCreateOpen, setWorkflowCreateOpen] = useState(() => window.location.pathname.includes('/task-flow/new') || window.location.pathname.includes('/workflow/new'));
+  const [createGroupRequest, setCreateGroupRequest] = useState(0);
   const [themeSettings, setThemeSettings] = useState<ThemeSettingsState>(defaultThemeSettings);
   const [centerViewMode, setCenterViewMode] = useState<'compute' | 'inference'>(() => (
     window.location.pathname.includes('/model-ops') ? 'inference' : 'compute'
@@ -6627,6 +6632,12 @@ const AtAasDesign = () => {
   };
 
   useEffect(() => {
+    window.localStorage.removeItem('ataas-ui-density');
+    document.body.classList.add('ataas-density-professional');
+    return () => document.body.classList.remove('ataas-density-professional');
+  }, []);
+
+  useEffect(() => {
     const handleNavigate = (event: Event) => {
       const detail = (event as CustomEvent<{ tab?: string }>).detail;
       const tab = detail?.tab;
@@ -6637,7 +6648,10 @@ const AtAasDesign = () => {
       setMegaMenuOpen(false);
       const pathMap: Record<string, string> = {
         deploy: '/model-deploy',
-        distributionCenter: '/distribution-center',
+        distributionCenter: '/model-management',
+        modelManagement: '/model-management',
+        imageRepository: '/image-repository',
+        fileManagement: '/file-management',
         clusterOperations: '/cluster-operations',
         supplierResources: '/supplier-resources',
         softwarePackages: '/software-packages',
@@ -6936,7 +6950,6 @@ const AtAasDesign = () => {
   }, [modelRepoSearch, modelRepoCategory, modelRepoFamily, modelRepoSource]);
   const [deployListViewMode, setDeployListViewMode] = useState<ViewMode>('mooncake');
   const [deployListClusterFilter, setDeployListClusterFilter] = useState('');
-  const [deployDownloadOpen, setDeployDownloadOpen] = useState(false);
   const [modelOpsListViewMode, setModelOpsListViewMode] = useState<ViewMode>('table');
   const [modelOpsClusterFilter, setModelOpsClusterFilter] = useState('');
   const [modelOpsSelectedModel, setModelOpsSelectedModel] = useState('');
@@ -10727,13 +10740,21 @@ const AtAasDesign = () => {
   };
 
   const SIDEBAR_ITEMS = [
+    { key: 'resourceOverview', icon: <SidebarIcon name="dashboard" />, label: '资源总览' },
+    { key: 'operationsCanvas', icon: <DeploymentUnitOutlined className="ataas-sidebar-icon" />, label: '画布' },
+    { key: 'routeConfig', icon: <SidebarIcon name="config" />, label: '路由配置' },
+    { key: 'pluginConfig', icon: <SidebarIcon name="config" />, label: '插件配置' },
     // { key: 'overview', icon: <SidebarIcon name="dashboard" />, label: '数据概览' },
-    { key: 'clusterOperations', icon: <SidebarIcon name="dashboard" />, label: '算力中心' },
+    { key: 'clusterOperations', icon: <SidebarIcon name="dashboard" />, label: 'GPU节点' },
+    { key: 'nodeTopology', icon: <ApartmentOutlined className="ataas-sidebar-icon" />, label: '节点拓扑' },
+    { key: 'inferenceOps', icon: <SidebarIcon name="engine" />, label: '推理运维' },
     { key: 'supplierResources', icon: <ApartmentOutlined className="ataas-sidebar-icon" />, label: '供应商列表' },
     // { key: 'clusters', icon: <SidebarIcon name="cluster" />, label: '集群管理' },
     // { key: 'nodes', icon: <SidebarIcon name="engineMgr" />, label: '节点管理' },
     // { key: 'modelRepo', icon: <SidebarIcon name="modelRepo" />, label: '模型仓库' },
-    { key: 'distributionCenter', icon: <SwapRightOutlined className="ataas-sidebar-icon" />, label: '分发中心' },
+    { key: 'modelManagement', icon: <SidebarIcon name="modelRepo" />, label: '模型管理' },
+    { key: 'imageRepository', icon: <SidebarIcon name="image" />, label: '镜像仓库' },
+    { key: 'fileManagement', icon: <FileZipOutlined className="ataas-sidebar-icon ataas-sidebar-package-icon" />, label: '文件管理' },
     // { key: 'startupTemplates', icon: <SidebarIcon name="template" />, label: '性能仓库' },
     {
       key: 'deploy',
@@ -10756,6 +10777,8 @@ const AtAasDesign = () => {
     // { key: 'playgroundRerank', icon: <SidebarIcon name="rerank" />, label: '重排模型' },
     { key: 'benchmark', icon: <SidebarIcon name="benchmark" />, label: '性能压测' },
     { key: 'accuracy', icon: <CheckCircleOutlined className="ataas-sidebar-icon" />, label: '精度测试' },
+    { key: 'opsLink', icon: <DeploymentUnitOutlined className="ataas-sidebar-icon" />, label: '运维链路' },
+    { key: 'routeWorkbench', icon: <SidebarIcon name="service" />, label: '链路编排' },
     { key: 'logs', icon: <SidebarIcon name="logs" />, label: '操作日志' },
     { key: 'alerts', icon: <SidebarIcon name="alert" />, label: '告警详情' },
     // { key: 'apiKeys', icon: <SidebarIcon name="apiKey" />, label: 'API Key' },
@@ -10768,26 +10791,38 @@ const AtAasDesign = () => {
   ];
   const getSidebarItems = (keys: string[]) => keys.map((key) => SIDEBAR_ITEMS.find((item) => item.key === key)).filter(Boolean) as typeof SIDEBAR_ITEMS;
   const SIDEBAR_GROUPS = [
-    { title: '概览', items: getSidebarItems(['clusterOperations', 'supplierResources']) },
-    { title: '资源管理', items: getSidebarItems(['images', 'configCenter', 'softwarePackages']) },
-    { title: '模型运维', items: getSidebarItems(['modelRepo', 'deploy', 'distributionCenter', 'taskFlow']) },
-    { title: '模型测试', items: getSidebarItems(['benchmark', 'accuracy']) },
+    { title: '总览', items: getSidebarItems(['resourceOverview', 'operationsCanvas']) },
+    { title: '网关', items: getSidebarItems(['routeConfig', 'pluginConfig']) },
+    { title: '推理组', items: getSidebarItems(['inferenceOps', 'deploy']) },
+    { title: '节点管理', items: getSidebarItems(['clusterOperations', 'nodeTopology', 'supplierResources']) },
+    { title: '配置中心', items: getSidebarItems(['configCenter', 'modelManagement', 'imageRepository', 'fileManagement']) },
+    { title: '任务流程', items: getSidebarItems(['taskFlow']) },
     { title: '身份权限', items: getSidebarItems(['users']) },
-    { title: '系统监控', items: getSidebarItems(['alerts', 'logs']) },
+    { title: '系统监控', items: getSidebarItems(['logs']) },
   ];
   const handleSidebarItemSelect = (item: (typeof SIDEBAR_ITEMS)[number]) => {
     setActiveTab(item.key);
     setMegaMenuOpen(false);
     if (item.key === 'clusterOperations') setCenterViewMode('compute');
+    if (item.key === 'inferenceOps') setCenterViewMode('inference');
     if (item.key === 'clusters') setClusterPanel('clusters');
     if (item.key === 'nodes') setClusterPanel('nodes');
     const pathMap: Record<string, string> = {
+      resourceOverview: '/resource-overview',
+      operationsCanvas: '/operations-canvas',
       clusterOperations: '/cluster-operations',
+      nodeTopology: '/node-topology',
+      inferenceOps: '/model-ops',
       supplierResources: '/supplier-resources',
       deploy: '/model-deploy',
-      distributionCenter: '/distribution-center',
+      modelManagement: '/model-management',
+      imageRepository: '/image-repository',
+      fileManagement: '/file-management',
       softwarePackages: '/software-packages',
       containerManagement: '/containers',
+      opsLink: '/ops-link',
+      routeConfig: '/route-config',
+      pluginConfig: '/plugin-management',
       routeWorkbench: '/route-workbench',
       taskFlow: '/task-flow',
       benchmark: '/benchmark',
@@ -10825,6 +10860,13 @@ const AtAasDesign = () => {
           try { setConfigYamlPickerTarget('custom'); setConfigYamlPickerOpen(true); } catch {}
           message.success('配置文件已保存');
         } catch { message.error('保存失败'); }
+      }}
+      createGroupRequest={createGroupRequest}
+      onCreateGroupRequestHandled={() => setCreateGroupRequest(0)}
+      onTaskCreateGroupBack={() => {
+        setWorkflowCreateOpen(true);
+        setActiveTab('taskFlow');
+        window.history.replaceState(null, '', '/task-flow/new');
       }}
     />
   );
@@ -11389,7 +11431,6 @@ const AtAasDesign = () => {
                 onDeleteInstance={handleDeployDeleteInstance}
                 onAddInstance={handleDeployAddInstance}
                 onOpenCreate={handleOpenCreate}
-                onDownloadModel={() => setDeployDownloadOpen(true)}
                 onScalePd={handleScalePd}
                 onNodeFilter={handleDeployNodeFilter}
                 onScheduleDetail={handleScheduleDetail}
@@ -12538,16 +12579,39 @@ const AtAasDesign = () => {
 	            );
 	          }
       case 'containerManagement': return <ContainerManagementPage />;
-      case 'routeWorkbench': return <RouteWorkbenchPage />;
-      case 'clusterOperations': return centerViewMode === 'compute'
-        ? <ClusterOperationsHomepage centerViewMode={centerViewMode} onCenterViewModeChange={setCenterViewMode} />
-        : renderModelOpsPage(true);
+      case 'routeConfig': return <RouteConfigPage />;
+      case 'pluginConfig': return <PluginManagementPage />;
+      case 'opsLink': return <RouteWorkbenchPage title="运维链路" />;
+      case 'routeWorkbench':
+      case 'operationsCanvas': return <RouteWorkbenchPage />;
+      case 'inferenceOps': return renderModelOpsPage(true);
+      case 'clusterOperations': return <ClusterOperationsHomepage />;
+      case 'nodeTopology': return <NodeTopologyPage />;
       case 'supplierResources': return <SupplierResourcesPage />;
-      case 'distributionCenter': return <DistributionCenterPage />;
+      case 'distributionCenter':
+      case 'modelManagement': return <DistributionCenterPage resourceKind="models" />;
+      case 'imageRepository': return <DistributionCenterPage resourceKind="images" />;
+      case 'fileManagement': return <DistributionCenterPage resourceKind="files" />;
       case 'softwarePackages': return <SoftwarePackagePage />;
       case 'taskFlow': return (
         <div className="ataas-b300-task-page">
-          <TasksPage />
+          {workflowCreateOpen ? (
+            <WorkflowCreatePage onBack={() => {
+              setWorkflowCreateOpen(false);
+              window.history.replaceState(null, '', '/task-flow');
+            }} onCreatePdGroup={() => {
+              setWorkflowCreateOpen(false);
+              setCenterViewMode('inference');
+              setActiveTab('inferenceOps');
+              setCreateGroupRequest((value) => value + 1);
+              window.history.replaceState(null, '', '/model-ops');
+            }} />
+          ) : (
+            <TasksPage onCreateWorkflow={() => {
+              setWorkflowCreateOpen(true);
+              window.history.replaceState(null, '', '/task-flow/new');
+            }} />
+          )}
         </div>
       );
 	      case 'configCenter': return (
@@ -12582,12 +12646,6 @@ const AtAasDesign = () => {
             onClick={toggleMegaMenu}
           >
             <img src={ataasLogo} alt="ATaaS" />
-          </button>
-          <span className="ataas-minimal-divider" aria-hidden="true" />
-          <button className="ataas-minimal-hint" type="button" onClick={toggleMegaMenu} aria-expanded={megaMenuOpen}>
-            <AppstoreOutlined className="ataas-minimal-hint-grid" />
-            <span>全部页面</span>
-            <DownOutlined className="ataas-minimal-hint-chevron" />
           </button>
         </div>
         <div className="ataas-minimal-actions">
@@ -12638,20 +12696,61 @@ const AtAasDesign = () => {
         </aside>
       </header>
       <div className="ataas-body">
+        <aside className="ataas-side-nav" aria-label="主菜单">
+          <div className="ataas-side-brand">
+            <button
+              className="ataas-minimal-brand"
+              type="button"
+              aria-label="打开主菜单"
+              onClick={toggleMegaMenu}
+            >
+              <img src={ataasLogo} alt="ATaaS" />
+            </button>
+          </div>
+          <div className="ataas-side-user-area">
+            <Popover
+              trigger="hover"
+              placement="bottomRight"
+              overlayClassName="ataas-sidebar-user-popover"
+              content={(
+                <div className="ataas-sidebar-user-menu">
+                  <button type="button" onClick={openManagementCenter}>去管理中心</button>
+                  <button type="button" onClick={openManagementCenter}>主题管理</button>
+                  <button type="button" onClick={() => message.info('设置')}>设置</button>
+                  <button type="button" onClick={() => message.info('退出登录')}>退出登录</button>
+                </div>
+              )}
+            >
+              <button className="ataas-side-user" type="button" aria-label="用户菜单">
+                <span className="ataas-topnav-avatar">A</span>
+                <span>admin</span>
+                <DownOutlined />
+              </button>
+            </Popover>
+          </div>
+          <nav>
+            {SIDEBAR_GROUPS.map((group) => (
+              <section key={group.title} className="ataas-side-nav-group">
+                <h2>{group.title}</h2>
+                {group.items.map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    className={activeTab === item.key ? 'active' : ''}
+                    onClick={() => handleSidebarItemSelect(item)}
+                  >
+                    <span className="ataas-side-nav-icon">{item.icon}</span>
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </section>
+            ))}
+          </nav>
+        </aside>
         <div className={'ataas-content' + (activeTab === 'configCenter' ? ' ataas-content-config' : '') + (activeTab === 'clusterOperations' ? ' ataas-content-cluster-operations' : '')} ref={contentRef}>
           {renderTabContent()}
         </div>
       </div>
-
-      <ModelDownloadTaskModal
-        open={deployDownloadOpen}
-        hostOptions={DEPLOY_DOWNLOAD_HOST_OPTIONS}
-        onCancel={() => setDeployDownloadOpen(false)}
-        onSubmit={() => {
-          setDeployDownloadOpen(false);
-          message.success('模型下载任务已创建，可在分发中心的任务列表中查看');
-        }}
-      />
 
       <Modal title="纳管集群" open={clusterCreateOpen} onCancel={() => { setClusterCreateName(''); setClusterCreateUrl(''); setClusterCreateAccessKey(''); setClusterCreateOpen(false); }} onOk={() => { if (clusterCreateName && clusterCreateUrl && clusterCreateAccessKey) { setClusterList((prev) => [...prev, { key: `cluster-${Date.now()}`, name: clusterCreateName, region: '待配置', nodes: 0, gpu: '待同步', gpuTypes: [], gpuUsage: 0, cpu: '-', memory: '-', models: 0, status: 'healthy', authInfo: '0/0' }]); setClusterCreateName(''); setClusterCreateUrl(''); setClusterCreateAccessKey(''); setClusterCreateOpen(false); } }} okText="确认" okButtonProps={{ className: 'ataas-modal-primary-button' }} width={640}>
         <div style={{ marginBottom: 16, padding: '12px 16px', background: '#f7f8fa', borderRadius: 6, fontSize: 13, lineHeight: 1.8 }}>

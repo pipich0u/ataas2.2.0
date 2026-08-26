@@ -1,0 +1,68 @@
+.plugin-management-page { min-height: 100%; padding: 20px 24px 32px; color: #1d2129; background: #fff; font-size: 13px; }
+.plugin-page-heading { margin-bottom: 18px; }
+.plugin-page-heading h1 { margin: 0; font-size: 16px; font-weight: 600; line-height: 24px; }
+.plugin-page-heading p { margin: 4px 0 0; color: #86909c; font-size: 12px; }
+.plugin-summary { display: grid; grid-template-columns: repeat(4, minmax(150px, 220px)); margin-bottom: 18px; border: 1px solid #e5e6eb; border-radius: 8px; background: #fff; }
+.plugin-summary > div { display: flex; min-height: 76px; flex-direction: column; justify-content: center; padding: 12px 20px; }
+.plugin-summary > div + div { border-left: 1px solid #edf0f5; }
+.plugin-summary span { color: #86909c; font-size: 12px; }
+.plugin-summary strong { margin-top: 5px; font-size: 22px; font-weight: 600; line-height: 28px; }
+.plugin-summary strong.healthy { color: #00a854; }
+.plugin-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.plugin-toolbar .plugin-search { width: 360px; }
+.plugin-toolbar .ant-select { width: 130px; }
+.plugin-toolbar .ant-input-affix-wrapper, .plugin-toolbar .ant-select-selector, .plugin-toolbar .ant-btn { height: 32px; border-radius: 4px; box-shadow: none; }
+.plugin-toolbar .plugin-add-button { margin-left: auto; background: #6951ff; }
+.plugin-table-wrap { overflow: hidden; border: 1px solid #e5e6eb; border-radius: 8px; }
+.plugin-table-wrap .ant-table-thead > tr > th { height: 48px; padding-block: 12px !important; background: #f7f8fa !important; color: #4e5969; font-size: 13px; }
+.plugin-table-wrap .ant-table-tbody > tr:not(.ant-table-measure-row) > td { height: 62px; padding-block: 10px !important; border-bottom-color: #edf0f5 !important; font-size: 13px; }
+.plugin-table-wrap .ant-table-tbody > tr.ant-table-measure-row,
+.plugin-table-wrap .ant-table-tbody > tr.ant-table-measure-row > td { height: 0 !important; min-height: 0 !important; padding: 0 !important; border: 0 !important; line-height: 0 !important; }
+.plugin-table-wrap .ant-table-tbody > tr:nth-child(even) > td { background: #fafbfc; }
+.plugin-table-wrap .ant-table-tbody > tr:hover > td { background: #f7f8ff !important; }
+.plugin-table-wrap .ant-pagination { min-height: 48px; margin: 0 !important; padding: 8px 12px; border-top: 1px solid #edf0f5; }
+.plugin-name-cell { display: flex; align-items: center; gap: 10px; }
+.plugin-name-cell div { display: flex; min-width: 0; flex-direction: column; }
+.plugin-name-cell strong { color: #1d2129; font-size: 13px; font-weight: 600; }
+.plugin-name-cell small { margin-top: 2px; color: #86909c; font-size: 11px; }
+.plugin-status { display: inline-flex; align-items: center; gap: 7px; }
+.plugin-status i { color: #86909c; font-style: normal; }
+.plugin-status i.enabled { color: #00a854; }
+.plugin-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.plugin-editor-drawer .ant-input-number { width: 100%; }
+.plugin-editor-drawer .ant-input-number-input { height: 30px; }
+.plugin-editor-drawer .ant-input-textarea textarea { min-height: 92px; resize: vertical; }
+.plugin-editor-divider { margin: 6px 0 14px; padding-top: 16px; border-top: 1px solid #edf0f5; color: #4e5969; font-size: 13px; font-weight: 600; }
+.plugin-config-drawer .ant-drawer-header { padding: 16px 20px; border-bottom: 1px solid #edf0f5; }
+.plugin-config-drawer .ant-drawer-body { padding: 20px; }
+.plugin-config-enabled { display: flex; align-items: center; justify-content: space-between; padding: 16px; border: 1px solid #e5e9f0; border-radius: 8px; background: #fff; }
+.plugin-config-enabled > div { display: flex; flex-direction: column; gap: 4px; }
+.plugin-config-enabled strong { font-size: 14px; }
+.plugin-config-enabled span { color: #86909c; font-size: 12px; }
+.plugin-config-drawer .ant-tabs { margin-top: 18px; }
+.plugin-config-form { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 18px; padding-top: 4px; }
+.plugin-config-form label { display: flex; min-width: 0; flex-direction: column; gap: 7px; color: #4e5969; font-size: 13px; }
+.plugin-config-form label.field-textarea, .plugin-config-form label.field-checkbox { grid-column: 1 / -1; }
+.plugin-config-form label.field-switch { align-items: flex-start; }
+.plugin-config-form label.field-switch > .ant-switch { width: auto; min-width: 32px; flex: none; align-self: flex-start; }
+.plugin-config-form label > span > em { margin-right: 3px; color: #f53f3f; font-style: normal; }
+.plugin-config-form .ant-input-number, .plugin-config-form .ant-select { width: 100%; }
+.plugin-config-yaml-editor { height: 282px; overflow: hidden; border: 1px solid #dfe3ea; border-radius: 4px; background: #fff; }
+.plugin-config-yaml-editor .monaco-editor,
+.plugin-config-yaml-editor .monaco-editor-background,
+.plugin-config-yaml-editor .monaco-editor .margin,
+.plugin-config-yaml-editor .monaco-editor .inputarea.ime-input { background: #fff !important; }
+.plugin-config-yaml-editor .monaco-editor .line-numbers { color: #327f9b !important; font-size: 12px !important; }
+.plugin-config-yaml-editor .monaco-editor .view-line { font-size: 12px !important; }
+.plugin-config-yaml-editor .monaco-editor .mtk1,
+.plugin-config-yaml-editor .monaco-editor .mtk6,
+.plugin-config-yaml-editor .monaco-editor .mtk7,
+.plugin-config-yaml-editor .monaco-editor .mtk8 { color: #078b76 !important; }
+.plugin-config-yaml-editor .monaco-editor .mtk5,
+.plugin-config-yaml-editor .monaco-editor .mtk9,
+.plugin-config-yaml-editor .monaco-editor .mtk10 { color: #155fb4 !important; }
+.plugin-config-yaml-editor .monaco-editor .mtk4,
+.plugin-config-yaml-editor .monaco-editor .mtk11 { color: #159447 !important; }
+.plugin-config-yaml-editor .monaco-editor .current-line { border-color: rgba(105, 81, 255, .12) !important; background: rgba(105, 81, 255, .035) !important; }
+.plugin-config-scope-note { margin: 22px 0 0; color: #4e5969; font-size: 12px; line-height: 20px; }
+@media (max-width: 900px) { .plugin-summary { grid-template-columns: repeat(2, 1fr); } .plugin-toolbar { flex-wrap: wrap; } .plugin-toolbar .plugin-add-button { margin-left: 0; } }

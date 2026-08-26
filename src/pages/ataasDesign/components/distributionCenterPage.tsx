@@ -25,7 +25,7 @@ import type { ColumnsType } from 'antd/es/table';
 import deepseekLogo from '../deepseek-logo.svg';
 import glmLogo from '../glm-logo.svg';
 import kimiLogo from '../kimi-logo.svg';
-import { CLUSTER_OPERATIONS_CLUSTER_DATA } from './clusterOperationsRuntime';
+import { PLATFORM_CLUSTER, PLATFORM_GPU_NODES } from './platformMockData';
 import ModelDownloadTaskModal, { type ModelDownloadTaskValues } from './modelDownloadTaskModal';
 import './distributionCenterPage.less';
 
@@ -112,62 +112,21 @@ type DistributionTask = {
   nodes?: TaskNodeProgress[];
 };
 
-const createClusterNodes = (
-  prefix: string,
-  count: number,
-  notReady: number[] = [],
-  disabled: number[] = [],
-  startNumber = 1,
-) => Array.from({ length: count }, (_, index): ClusterNode => {
-  const number = startNumber + index;
-  const sequence = index + 1;
-  const status = notReady.includes(sequence) ? 'NotReady' : disabled.includes(sequence) ? 'Disabled' : 'Ready';
-  const diskTotalGb = number % 9 === 0 ? 4096 : number % 4 === 0 ? 2048 : 1024;
-  const regularFreeGb = 260 + ((number * 137) % Math.max(520, diskTotalGb - 360));
-  const nearlyFullFreeGb = number % 17 === 0 ? 96 + ((number * 11) % 90) : undefined;
-  const diskFreeGb = Math.min(diskTotalGb - 80, nearlyFullFreeGb ?? regularFreeGb);
-  return {
-    id: `${prefix}-${String(number).padStart(2, '0')}`,
-    name: `${prefix}-${String(number).padStart(2, '0')}`,
-    ip: prefix.startsWith('st-')
-      ? `192.168.${100 + index}.${index + 1}`
-      : `10.${24 + (prefix.length % 5)}.${16 + Math.floor(index / 250)}.${20 + (index % 220)}`,
-    status,
-    diskTotalGb,
-    diskFreeGb,
-  };
-});
-
-const createOperationsCluster = (
-  key: keyof typeof CLUSTER_OPERATIONS_CLUSTER_DATA,
-  prefix: string,
-  startNumber: number,
-  credential: string,
-): ClusterRecord => {
-  const cluster = CLUSTER_OPERATIONS_CLUSTER_DATA[key];
-  const total = Number(cluster.nodes) || 0;
-  const abnormal = Number(cluster.abnormal) || 0;
-  const notReady = Array.from({ length: abnormal }, (_, index) => Math.max(1, total - index));
-  return {
-    id: cluster.name,
-    name: cluster.name,
-    supplier: cluster.provider,
-    dataCenter: cluster.dc,
-    credential,
-    nodes: createClusterNodes(prefix, total, notReady, [], startNumber),
-  };
-};
-
-const clusters: ClusterRecord[] = [
-  createOperationsCluster('st', 'st-b300', 11, 'st-model-deploy-key'),
-  createOperationsCluster('shanghai-inference-02', 'st-b300', 31, 'st-model-deploy-key'),
-  createOperationsCluster('shanghai-inference-03', 'st-b300', 51, 'st-model-deploy-key'),
-  createOperationsCluster('shanghai-lingang', 'lg-b300', 11, 'lingang-model-deploy-key'),
-  createOperationsCluster('suzhou-prod', 'sz-b300', 11, 'suzhou-model-deploy-key'),
-  createOperationsCluster('hangzhou-online', 'hz-b300', 11, 'hangzhou-model-deploy-key'),
-  createOperationsCluster('guangzhou-test', 'bx-b300', 11, 'gz-model-deploy-key'),
-  createOperationsCluster('beijing-prod', 'bd-b300', 11, 'yc-model-deploy-key'),
-];
+const clusters: ClusterRecord[] = [{
+  id: PLATFORM_CLUSTER.id,
+  name: PLATFORM_CLUSTER.name,
+  supplier: '并行科技',
+  dataCenter: '广州科学城数据中心',
+  credential: 'st-model-deploy-key',
+  nodes: PLATFORM_GPU_NODES.map((node, index) => ({
+    id: node.id,
+    name: node.name,
+    ip: `192.168.${100 + Math.floor(index / 220)}.${20 + (index % 220)}`,
+    status: 'Ready' as const,
+    diskTotalGb: 4096,
+    diskFreeGb: 1024 + ((index * 137) % 2048),
+  })),
+}];
 
 const initialModels: ModelRecord[] = [
   {
@@ -243,12 +202,12 @@ const initialTasks: DistributionTask[] = [
     updatedText: '2 分钟前',
     sourcePath: '/data/models/GLM-5.2',
     targetPath: '/data/models/GLM-5.2',
-    targetCluster: 'st',
+    targetCluster: PLATFORM_CLUSTER.id,
     targetMode: 'nodes',
     credential: 'st-model-deploy-key',
     verify: true,
     sizeGb: 238,
-    nodes: makeTaskNodes('st', 2, 'running'),
+    nodes: makeTaskNodes(PLATFORM_CLUSTER.id, 2, 'running'),
   },
   {
     id: 1005,
@@ -282,12 +241,12 @@ const initialTasks: DistributionTask[] = [
     updatedText: '1 小时前',
     sourcePath: '/models/DeepSeek-R1-0528',
     targetPath: '/data/models/DeepSeek-R1-0528',
-    targetCluster: 'guangzhou-test',
+    targetCluster: PLATFORM_CLUSTER.id,
     targetMode: 'nodes',
     credential: 'gz-model-deploy-key',
     verify: true,
     sizeGb: 642,
-    nodes: makeTaskNodes('guangzhou-test', 1, 'completed'),
+    nodes: makeTaskNodes(PLATFORM_CLUSTER.id, 1, 'completed'),
   },
 ];
 
@@ -326,8 +285,15 @@ const hostFreeSpace: Record<string, number> = {
   'st-b300-31': 1180,
 };
 
-const DistributionCenterPage = () => {
-  const [resourceKind, setResourceKind] = useState<'models' | 'images' | 'files'>('models');
+export type DistributionResourceKind = 'models' | 'images' | 'files';
+
+const distributionPageMeta: Record<DistributionResourceKind, { title: string; description: string }> = {
+  models: { title: '模型管理', description: '统一管理模型副本、模型下载与分发任务，并跟踪传输进度和异常。' },
+  images: { title: '镜像仓库', description: '统一管理推理镜像及其来源、版本、大小和分发状态。' },
+  files: { title: '文件管理', description: '统一管理驱动包、软件包和配置文件，并支持向目标节点分发。' },
+};
+
+const DistributionCenterPage = ({ resourceKind = 'models' }: { resourceKind?: DistributionResourceKind }) => {
   const [modelSubview, setModelSubview] = useState<'catalog' | 'tasks'>('catalog');
   const [models, setModels] = useState(initialModels);
   const [tasks, setTasks] = useState(initialTasks);
@@ -758,18 +724,9 @@ const DistributionCenterPage = () => {
   return (
     <div className="distribution-center-page">
       <header className="distribution-center-header">
-        <div><h1>分发中心</h1><p>统一管理模型、镜像与文件的分发，支持创建任务、选择目标，并跟踪传输进度与异常。</p></div>
+        <div><h1>{distributionPageMeta[resourceKind].title}</h1><p>{distributionPageMeta[resourceKind].description}</p></div>
       </header>
-      <Tabs
-        className="distribution-kind-tabs"
-        activeKey={resourceKind}
-        onChange={(key) => setResourceKind(key as 'models' | 'images' | 'files')}
-        items={[
-          { key: 'models', label: '模型分发', children: modelPane },
-          { key: 'images', label: '镜像分发', children: imagePane },
-          { key: 'files', label: '文件分发', children: filePane },
-        ]}
-      />
+      {resourceKind === 'models' ? modelPane : resourceKind === 'images' ? imagePane : filePane}
 
       <ModelDownloadTaskModal
         open={downloadOpen}

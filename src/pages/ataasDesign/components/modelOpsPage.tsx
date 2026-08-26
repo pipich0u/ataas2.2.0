@@ -21,6 +21,7 @@ import {
   type ServiceStatus,
   type TrafficTarget,
 } from './modelOpsData';
+import { MODEL_OPS_RESOURCE_SPECS, getModelOpsRoleSummary } from './modelOpsResourceSpec';
 import './modelRunPreviewPages.less';
 
 type OpsSeRow = {
@@ -117,83 +118,28 @@ const clusterFullNameByCode: Record<string, string> = {
 
 const createOpsSeRows = () => {
   const glm52 = getOpsServiceById('svc-glm52-yc');
-
-  return [
-    makeRow(glm52, {
-      key: 'glm52-beijing-prod',
-      name: 'glm-5.2-bj-prod',
-      clusterCode: 'bj',
-      clusterName: 'bj / A100-H20',
-      traffic: [['glm52-bj-router-1', 60], ['glm52-bj-router-2', 40]],
-      routerReady: '2/2',
-      prefillReady: '4/4',
-      decodeReady: '4/4',
-      instanceCount: 10,
-      ttft: 8124,
-      tpot: 20.8,
-      seed: 1,
-    }),
-    makeRow(glm52, {
-      key: 'glm52-shanghai-online',
-      name: 'glm-5.2-sh-online',
-      clusterCode: 'sh',
-      clusterName: 'sh / H20-910B',
-      traffic: [['glm52-sh-router-1', 45], ['glm52-sh-router-2', 35], ['shanghai-higress', 20]],
-      routerReady: '2/2',
-      prefillReady: '4/4',
-      decodeReady: '3/3',
-      instanceCount: 9,
-      ttft: 8468,
-      tpot: 21.7,
-      seed: 2,
-    }),
-    makeRow(glm52, {
-      key: 'glm52-guangzhou-test',
-      name: 'glm-5.2-gz-test',
-      clusterCode: 'gz',
-      clusterName: 'gz / L20-A100',
-      traffic: [['glm52-gz-router-1', 100]],
-      status: 'warning',
-      routerReady: '1/1',
-      prefillReady: '3/4',
-      decodeReady: '2/2',
-      instanceCount: 7,
-      ttft: 9256,
-      tpot: 24.1,
-      error: 1,
-      seed: 3,
-    }),
-    makeRow(glm52, {
-      key: 'glm52-wuhan-kunpeng',
-      name: 'glm-5.2-wh-kunpeng',
-      clusterCode: 'wh',
-      clusterName: 'wh / 910B-L20',
-      traffic: [['glm52-wh-router-1', 55], ['glm52-wh-router-2', 45, 'warning']],
-      routerReady: '1/1',
-      prefillReady: '4/4',
-      decodeReady: '2/2',
-      instanceCount: 7,
-      ttft: 8794,
-      tpot: 22.5,
-      seed: 4,
-    }),
-    makeRow(glm52, {
-      key: 'glm52-zhengzhou-prod',
-      name: 'glm-5.2-zz-prod',
-      clusterCode: 'zz',
-      clusterName: 'zz / H20',
-      traffic: [['zhengzhou-higress', 14, 'warning'], ['glm52-zz-router-2', 45], ['glm52-zz-router-1', 41]],
-      status: 'warning',
-      routerReady: '2/2',
-      prefillReady: '4/4',
-      decodeReady: '3/3',
-      instanceCount: 9,
-      ttft: 9820,
-      tpot: 25.4,
-      error: 1,
-      seed: 5,
-    }),
-  ];
+  return MODEL_OPS_RESOURCE_SPECS.map((spec, index) => {
+    const summary = getModelOpsRoleSummary(spec);
+    const routeNames = spec.routeNames.length ? spec.routeNames : [`${spec.name}-router`];
+    const weight = Math.floor(100 / routeNames.length);
+    return makeRow(glm52, {
+      key: spec.name,
+      name: spec.serviceName,
+      clusterCode: spec.cluster,
+      clusterName: spec.cluster,
+      traffic: routeNames.map((name, routeIndex) => [
+        name,
+        routeIndex === routeNames.length - 1 ? 100 - weight * routeIndex : weight,
+      ]),
+      routerReady: summary.router,
+      prefillReady: summary.prefill,
+      decodeReady: summary.decode,
+      instanceCount: spec.instanceCount,
+      ttft: 8100 + index * 137,
+      tpot: 20.2 + (index % 5) * 0.8,
+      seed: index + 1,
+    });
+  });
 };
 
 const opsSeRows = createOpsSeRows();
@@ -219,6 +165,9 @@ type ModelOpsPageProps = {
   onYamlPreview?: (item: DeployServiceItem, kind: 'router' | 'worker', path: string) => void;
   onPickConfigYaml: (onSelect: (yaml: string, path: string) => void) => void;
   onSaveConfigYaml: (path: string, yaml: string) => Promise<void>;
+  createGroupRequest?: number;
+  onCreateGroupRequestHandled?: () => void;
+  onTaskCreateGroupBack?: () => void;
 };
 
 const modelOpsDeploySource = MOCK_DEPLOY_DATA.filter((item) => Boolean(item.modelOpsInstanceKey));
@@ -226,19 +175,6 @@ const getReadyTotal = (value: string) => {
   const total = Number(value.split('/')[1]);
   return Number.isFinite(total) && total > 0 ? total : 1;
 };
-const opsInstanceNamesByCluster: Record<string, string[]> = {
-  bj: ['glm-5.2-bj-router', 'glm-5.2-bj-llm-1', 'glm-5.2-bj-llm-2'],
-  sh: ['glm-5.2-sh-router', 'glm-5.2-sh-llm-1', 'glm-5.2-sh-cache'],
-  gz: ['glm-5.2-gz-router', 'glm-5.2-gz-canary'],
-  wh: ['glm-5.2-wh-router', 'glm-5.2-wh-llm-1'],
-  zz: ['glm-5.2-zz-router', 'glm-5.2-zz-llm-1', 'glm-5.2-zz-llm-2'],
-};
-
-const opsPrefillIssueIndexes: Record<string, number[]> = {
-  'glm52-guangzhou-test': [1],
-  'glm52-zhengzhou-prod': [0],
-};
-
 const makeReadyText = (total: number, degraded = false) => {
   const normalizedTotal = Math.max(1, total);
   const ready = degraded ? Math.max(0, normalizedTotal - 1) : normalizedTotal;
@@ -250,17 +186,11 @@ const isReadyDegraded = (value: string) => {
   return Number.isFinite(ready) && Number.isFinite(total) && ready < total;
 };
 
-const getInstanceRoleSummary = (row: OpsSeRow, index: number) => {
-  const routerTotal = index === 0 ? getReadyTotal(row.routerReady) : 1;
-  const basePrefillTotal = getReadyTotal(row.prefillReady);
-  const prefillTotal = index >= 2 ? Math.max(1, Math.min(2, basePrefillTotal)) : basePrefillTotal;
-  const baseDecodeTotal = getReadyTotal(row.decodeReady);
-  const decodeTotal = index >= 2 ? Math.max(1, Math.min(2, baseDecodeTotal)) : baseDecodeTotal;
-  const hasPrefillIssue = opsPrefillIssueIndexes[row.key]?.includes(index) || false;
+const getInstanceRoleSummary = (row: OpsSeRow) => {
   return {
-    routerReady: makeReadyText(routerTotal),
-    prefillReady: makeReadyText(prefillTotal, hasPrefillIssue),
-    decodeReady: makeReadyText(decodeTotal),
+    routerReady: row.routerReady,
+    prefillReady: row.prefillReady,
+    decodeReady: row.decodeReady,
   };
 };
 
@@ -269,16 +199,17 @@ const getInstanceStatus = (row: OpsSeRow, roleSummary: ReturnType<typeof getInst
   return [roleSummary.routerReady, roleSummary.prefillReady, roleSummary.decodeReady].some(isReadyDegraded) ? 'warning' : 'running';
 };
 
-const opsDeployPreviewData: OpsDeployPreviewItem[] = opsSeRows.flatMap((row, rowIndex) => (
-  (opsInstanceNamesByCluster[row.clusterCode] || [row.name]).map((instanceName, instanceIndex) => {
-    const item = modelOpsDeploySource[(rowIndex + instanceIndex) % modelOpsDeploySource.length] || MOCK_DEPLOY_DATA[0];
-    const roleSummary = getInstanceRoleSummary(row, instanceIndex);
+const opsDeployPreviewData: OpsDeployPreviewItem[] = opsSeRows.map((row, rowIndex) => {
+    const item = modelOpsDeploySource.find((source) => source.modelOpsInstanceKey === row.key)
+      || modelOpsDeploySource[rowIndex]
+      || MOCK_DEPLOY_DATA[0];
+    const roleSummary = getInstanceRoleSummary(row);
     const podCount = getReadyTotal(roleSummary.routerReady) + getReadyTotal(roleSummary.prefillReady) + getReadyTotal(roleSummary.decodeReady);
     return {
       ...item,
-      id: 2000 + rowIndex * 10 + instanceIndex,
+      id: 2000 + rowIndex,
       modelOpsSourceServiceId: item.id,
-      name: instanceName,
+      name: row.name,
       status: getInstanceStatus(row, roleSummary),
       typeStr: row.model,
       modelOpsCluster: clusterFullNameByCode[row.clusterCode] || row.clusterName,
@@ -292,16 +223,15 @@ const opsDeployPreviewData: OpsDeployPreviewItem[] = opsSeRows.flatMap((row, row
       serviceGroupName: row.name,
       opsServiceId: row.serviceId,
       opsRowKey: row.key,
-      opsInstanceIndex: instanceIndex,
+      opsInstanceIndex: 0,
       modelInfo: {
         ...item.modelInfo,
         name: row.model,
         number: podCount,
-        works: Array.from({ length: podCount }, (_, podIndex) => `${row.clusterCode}-node-${instanceIndex + 1}-${podIndex + 1}`).join(', '),
+        works: MODEL_OPS_RESOURCE_SPECS[rowIndex]?.workerNames.join(', ') || item.modelInfo.works,
       },
     };
-  })
-));
+});
 
 const getInitialActiveRowKey = (serviceId: string) => (
   opsSeRows.find((row) => serviceId === 'all' || row.serviceId === serviceId)?.key || opsSeRows[0].key
@@ -1015,6 +945,9 @@ const ModelOpsPage = ({
   onCreateService,
   onYamlPreview,
   onPickConfigYaml,
+  createGroupRequest,
+  onCreateGroupRequestHandled,
+  onTaskCreateGroupBack,
 }: ModelOpsPageProps) => {
   const initialServiceId = getServiceIdByModelName(selectedModelName);
   const isEmbeddedCenter = Boolean(centerViewMode && onCenterViewModeChange);
@@ -1036,6 +969,7 @@ const ModelOpsPage = ({
   const [createdRows, setCreatedRows] = useState<OpsSeRow[]>([]);
   const [createdDeployRows, setCreatedDeployRows] = useState<OpsDeployPreviewItem[]>([]);
   const [createOpen, setCreateOpen] = useState(false);
+  const [createFromTask, setCreateFromTask] = useState(false);
   const [createDraft, setCreateDraft] = useState<OpsCreateGroupDraft>(() => makeDefaultCreateDraft());
   const [createExecutionPhase, setCreateExecutionPhase] = useState<CreateExecutionPhase>('idle');
   const [createExecutionIndex, setCreateExecutionIndex] = useState(-1);
@@ -1328,7 +1262,7 @@ const ModelOpsPage = ({
     return target ? weights[target.key] ?? target.weight : 100;
   };
 
-  const openCreateGroup = (item?: DeployServiceItem) => {
+  const openCreateGroup = (item?: DeployServiceItem, fromTask = false) => {
     const sourceRow = item
       ? allOpsRows.find((row) => row.key === (item as OpsDeployPreviewItem).opsRowKey)
       : activeRow;
@@ -1353,8 +1287,15 @@ const ModelOpsPage = ({
     });
     setCreateExecutionPhase('idle');
     setCreateExecutionIndex(-1);
+    setCreateFromTask(fromTask);
     setCreateOpen(true);
   };
+
+  useEffect(() => {
+    if (!createGroupRequest) return;
+    openCreateGroup(undefined, true);
+    onCreateGroupRequestHandled?.();
+  }, [createGroupRequest, onCreateGroupRequestHandled]);
 
   const executeCreateGroup = () => {
     if (!canExecuteCreate) {
@@ -1369,6 +1310,10 @@ const ModelOpsPage = ({
     setCreateOpen(false);
     setCreateExecutionPhase('idle');
     setCreateExecutionIndex(-1);
+    if (createFromTask) {
+      setCreateFromTask(false);
+      onTaskCreateGroupBack?.();
+    }
   };
 
   if (createOpen) {
@@ -1389,35 +1334,12 @@ const ModelOpsPage = ({
   return (
     <div className={`model-ops-page${isEmbeddedCenter ? ' center-view-embedded' : ''}`}>
       <aside className="model-ops-rail">
-        <div className="model-ops-rail-title">
-          {centerViewMode && onCenterViewModeChange ? (
-            <div className="ataas-center-view-segmented" role="tablist" aria-label="中心视图切换">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={centerViewMode === 'compute'}
-                className={centerViewMode === 'compute' ? 'active' : ''}
-                onClick={() => onCenterViewModeChange('compute')}
-              >
-                算力中心视图
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={centerViewMode === 'inference'}
-                className={centerViewMode === 'inference' ? 'active' : ''}
-                onClick={() => onCenterViewModeChange('inference')}
-              >
-                推理中心视图
-              </button>
-            </div>
-          ) : (
-            <>
-              <strong>模型</strong>
-              <span>{opsPreviewServices.length} models</span>
-            </>
-          )}
-        </div>
+        {!isEmbeddedCenter && (
+          <div className="model-ops-rail-title">
+            <strong>模型</strong>
+            <span>{opsPreviewServices.length} models</span>
+          </div>
+        )}
         {!isEmbeddedCenter || centerWorkspaceView === 'groups' ? (
           <>
             {opsPreviewServices.map((service) => {
@@ -1465,26 +1387,6 @@ const ModelOpsPage = ({
       </aside>
 
       <main className="model-ops-main">
-        {isEmbeddedCenter && (
-          <nav className="model-ops-center-view-tabs" aria-label="推理中心资源视图">
-            <button
-              type="button"
-              className={centerWorkspaceView === 'groups' ? 'active' : ''}
-              aria-current={centerWorkspaceView === 'groups' ? 'page' : undefined}
-              onClick={() => setCenterWorkspaceView('groups')}
-            >
-              Groups
-            </button>
-            <button
-              type="button"
-              className={centerWorkspaceView === 'pods' ? 'active' : ''}
-              aria-current={centerWorkspaceView === 'pods' ? 'page' : undefined}
-              onClick={() => setCenterWorkspaceView('pods')}
-            >
-              Pods
-            </button>
-          </nav>
-        )}
         {centerWorkspaceView === 'groups' ? (
           <>
         <section className="model-ops-se-panel">

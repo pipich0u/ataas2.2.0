@@ -14,6 +14,18 @@
   color: #1D2129;
 }
 
+  .ataas-route-workbench-toolbar-label {
+    color: #4E5969;
+    font-size: 14px;
+    white-space: nowrap;
+  }
+
+  .ataas-route-workbench-ingress-total {
+    color: #4E5969;
+    font-size: 14px;
+    white-space: nowrap;
+  }
+
 .ataas-route-workbench-topbar {
   display: flex;
   height: 58px;
@@ -25,11 +37,53 @@
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(10px);
 
-  > div {
+  .ataas-route-workbench-title {
     display: flex;
     align-items: baseline;
     gap: 12px;
     min-width: 0;
+  }
+
+  .ataas-route-workbench-toolbar-actions,
+  .ataas-route-workbench-toolbar-field {
+    display: flex;
+    align-items: center;
+  }
+
+  .ataas-route-workbench-toolbar-actions {
+    height: 36px;
+    gap: 12px;
+    color: #4E5969;
+    font-size: 14px;
+    font-weight: 400;
+  }
+
+  .ataas-route-workbench-toolbar-field {
+    gap: 4px;
+    height: 36px;
+  }
+
+  .ataas-route-workbench-level-control {
+    display: flex;
+    height: 36px;
+    align-items: center;
+    gap: 6px;
+    padding: 0 4px 0 10px;
+    border: 1px solid #E5EAF2;
+    border-radius: 6px;
+    background: #F7F9FC;
+
+    > span {
+      min-width: 104px;
+      color: #4E5969;
+      font-size: 14px;
+      font-weight: 400;
+    }
+
+    .ant-btn {
+      height: 28px;
+      padding: 0 10px;
+    }
   }
 
   strong {
@@ -38,7 +92,7 @@
     font-weight: 500;
   }
 
-  span {
+  .ataas-route-workbench-title > span {
     color: #86909C;
     font-size: 12px;
     font-weight: 400;
@@ -47,13 +101,52 @@
   .ant-btn {
     height: 36px;
     border-radius: 6px;
-    font-size: 13px;
+    color: #4E5969;
+    font-size: 14px;
     font-weight: 400;
   }
 
+  .ataas-route-workbench-toolbar-actions .ant-select-selection-item,
+  .ataas-route-workbench-toolbar-actions .ant-input,
+  .ataas-route-workbench-toolbar-actions .ant-input-number-input,
+  .ataas-route-workbench-toolbar-actions .ant-input-number,
+  .ataas-route-workbench-toolbar-actions .ant-input-affix-wrapper {
+    color: #4E5969;
+    font-size: 14px;
+    font-weight: 400;
+  }
+
+  .ataas-route-workbench-toolbar-actions .ant-input::placeholder {
+    color: #A9B0BC;
+  }
+
   .ant-select,
-  .ant-input-affix-wrapper {
+  .ant-input-affix-wrapper,
+  .ant-input-search {
     height: 36px;
+  }
+
+  .ant-input-search .ant-input,
+  .ant-input-search-button {
+    height: 36px;
+  }
+
+  .ant-input-search .ant-input {
+    height: 34px;
+    padding: 0 12px;
+    line-height: 32px;
+  }
+
+  .ant-input-search .ant-input-group-addon,
+  .ant-input-search .ant-input-search-button {
+    vertical-align: middle;
+  }
+
+  .ant-input-search .ant-input-search-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 12px;
   }
 
   .ant-select-selector {
@@ -75,6 +168,78 @@
   overflow: hidden;
 }
 
+/* SVC 创建与其他资源创建保持同一张右侧资源卡片，只替换字段。 */
+.ataas-route-workbench-create-card {
+  .ataas-cm-create-form {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+
+  .ataas-cm-create-field {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .ataas-cm-create-field > label {
+    display: block;
+    color: #344054;
+    font-size: 14px;
+    font-weight: 600;
+
+    em {
+      color: #D92D20;
+      font-style: normal;
+    }
+  }
+
+  .ant-input,
+  .ant-input-affix-wrapper,
+  .ant-select-selector {
+    min-height: 30px !important;
+    border-radius: 6px !important;
+  }
+
+  .ant-select-selection-item,
+  .ant-select-selection-placeholder {
+    line-height: 28px !important;
+  }
+
+  .ataas-route-workbench-form .ant-input,
+  .ataas-route-workbench-form .ant-input-affix-wrapper,
+  .ataas-route-workbench-form .ant-select-selector {
+    background: #F7F8FA !important;
+  }
+
+  .ataas-cm-create-yaml-row {
+    display: flex;
+    align-items: center;
+    min-height: 40px;
+    gap: 10px;
+  }
+
+  .ataas-cm-select-yaml-hint {
+    color: #98A2B3;
+  }
+
+  .ataas-route-workbench-create-card-foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 14px 18px;
+    border-top: 1px solid #EEF1F6;
+  }
+}
+
+.ataas-route-workbench-panel > .ataas-route-workbench-create-card-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 18px;
+  border-top: 1px solid #EEF1F6;
+}
+
 .ataas-route-workbench-palette {
   position: absolute;
   top: 50%;
@@ -94,7 +259,7 @@
 
   button {
     display: flex;
-    width: 112px;
+    width: 164px;
     height: 36px;
     align-items: center;
     justify-content: flex-start;
@@ -250,6 +415,15 @@
     box-shadow: 0 0 0 2px rgba(103, 56, 232, 0.14), 0 12px 30px rgba(15, 23, 42, 0.1);
   }
 
+  &.highlighted {
+    border-color: #7C3AED;
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.16), 0 12px 30px rgba(15, 23, 42, 0.12);
+  }
+
+  &.dimmed {
+    opacity: 0.28;
+  }
+
   &.warning {
     .ataas-rf-node-status {
       background: #F59E0B;
@@ -270,6 +444,31 @@
 
   &.modelNode {
     grid-template-columns: 46px minmax(0, 1fr);
+  }
+
+  &.domainNode {
+    width: 340px;
+  }
+
+  &.ingressNode {
+    width: 240px;
+    min-height: 68px;
+    gap: 7px;
+    padding: 9px 10px;
+    grid-template-columns: 28px minmax(0, 1fr);
+
+    .ataas-rf-node-subtitle,
+    .ataas-rf-node-metrics {
+      display: none;
+    }
+
+    .ataas-rf-node-title {
+      gap: 5px;
+
+      span {
+        font-size: 13px;
+      }
+    }
   }
 }
 
@@ -310,6 +509,14 @@
 
   &.ingressGroupNode {
     background: #12A7C9;
+    color: #FFFFFF;
+  }
+
+  &.ingressNode {
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    background: #2F6BFF;
     color: #FFFFFF;
   }
 
@@ -374,6 +581,12 @@
     border-color: #DED6FF;
     background: #F4F0FF;
     color: #6842F5;
+  }
+
+  &.ingressNode {
+    border-color: #D7E5FF;
+    background: #F2F7FF;
+    color: #2F6BFF;
   }
 
   &.clusterNode {
@@ -488,8 +701,8 @@
 
 .ataas-rf-node-add {
   position: absolute;
-  top: 50%;
-  right: -15px;
+  top: 12px;
+  right: 12px;
   z-index: 4;
   display: inline-flex;
   width: 28px;
@@ -503,7 +716,7 @@
   color: #FFFFFF;
   cursor: pointer;
   box-shadow: 0 8px 18px rgba(37, 99, 235, 0.22);
-  transform: translateY(-50%) scale(0.92);
+  transform: scale(0.92);
   opacity: 0;
   transition: opacity 0.16s ease, transform 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
 
@@ -514,14 +727,37 @@
   &:hover {
     background: #1D4ED8;
     box-shadow: 0 10px 22px rgba(37, 99, 235, 0.3);
-    transform: translateY(-50%) scale(1);
+    transform: scale(1);
   }
+}
+
+.ataas-rf-node-collapse {
+  position: absolute;
+  bottom: -13px;
+  left: 50%;
+  z-index: 4;
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 2px solid #FFFFFF;
+  border-radius: 50%;
+  background: #2563EB;
+  color: #FFFFFF;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.22);
+  transform: translateX(-50%);
+
+  .anticon { font-size: 11px; transition: transform 0.16s ease; }
+  .anticon.expanded { transform: rotate(45deg); }
 }
 
 .ataas-rf-node:hover .ataas-rf-node-add,
 .ataas-rf-node.selected .ataas-rf-node-add {
   opacity: 1;
-  transform: translateY(-50%) scale(1);
+  transform: scale(1);
 }
 
 .ataas-rf-edge-label {
@@ -706,6 +942,7 @@
       border-color: #DAD4FF;
       background: #FBFAFF;
     }
+
   }
 }
 
@@ -764,7 +1001,319 @@
       border-color: #DAD4FF;
       background: #FBFAFF;
     }
+
+    &.active {
+      border-color: #B8A6FF;
+      background: #FAF8FF;
+      box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.08);
+    }
   }
+}
+
+.ataas-route-workbench-plugins {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ataas-route-workbench-plugins-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: #EAF7FF;
+
+  > div {
+    flex: 1;
+    min-width: 0;
+
+    > strong,
+    > span {
+      display: block;
+    }
+
+    > strong {
+      color: #1D2129;
+      font-size: 14px;
+    }
+
+    > span {
+      margin-top: 3px;
+      color: #86909C;
+      font-size: 12px;
+    }
+  }
+
+  .ant-btn {
+    display: inline-flex;
+    flex: 0 0 auto;
+    min-width: 94px;
+    height: 32px;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 1;
+    white-space: nowrap;
+
+    .anticon,
+    > span {
+      display: inline-flex;
+      flex: none;
+      align-items: center;
+      margin: 0;
+      color: inherit;
+      line-height: 1;
+    }
+  }
+}
+
+.ataas-route-workbench-plugin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ataas-route-workbench-plugin-item {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #E8ECF3;
+  border-radius: 8px;
+  background: #FFFFFF;
+
+  > i {
+    display: inline-flex;
+    width: 32px;
+    height: 32px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #EEF4FF;
+    color: #2F6BFF;
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 600;
+  }
+
+  > div { min-width: 0; }
+  strong, span { display: block; }
+  strong { color: #1D2129; font-size: 13px; font-weight: 500; }
+  span { overflow: hidden; margin-top: 3px; color: #86909C; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+  em, small { display: inline-flex; margin-top: 6px; font-size: 10px; font-style: normal; line-height: 18px; }
+  em { padding: 0 6px; border-radius: 9px; background: #F2F3F5; color: #86909C; }
+  small { margin-left: 6px; color: #86909C; }
+  .ataas-route-workbench-plugin-global {
+    align-items: center;
+    height: 18px;
+    padding: 0 6px;
+    border: 1px solid #B7D8FF;
+    border-radius: 9px;
+    background: #EAF7FF;
+    color: #1677FF;
+    font-weight: 600;
+  }
+  .ant-btn { flex: none; }
+}
+
+.ataas-route-workbench-plugin-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+
+  .ant-btn {
+    height: 26px;
+    padding: 0 6px;
+    border-radius: 5px;
+    font-size: 12px;
+    line-height: 24px;
+  }
+}
+
+.ataas-route-workbench-plugin-add {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.ataas-route-workbench-plugin-empty {
+  display: flex;
+  min-height: 92px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  border: 1px dashed #DDE3ED;
+  border-radius: 8px;
+  color: #86909C;
+  font-size: 12px;
+}
+
+.ataas-route-workbench-plugin-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 0;
+
+  > span { color: #1D2129; font-weight: 500; }
+  .ant-select { width: 100%; }
+  small { color: #86909C; line-height: 20px; }
+}
+
+.ataas-route-workbench-plugin-choose-head {
+  strong, span { display: block; }
+  strong { color: #1D2129; font-size: 14px; }
+  span { margin-top: 4px; color: #86909C; font-size: 12px; }
+}
+
+.ataas-route-workbench-plugin-choice-list {
+  display: flex;
+  max-height: 410px;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+
+  > button {
+    display: grid;
+    width: 100%;
+    grid-template-columns: 36px minmax(0, 1fr) auto 42px;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid #E6EBF3;
+    border-radius: 8px;
+    background: #FFFFFF;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color .16s, background .16s;
+
+    &:hover { border-color: #8F72FF; background: #FAF8FF; }
+    i { display: flex; width: 36px; height: 36px; align-items: center; justify-content: center; border-radius: 8px; background: #F1EDFF; color: #6C45E8; font-style: normal; font-weight: 600; }
+    span { min-width: 0; }
+    strong, small { display: block; }
+    strong { color: #1D2129; font-size: 13px; }
+    small { overflow: hidden; margin-top: 4px; color: #86909C; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+    em { padding: 2px 8px; border-radius: 10px; background: #F2F3F5; color: #86909C; font-size: 11px; font-style: normal; }
+    b { color: #6C45E8; font-size: 12px; font-weight: 500; }
+  }
+}
+
+.ataas-route-workbench-plugin-selected {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #E6EBF3;
+  border-radius: 8px;
+  background: #F7F9FC;
+
+  > i { display: flex; width: 36px; height: 36px; align-items: center; justify-content: center; border-radius: 8px; background: #F1EDFF; color: #6C45E8; font-style: normal; font-weight: 600; }
+  > span { min-width: 0; }
+  strong, small { display: block; }
+  strong { color: #1D2129; font-size: 13px; font-weight: 600; }
+  small { margin-top: 3px; color: #86909C; font-size: 12px; line-height: 18px; }
+  > em { padding: 2px 8px; border-radius: 10px; background: #F2F3F5; color: #86909C; font-size: 11px; font-style: normal; }
+}
+
+.ataas-route-workbench-plugin-config-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid #EEF1F6;
+
+  h4 {
+    margin: 0;
+    color: #1D2129;
+    font-size: 14px;
+  }
+
+  > label {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+
+    > span {
+      color: #4E5969;
+      font-size: 13px;
+      font-weight: 500;
+
+      em {
+        margin-right: 4px;
+        color: #F53F3F;
+        font-style: normal;
+      }
+    }
+  }
+
+  .ant-input,
+  .ant-input-number,
+  .ant-select-selector {
+    border-radius: 6px !important;
+  }
+
+  .ant-input-number,
+  .ant-select { width: 100%; }
+
+  .field-switch,
+  .field-checkbox {
+    align-items: flex-start;
+  }
+
+  .ant-switch {
+    width: 44px !important;
+    min-width: 44px !important;
+    max-width: 44px;
+    flex: none;
+  }
+
+  .ant-checkbox-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+  }
+}
+
+.ataas-route-workbench-plugin-modal {
+  .ant-modal-content { border-radius: 10px; }
+  .ant-modal-title { font-size: 16px; font-weight: 600; }
+  .ant-modal-body { max-height: min(620px, calc(100vh - 220px)); overflow-y: auto; }
+  .ant-modal-footer .ant-btn {
+    min-width: 76px;
+    height: 32px;
+    padding: 0 14px;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+}
+
+.ataas-route-workbench-plugin-modal-footer {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.ataas-route-workbench-plugin-save {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #F2F7FF;
+  color: #4E5969;
+  font-size: 12px;
 }
 
 .ataas-route-workbench-yaml-full {
@@ -797,6 +1346,55 @@
     color: #1764B1;
     white-space: pre;
   }
+}
+
+.ataas-route-workbench-yaml-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ataas-route-workbench-yaml-input.ant-input {
+  padding: 12px 14px;
+  border-color: #E5EAF2;
+  background: #FBFCFE;
+  color: #1764B1;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 12px;
+  line-height: 22px;
+  resize: vertical;
+  tab-size: 2;
+}
+
+.ataas-route-workbench-yaml-change {
+  padding: 14px;
+  border: 1px solid #D9E6FF;
+  border-radius: 8px;
+  background: #F7FAFF;
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    > span {
+      color: #4E5969;
+      font-size: 13px;
+      font-weight: 600;
+
+      em {
+        color: #F53F3F;
+        font-style: normal;
+      }
+    }
+  }
+}
+
+.ataas-route-workbench-yaml-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
 }
 
 .ataas-route-workbench-history-full {
@@ -995,7 +1593,7 @@
   bottom: 18px;
   z-index: 9;
   display: flex;
-  width: 360px;
+  width: 440px;
   min-width: 0;
   flex-direction: column;
   border: 1px solid #E8ECF3;
@@ -1003,6 +1601,20 @@
   background: rgba(255, 255, 255, 0.97);
   box-shadow: 0 18px 48px rgba(15, 23, 42, 0.14);
   backdrop-filter: blur(12px);
+  cursor: default;
+
+  button,
+  .ant-btn,
+  .ant-select,
+  .ant-switch,
+  .ant-checkbox-wrapper {
+    cursor: pointer;
+  }
+
+  input,
+  textarea {
+    cursor: text;
+  }
 }
 
 .ataas-route-workbench-panel-head {
@@ -1067,18 +1679,20 @@
 }
 
 .ataas-route-workbench-form {
+  --ataas-route-control-height: 30px;
+
   display: flex;
   min-height: 0;
   flex: 1;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   overflow: auto;
   padding: 18px;
 
   label {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
 
     > span {
       color: #4E5969;
@@ -1087,16 +1701,113 @@
     }
   }
 
-  .ant-input,
-  .ant-select-selector,
+  .ant-input:not(textarea),
+  .ant-input-affix-wrapper,
+  .ant-select:not(.ant-select-customize-input) .ant-select-selector,
   .ant-input-number,
-  .ant-input-number-group-addon {
+  .ant-input-number-group-addon,
+  .ant-picker {
+    min-height: var(--ataas-route-control-height) !important;
     border-color: #EEF1F6 !important;
-    border-radius: 8px !important;
+    border-radius: 6px !important;
     background: #F7F8FA !important;
     color: #1D2129 !important;
-    font-size: 13px !important;
+    font-size: 12px !important;
     box-shadow: none !important;
+  }
+
+  .ant-input:not(textarea) {
+    height: var(--ataas-route-control-height);
+    padding: 0 10px;
+  }
+
+  .ant-input-affix-wrapper {
+    height: var(--ataas-route-control-height);
+    padding: 0 10px !important;
+
+    > input.ant-input {
+      height: auto !important;
+      min-height: 0 !important;
+      padding: 0 !important;
+      border: 0 !important;
+      border-radius: 0 !important;
+      background: transparent !important;
+    }
+  }
+
+  textarea.ant-input {
+    min-height: 72px;
+    padding: 7px 10px;
+    border-color: #EEF1F6 !important;
+    border-radius: 6px !important;
+    background: #F7F8FA !important;
+    color: #1D2129 !important;
+    font-size: 12px !important;
+    line-height: 18px;
+    box-shadow: none !important;
+  }
+
+  .ant-select-single {
+    height: var(--ataas-route-control-height);
+
+    .ant-select-selector {
+      height: var(--ataas-route-control-height) !important;
+      padding: 0 10px !important;
+      border-color: #EEF1F6 !important;
+      background-color: #F7F8FA !important;
+    }
+
+    .ant-select-selection-item,
+    .ant-select-selection-placeholder {
+      line-height: 28px !important;
+    }
+  }
+
+  .ant-select-multiple .ant-select-selector {
+    min-height: var(--ataas-route-control-height) !important;
+    padding: 0 6px !important;
+    align-items: center;
+    border-color: #EEF1F6 !important;
+    background-color: #F7F8FA !important;
+  }
+
+  .ant-select-selection-item,
+  .ant-select-selection-placeholder,
+  .ant-select-selection-search-input {
+    font-size: 12px !important;
+  }
+
+  .ant-select-multiple .ant-select-selection-item {
+    height: 22px;
+    margin-block: 3px;
+    line-height: 20px;
+  }
+
+  .ant-input-number {
+    height: var(--ataas-route-control-height);
+
+    .ant-input-number-input {
+      height: 28px;
+      padding: 0 10px;
+    }
+  }
+
+  .ant-input:hover,
+  .ant-input-affix-wrapper:hover,
+  .ant-select:hover .ant-select-selector,
+  .ant-input-number:hover,
+  .ant-picker:hover {
+    border-color: #D8D3FF !important;
+  }
+
+  .ant-input:focus,
+  .ant-input-focused,
+  .ant-input-affix-wrapper-focused,
+  .ant-select-focused .ant-select-selector,
+  .ant-input-number-focused,
+  .ant-picker-focused {
+    border-color: #6738E8 !important;
+    box-shadow: 0 0 0 2px rgb(103 56 232 / 8%) !important;
   }
 
   .ant-input-number {
@@ -1303,4 +2014,208 @@
 
 .ataas-route-workbench-create-grid .ant-input-number {
   width: 100%;
+}
+
+.ataas-ingress-route-editor-drawer {
+  .ant-drawer-header {
+    min-height: 72px;
+    padding: 0 28px;
+  }
+
+  .ant-drawer-title { font-size: 22px; font-weight: 600; }
+  .ant-drawer-body { padding: 28px 32px 48px; }
+}
+
+.ataas-ingress-route-editor {
+  display: grid;
+  gap: 30px;
+  color: #20242b;
+
+  section { display: grid; gap: 12px; }
+
+  label {
+    color: #20242b;
+    font-size: 17px;
+    font-weight: 600;
+
+    &.required::before {
+      margin-right: 5px;
+      color: #f53f3f;
+      content: '*';
+    }
+  }
+
+  .ant-select { width: 100%; }
+  .ant-input, .ant-select-selector { min-height: 40px; }
+  .ant-btn-link { width: fit-content; padding-left: 0; font-size: 15px; }
+
+  .ataas-ingress-route-rule { display: grid; gap: 12px; }
+  .rule-label { font-size: 15px; font-weight: 500; }
+  .rule-label.required::before { margin-right: 5px; color: #f53f3f; content: '*'; }
+  .ataas-ingress-route-rule-row {
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .ataas-ingress-route-empty-table {
+    overflow: hidden;
+    border-bottom: 1px solid #eef0f3;
+    background: #fafafa;
+
+    > div {
+      display: grid;
+      grid-template-columns: 1.3fr .75fr 1fr 100px;
+      min-height: 48px;
+      align-items: center;
+      padding: 0 16px;
+      border-bottom: 1px solid #eef0f3;
+      background: #f7f7f7;
+    }
+
+    > span {
+      display: flex;
+      min-height: 94px;
+      align-items: center;
+      justify-content: center;
+      color: #a6aab2;
+      font-size: 15px;
+    }
+
+    &.compact > div { grid-template-columns: 1fr 1fr 100px; }
+  }
+
+  .ataas-ingress-route-auth {
+    p, small { margin: -4px 0 2px; color: #86909c; font-size: 14px; }
+  }
+}
+
+.ataas-ingress-route-panel-form {
+  display: grid;
+  gap: 16px;
+
+  > label,
+  .ataas-ingress-route-panel-section {
+    display: grid;
+    gap: 8px;
+  }
+
+  label > span,
+  .ataas-ingress-route-panel-section > strong {
+    color: #3d4653;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  em { color: #f53f3f; font-style: normal; }
+  .ant-select { width: 100%; }
+  .ant-btn-link { justify-self: start; padding-left: 0; }
+  .ant-switch { justify-self: start; width: 44px; min-width: 44px; }
+
+  p,
+  small {
+    margin: -2px 0 0;
+    color: #86909c;
+    font-size: 12px;
+    line-height: 18px;
+  }
+}
+
+.ataas-ingress-route-panel-empty {
+  overflow: hidden;
+  border: 1px solid #edf0f5;
+  background: #fafbfc;
+  font-size: 12px;
+
+  > div {
+    display: grid;
+    grid-template-columns: 1.2fr .8fr 1fr 56px;
+    min-height: 34px;
+    align-items: center;
+    padding: 0 10px;
+    border-bottom: 1px solid #edf0f5;
+    color: #566070;
+    font-weight: 600;
+  }
+
+  &.annotation > div { grid-template-columns: 1fr 1fr 56px; }
+
+  p {
+    display: flex;
+    min-height: 48px;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    color: #a5adba;
+  }
+}
+
+.ataas-ingress-route-save-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 2px -2px -4px;
+  padding: 10px;
+  border: 1px solid #BFD5FF;
+  border-radius: 8px;
+  background: #F4F8FF;
+  box-shadow: 0 -4px 12px rgba(47, 107, 255, 0.06);
+
+  > span { color: #2F6BFF; font-size: 12px; font-weight: 500; }
+}
+
+.ataas-domain-create-form,
+.ataas-domain-detail-form {
+  display: grid;
+  gap: 16px;
+
+  label {
+    display: grid;
+    gap: 8px;
+    color: #4E5969;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  em { color: #f53f3f; font-style: normal; }
+  .ant-select { width: 100%; }
+}
+
+.ataas-domain-create-drawer {
+  .ant-drawer-header {
+    min-height: 64px;
+    padding: 0 24px;
+    border-bottom: 1px solid #E8ECF3;
+  }
+
+  .ant-drawer-title {
+    color: #1D2129;
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  .ant-drawer-body {
+    padding: 24px;
+  }
+}
+
+.ataas-ingress-route-panel-path-row {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+
+  .ant-checkbox-wrapper {
+    display: inline-flex !important;
+    flex-direction: row !important;
+    align-items: center;
+    gap: 8px !important;
+    white-space: nowrap;
+  }
+
 }

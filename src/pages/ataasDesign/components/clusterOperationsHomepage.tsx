@@ -710,19 +710,11 @@ const formatTaskTime = (timestamp: number) => new Intl.DateTimeFormat('zh-CN', {
   hour12: false,
 }).format(new Date(timestamp));
 
-type ClusterOperationsHomepageProps = {
-  centerViewMode: 'compute' | 'inference';
-  onCenterViewModeChange: (mode: 'compute' | 'inference') => void;
-};
-
-const ClusterOperationsHomepage = ({
-  centerViewMode,
-  onCenterViewModeChange,
-}: ClusterOperationsHomepageProps) => {
+const ClusterOperationsHomepage = () => {
   const rootRef = useRef<HTMLDivElement>(null);
   const [hierarchyScope, setHierarchyScope] = useState<HierarchyScope | null>(null);
   const [resourceCreateKind, setResourceCreateKind] = useState<SupplierResourceCreateKind | null>(null);
-  const [selectedClusterKey, setSelectedClusterKey] = useState('st');
+  const [selectedClusterKey, setSelectedClusterKey] = useState('ST1');
   const [clusterTasks, setClusterTasks] = useState<ClusterProvisionTask[]>(loadClusterProvisionTasks);
   const [taskDrawerOpen, setTaskDrawerOpen] = useState(false);
   const [logTaskKey, setLogTaskKey] = useState<string | null>(null);
@@ -740,7 +732,7 @@ const ClusterOperationsHomepage = ({
           datacenter: detail.datacenter,
         });
       } else if (detail?.type === 'cluster') {
-        setSelectedClusterKey(detail.key || 'st');
+        setSelectedClusterKey(detail.key || 'ST1');
         setHierarchyScope(null);
       }
     };
@@ -810,26 +802,6 @@ const ClusterOperationsHomepage = ({
     <div ref={rootRef} className={`cluster-operations-homepage${hierarchyScope ? ' hierarchy-mode' : ''}`}>
     <aside className="resource-tree">
       <div className="tree-header">
-        <div className="ataas-center-view-segmented" role="tablist" aria-label="中心视图切换">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={centerViewMode === 'compute'}
-            className={centerViewMode === 'compute' ? 'active' : ''}
-            onClick={() => onCenterViewModeChange('compute')}
-          >
-            算力中心视图
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={centerViewMode === 'inference'}
-            className={centerViewMode === 'inference' ? 'active' : ''}
-            onClick={() => onCenterViewModeChange('inference')}
-          >
-            推理中心视图
-          </button>
-        </div>
         <div className="tree-header-actions">
           <Button
             className="resource-tree-task-button"
@@ -889,8 +861,8 @@ const ClusterOperationsHomepage = ({
         </div>
 
         <nav className="module-nav">
-          <div className="module-tab active" data-view="overview">总览</div>
-          <div className="module-tab" data-view="nodes" title="Kubernetes Node对象及Ready、压力和调度状态">节点</div>
+          <div className="module-tab" data-view="overview">总览</div>
+          <div className="module-tab active" data-view="nodes" title="Kubernetes Node对象及Ready、压力和调度状态">节点</div>
           <div className="module-tab" data-view="services" title="展示后端运行在上海资源段的Services；ServiceEntry为集群级配置">Services</div>
           <div className="module-tab" data-view="serviceentry" title="K8s ServiceEntry资源，用于定义网格出口流量规则">ServiceEntry</div>
 	        </nav>
@@ -1939,7 +1911,7 @@ const NodeExpandContent = ({ node, initialTab = 'CPU' }: { node: NodeRow; initia
 
 const buildMockNodeRow = (name: string, matchedPods: NodeRow['pods'], index: number): NodeRow => {
   const gpuCount = 8;
-  const clusterName = name.startsWith('st-') ? 'st'
+  const clusterName = name.startsWith('st-') ? 'ST1'
     : name.startsWith('bd-') ? 'beijing-prod'
     : name.startsWith('bx-') ? 'guangzhou-test'
     : 'default';

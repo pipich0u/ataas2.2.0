@@ -22,6 +22,7 @@ import { Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { MonacoEditor } from '../../../components/shared/MonacoEditor';
 import { useK8sResourceStore } from './k8sResourceStore';
+import { MODEL_OPS_RESOURCE_SPECS } from './modelOpsResourceSpec';
 
 type PdRoleName = 'router' | 'prefill' | 'decode';
 type PdPodRole = PdRoleName | 'store' | 'master' | 'etcd';
@@ -114,7 +115,7 @@ const createPods = (
 
 const createDependencyPods = (
   groupKey: string,
-  clusterAlias: string,
+  reusableNodes: string[],
 ): PdPod[] => {
   const createInfrastructureRole = (
     role: Extract<PdPodRole, 'store' | 'master' | 'etcd'>,
@@ -124,7 +125,7 @@ const createDependencyPods = (
     role,
     category: 'dependency',
     name: `${groupKey}-mooncake-${role}-${index}`,
-    node: `${clusterAlias}-${role}-${String(index + 1).padStart(2, '0')}`,
+    node: reusableNodes[(index + (role === 'store' ? 0 : role === 'master' ? 2 : 3)) % reusableNodes.length],
     podIP: `10.26.${role === 'store' ? 52 : role === 'master' ? 62 : 72}.${30 + index}`,
     ready: true,
     readyLabel: role === 'store' ? '2/2' : '1/1',
@@ -202,7 +203,7 @@ const createGroup = ({
       ...createPods(key, 'router', nodes.router, counts.router[0]),
       ...createPods(key, 'prefill', nodes.prefill, counts.prefill[0]),
       ...createPods(key, 'decode', nodes.decode, counts.decode[0]),
-      ...createDependencyPods(key, clusterAlias),
+      ...createDependencyPods(key, [...nodes.prefill, ...nodes.decode]),
     ],
     exposure: {
       seName: `${name.replace('_', '-')}-serving-se`,
@@ -215,102 +216,25 @@ const createGroup = ({
   };
 };
 
-export const initialGroups: PdGroup[] = [
-  createGroup({
-    key: 'glm51-1-st',
-    clusterKey: 'st',
-    clusterAlias: 'st',
-    clusterName: 'st',
-    name: 'glm51_1',
-    model: 'GLM-5.1',
-    namespace: 'model-serving',
-    counts: { router: [1, 1], prefill: [8, 8], decode: [3, 3] },
-    nodes: {
-      router: ['st-router-01'],
-      prefill: ['st-b300-11', 'st-b300-12', 'st-b300-13', 'st-b300-14', 'st-b300-15', 'st-b300-16', 'st-b300-17', 'st-b300-18'],
-      decode: ['st-b300-21', 'st-b300-22', 'st-b300-23'],
-    },
-  }),
-  createGroup({
-    key: 'glm51-3-st',
-    clusterKey: 'st',
-    clusterAlias: 'st',
-    clusterName: 'st',
-    name: 'glm51_3',
-    model: 'GLM-5.1',
-    namespace: 'model-serving',
-    counts: { router: [1, 1], prefill: [4, 4], decode: [1, 1] },
-    nodes: {
-      router: ['st-router-03'],
-      prefill: ['st-b300-31', 'st-b300-32', 'st-b300-33', 'st-b300-34'],
-      decode: ['st-b300-41'],
-    },
-  }),
-  createGroup({
-    key: 'glm51-4-st',
-    clusterKey: 'st',
-    clusterAlias: 'st',
-    clusterName: 'st',
-    name: 'glm51_4',
-    model: 'GLM-5.1',
-    namespace: 'model-serving',
-    counts: { router: [1, 1], prefill: [7, 8], decode: [3, 3] },
-    nodes: {
-      router: ['st-router-04'],
-      prefill: ['st-b300-51', 'st-b300-52', 'st-b300-53', 'st-b300-54', 'st-b300-55', 'st-b300-56', 'st-b300-57', 'st-b300-58'],
-      decode: ['st-b300-61', 'st-b300-62', 'st-b300-63'],
-    },
-    status: '需关注',
-  }),
-  createGroup({
-    key: 'glm51-1-bd',
-    clusterKey: 'beijing-prod',
-    clusterAlias: 'bd',
-    clusterName: 'beijing-prod',
-    name: 'glm51_1',
-    model: 'GLM-5.1',
-    namespace: 'model-serving',
-    counts: { router: [1, 1], prefill: [8, 8], decode: [3, 3] },
-    nodes: {
-      router: ['bd-router-01'],
-      prefill: ['bd-b300-11', 'bd-b300-12', 'bd-b300-13', 'bd-b300-14', 'bd-b300-15', 'bd-b300-16', 'bd-b300-17', 'bd-b300-18'],
-      decode: ['bd-b300-21', 'bd-b300-22', 'bd-b300-23'],
-    },
-  }),
-  createGroup({
-    key: 'glm51-2-bd',
-    clusterKey: 'beijing-prod',
-    clusterAlias: 'bd',
-    clusterName: 'beijing-prod',
-    name: 'glm51_2',
-    model: 'GLM-5.1',
-    namespace: 'model-serving',
-    counts: { router: [1, 1], prefill: [8, 8], decode: [3, 3] },
-    nodes: {
-      router: ['bd-router-02'],
-      prefill: ['bd-b300-31', 'bd-b300-32', 'bd-b300-33', 'bd-b300-34', 'bd-b300-35', 'bd-b300-36', 'bd-b300-37', 'bd-b300-38'],
-      decode: ['bd-b300-41', 'bd-b300-42', 'bd-b300-43'],
-    },
-    status: '未接流',
-    trafficState: 'drained',
-  }),
-  createGroup({
-    key: 'glm51-1-bx',
-    clusterKey: 'guangzhou-test',
-    clusterAlias: 'bx',
-    clusterName: 'guangzhou-test',
-    name: 'glm51_1',
-    model: 'GLM-5.1',
-    namespace: 'model-serving-test',
-    counts: { router: [1, 1], prefill: [7, 7], decode: [3, 3] },
-    nodes: {
-      router: ['bx-router-01'],
-      prefill: ['bx-b300-11', 'bx-b300-12', 'bx-b300-13', 'bx-b300-14', 'bx-b300-15', 'bx-b300-16', 'bx-b300-17'],
-      decode: ['bx-b300-21', 'bx-b300-22', 'bx-b300-23'],
-    },
-    status: '更新中',
-  }),
-];
+export const initialGroups: PdGroup[] = MODEL_OPS_RESOURCE_SPECS.map((spec) => createGroup({
+  key: `${spec.name}-st1`,
+  clusterKey: spec.cluster,
+  clusterAlias: 'st',
+  clusterName: spec.cluster,
+  name: spec.name,
+  model: spec.name.split('-')[0].toUpperCase(),
+  namespace: 'production',
+  counts: {
+    router: [spec.routerReady, spec.routerTotal],
+    prefill: [spec.prefillReady, spec.prefillTotal],
+    decode: [spec.decodeReady, spec.decodeTotal],
+  },
+  nodes: {
+    router: spec.routerNodeNames,
+    prefill: spec.prefillNodeNames,
+    decode: spec.decodeNodeNames,
+  },
+}));
 
 const getRoleState = (role: PdRole) => {
   if (role.ready === role.desired) return 'healthy';
