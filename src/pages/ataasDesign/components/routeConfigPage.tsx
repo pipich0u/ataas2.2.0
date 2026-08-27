@@ -57,6 +57,8 @@ const RouteConfigPage = () => {
   const routes = useRouteConfigStore();
   const standaloneServiceEntries = useServiceEntryStore();
   const [keyword, setKeyword] = useState('');
+  const [routeTypeFilter, setRouteTypeFilter] = useState<'all' | RouteType>('all');
+  const [routePage, setRoutePage] = useState(1);
   const [resourceView, setResourceView] = useState<'ingress' | 'egress'>('ingress');
   const [expandedId, setExpandedId] = useState<string>();
   const [editorOpen, setEditorOpen] = useState(false);
@@ -77,9 +79,9 @@ const RouteConfigPage = () => {
 
   const filteredRoutes = useMemo(() => {
     const query = keyword.trim().toLowerCase();
-    if (!query) return routes;
-    return routes.filter((route) => [route.name, routeTypeLabels[route.routeType], route.domain, route.path, route.service].some((value) => value.toLowerCase().includes(query)));
-  }, [keyword, routes]);
+    return routes.filter((route) => (routeTypeFilter === 'all' || route.routeType === routeTypeFilter)
+      && (!query || [route.name, routeTypeLabels[route.routeType], route.domain, route.path, route.service].some((value) => value.toLowerCase().includes(query))));
+  }, [keyword, routeTypeFilter, routes]);
 
   const serviceMeshExits = useMemo<ServiceMeshExitRecord[]>(() => {
     const grouped = new Map<string, RouteRecord[]>();
@@ -244,7 +246,7 @@ const RouteConfigPage = () => {
     {
       title: '操作', key: 'actions', fixed: 'right', width: 240,
       render: (_, route) => <span className="ataas-monitor-table-actions ataas-log-table-actions route-config-actions">
-        <Button type="link" icon={<SettingOutlined />} onClick={() => openPolicy(route)}>策略</Button>
+        <Button type="link" icon={<SettingOutlined />} onClick={() => openPolicy(route)}>插件</Button>
         <Button type="link" icon={<EditOutlined />} onClick={() => openEdit(route)}>编辑</Button>
         <Button type="link" danger icon={<DeleteOutlined />} onClick={() => removeRoute(route)}>删除</Button>
       </span>,
@@ -282,7 +284,7 @@ const RouteConfigPage = () => {
       <Tabs
         className="route-config-resource-tabs"
         activeKey={resourceView}
-        onChange={(key) => { setResourceView(key as 'ingress' | 'egress'); setKeyword(''); }}
+        onChange={(key) => { setResourceView(key as 'ingress' | 'egress'); setKeyword(''); setRouteTypeFilter('all'); setRoutePage(1); }}
         items={[
           { key: 'ingress', label: `服务网格入口 ${routes.length}` },
           { key: 'egress', label: `服务网格出口 ${serviceMeshExits.length}` },
@@ -293,11 +295,20 @@ const RouteConfigPage = () => {
           <Input
             allowClear
             value={keyword}
-            onChange={(event) => setKeyword(event.target.value)}
+            onChange={(event) => { setKeyword(event.target.value); setRoutePage(1); }}
             placeholder={resourceView === 'ingress' ? '搜索入口名称、类型、域名、条件或目标服务' : '搜索出口名称、Hosts、目标服务或关联入口'}
           />
           <Button aria-label="搜索路由" icon={<SearchOutlined />} />
         </div>
+        {resourceView === 'ingress' && <Select
+          className="route-config-type-filter"
+          value={routeTypeFilter}
+          onChange={(value) => { setRouteTypeFilter(value); setRoutePage(1); }}
+          options={[
+            { value: 'all', label: '全部路由类型' },
+            ...Object.entries(routeTypeLabels).map(([value, label]) => ({ value, label })),
+          ]}
+        />}
         <div className="route-config-toolbar-actions">
           {resourceView === 'ingress' ? (
             <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>创建</Button>
@@ -312,12 +323,12 @@ const RouteConfigPage = () => {
         <div className={resourceView === 'egress' ? 'route-config-table' : 'route-config-table ataas-deploy-table-wrap ataas-log-table-wrap'}>
           {resourceView === 'ingress' ? <Table<RouteRecord>
             dataSource={filteredRoutes} rowKey="id" columns={columns} scroll={{ x: 1540 }}
-            pagination={{ pageSize: 10, showTotal: (total) => `共 ${total} 个服务网格入口`, showSizeChanger: true }}
+            pagination={{ current: routePage, pageSize: 10, showTotal: (total) => `共 ${total} 个服务网格入口`, showSizeChanger: true, onChange: setRoutePage }}
             expandable={{
               expandedRowKeys: expandedId ? [expandedId] : [],
               onExpand: (expanded, route) => setExpandedId(expanded ? route.id : undefined),
               expandedRowRender: (route) => <div className="route-config-policy-detail">
-                <div className="route-config-policy-detail-head"><strong>策略配置</strong><strong>策略描述</strong><strong>操作</strong></div>
+                <div className="route-config-policy-detail-head"><strong>插件配置</strong><strong>插件描述</strong><strong>操作</strong></div>
                 {route.policies.length ? route.policies.map((policyKey) => {
                   const plugin = routePluginCatalog.find((item) => item.key === policyKey);
                   return <div className="route-config-policy-detail-row" key={policyKey}>
@@ -328,7 +339,7 @@ const RouteConfigPage = () => {
                       setViewingPolicyDraft({ ...(route.pluginConfigs?.[policyKey] || {}) });
                     }}>编辑配置</Button></div>
                   </div>
-                }) : <div className="route-config-policy-detail-empty">暂未配置策略，可点击右侧“策略”进行配置</div>}
+                }) : <div className="route-config-policy-detail-empty">暂未配置插件，可点击右侧“插件”进行配置</div>}
               </div>,
             }}
             locale={{ emptyText: '没有匹配的服务网格入口' }}
@@ -414,16 +425,16 @@ const RouteConfigPage = () => {
       </Drawer>
 
       <Modal
-        title={<span><SafetyCertificateOutlined /> 路由策略 · {policyRoute?.name}</span>}
+        title={<span><SafetyCertificateOutlined /> 路由插件 · {policyRoute?.name}</span>}
         open={!!policyRoute}
         width={720}
-        okText="保存策略"
+        okText="保存插件"
         cancelText="取消"
         onCancel={() => setPolicyRoute(undefined)}
         onOk={() => {
           if (policyRoute) routeConfigStore.update(policyRoute.id, { policies: Object.keys(policyDraft), pluginConfigs: policyDraft });
           setPolicyRoute(undefined);
-          message.success('路由策略已保存');
+          message.success('路由插件已保存');
         }}
       >
         <div className="route-config-policy-card-list">

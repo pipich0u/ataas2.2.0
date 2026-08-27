@@ -1574,14 +1574,15 @@ const RouteWorkbenchPage = ({
     if (!edge) return;
     const sourceKind = (routeWorkbenchNodes.find((node) => node.id === edge.source)?.data as RouteWorkbenchNodeData | undefined)?.kind;
     const targetData = routeWorkbenchNodes.find((node) => node.id === edge.target)?.data as RouteWorkbenchNodeData | undefined;
-    const isOfflineWorker = sourceKind === 'routerPodNode' && targetData?.kind === 'pdWorkerNode';
+    const isTrafficEdge = (sourceKind === 'clusterNode' && targetData?.kind === 'serviceNode')
+      || (sourceKind === 'routerPodNode' && targetData?.kind === 'pdWorkerNode');
     pushRouteWorkbenchUndo();
     setRouteWorkbenchEdges((items) => items.filter((item) => item.id !== edgeId));
     setRouteWorkbenchSelectedEdgeId('');
     setRouteWorkbenchEdgeContextMenu(null);
     setRouteWorkbenchChanges((items) => [...items, {
-      type: isOfflineWorker ? '下线' : '删除',
-      desc: isOfflineWorker ? `下线 ${targetData?.title || '下游'} 节点` : '已删除连线',
+      type: isTrafficEdge ? '摘流' : '删除',
+      desc: isTrafficEdge ? `已将 ${targetData?.title || '下游'} 从当前链路摘流` : '已删除连线',
     }]);
   }, [pushRouteWorkbenchUndo, routeWorkbenchEdges, routeWorkbenchNodes, setRouteWorkbenchEdges]);
   const requestDeleteRouteWorkbenchEdge = useCallback((edgeId: string) => {
@@ -1590,23 +1591,46 @@ const RouteWorkbenchPage = ({
     const sourceKind = (routeWorkbenchNodes.find((node) => node.id === edge.source)?.data as RouteWorkbenchNodeData | undefined)?.kind;
     const targetData = routeWorkbenchNodes.find((node) => node.id === edge.target)?.data as RouteWorkbenchNodeData | undefined;
     const targetKind = targetData?.kind;
-    const isDrainTraffic = sourceKind === 'clusterNode' && targetKind === 'serviceNode';
-    const isOfflineWorker = sourceKind === 'routerPodNode' && targetKind === 'pdWorkerNode';
+    const isDrainTraffic = (sourceKind === 'clusterNode' && targetKind === 'serviceNode')
+      || (sourceKind === 'routerPodNode' && targetKind === 'pdWorkerNode');
     const workerName = targetData?.title || '下游';
     Modal.confirm({
-      title: isDrainTraffic ? '确认摘流？' : isOfflineWorker ? `确认下线 ${workerName} 节点？` : '确认删除连线？',
+      title: isDrainTraffic ? `确认摘流 ${workerName}？` : '确认删除连线？',
       content: isDrainTraffic
-        ? '摘流后，该 SE 将不再向此 SVC 转发流量。'
-        : isOfflineWorker
-          ? `下线后，${workerName} 将不再接收该推理组的流量。`
+        ? sourceKind === 'routerPodNode'
+          ? `摘流后，仅解除 Router 与 ${workerName} 的流量关系，节点卡片会继续保留。`
+          : '摘流后，该 SE 将不再向此 SVC 转发流量。'
           : '删除后将解除这两个资源之间的关联。',
-      okText: isDrainTraffic ? '摘流' : isOfflineWorker ? '下线节点' : '删除',
+      okText: isDrainTraffic ? '摘流' : '删除',
       okButtonProps: { danger: true },
       cancelText: '取消',
       onOk: () => deleteRouteWorkbenchEdge(edgeId),
       onCancel: () => setRouteWorkbenchEdgeContextMenu(null),
     });
   }, [deleteRouteWorkbenchEdge, routeWorkbenchEdges, routeWorkbenchNodes]);
+  const requestOfflineRouteWorkbenchWorker = useCallback((edgeId: string) => {
+    const edge = routeWorkbenchEdges.find((item) => item.id === edgeId);
+    if (!edge) return;
+    const target = routeWorkbenchNodes.find((node) => node.id === edge.target);
+    const targetData = target?.data as RouteWorkbenchNodeData | undefined;
+    if (!target || targetData?.kind !== 'pdWorkerNode') return;
+    Modal.confirm({
+      title: `确认下线 ${targetData.title} 节点？`,
+      content: '下线后将删除该 Prefill/Decode 节点卡片及其全部关联连线。',
+      okText: '下线节点',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      onOk: () => {
+        pushRouteWorkbenchUndo();
+        setRouteWorkbenchNodes((items) => items.filter((item) => item.id !== target.id));
+        setRouteWorkbenchEdges((items) => items.filter((item) => item.source !== target.id && item.target !== target.id));
+        if (routeWorkbenchSelected === target.id) setRouteWorkbenchSelected('');
+        setRouteWorkbenchEdgeContextMenu(null);
+        setRouteWorkbenchChanges((items) => [...items, { type: '下线', desc: `下线 ${targetData.title} 节点` }]);
+      },
+      onCancel: () => setRouteWorkbenchEdgeContextMenu(null),
+    });
+  }, [pushRouteWorkbenchUndo, routeWorkbenchEdges, routeWorkbenchNodes, routeWorkbenchSelected, setRouteWorkbenchEdges, setRouteWorkbenchNodes]);
   useEffect(() => {
     routeWorkbenchStateRef.current = { nodes: routeWorkbenchNodes, edges: routeWorkbenchEdges };
   }, [routeWorkbenchEdges, routeWorkbenchNodes]);
@@ -3672,17 +3696,23 @@ const RouteWorkbenchPage = ({
                     style={{ left: routeWorkbenchEdgeContextMenu.x, top: routeWorkbenchEdgeContextMenu.y }}
                     onMouseDown={(event) => event.stopPropagation()}
                   >
-                    <button type="button" className="danger" onClick={() => requestDeleteRouteWorkbenchEdge(routeWorkbenchEdgeContextMenu.edgeId)}>
-                      <DeleteOutlined />
-                      <span>{(() => {
-                        const edge = routeWorkbenchEdges.find((item) => item.id === routeWorkbenchEdgeContextMenu.edgeId);
-                        const sourceKind = (routeWorkbenchNodes.find((node) => node.id === edge?.source)?.data as RouteWorkbenchNodeData | undefined)?.kind;
-                        const targetData = routeWorkbenchNodes.find((node) => node.id === edge?.target)?.data as RouteWorkbenchNodeData | undefined;
-                        if (sourceKind === 'clusterNode' && targetData?.kind === 'serviceNode') return '摘流';
-                        if (sourceKind === 'routerPodNode' && targetData?.kind === 'pdWorkerNode') return `下线 ${targetData.title || '下游'} 节点`;
-                        return '删除连线';
-                      })()}</span>
-                    </button>
+                    {(() => {
+                      const edge = routeWorkbenchEdges.find((item) => item.id === routeWorkbenchEdgeContextMenu.edgeId);
+                      const sourceKind = (routeWorkbenchNodes.find((node) => node.id === edge?.source)?.data as RouteWorkbenchNodeData | undefined)?.kind;
+                      const targetData = routeWorkbenchNodes.find((node) => node.id === edge?.target)?.data as RouteWorkbenchNodeData | undefined;
+                      const isRouterWorkerEdge = sourceKind === 'routerPodNode' && targetData?.kind === 'pdWorkerNode';
+                      const isServiceTrafficEdge = sourceKind === 'clusterNode' && targetData?.kind === 'serviceNode';
+                      return <>
+                        <button type="button" onClick={() => requestDeleteRouteWorkbenchEdge(routeWorkbenchEdgeContextMenu.edgeId)}>
+                          <LinkOutlined />
+                          <span>{isRouterWorkerEdge || isServiceTrafficEdge ? '摘流' : '删除连线'}</span>
+                        </button>
+                        {isRouterWorkerEdge && <button type="button" className="danger" onClick={() => requestOfflineRouteWorkbenchWorker(routeWorkbenchEdgeContextMenu.edgeId)}>
+                          <DeleteOutlined />
+                          <span>下线 {targetData?.title || '下游'} 节点</span>
+                        </button>}
+                      </>;
+                    })()}
                   </div>
                 )}
                 {routeWorkbenchEditMode && routeWorkbenchChanges.length > 0 && (
