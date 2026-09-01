@@ -33,7 +33,7 @@ import {
   WarningOutlined,
 } from '@ant-design/icons';
 import { AutoComplete, Button, Checkbox, ColorPicker, ConfigProvider, DatePicker, Drawer, Dropdown, Form, Input, InputNumber, message, Modal, Popconfirm, Popover, Progress, Segmented, Select, Slider, Space, Switch, Table, Tabs, Tag, Tooltip, Transfer, Upload } from 'antd';
-import DeployList, { MOCK_DEPLOY_DATA, getDeployClusterName, getDeployModelLogo, type DeployCategory, type DeployServiceItem, type ViewMode } from './components/deployList';
+import DeployList, { MOCK_DEPLOY_DATA, getDeployClusterName, getDeployModelLogo, type DeployCategory, type DeployServiceItem, type MooncakeCreatePayload, type ViewMode } from './components/deployList';
 import { MODEL_OPS_RESOURCE_SPECS } from './components/modelOpsResourceSpec';
 import BenchmarkPage from './components/benchmarkPage';
 import PlaygroundChatPage from './components/playgroundChatPage';
@@ -80,6 +80,7 @@ import SoftwarePackagePage from './components/softwarePackagePage';
 import WorkflowCreatePage from './components/workflowCreatePage';
 import UserPermissionsPage from './components/userPermissionsPage';
 import PlatformLicensePage from './components/platformLicensePage';
+import ResourceOverviewPage from './components/resourceOverviewPage';
 import './index.less';
 
 type ClusterRecord = {
@@ -97,10 +98,10 @@ type ClusterRecord = {
   authInfo: string;
 };
 
-const SidebarIcon = ({ name }: { name: 'dashboard' | 'cluster' | 'modelRepo' | 'deploy' | 'ops' | 'image' | 'imageModel' | 'visionModel' | 'embedding' | 'rerank' | 'monitor' | 'benchmark' | 'engine' | 'template' | 'alert' | 'logs' | 'playground' | 'apiKey' | 'user' | 'engineMgr' | 'pod' | 'service' | 'config' | 'se' | 'task' }) => {
+const SidebarIcon = ({ name }: { name: 'dashboard' | 'cluster' | 'modelRepo' | 'deploy' | 'ops' | 'image' | 'imageModel' | 'visionModel' | 'embedding' | 'rerank' | 'monitor' | 'benchmark' | 'engine' | 'inferenceOps' | 'template' | 'alert' | 'logs' | 'playground' | 'apiKey' | 'user' | 'engineMgr' | 'gpu' | 'pod' | 'service' | 'config' | 'canvas' | 'route' | 'plugin' | 'supplier' | 'topology' | 'configFile' | 'file' | 'permission' | 'se' | 'task' }) => {
   const white = '#fff';
   return (
-    <svg className="ataas-sidebar-icon" viewBox="0 0 20 20" aria-hidden="true">
+    <svg className="ataas-sidebar-icon" viewBox={name === 'route' || name === 'plugin' || name === 'gpu' || name === 'supplier' || name === 'inferenceOps' ? '0 0 1024 1024' : '0 0 20 20'} aria-hidden="true">
       {name === 'dashboard' && (
         <>
           <rect x="2" y="2" width="7" height="7" rx="1.5" fill="currentColor" />
@@ -136,18 +137,16 @@ const SidebarIcon = ({ name }: { name: 'dashboard' | 'cluster' | 'modelRepo' | '
       )}
       {name === 'modelRepo' && (
         <>
-          <rect x="2" y="3" width="16" height="4" rx="1.5" fill="currentColor" />
-          <rect x="2" y="8" width="7" height="9" rx="1.5" fill="currentColor" />
-          <rect x="11" y="8" width="7" height="9" rx="1.5" fill="currentColor" />
-          <rect x="4" y="4.5" width="7" height="1" rx="0.5" fill={white} opacity="0.9" />
+          <rect x="2.8" y="3" width="14.4" height="4.2" rx="1.1" fill="none" stroke="currentColor" strokeWidth="1.25" />
+          <rect x="2.8" y="8.7" width="6.2" height="8.3" rx="1.1" fill="none" stroke="currentColor" strokeWidth="1.25" />
+          <rect x="11" y="8.7" width="6.2" height="8.3" rx="1.1" fill="none" stroke="currentColor" strokeWidth="1.25" />
+          <path d="M5.2 5.1h5.2" fill="none" stroke="currentColor" strokeWidth="1.15" strokeLinecap="round" />
         </>
       )}
       {name === 'image' && (
         <>
-          <path d="M3 4.5C3 3.1 4.1 2 5.5 2h9C15.9 2 17 3.1 17 4.5v11c0 1.4-1.1 2.5-2.5 2.5h-9C4.1 18 3 16.9 3 15.5v-11z" fill="currentColor" />
-          <rect x="5.2" y="5" width="9.6" height="2" rx="1" fill={white} opacity="0.9" />
-          <rect x="5.2" y="9" width="9.6" height="2" rx="1" fill={white} opacity="0.72" />
-          <rect x="5.2" y="13" width="6" height="2" rx="1" fill={white} opacity="0.58" />
+          <path d="M4.1 3.2h11.8v13.6H4.1z" fill="none" stroke="currentColor" strokeWidth="1.25" strokeLinejoin="round" />
+          <path d="M4.1 6.5h11.8M7.1 10h5.8M7.1 13h4.2" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
         </>
       )}
       {name === 'imageModel' && (
@@ -201,6 +200,17 @@ const SidebarIcon = ({ name }: { name: 'dashboard' | 'cluster' | 'modelRepo' | '
           <path d="M11.5 2h-3l-.5 2.1a6 6 0 00-1.7 1L4.2 4.3l-1.5 2.6 1.6 1.4a6 6 0 000 2l-1.6 1.4 1.5 2.6 2.1-.8a6 6 0 001.7 1L8.5 17h3l.5-2.1a6 6 0 001.7-1l2.1.8 1.5-2.6-1.6-1.4a6 6 0 000-2l1.6-1.4-1.5-2.6-2.1.8a6 6 0 00-1.7-1L11.5 2z" fill="currentColor" />
           <circle cx="10" cy="10" r="2.5" fill={white} />
         </>
+      )}
+      {name === 'inferenceOps' && (
+        <g fill="currentColor">
+          <path d="M410.865867 406.088612m22.627417 22.627417l0 0q22.627417 22.627417 0 45.254834l-183.282077 183.282078q-22.627417 22.627417-45.254834 0l0 0q-22.627417-22.627417 0-45.254834l183.282077-183.282078q22.627417-22.627417 45.254834 0Z" />
+          <path d="M631.685292 342.029288m22.627417 22.627417l0 0q22.627417 22.627417 0 45.254834l-139.745513 139.745513q-22.627417 22.627417-45.254834 0l0 0q-22.627417-22.627417 0-45.254834l139.745513-139.745513q22.627417-22.627417 45.254834 0Z" />
+          <path d="M536.842123 527.506804m-22.627417 22.627417l0 0q-22.627417 22.627417-45.254834 0l-78.255507-78.255507q-22.627417-22.627417 0-45.254834l0 0q22.627417-22.627417 45.254834 0l78.255507 78.255507q22.627417 22.627417 0 45.254834Z" />
+          <path d="M767.07 864.46m0 32l0 0q0 32-32 32l-446.76 0q-32 0-32-32l0 0q0-32 32-32l446.76 0q32 0 32 32Z" />
+          <path d="M543.13 902.17h-64V644.38h64z" />
+          <path d="M801.15 149.51H224.66A127.42 127.42 0 0 0 97.25 276.92v263.25a127.41 127.41 0 0 0 127.41 127.41 31.41 31.41 0 0 0 31.41-31.41V635a31.41 31.41 0 0 0-31.41-31.41 63.41 63.41 0 0 1-63.41-63.41V276.92a63.41 63.41 0 0 1 63.41-63.41h576.49a63.41 63.41 0 0 1 63.41 63.41v263.25a63.41 63.41 0 0 1-63.41 63.41H455.22A31.41 31.41 0 0 0 423.81 635v1.18a31.41 31.41 0 0 0 31.41 31.41h345.93a127.41 127.41 0 0 0 127.41-127.42V276.92a127.42 127.42 0 0 0-127.41-127.41z" />
+          <path d="M706.82 432.05A106.19 106.19 0 1 1 813 325.87a106.31 106.31 0 0 1-106.18 106.18z m0-148.37A42.19 42.19 0 1 0 749 325.87a42.24 42.24 0 0 0-42.18-42.19z" />
+        </g>
       )}
       {name === 'template' && (
         <>
@@ -269,6 +279,71 @@ const SidebarIcon = ({ name }: { name: 'dashboard' | 'cluster' | 'modelRepo' | '
         <>
           <circle cx="10" cy="10" r="3" fill="currentColor" />
           <path d="M10 1v2M10 17v2M1 10h2M17 10h2M3.5 3.5l1.4 1.4M15.1 15.1l1.4 1.4M3.5 16.5l1.4-1.4M15.1 4.9l1.4-1.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </>
+      )}
+      {name === 'canvas' && (
+        <>
+          <circle cx="4" cy="4" r="2" fill="currentColor" />
+          <circle cx="16" cy="8" r="2" fill="currentColor" />
+          <circle cx="8" cy="16" r="2" fill="currentColor" />
+          <path d="M5.8 4.7l7.1 2.4M5 5.8l2.1 8.1M14.2 9.5l-4.6 5" fill="none" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" />
+          <path d="M11.9 5.8l1 1.3-1.6.3" fill="none" stroke={white} strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" />
+        </>
+      )}
+      {name === 'route' && (
+        <g fill="currentColor" stroke="currentColor" strokeWidth="22" strokeLinejoin="round">
+          <path d="M253.226667 669.013333m-32.853334 0a32.853333 32.853333 0 1 0 65.706667 0 32.853333 32.853333 0 1 0-65.706667 0Z" />
+          <path d="M377.386667 669.013333m-32.853334 0a32.853333 32.853333 0 1 0 65.706667 0 32.853333 32.853333 0 1 0-65.706667 0Z" />
+          <path d="M501.546667 669.013333m-32.853334 0a32.853333 32.853333 0 1 0 65.706667 0 32.853333 32.853333 0 1 0-65.706667 0Z" />
+          <path d="M832 885.546667H192a85.333333 85.333333 0 0 1-85.333333-85.333334V538.453333a85.333333 85.333333 0 0 1 85.333333-85.333333h640a85.333333 85.333333 0 0 1 85.333333 85.333333v261.12a85.333333 85.333333 0 0 1-85.333333 85.973334zM192 495.36a42.666667 42.666667 0 0 0-42.666667 42.666667v261.546666a42.666667 42.666667 0 0 0 42.666667 42.666667h640a42.666667 42.666667 0 0 0 42.666667-42.666667V538.453333a42.666667 42.666667 0 0 0-42.666667-42.666666z" />
+          <path d="M276.053333 158.08h42.666667v337.28h-42.666667zM705.28 158.08h42.666667v337.28h-42.666667z" />
+        </g>
+      )}
+      {name === 'plugin' && (
+        <g transform="translate(92.16 92.16) scale(0.82)" fill="currentColor" stroke="currentColor" strokeWidth="12" strokeLinejoin="round">
+          <path d="M915.2 1015.04H108.8a97.28 97.28 0 0 1-97.28-96.64V111.36A97.28 97.28 0 0 1 108.8 14.72h806.4a97.28 97.28 0 0 1 97.28 96.64v807.04a97.28 97.28 0 0 1-97.28 96.64zM108.8 80.64a30.72 30.72 0 0 0-30.72 30.72v807.04a30.72 30.72 0 0 0 30.72 30.72h806.4a30.72 30.72 0 0 0 30.72-30.72V111.36a30.72 30.72 0 0 0-30.72-30.72z" />
+          <path d="M323.84 817.28a32.64 32.64 0 0 1-32.64-33.28V245.76a33.28 33.28 0 1 1 64 0v538.24a33.28 33.28 0 0 1-31.36 33.28z" />
+          <path d="M323.84 638.08m-96.64 0a96.64 96.64 0 1 0 193.28 0 96.64 96.64 0 1 0-193.28 0Z" />
+          <path d="M700.16 817.28a33.28 33.28 0 0 1-33.28-33.28V245.76a33.28 33.28 0 1 1 64 0v538.24a32.64 32.64 0 0 1-30.72 33.28z" />
+          <path d="M700.16 391.68m-96.64 0a96.64 96.64 0 1 0 193.28 0 96.64 96.64 0 1 0-193.28 0Z" />
+        </g>
+      )}
+      {name === 'gpu' && (
+        <g transform="translate(102.4 102.4) scale(0.8)" fill="currentColor" stroke="currentColor" strokeWidth="18" strokeLinejoin="round">
+          <path d="M298.666667 768h298.666666v-128a85.333333 85.333333 0 0 1 85.333334-85.333333h128V256a85.333333 85.333333 0 0 1-85.333334-85.333333h-298.666666v128a85.333333 85.333333 0 0 1-85.333334 85.333333H85.333333a85.333333 85.333333 0 0 1-85.333333-85.333333V128a85.333333 85.333333 0 0 1 85.333333-85.333333h256a85.333333 85.333333 0 0 1 85.333334 85.333333h310.101333A85.333333 85.333333 0 1 1 853.333333 244.565333V554.666667h85.333334a85.333333 85.333333 0 0 1 85.333333 85.333333v170.666667a85.333333 85.333333 0 0 1-85.333333 85.333333h-256a85.333333 85.333333 0 0 1-85.333334-85.333333H287.232A85.333333 85.333333 0 1 1 170.666667 694.101333V469.333333H106.666667a21.333333 21.333333 0 1 1 0-42.666666h213.333333a21.333333 21.333333 0 1 1 0 42.666666H213.333333v213.333334a85.333333 85.333333 0 0 1 85.333334 85.333333zM85.333333 85.333333a42.666667 42.666667 0 0 0-42.666666 42.666667v170.666667a42.666667 42.666667 0 0 0 42.666666 42.666666h256a42.666667 42.666667 0 0 0 42.666667-42.666666V128a42.666667 42.666667 0 0 0-42.666667-42.666667H85.333333z m597.333334 512a42.666667 42.666667 0 0 0-42.666667 42.666667v170.666667a42.666667 42.666667 0 0 0 42.666667 42.666666h256a42.666667 42.666667 0 0 0 42.666666-42.666666v-170.666667a42.666667 42.666667 0 0 0-42.666666-42.666667h-256z m21.333333 341.333334h213.333333a21.333333 21.333333 0 1 1 0 42.666666h-213.333333a21.333333 21.333333 0 1 1 0-42.666666zM810.666667 213.333333a42.666667 42.666667 0 1 0 0-85.333333 42.666667 42.666667 0 0 0 0 85.333333zM213.333333 810.666667a42.666667 42.666667 0 1 0 0-85.333334 42.666667 42.666667 0 0 0 0 85.333334z" />
+        </g>
+      )}
+      {name === 'supplier' && (
+        <g fill="currentColor" stroke="currentColor" strokeWidth="20" strokeLinejoin="round">
+          <path d="M796.5 102H225c-36 0-65.3 31.2-65.3 69.6v82.1l-25.3 0.3c-13.3 0.1-23.9 11-23.7 24.2 0.1 13.2 10.9 23.8 24 23.8h0.3l96-1c13.3-0.1 23.9-11 23.7-24.2-0.1-13.3-11-23.9-24.2-23.7l-22.8 0.2v-81.6c0-11.7 7.9-21.6 17.3-21.6h571.5c15.7 0 28.5 12.8 28.5 28.5v676.7c0 10.3-7.8 18.7-17.3 18.7H225c-9.5 0-17.3-8.4-17.3-18.7v-81.9l23.3-0.2c13.3-0.1 23.9-11 23.7-24.2s-11-23.9-24.2-23.7l-42.2 0.4c-1.5-0.3-3-0.4-4.6-0.4-1.7 0-3.4 0.2-5.1 0.5l-44.2 0.5c-13.3 0.1-23.9 11-23.7 24.2 0.1 13.2 10.9 23.8 24 23.8h0.3l24.8-0.3v81.4c0 36.8 29.3 66.7 65.3 66.7h582.8c36 0 65.3-29.9 65.3-66.7V178.5c-0.2-42.2-34.5-76.5-76.7-76.5z" />
+          <path d="M134.7 459.3h0.3l96-1c13.3-0.1 23.9-11 23.7-24.2-0.1-13.2-10.9-23.8-24-23.8h-0.3l-96 1c-13.3 0.1-23.9 11-23.7 24.2 0.1 13.3 10.8 23.8 24 23.8zM134.7 616.7h0.3l96-1c13.3-0.1 23.9-11 23.7-24.2s-11-23.9-24.2-23.7l-96 1c-13.3 0.1-23.9 11-23.7 24.2 0 13.1 10.7 23.7 23.9 23.7zM324.9 723.9c0 11 9 20 20 20s20-9 20-20c0-101.3 82.4-183.6 183.6-183.6s183.6 82.4 183.6 183.6c0 11 9 20 20 20s20-9 20-20c0-59.7-23.3-115.9-65.5-158.1-25.1-25.1-55-43.4-87.7-54.2 29.8-23.9 48.9-60.7 48.9-101.8 0-72-58.6-130.6-130.6-130.6s-130.6 58.6-130.6 130.6c0 44.4 22.3 83.8 56.4 107.4-26.9 11.1-51.6 27.5-72.8 48.7-42 42.1-65.3 98.2-65.3 158z m212.5-404.8c49.9 0 90.6 40.6 90.6 90.6 0 49.9-40.6 90.6-90.6 90.6s-90.6-40.6-90.6-90.6c0-50 40.6-90.6 90.6-90.6z" />
+        </g>
+      )}
+      {name === 'topology' && (
+        <>
+          <rect x="8" y="2.4" width="4" height="3.7" rx="0.7" fill="none" stroke="currentColor" strokeWidth="1.25" />
+          <rect x="2.5" y="13.3" width="4" height="3.7" rx="0.7" fill="none" stroke="currentColor" strokeWidth="1.25" />
+          <rect x="13.5" y="13.3" width="4" height="3.7" rx="0.7" fill="none" stroke="currentColor" strokeWidth="1.25" />
+          <path d="M10 6.1v3.2M4.5 9.3h11M4.5 9.3v3.7M15.5 9.3v3.7" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+        </>
+      )}
+      {name === 'configFile' && (
+        <>
+          <path d="M5 2.5h6.8l3.2 3.2v11.8H5z" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+          <path d="M11.7 2.7v3.4h3.1M7.4 10h5.3M7.4 13h5.3M7.4 16h3.2" fill="none" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+        </>
+      )}
+      {name === 'file' && (
+        <>
+          <path d="M5 2.5h6.4l3.6 3.6v11.4H5z" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+          <path d="M11.3 2.7v3.6h3.4M7.5 10h5M7.5 13h3.6" fill="none" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M7.5 16h1.1m1.6 0h1.1m1.6 0h0.1" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+        </>
+      )}
+      {name === 'permission' && (
+        <>
+          <circle cx="6.3" cy="8" r="3.1" fill="none" stroke="currentColor" strokeWidth="1.6" />
+          <path d="M8.6 10.3l7.3 7.2M12.3 14l1.7-1.7M14.5 16.2l1.7-1.7" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" />
         </>
       )}
       {name === 'se' && (
@@ -7754,8 +7829,7 @@ const AtAasDesign = () => {
     });
     setMooncakeCreateOpen(true);
   };
-  const handleCreateMooncake = async () => {
-    const values = await mooncakeCreateForm.validateFields();
+  const createMooncakeRecord = (values: Pick<MooncakeCreatePayload, 'name' | 'cluster' | 'storeReplicas'> & { model?: string }) => {
     const source = deployServices.find((item) => item.name === values.model) || deployServices[0];
     if (!source) return;
     const id = Date.now();
@@ -7780,8 +7854,12 @@ const AtAasDesign = () => {
       },
     }, ...items]);
     setDeployListViewMode('mooncake');
-    setMooncakeCreateOpen(false);
     message.success(`Mooncake ${values.name} 已创建`);
+  };
+  const handleCreateMooncake = async () => {
+    const values = await mooncakeCreateForm.validateFields();
+    createMooncakeRecord(values);
+    setMooncakeCreateOpen(false);
   };
   const [clusterNodeModal, setClusterNodeModal] = useState(false);
   const [clusterNodeModalTitle, setClusterNodeModalTitle] = useState('');
@@ -10785,20 +10863,20 @@ const AtAasDesign = () => {
 
   const SIDEBAR_ITEMS = [
     { key: 'resourceOverview', icon: <SidebarIcon name="dashboard" />, label: '资源总览' },
-    { key: 'operationsCanvas', icon: <DeploymentUnitOutlined className="ataas-sidebar-icon" />, label: '画布' },
-    { key: 'routeConfig', icon: <SidebarIcon name="config" />, label: '路由配置' },
-    { key: 'pluginConfig', icon: <SidebarIcon name="config" />, label: '插件配置' },
+    { key: 'operationsCanvas', icon: <SidebarIcon name="canvas" />, label: '画布' },
+    { key: 'routeConfig', icon: <SidebarIcon name="route" />, label: '路由配置' },
+    { key: 'pluginConfig', icon: <SidebarIcon name="plugin" />, label: '插件配置' },
     // { key: 'overview', icon: <SidebarIcon name="dashboard" />, label: '数据概览' },
-    { key: 'clusterOperations', icon: <SidebarIcon name="dashboard" />, label: 'GPU节点' },
-    { key: 'nodeTopology', icon: <ApartmentOutlined className="ataas-sidebar-icon" />, label: '节点拓扑' },
-    { key: 'inferenceOps', icon: <SidebarIcon name="engine" />, label: '推理运维' },
-    { key: 'supplierResources', icon: <ApartmentOutlined className="ataas-sidebar-icon" />, label: '供应商列表' },
+    { key: 'clusterOperations', icon: <SidebarIcon name="gpu" />, label: 'GPU节点' },
+    { key: 'nodeTopology', icon: <SidebarIcon name="topology" />, label: '节点拓扑' },
+    { key: 'inferenceOps', icon: <SidebarIcon name="inferenceOps" />, label: '推理运维' },
+    { key: 'supplierResources', icon: <SidebarIcon name="supplier" />, label: '供应商列表' },
     // { key: 'clusters', icon: <SidebarIcon name="cluster" />, label: '集群管理' },
     // { key: 'nodes', icon: <SidebarIcon name="engineMgr" />, label: '节点管理' },
     // { key: 'modelRepo', icon: <SidebarIcon name="modelRepo" />, label: '模型仓库' },
     { key: 'modelManagement', icon: <SidebarIcon name="modelRepo" />, label: '模型管理' },
     { key: 'imageRepository', icon: <SidebarIcon name="image" />, label: '镜像仓库' },
-    { key: 'fileManagement', icon: <FileZipOutlined className="ataas-sidebar-icon ataas-sidebar-package-icon" />, label: '文件管理' },
+    { key: 'fileManagement', icon: <SidebarIcon name="file" />, label: '文件管理' },
     // { key: 'startupTemplates', icon: <SidebarIcon name="template" />, label: '性能仓库' },
     {
       key: 'deploy',
@@ -10827,12 +10905,12 @@ const AtAasDesign = () => {
     { key: 'alerts', icon: <SidebarIcon name="alert" />, label: '告警详情' },
     // { key: 'apiKeys', icon: <SidebarIcon name="apiKey" />, label: 'API Key' },
     { key: 'users', icon: <SidebarIcon name="user" />, label: '用户管理' },
-    { key: 'userPermissions', icon: <SidebarIcon name="user" />, label: '用户权限' },
+    { key: 'userPermissions', icon: <SidebarIcon name="permission" />, label: '用户权限' },
     { key: 'platformLicense', icon: <SafetyCertificateOutlined className="ataas-sidebar-icon" />, label: '平台授权' },
     { key: 'engines', icon: <SidebarIcon name="engine" />, label: '镜像管理' },
     // { key: 'containerManagement', icon: <SidebarIcon name="pod" />, label: '容器管理' },
     // { key: 'routeWorkbench', icon: <SidebarIcon name="service" />, label: '链路编排' },
-    { key: 'configCenter', icon: <SidebarIcon name="config" />, label: '资源文件' },
+    { key: 'configCenter', icon: <SidebarIcon name="configFile" />, label: '资源文件' },
     { key: 'softwarePackages', icon: <FileZipOutlined className="ataas-sidebar-icon ataas-sidebar-package-icon" />, label: '软件包管理' },
   ];
   const getSidebarItems = (keys: string[]) => keys.map((key) => SIDEBAR_ITEMS.find((item) => item.key === key)).filter(Boolean) as typeof SIDEBAR_ITEMS;
@@ -10921,6 +10999,20 @@ const AtAasDesign = () => {
 
   const renderTabContent = () => {
     switch (activeTab) {
+	      case 'resourceOverview': return (
+            <ResourceOverviewPage
+              onNavigate={(tab) => {
+                setActiveTab(tab);
+                if (tab === 'inferenceOps') setCenterViewMode('inference');
+                const pathMap: Record<string, string> = {
+                  inferenceOps: '/model-ops',
+                  logs: '/logs',
+                  clusterOperations: '/cluster-operations',
+                };
+                window.history.replaceState(null, '', pathMap[tab]);
+              }}
+            />
+          );
 	      case 'overview': return (
 			<div className="ataas-section-stack">
 	              <OverviewSummary alertList={alertList} />
@@ -11479,6 +11571,7 @@ const AtAasDesign = () => {
                 onDeleteInstance={handleDeployDeleteInstance}
                 onAddInstance={handleDeployAddInstance}
                 onOpenCreate={handleOpenCreate}
+                onCreateMooncake={createMooncakeRecord}
                 onScalePd={handleScalePd}
                 onNodeFilter={handleDeployNodeFilter}
                 onScheduleDetail={handleScheduleDetail}

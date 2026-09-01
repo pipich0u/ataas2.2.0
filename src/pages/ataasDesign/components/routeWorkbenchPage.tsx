@@ -3466,37 +3466,56 @@ const RouteWorkbenchPage = ({
             <header className="ataas-route-workbench-topbar">
               <div className="ataas-route-workbench-title">
                 <strong>{title}</strong>
-                <span>独立 Mock 数据 · 网关入口层级示意</span>
+                <span className="ataas-route-workbench-title-meta">网关入口层级示意</span>
               </div>
+              <span className="ataas-route-workbench-title-divider" aria-hidden="true" />
               <div className="ataas-route-workbench-toolbar-actions">
-                <div className="ataas-route-workbench-level-control">
-                  <span>显示至：{routeWorkbenchLevelLabels[routeWorkbenchVisibleLevel]}</span>
-                  <Button disabled={routeWorkbenchVisibleLevel <= 0} onClick={() => changeVisibleLevel(-1)}>收起一级</Button>
-                  <Button type={routeWorkbenchVisibleLevel < 5 ? 'primary' : 'default'} disabled={routeWorkbenchVisibleLevel >= 5} onClick={() => changeVisibleLevel(1)}>
-                    {routeWorkbenchVisibleLevel >= 5 ? '已到最下一级' : '展开下一级'}
-                  </Button>
+                <div className="ataas-route-workbench-primary-controls">
+                  <span className="ataas-route-workbench-level-readout">
+                    <span className="ataas-route-workbench-toolbar-label">显示至：</span>
+                    <b>{routeWorkbenchLevelLabels[routeWorkbenchVisibleLevel]}</b>
+                  </span>
+                  <div className="ataas-route-workbench-level-actions">
+                    <Button disabled={routeWorkbenchVisibleLevel <= 0} onClick={() => changeVisibleLevel(-1)}>收起一级</Button>
+                    <Button type={routeWorkbenchVisibleLevel < 5 ? 'primary' : 'default'} disabled={routeWorkbenchVisibleLevel >= 5} onClick={() => changeVisibleLevel(1)}>
+                      {routeWorkbenchVisibleLevel >= 5 ? '已到末级' : '展开下一级'}
+                    </Button>
+                  </div>
                 </div>
-        <div className="ataas-route-workbench-toolbar-field"><span className="ataas-route-workbench-toolbar-label">Ingress：</span><InputNumber
-          value={Math.min(routeWorkbenchIngressLimit, Math.max(1, orderedIngressNodes.length))}
-          min={1}
-          max={Math.max(1, orderedIngressNodes.length)}
-          onChange={changeIngressLimit}
-          style={{ width: 64 }}
-        /><span className="ataas-route-workbench-ingress-total">/ {orderedIngressNodes.length}</span></div>
-                <Select
-                  value={routeWorkbenchRpmSort}
-                  options={[{ value: 'default', label: '默认排序' }, { value: 'desc', label: 'RPM 从高到低' }, { value: 'asc', label: 'RPM 从低到高' }]}
-                  onChange={setRouteWorkbenchRpmSort}
-                  style={{ width: 132 }}
-                />
-                <Input.Search
-                  allowClear
-                  placeholder="搜索 SE / Ingress"
-                  value={routeWorkbenchResourceSearch}
-                  onChange={(event) => setRouteWorkbenchResourceSearch(event.target.value)}
-                  onSearch={searchResourcePath}
-                  style={{ width: 220 }}
-                />
+                <span className="ataas-route-workbench-toolbar-spacer" />
+                <div className="ataas-route-workbench-utility-controls">
+                  <span className="ataas-route-workbench-toolbar-divider" aria-hidden="true" />
+                  <div className="ataas-route-workbench-toolbar-field ataas-route-workbench-ingress-control">
+                    <span className="ataas-route-workbench-toolbar-label">Ingress：</span>
+                    <InputNumber
+                      value={Math.min(routeWorkbenchIngressLimit, Math.max(1, orderedIngressNodes.length))}
+                      min={1}
+                      max={Math.max(1, orderedIngressNodes.length)}
+                      onChange={changeIngressLimit}
+                      style={{ width: 48 }}
+                    />
+                    <span className="ataas-route-workbench-ingress-total">/ {orderedIngressNodes.length}</span>
+                  </div>
+                  <span className="ataas-route-workbench-toolbar-divider" aria-hidden="true" />
+                  <div className="ataas-route-workbench-sort-control">
+                    <Select
+                      value={routeWorkbenchRpmSort}
+                      options={[{ value: 'default', label: '默认排序' }, { value: 'desc', label: 'RPM 从高到低' }, { value: 'asc', label: 'RPM 从低到高' }]}
+                      onChange={setRouteWorkbenchRpmSort}
+                      style={{ width: 128 }}
+                    />
+                  </div>
+                  <span className="ataas-route-workbench-toolbar-divider" aria-hidden="true" />
+                  <div className="ataas-route-workbench-search-control">
+                    <Input.Search
+                      allowClear
+                      placeholder="搜索 SE / Ingress"
+                      value={routeWorkbenchResourceSearch}
+                      onChange={(event) => setRouteWorkbenchResourceSearch(event.target.value)}
+                      onSearch={searchResourcePath}
+                      style={{ width: 172 }}
+                    />
+                  </div>
                 <Dropdown
                   trigger={['click']}
                   menu={{
@@ -3518,8 +3537,9 @@ const RouteWorkbenchPage = ({
                     ],
                   }}
                 >
-                  <Button aria-label="更多操作" icon={<MoreOutlined />} />
+                  <Button className="ataas-route-workbench-more-button" aria-label="更多操作" icon={<MoreOutlined />} />
                 </Dropdown>
+                </div>
               </div>
             </header>
             <div className="ataas-route-workbench-shell">

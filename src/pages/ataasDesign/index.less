@@ -5723,9 +5723,9 @@ button.ataas-page-create-button.ant-btn.ant-btn-primary,
   overflow: hidden;
   color: #1D2129;
   font-family: PingFangSC, "PingFang SC", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  line-height: 24px;
+  line-height: 22px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -5740,7 +5740,7 @@ button.ataas-page-create-button.ant-btn.ant-btn-primary,
   gap: 4px;
   min-height: 18px;
   color: #86909c;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 18px;
 }
 
@@ -5828,10 +5828,22 @@ button.ataas-page-create-button.ant-btn.ant-btn-primary,
   .ataas-deploy-service-card-glow {
     background: linear-gradient(135deg, rgba(0, 180, 42, 0.22), rgba(105, 81, 255, 0.18), rgba(178, 151, 255, 0.12));
   }
+
+  // 保持操作热区不变，仅收紧卡片内图标的视觉尺寸。
+  .ataas-deploy-service-icon-action .anticon {
+    font-size: 15px;
+  }
+
+  .ataas-deploy-mooncake-etcd-endpoint button .anticon {
+    font-size: 13px;
+  }
 }
 
 .ataas-deploy-mooncake-logo {
   position: relative;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
   border: 1px solid rgba(0, 180, 42, 0.12);
   background: #fff !important;
   box-shadow: 0 0 0 4px rgba(0, 180, 42, 0.035);
@@ -5839,7 +5851,7 @@ button.ataas-page-create-button.ant-btn.ant-btn-primary,
   &::before,
   &::after {
     position: absolute;
-    inset: -5px;
+    inset: -4px;
     border: 1px solid rgba(0, 180, 42, 0.16);
     border-radius: 999px;
     content: "";
@@ -5848,7 +5860,7 @@ button.ataas-page-create-button.ant-btn.ant-btn-primary,
   }
 
   &::after {
-    inset: -10px;
+    inset: -8px;
     opacity: 0.55;
     animation-delay: 0.55s;
   }
@@ -5856,8 +5868,8 @@ button.ataas-page-create-button.ant-btn.ant-btn-primary,
   img {
     position: relative;
     z-index: 1;
-    width: 40px;
-    height: 40px;
+    width: 32px;
+    height: 32px;
   }
 }
 
@@ -5907,7 +5919,7 @@ button.ataas-page-create-button.ant-btn.ant-btn-primary,
     display: block;
     flex: 0 0 auto;
     color: #86909C;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 400;
     line-height: 16px;
   }
@@ -5920,7 +5932,7 @@ button.ataas-page-create-button.ant-btn.ant-btn-primary,
     align-items: baseline;
     gap: 1px;
     color: #1D2129;
-    font-size: 24px;
+    font-size: 22px;
     font-weight: 550;
     line-height: 28px;
 
@@ -5932,7 +5944,7 @@ button.ataas-page-create-button.ant-btn.ant-btn-primary,
     span {
       position: static;
       color: #1D2129;
-      font-size: 24px;
+      font-size: 22px;
       font-weight: 550;
       line-height: 28px;
     }
@@ -5961,10 +5973,19 @@ button.ataas-page-create-button.ant-btn.ant-btn-primary,
   background: #FAFBFC;
   color: #4E5969;
   font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 16px;
 
+  strong {
+    flex: 0 0 auto;
+    color: #86909C;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
   span {
+    flex: 1 1 auto;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -5992,7 +6013,1456 @@ button.ataas-page-create-button.ant-btn.ant-btn-primary,
 }
 
 .ataas-deploy-mooncake-actions {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ataas-mooncake-template-modal {
+  pre {
+    margin: 0;
+    padding: 14px 16px;
+    overflow: auto;
+    border: 1px solid #EEF1F6;
+    border-radius: 6px;
+    background: #F7F8FA;
+    color: #4E5969;
+    font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+    font-size: 12px;
+    line-height: 20px;
+    white-space: pre-wrap;
+  }
+}
+
+.ataas-mooncake-manifest-modal {
+  .ant-modal-content { overflow: hidden; padding: 0; border-radius: 10px; }
+  .ant-modal-header { margin: 0; padding: 20px 24px 12px; border-bottom: 0; }
+  .ant-modal-title { color: #1D2129; font-size: 18px; font-weight: 600; }
+  .ant-modal-body { padding: 0 24px 24px; }
+}
+
+.ataas-mooncake-manifest-browser {
+  > p { margin: 0 0 16px; color: #86909C; font-size: 13px; line-height: 20px; }
+}
+
+.ataas-mooncake-manifest-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+
+  button {
+    height: 32px;
+    padding: 0 14px;
+    border: 1px solid #E5E6EB;
+    border-radius: 6px;
+    background: #fff;
+    color: #86909C;
+    font-family: inherit;
+    font-size: 12px;
+    cursor: pointer;
+
+    &.active { border-color: #8D7BFF; background: #F7F5FF; color: #6951FF; }
+  }
+}
+
+.ataas-mooncake-manifest-body {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.28fr) minmax(0, 1fr);
+  min-height: min(620px, calc(80vh - 180px));
+  overflow: hidden;
+  border: 1px solid #E5E6EB;
+  border-radius: 8px;
+
+  > aside {
+    overflow: auto;
+    padding: 16px 0;
+    border-right: 1px solid #E5E6EB;
+    background: #FCFCFD;
+
+    section + section { margin-top: 14px; }
+    section > strong { display: block; padding: 0 18px 7px; color: #86909C; font-size: 11px; font-weight: 600; letter-spacing: .4px; }
+    section > button { display: flex; width: 100%; align-items: center; gap: 9px; padding: 9px 18px; overflow: hidden; border: 0; border-left: 3px solid transparent; background: transparent; color: #4E5969; font-family: Menlo, Monaco, Consolas, monospace; font-size: 12px; line-height: 18px; text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+    section > button i { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; background: #00B42A; }
+    section > button.active { border-left-color: #6951FF; background: #F2F0FF; color: #1D2129; font-weight: 600; }
+  }
+}
+
+.ataas-mooncake-manifest-code {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fff;
+
+  > header {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 0 16px;
+    border-bottom: 1px solid #E5E6EB;
+    color: #4E5969;
+    font-family: Menlo, Monaco, Consolas, monospace;
+    font-size: 12px;
+
+    button { display: inline-flex; width: 28px; height: 28px; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 5px; background: transparent; color: #4E5969; cursor: pointer; &:hover { background: #F2F3F5; color: #6951FF; } }
+  }
+
+  ol {
+    flex: 1;
+    margin: 0;
+    padding: 10px 0 16px 52px;
+    overflow: auto;
+    background: linear-gradient(90deg, #F7F8FA 0, #F7F8FA 52px, #fff 52px);
+    color: #C9CDD4;
+    font-family: Menlo, Monaco, Consolas, monospace;
+    font-size: 13px;
+    line-height: 23px;
+  }
+
+  li { padding: 0 18px 0 10px; white-space: pre; }
+  code { color: #167C80; font-family: inherit; }
+}
+
+.ataas-mooncake-overview-header,
+.ataas-mooncake-detail-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin: 2px 0 18px;
+
+  h1 {
+    margin: 3px 0 4px;
+    color: #1D2129;
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 28px;
+  }
+
+  p {
+    margin: 0;
+    color: #86909C;
+    font-size: 12px;
+    line-height: 20px;
+  }
+}
+
+.ataas-mooncake-page-eyebrow {
+  display: block;
+  color: #86909C;
+  font-size: 11px;
+  line-height: 18px;
+}
+
+.ataas-mooncake-overview-header-actions,
+.ataas-mooncake-detail-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-bottom: 2px;
+
+  > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #86909C;
+    font-size: 12px;
+    white-space: nowrap;
+
+    i {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #00B42A;
+      box-shadow: 0 0 0 3px rgba(0, 180, 42, 0.10);
+    }
+  }
+}
+
+.ataas-mooncake-overview {
+  min-width: 0;
+}
+
+.ataas-mooncake-fleet-kpi {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+
+  > div {
+    min-height: 104px;
+    padding: 15px 18px;
+    border: 1px solid #E8ECF2;
+    border-radius: 8px;
+    background: #F7F8FA;
+  }
+
+  span,
+  small {
+    display: block;
+    color: #86909C;
+    font-size: 12px;
+    line-height: 18px;
+  }
+
+  span {
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+
+  strong {
+    display: block;
+    margin: 7px 0 4px;
+    color: #1D2129;
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 30px;
+  }
+
+  > div:first-child small {
+    color: #00A854;
+  }
+}
+
+.ataas-mooncake-cluster-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 2px 0 10px;
+
+  &-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+
+    strong { color: #1D2129; font-size: 15px; font-weight: 600; }
+    span { color: #86909C; font-size: 12px; }
+  }
+}
+
+.ataas-mooncake-sort,
+.ataas-mooncake-group-filter {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+
+  > span {
+    color: #86909C;
+    font-size: 12px;
+  }
+
+  button {
+    height: 30px;
+    padding: 0 11px;
+    border: 1px solid #E5E6EB;
+    border-radius: 6px;
+    background: #fff;
+    color: #4E5969;
+    font-family: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.16s ease;
+
+    &:hover { border-color: #8D7BFF; color: #6951FF; }
+    &.active { border-color: #6951FF; background: #F7F5FF; color: #6951FF; }
+  }
+}
+
+.ataas-mooncake-group-filter {
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+
+  button { border-radius: 999px; }
+}
+
+.ataas-mooncake-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.ataas-mooncake-overview-card {
+  --mooncake-health: #00A854;
+  overflow: hidden;
+  min-width: 0;
+  border: 1px solid #E5E6EB;
+  border-left: 4px solid var(--mooncake-health);
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  transition: box-shadow 0.16s ease, transform 0.16s ease;
+
+  &.degraded { --mooncake-health: #F7BA1E; }
+  &.critical { --mooncake-health: #F53F3F; }
+
+  &:hover {
+    box-shadow: 0 6px 18px rgba(31, 35, 41, 0.08);
+    transform: translateY(-1px);
+  }
+
+  > header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 18px 13px;
+  }
+
+  footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 10px 14px;
+    border-top: 1px solid #F2F3F5;
+    background: #FCFCFD;
+
+    button {
+      height: 28px;
+      padding: 0 10px;
+      border: 0;
+      border-radius: 5px;
+      background: transparent;
+      color: #4E5969;
+      font-family: inherit;
+      font-size: 12px;
+      cursor: pointer;
+
+      &:hover { background: #F2F3F5; color: #6951FF; }
+      &.primary { color: #6951FF; font-weight: 500; }
+      &.danger { color: #F53F3F; }
+      &:disabled { color: #C9CDD4; cursor: not-allowed; }
+    }
+  }
+}
+
+.ataas-mooncake-card-identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+
+  .ataas-deploy-mooncake-logo {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    box-shadow: none;
+
+    &::before,
+    &::after { display: none; }
+
+    img { width: 27px; height: 27px; }
+  }
+
+  > div:last-child {
+    min-width: 0;
+
+    strong,
+    span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    strong { color: #1D2129; font-size: 16px; font-weight: 600; line-height: 22px; }
+    span { margin-top: 3px; color: #86909C; font-size: 12px; line-height: 18px; }
+  }
+}
+
+.ataas-mooncake-health-badge {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 7px;
+  border-radius: 4px;
+  background: #E8F8EE;
+  color: #00A854;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+
+  i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  &.degraded { background: #FFF7E8; color: #D46B08; }
+  &.critical { background: #FFF1F0; color: #F53F3F; }
+}
+
+.ataas-mooncake-card-ready {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0 18px;
+  border: 1px solid #EEF1F6;
+  border-radius: 6px;
+  overflow: hidden;
+
+  span {
+    padding: 8px 10px;
+    border-right: 1px solid #EEF1F6;
+    color: #86909C;
+    font-size: 11px;
+    line-height: 18px;
+
+    &:last-child { border-right: 0; }
+  }
+
+  b { display: block; color: #1D2129; font-size: 15px; font-weight: 600; }
+}
+
+.ataas-mooncake-card-runtime {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px 18px 10px;
+  color: #86909C;
+  font-size: 12px;
+  line-height: 18px;
+
+  strong { color: #4E5969; font-weight: 500; }
+  em { color: #F53F3F; font-style: normal; }
+  > span:last-child { margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+.ataas-mooncake-card-endpoint,
+.ataas-mooncake-detail-endpoint {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  margin: 0 18px 13px;
+  padding: 8px 10px;
+  border: 1px solid #EEF1F6;
+  border-radius: 6px;
+  background: #FAFBFC;
+
+  > span { flex: 0 0 auto; color: #86909C; font-size: 11px; }
+  code { min-width: 0; overflow: hidden; color: #4E5969; font-family: Menlo, Monaco, Consolas, monospace; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+  button { display: inline-flex; width: 24px; height: 24px; flex: 0 0 auto; align-items: center; justify-content: center; padding: 0; border: 0; background: transparent; color: #86909C; cursor: pointer; &:hover { color: #6951FF; } }
+}
+
+.ataas-mooncake-detail-page { min-width: 0; }
+
+.ataas-mooncake-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #86909C;
+  font-size: 12px;
+  line-height: 18px;
+
+  button { display: inline-flex; align-items: center; gap: 5px; padding: 0; border: 0; background: transparent; color: #4E5969; font-family: inherit; font-size: 12px; cursor: pointer; &:hover { color: #6951FF; } }
+}
+
+.ataas-mooncake-health-banner {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 52px;
+  margin-bottom: 18px;
+  padding: 10px 16px;
+  border: 1px solid #B7E8C8;
+  border-left: 4px solid #00A854;
+  border-radius: 7px;
+  background: #F3FCF6;
+  color: #00A854;
+
+  .anticon { font-size: 16px; }
+  strong { font-size: 13px; }
+  span { color: #4E5969; font-size: 13px; }
+  em { margin-left: auto; color: #86909C; font-size: 12px; font-style: normal; }
+
+  &.degraded { border-color: #FFE2A8; border-left-color: #F7BA1E; background: #FFFAEF; color: #D46B08; }
+  &.critical { border-color: #FFCCC7; border-left-color: #F53F3F; background: #FFF2F0; color: #F53F3F; }
+}
+
+.ataas-mooncake-detail-summary-grid {
+  display: grid;
+  grid-template-columns: 1.35fr repeat(3, minmax(0, 0.65fr));
+  gap: 12px;
+  margin-bottom: 18px;
+
+  article {
+    min-height: 126px;
+    padding: 16px;
+    border: 1px solid #E5E6EB;
+    border-radius: 8px;
+    background: #F7F8FA;
+
+    > span, small { display: block; color: #86909C; font-size: 12px; line-height: 18px; }
+    > strong { display: block; margin: 8px 0 4px; color: #1D2129; font-size: 28px; font-weight: 600; line-height: 34px; }
+    > strong em { color: #86909C; font-size: 18px; font-style: normal; }
+    > strong.ok { color: #00A854; }
+    > strong.warn { color: #F53F3F; }
+    > i { display: block; height: 4px; margin: 12px 0 7px; overflow: hidden; border-radius: 99px; background: #E5E6EB; }
+    > i b { display: block; height: 100%; border-radius: inherit; background: #00A854; }
+  }
+}
+
+.ataas-mooncake-detail-metrics {
+  margin-bottom: 14px;
+  overflow: hidden;
+  border: 1px solid #D8DDE6;
+  border-radius: 8px;
+  background: #fff;
+
+  > header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 15px 18px;
+    border-bottom: 1px solid #E5E6EB;
+
+    > div { display: flex; align-items: baseline; gap: 9px; }
+    strong { color: #1D2129; font-size: 15px; font-weight: 600; }
+    span { color: #86909C; font-size: 12px; }
+  }
+
+  > div {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+
+    article { min-width: 0; padding: 17px 18px; border-right: 1px solid #E5E6EB; &:last-child { border-right: 0; } }
+    article > span, article small { display: block; color: #86909C; font-size: 11px; line-height: 17px; }
+    article > strong { display: block; overflow: hidden; margin-top: 7px; color: #1D2129; font-family: Menlo, Monaco, Consolas, monospace; font-size: 18px; font-weight: 500; line-height: 26px; text-overflow: ellipsis; white-space: nowrap; }
+    article > strong.capacity { color: #D46B08; font-size: 24px; }
+  }
+}
+
+.ataas-mooncake-detail-endpoint { height: 46px; margin: 0 0 12px; }
+
+.ataas-mooncake-detail-topology {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 10px 14px;
+  border: 1px dashed #D8DDE6;
+  border-radius: 7px;
+  color: #4E5969;
+
+  > span { color: #86909C; font-size: 11px; text-transform: uppercase; }
+  > div { display: flex; min-width: 0; flex: 1; align-items: center; gap: 7px; overflow: hidden; font-size: 12px; white-space: nowrap; }
+  em, i { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: #00A854; }
+  strong { overflow: hidden; font-family: Menlo, Monaco, Consolas, monospace; font-size: 12px; font-weight: 500; text-overflow: ellipsis; }
+}
+
+.ataas-mooncake-detail-pods {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+
+  .ataas-mooncake-status-section {
+    border-radius: 8px;
+  }
+
+  .ataas-mooncake-status-section header {
+    min-height: 50px;
+    padding: 0 18px;
+  }
+
+  .ataas-mooncake-status-table th,
+  .ataas-mooncake-status-table td {
+    height: 48px;
+  }
+}
+
+.ataas-mooncake-store-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 44px;
+  padding: 0 18px;
+  border-bottom: 1px solid #F2F3F5;
+  background: #FCFCFD;
+
+  > div {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  > div > span:last-child,
+  > span {
+    color: #86909C;
+    font-size: 12px;
+  }
+}
+
+.ataas-mooncake-store-add {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 48px;
+  padding: 0 18px;
+  border-top: 1px dashed #E5E6EB;
+  background: #FCFCFD;
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #6951FF;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+
+    &:hover { color: #4B32D8; }
+  }
+
+  > span { color: #86909C; font-size: 12px; }
+}
+
+.ataas-mooncake-create-page {
+  display: flex;
+  min-height: calc(100vh - 66px);
+  margin: -2px -24px -24px;
+  flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: #fff;
+  color: #1d2129;
+  font-family: PingFangSC, "PingFang SC", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.ataas-mooncake-create-header {
+  display: grid;
+  min-height: 50px;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-bottom: 1px solid #e5eaf2;
+  background: #fff;
+
+  h1 {
+    margin: 0;
+    color: #1d2129;
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 22px;
+  }
+
+  .ant-btn {
+    height: 30px;
+    padding: 0 10px;
+    border-color: #dfe5ee;
+    border-radius: 6px;
+    box-shadow: none;
+    color: #4e5969;
+    font-size: 11px;
+    font-weight: 500;
+  }
+}
+
+.ataas-mooncake-create-layout {
+  display: grid;
+  min-height: 0;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr) minmax(440px, 0.86fr);
+  gap: 10px;
+  padding: 10px 14px 14px;
+}
+
+.ataas-mooncake-create-main {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ataas-mooncake-create-block,
+.ataas-mooncake-create-plan > section {
+  overflow: hidden;
+  border: 1px solid #e5eaf2;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.ataas-mooncake-create-block {
+  padding: 12px;
+}
+
+.ataas-mooncake-create-section-head {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  margin-bottom: 10px;
+
+  > span {
+    display: inline-flex;
+    width: 24px;
+    height: 24px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    background: #eef3ff;
+    color: #3568ff;
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  strong,
+  em {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  strong {
+    color: #1d2129;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 19px;
+  }
+
+  em {
+    color: #86909c;
+    font-size: 10px;
+    font-style: normal;
+    line-height: 15px;
+  }
+}
+
+.ataas-mooncake-create-field-grid {
+  display: grid;
+  gap: 9px;
+
+  &.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  &.three { grid-template-columns: minmax(160px, .75fr) minmax(280px, 1.4fr) 136px; }
+
+  label,
+  .ant-select { min-width: 0; width: 100%; }
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  label > span {
+    color: #4e5969;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 18px;
+  }
+
+  label > em {
+    display: block;
+    min-height: 14px;
+    margin-top: -1px;
+    color: #86909c;
+    font-size: 10px;
+    font-style: normal;
+    line-height: 14px;
+  }
+
+  b { margin-left: 2px; color: #f53f3f; }
+
+  .ant-select-single { height: 30px !important; }
+  .ant-select-selector {
+    min-height: 30px !important;
+    border-color: #dfe5ee !important;
+    border-radius: 6px !important;
+    box-shadow: none !important;
+  }
+  .ant-select-content,
+  .ant-select-placeholder { font-size: 12px !important; line-height: 28px !important; }
+  .ant-select-arrow,
+  .ant-select-suffix { inset-inline-end: 8px; font-size: 9px; }
+
+  .ataas-mooncake-create-capacity-field {
+    .ant-input,
+    .ant-select-selector {
+      height: 30px !important;
+      min-height: 30px !important;
+      box-sizing: border-box;
+      border-color: #dfe5ee !important;
+      border-radius: 6px !important;
+      box-shadow: none !important;
+    }
+
+    .ant-input {
+      padding: 0 9px;
+      color: #1d2129;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 28px;
+    }
+
+    .ant-input[disabled] { color: #b8c1ce; }
+    .ant-select-selector { background: #fff !important; }
+  }
+}
+
+.ataas-mooncake-create-template-trigger.ant-btn {
+  width: 100%;
+  height: 30px;
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  padding: 0 9px;
+  border-color: #dfe5ee;
+  border-radius: 6px;
+  box-shadow: none;
+  color: #86909c;
+  font-size: 12px;
+  font-weight: 400;
+  text-align: left;
+
+  > span:not(.ant-btn-icon) {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  > em {
+    flex: 0 0 auto;
+    color: #6951ff;
+    font-size: 10px;
+    font-style: normal;
+  }
+
+  &:hover,
+  &.selected {
+    border-color: #8d7bff;
+    color: #4e5969;
+  }
+
+  &:hover { background: #faf9ff; }
+}
+
+.ataas-mooncake-create-identity {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.2fr) minmax(150px, 1fr) auto;
+  gap: 9px;
+  align-items: end;
+
+  > label,
+  .ataas-mooncake-create-key-field {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  > label > span,
+  .ataas-mooncake-create-key-field > span {
+    color: #4e5969;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 18px;
+  }
+
+  .ant-select-single { height: 30px !important; }
+  .ant-select-selector {
+    min-height: 30px !important;
+    border-color: #dfe5ee !important;
+    border-radius: 6px !important;
+    box-shadow: none !important;
+  }
+  .ant-select-content,
+  .ant-select-placeholder { font-size: 12px !important; line-height: 28px !important; }
+
+  .ataas-mooncake-create-standalone {
+    min-width: 0;
+    align-self: stretch;
+
+    .ant-checkbox-wrapper {
+      display: flex;
+      height: 30px;
+      align-items: center;
+      color: #4e5969;
+      font-size: 12px;
+      line-height: 18px;
+      white-space: nowrap;
+    }
+  }
+}
+
+.ataas-mooncake-create-key-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+
+  button {
+    display: inline-flex;
+    height: 30px;
+    align-items: center;
+    padding: 0 9px;
+    border: 1px solid #dfe5ee;
+    border-radius: 6px;
+    background: #fff;
+    color: #4e5969;
+    font-family: inherit;
+    font-size: 10px;
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+    border-color: #edf1f7;
+    background: #f7f8fa;
+    color: #b8c1ce;
+  }
+
+  button:hover { border-color: #b8c9ff; color: #3568ff; }
+  button.selected { border-color: #3568ff; background: #eef3ff; color: #3568ff; }
+}
+
+.ataas-mooncake-create-node-columns {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ataas-mooncake-create-role-block {
+  min-width: 0;
+
+  + .ataas-mooncake-create-role-block {
+    padding-top: 10px;
+    border-top: 1px solid #edf1f7;
+  }
+}
+
+.ataas-mooncake-create-role-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+
+  > div { display: flex; min-width: 0; align-items: center; gap: 6px; }
+  strong { color: #1d2129; font-size: 11px; font-weight: 600; line-height: 17px; }
+  span { color: #86909c; font-size: 10px; line-height: 16px; white-space: nowrap; }
+  em { color: #86909c; font-size: 10px; font-style: normal; line-height: 16px; }
+}
+
+.ataas-mooncake-create-node-empty {
+  display: flex;
+  min-height: 54px;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 14px;
+  border: 1px dashed #dfe5ee;
+  border-radius: 6px;
+  background: #fafbfc;
+  color: #86909c;
+  font-size: 11px;
+  line-height: 18px;
+}
+
+.ataas-mooncake-create-node-runtime-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  padding: 7px 9px;
+  border: 1px solid #e6edff;
+  border-radius: 6px;
+  background: #f8faff;
+  color: #6b778c;
+  font-size: 10px;
+  line-height: 16px;
+
+  .anticon { margin-top: 2px; flex: 0 0 auto; color: #3568ff; font-size: 10px; }
+}
+
+.ataas-mooncake-create-node-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  grid-auto-rows: 32px;
+  gap: 4px;
+
+  button {
+    display: flex;
+    min-width: 0;
+    min-height: 32px;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 6px;
+    overflow: hidden;
+    border: 1px solid #e5eaf2;
+    border-radius: 5px;
+    background: #fff;
+    color: #1d2129;
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 15px;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  button:hover { border-color: #b8c9ff; background: #fbfdff; }
+  button:disabled { cursor: not-allowed; border-color: #edf1f7; background: #f7f8fa; color: #b8c1ce; }
+  button > i { width: 7px; height: 7px; flex: 0 0 auto; border: 1px solid #c9d1de; border-radius: 50%; background: #fff; }
+  button .anticon { flex: 0 0 auto; font-size: 11px; }
+  button > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  button small { margin-left: auto; flex: 0 0 auto; color: #86909c; font-size: 9px; font-weight: 400; line-height: 14px; white-space: nowrap; }
+  button.selected small { color: inherit; opacity: .7; }
+  button.occupied small { color: #a8b1c0; }
+
+  button.master.selected { border-color: #18a957; background: #f3fff7; box-shadow: inset 2px 0 0 #18a957; }
+  button.master.selected .anticon { color: #18a957; }
+  button.store.selected { border-color: #3568ff; background: #f3f6ff; box-shadow: inset 2px 0 0 #3568ff; }
+  button.store.selected .anticon { color: #3568ff; }
+  button.etcd.selected { border-color: #8b5cf6; background: #f7f3ff; box-shadow: inset 2px 0 0 #8b5cf6; }
+  button.etcd.selected .anticon { color: #8b5cf6; }
+}
+
+.ataas-mooncake-create-plan {
+  display: flex;
+  min-width: 0;
+  align-self: stretch;
+  flex-direction: column;
+
+  > section {
+    display: flex;
+    height: 100%;
+    min-height: 100%;
+    flex-direction: column;
+    padding: 12px;
+  }
+}
+
+.ataas-mooncake-create-guide-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #edf1f7;
+
+  strong { color: #1d2129; font-size: 13px; font-weight: 600; line-height: 19px; }
+  span { color: #86909c; font-size: 10px; line-height: 16px; }
+}
+
+.ataas-mooncake-create-step-list {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 10px;
+
+  article {
+    overflow: hidden;
+    border: 1px solid #e5eaf2;
+    border-radius: 7px;
+    background: #fff;
+  }
+
+  article.ready { border-color: #bde9ca; }
+}
+
+.ataas-mooncake-create-step-trigger {
+  display: grid;
+  grid-template-columns: 21px minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: start;
+  padding: 11px;
+
+  > i {
+    display: inline-flex;
+    width: 20px;
+    height: 20px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    background: #f2f4f7;
+    color: #86909c;
+    font-size: 10px;
+    font-style: normal;
+    font-weight: 600;
+  }
+
+  > span { min-width: 0; }
+  > b { color: #86909c; font-size: 10px; font-weight: 500; line-height: 20px; white-space: nowrap; }
+}
+
+.ataas-mooncake-create-step-list article.ready .ataas-mooncake-create-step-trigger > i { color: #18a957; background: #f0fff5; }
+.ataas-mooncake-create-step-list article.ready .ataas-mooncake-create-step-trigger > b { color: #18a957; }
+
+.ataas-mooncake-create-step-title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+
+  strong { overflow: hidden; color: #1d2129; font-size: 11px; font-weight: 600; line-height: 18px; text-overflow: ellipsis; white-space: nowrap; }
+  small {
+    display: inline-flex;
+    height: 16px;
+    flex: 0 0 auto;
+    align-items: center;
+    padding: 0 4px;
+    border: 1px solid #dfe5ee;
+    border-radius: 4px;
+    background: #fff;
+    color: #4e5969;
+    font-size: 9px;
+    font-weight: 500;
+    line-height: 14px;
+  }
+  small.auto { border-color: #b8c9ff; background: #eef3ff; color: #3568ff; }
+}
+
+.ataas-mooncake-create-step-trigger em {
+  display: block;
+  overflow: hidden;
+  color: #86909c;
+  font-size: 10px;
+  font-style: normal;
+  line-height: 17px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ataas-mooncake-create-step-detail {
+  margin: -1px 10px 12px 39px;
+  padding: 5px 0 5px 10px;
+  border-left: 2px solid #e5eaf2;
+
+  article.ready & { border-left-color: #bde9ca; }
+
+  > div {
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr);
+    gap: 6px;
+    padding: 4px 0;
+  }
+
+  span,
+  strong {
+    overflow: hidden;
+    font-size: 10px;
+    line-height: 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  span { color: #86909c; }
+  strong { color: #4e5969; font-weight: 500; }
+}
+
+.ataas-mooncake-create-footer {
+  display: flex;
+  margin-top: auto;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid #edf1f7;
+  background: #fff;
+
+  .ant-checkbox-wrapper {
+    display: flex;
+    align-items: center;
+    color: #4e5969;
+  }
+  .ant-checkbox { align-self: flex-start; margin-top: 2px; }
+  > div { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+  .ant-btn { min-width: 74px; height: 30px; border-radius: 6px; font-size: 11px; }
+  .ant-btn-primary { border-color: #3568ff !important; background: #3568ff !important; box-shadow: none !important; }
+  .ant-btn-primary:not(:disabled):hover { border-color: #2f5ee5 !important; background: #2f5ee5 !important; }
+  .ant-btn-primary:disabled { border-color: #e5eaf2 !important; background: #f2f4f7 !important; color: #aab2bf !important; }
+}
+
+.ataas-mooncake-create-confirm-copy {
+  display: block;
+
+  strong,
+  em { display: block; }
+  strong { color: #1d2129; font-size: 11px; font-weight: 600; line-height: 16px; }
+  em { color: #86909c; font-size: 9px; font-style: normal; line-height: 14px; }
+}
+
+@media (max-width: 1180px) {
+  .ataas-mooncake-create-layout { grid-template-columns: 1fr; }
+  .ataas-mooncake-create-plan > section { height: auto; min-height: 0; }
+}
+
+@media (max-width: 720px) {
+  .ataas-mooncake-create-page { margin: -2px -12px -12px; }
+  .ataas-mooncake-create-layout { padding: 10px 12px 12px; }
+  .ataas-mooncake-create-field-grid.two,
+  .ataas-mooncake-create-field-grid.three,
+  .ataas-mooncake-create-identity { grid-template-columns: 1fr; }
+  .ataas-mooncake-create-node-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ataas-mooncake-create-identity > .ant-checkbox-wrapper { min-height: 0; }
+}
+
+.ataas-mooncake-store-scale-page {
+  display: flex;
+  min-height: calc(100vh - 66px);
+  margin: -2px -24px -24px;
+  flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: #fff;
+  color: #1d2129;
+  font-family: PingFangSC, "PingFang SC", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.ataas-mooncake-store-scale-header {
+  display: grid;
+  min-height: 50px;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 8px 14px;
+  border-bottom: 1px solid #e5eaf2;
+  background: #fff;
+
+  h1 { margin: 0; color: #1d2129; font-size: 16px; font-weight: 600; line-height: 22px; }
+  .ant-btn { height: 30px; padding: 0 10px; border-color: #dfe5ee; border-radius: 6px; box-shadow: none; color: #4e5969; font-size: 11px; font-weight: 500; }
+}
+
+.ataas-mooncake-store-scale-layout {
+  display: grid;
+  min-height: 0;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr) minmax(440px, 0.86fr);
+  gap: 10px;
+  padding: 10px 14px 14px;
+}
+
+.ataas-mooncake-store-scale-main {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ataas-mooncake-store-scale-block,
+.ataas-mooncake-store-scale-plan > section {
+  overflow: hidden;
+  border: 1px solid #e5eaf2;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.ataas-mooncake-store-scale-block { padding: 12px; }
+
+.ataas-mooncake-store-scale-section-head {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  margin-bottom: 10px;
+
+  > span {
+    display: inline-flex;
+    width: 24px;
+    height: 24px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    background: #eef3ff;
+    color: #3568ff;
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  strong,
+  em { display: block; overflow: hidden; text-overflow: ellipsis; }
+  strong { color: #1d2129; font-size: 13px; font-weight: 600; line-height: 19px; }
+  em { color: #86909c; font-size: 10px; font-style: normal; line-height: 15px; }
+}
+
+.ataas-mooncake-store-scale-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+
+  label { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
+  label > span { color: #4e5969; font-size: 12px; font-weight: 500; line-height: 18px; }
+  .ant-input { height: 30px; min-height: 30px; padding: 4px 9px; border-color: #dfe5ee; border-radius: 6px; box-shadow: none; color: #4e5969; font-size: 12px; line-height: 20px; }
+}
+
+.ataas-mooncake-store-scale-node-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 250px) minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+
+  .ant-input-affix-wrapper {
+    width: 100%;
+    box-sizing: border-box;
+    height: 28px;
+    min-height: 28px;
+    padding: 0 8px;
+    border-color: #dfe5ee;
+    border-radius: 6px;
+    box-shadow: none;
+  }
+  input.ant-input,
+  input.ant-input::placeholder { padding: 0; font-size: 10px !important; line-height: 16px; }
+  > span { justify-self: end; color: #86909c; font-size: 10px; line-height: 16px; white-space: nowrap; }
+}
+
+.ataas-mooncake-store-node-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  grid-auto-rows: 27px;
+  gap: 4px;
+
+  button {
+    display: flex;
+    min-width: 0;
+    min-height: 27px;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 6px;
+    overflow: hidden;
+    border: 1px solid #e5eaf2;
+    border-radius: 5px;
+    background: #fff;
+    color: #1d2129;
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 15px;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+
+    > i { width: 7px; height: 7px; flex: 0 0 auto; border: 1px solid #c9d1de; border-radius: 50%; background: #fff; }
+    .anticon { flex: 0 0 auto; color: #3568ff; font-size: 11px; }
+    small { margin-left: auto; color: #86909c; font-size: 9px; font-weight: 400; }
+    &:hover { border-color: #b8c9ff; background: #fbfdff; }
+    &.selected { border-color: #3568ff; background: #f3f6ff; box-shadow: inset 2px 0 0 #3568ff; }
+  }
+}
+
+.ataas-mooncake-store-scale-node-note { margin: 8px 0 0; color: #86909c; font-size: 10px; line-height: 16px; }
+
+.ataas-mooncake-store-scale-plan {
+  display: flex;
+  min-width: 0;
+  align-self: stretch;
+  flex-direction: column;
+
+  > section { display: flex; height: 100%; min-height: 100%; flex-direction: column; padding: 12px; }
+}
+
+.ataas-mooncake-store-scale-plan-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #edf1f7;
+
+  strong { color: #1d2129; font-size: 13px; font-weight: 600; line-height: 19px; }
+  span { color: #86909c; font-size: 10px; line-height: 16px; }
+}
+
+.ataas-mooncake-store-scale-step-list {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 10px;
+
+  article { overflow: hidden; border: 1px solid #e5eaf2; border-radius: 7px; background: #fff; }
+  article.ready { border-color: #bde9ca; }
+}
+
+.ataas-mooncake-store-scale-step-trigger {
+  display: grid;
+  grid-template-columns: 21px minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: start;
+  padding: 11px;
+
+  > i { display: inline-flex; width: 20px; height: 20px; align-items: center; justify-content: center; border-radius: 6px; background: #f2f4f7; color: #86909c; font-size: 10px; font-style: normal; font-weight: 600; }
+  > span { min-width: 0; }
+  > b { color: #86909c; font-size: 10px; font-weight: 500; line-height: 20px; white-space: nowrap; }
+}
+
+.ataas-mooncake-store-scale-step-list article.ready .ataas-mooncake-store-scale-step-trigger > i { color: #18a957; background: #f0fff5; }
+.ataas-mooncake-store-scale-step-list article.ready .ataas-mooncake-store-scale-step-trigger > b { color: #18a957; }
+
+.ataas-mooncake-store-scale-step-title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+
+  strong { overflow: hidden; color: #1d2129; font-size: 11px; font-weight: 600; line-height: 18px; text-overflow: ellipsis; white-space: nowrap; }
+  small { display: inline-flex; height: 16px; flex: 0 0 auto; align-items: center; padding: 0 4px; border: 1px solid #dfe5ee; border-radius: 4px; background: #fff; color: #4e5969; font-size: 9px; font-weight: 500; line-height: 14px; }
+  small.auto { border-color: #b8c9ff; background: #eef3ff; color: #3568ff; }
+}
+
+.ataas-mooncake-store-scale-step-trigger em { display: block; overflow: hidden; color: #86909c; font-size: 10px; font-style: normal; line-height: 17px; text-overflow: ellipsis; white-space: nowrap; }
+
+.ataas-mooncake-store-scale-step-detail {
+  margin: -1px 10px 12px 39px;
+  padding: 5px 0 5px 10px;
+  border-left: 2px solid #e5eaf2;
+
+  article.ready & { border-left-color: #bde9ca; }
+  > div { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 6px; padding: 4px 0; }
+  span,
+  strong { overflow: hidden; font-size: 10px; line-height: 16px; text-overflow: ellipsis; white-space: nowrap; }
+  span { color: #86909c; }
+  strong { color: #4e5969; font-weight: 500; }
+}
+
+.ataas-mooncake-store-scale-footer {
+  display: flex;
+  margin-top: auto;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid #edf1f7;
+  background: #fff;
+
+  .ant-btn { min-width: 74px; height: 30px; border-radius: 6px; font-size: 11px; }
+  .ant-btn-primary { border-color: #3568ff !important; background: #3568ff !important; box-shadow: none !important; }
+  .ant-btn-primary:not(:disabled):hover { border-color: #2f5ee5 !important; background: #2f5ee5 !important; }
+  .ant-btn-primary:disabled { border-color: #e5eaf2 !important; background: #f2f4f7 !important; color: #aab2bf !important; }
+}
+
+@media (max-width: 1180px) {
+  .ataas-mooncake-overview-grid { grid-template-columns: 1fr; }
+  .ataas-mooncake-detail-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ataas-mooncake-detail-summary-grid .wide { grid-column: span 2; }
+  .ataas-mooncake-detail-metrics > div { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .ataas-mooncake-detail-metrics > div article:nth-child(3n) { border-right: 0; }
+  .ataas-mooncake-store-scale-layout { grid-template-columns: 1fr; }
+  .ataas-mooncake-store-scale-plan > section { height: auto; min-height: 0; }
+}
+
+@media (max-width: 760px) {
+  .ataas-mooncake-overview-header,
+  .ataas-mooncake-detail-header,
+  .ataas-mooncake-overview-header-actions,
+  .ataas-mooncake-detail-header-actions { align-items: flex-start; flex-direction: column; }
+  .ataas-mooncake-fleet-kpi,
+  .ataas-mooncake-detail-summary-grid,
+  .ataas-mooncake-detail-metrics > div { grid-template-columns: 1fr; }
+  .ataas-mooncake-detail-summary-grid .wide { grid-column: auto; }
+  .ataas-mooncake-detail-metrics > div article { border-right: 0; border-bottom: 1px solid #E5E6EB; }
+  .ataas-mooncake-detail-topology { align-items: flex-start; flex-direction: column; }
+  .ataas-mooncake-store-scale-page { margin: -2px -16px -16px; }
+  .ataas-mooncake-store-scale-layout { padding: 10px 12px 12px; }
+  .ataas-mooncake-store-scale-field-grid { grid-template-columns: 1fr; }
+  .ataas-mooncake-store-node-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 .ataas-mooncake-status-modal {
@@ -6102,6 +7572,7 @@ button.ataas-page-create-button.ant-btn.ant-btn-primary,
   min-width: 856px;
   border-collapse: collapse;
   table-layout: fixed;
+  font-family: PingFangSC, "PingFang SC", "Helvetica Neue", Helvetica, Arial, sans-serif;
 
   th,
   td {
@@ -6109,8 +7580,9 @@ button.ataas-page-create-button.ant-btn.ant-btn-primary,
     overflow: hidden;
     padding: 0 10px;
     border-bottom: 1px solid #F2F3F5;
-    color: #1D2129;
+    color: #4E5969;
     font-size: 13px;
+    font-weight: 400;
     line-height: 20px;
     text-align: left;
     text-overflow: ellipsis;
@@ -6118,11 +7590,11 @@ button.ataas-page-create-button.ant-btn.ant-btn-primary,
   }
 
   th {
-    color: #86909C;
-    font-size: 12px;
+    color: #4E5969;
+    font-size: 13px;
     font-weight: 500;
     letter-spacing: 0;
-    background: #FAFBFC;
+    background: #F7F8FA;
   }
 
   tr:last-child td {
@@ -6141,6 +7613,172 @@ button.ataas-page-create-button.ant-btn.ant-btn-primary,
   td:last-child {
     text-align: center;
   }
+}
+
+// 表格标准（以“推理运维”原生表格为准）：
+// 容器使用 #E5E6EB 描边、4px 圆角且不投影；表头 #F7F8FA / #4E5969 / 13px 500，表头线 #E5E6EB；
+// 正文 #4E5969 / 13px 400，行线 #F2F3F5。单行 Pod 监控表采用紧凑 48px 行高；信息更丰富的表格使用 72px 行高。
+// 布局标准：首列与操作列固定首尾，内容列按实际宽度占位，其余空间由等宽弹性间隔均分。
+// 固定操作列：底色与当前行 / 表头保持一致；只在右侧仍有被遮挡内容时显示 30px 的轻阴影
+// （inset -10px 0 8px -8px rgba(5, 5, 5, .06)）。横向滚动到最右端、或表格没有横向溢出时必须移除阴影，
+// 不使用永久阴影或实线分隔。操作按钮统一 26px 高、4px 圆角、#E5E6EB 描边；危险操作使用浅红描边与浅红背景。
+.ataas-mooncake-status-table--master-detail,
+.ataas-mooncake-status-table--store-detail,
+.ataas-mooncake-status-table--etcd-detail {
+  width: 100%;
+  min-width: 1200px;
+  box-sizing: border-box;
+  display: grid;
+  grid-auto-rows: 48px;
+  border-collapse: separate;
+  border-spacing: 0;
+  padding: 0 16px;
+  background-color: #fff;
+  background-image:
+    linear-gradient(to bottom, #F7F8FA 0 47px, #E5E6EB 47px 48px, transparent 48px),
+    repeating-linear-gradient(to bottom, transparent 0 47px, #F2F3F5 47px 48px);
+
+  thead,
+  tbody,
+  tr {
+    display: contents;
+  }
+
+  th,
+  td {
+    display: flex;
+    min-width: 0;
+    height: auto;
+    align-items: center;
+    overflow: hidden;
+    padding: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  th:last-child,
+  td:last-child {
+    justify-content: flex-end;
+    text-align: right;
+  }
+
+  th {
+    overflow: visible;
+    text-overflow: clip;
+  }
+}
+
+.ataas-mooncake-status-table--master-detail {
+  grid-template-columns:
+    220px minmax(32px, 1fr)
+    max-content minmax(32px, 1fr)
+    max-content minmax(32px, 1fr)
+    max-content minmax(32px, 1fr)
+    max-content minmax(32px, 1fr)
+    max-content minmax(32px, 1fr)
+    max-content minmax(32px, 1fr)
+    max-content minmax(32px, 1fr)
+    154px;
+
+  th:nth-child(1), td:nth-child(1) { grid-column: 1; }
+  th:nth-child(2), td:nth-child(2) { grid-column: 3; }
+  th:nth-child(3), td:nth-child(3) { grid-column: 5; }
+  th:nth-child(4), td:nth-child(4) { grid-column: 7; }
+  th:nth-child(5), td:nth-child(5) { grid-column: 9; }
+  th:nth-child(6), td:nth-child(6) { grid-column: 11; }
+  th:nth-child(7), td:nth-child(7) { grid-column: 13; }
+  th:nth-child(8), td:nth-child(8) { grid-column: 15; }
+  th:nth-child(9), td:nth-child(9) { grid-column: 17; }
+}
+
+.ataas-mooncake-status-table--store-detail {
+  grid-template-columns:
+    270px minmax(32px, 1fr)
+    max-content minmax(32px, 1fr)
+    max-content minmax(32px, 1fr)
+    max-content minmax(32px, 1fr)
+    max-content minmax(32px, 1fr)
+    max-content minmax(32px, 1fr)
+    max-content minmax(32px, 1fr)
+    154px;
+
+  th:nth-child(1), td:nth-child(1) { grid-column: 1; }
+  th:nth-child(2), td:nth-child(2) { grid-column: 3; }
+  th:nth-child(3), td:nth-child(3) { grid-column: 5; }
+  th:nth-child(4), td:nth-child(4) { grid-column: 7; }
+  th:nth-child(5), td:nth-child(5) { grid-column: 9; }
+  th:nth-child(6), td:nth-child(6) { grid-column: 11; }
+  th:nth-child(7), td:nth-child(7) { grid-column: 13; }
+  th:nth-child(8), td:nth-child(8) { grid-column: 15; }
+}
+
+.ataas-mooncake-store-row-actions {
+  display: inline-flex;
+  width: 100%;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+
+  .offline {
+    color: #D84A4A;
+  }
+
+  .offline:hover:not(:disabled) {
+    border-color: #FFD8D4;
+    background: #FFF2F0;
+    color: #CF3F3F;
+  }
+
+  .offline:disabled {
+    color: #C9CDD4;
+    cursor: not-allowed;
+  }
+}
+
+.ataas-mooncake-store-row-actions button,
+.ataas-mooncake-row-log-action {
+  display: inline-flex;
+  height: 28px;
+  align-items: center;
+  gap: 4px;
+  padding: 0 7px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: #4E5969;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+
+  .anticon {
+    font-size: 13px;
+  }
+}
+
+.ataas-mooncake-store-row-actions .log:hover,
+.ataas-mooncake-row-log-action:hover {
+  background: #F2F3F5;
+  color: #3568FF;
+}
+
+.ataas-mooncake-status-table--etcd-detail {
+  grid-template-columns:
+    240px minmax(32px, 1fr)
+    max-content minmax(32px, 1fr)
+    max-content minmax(32px, 1fr)
+    max-content minmax(32px, 1fr)
+    max-content minmax(32px, 1fr)
+    max-content minmax(32px, 1fr)
+    154px;
+
+  th:nth-child(1), td:nth-child(1) { grid-column: 1; }
+  th:nth-child(2), td:nth-child(2) { grid-column: 3; }
+  th:nth-child(3), td:nth-child(3) { grid-column: 5; }
+  th:nth-child(4), td:nth-child(4) { grid-column: 7; }
+  th:nth-child(5), td:nth-child(5) { grid-column: 9; }
+  th:nth-child(6), td:nth-child(6) { grid-column: 11; }
+  th:nth-child(7), td:nth-child(7) { grid-column: 13; }
 }
 
 .ataas-mooncake-pod-name {
@@ -6226,6 +7864,7 @@ button.ataas-page-create-button.ant-btn.ant-btn-primary,
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
 
 .ataas-mooncake-pd {
   color: #2563EB;
@@ -26061,8 +27700,9 @@ button.ataas-page-create-button.ant-btn.ant-btn-primary,
   mask-position: center;
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
-  -webkit-mask-size: contain;
-  mask-size: contain;
+  // 保持 18px 的占位不变，只略微放大图形本身，避免 Mooncake 图标显得比同列线性图标更轻。
+  -webkit-mask-size: 16px 16px;
+  mask-size: 16px 16px;
 }
 
 .ataas-page .cluster-operations-homepage .resource-tree-create-button.ant-btn.ant-btn-primary {

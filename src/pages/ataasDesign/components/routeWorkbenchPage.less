@@ -28,82 +28,211 @@
 
 .ataas-route-workbench-topbar {
   display: flex;
-  height: 58px;
-  flex: none;
+  // 画布页会抵消全局 0.84 zoom；54px 与左侧 64px 品牌区的实际渲染高度严格对齐。
+  height: 54px;
+  min-height: 54px;
   align-items: center;
-  justify-content: space-between;
   padding: 0 20px;
-  border-bottom: 1px solid #E8ECF3;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(10px);
+  border-bottom: 1px solid #EAEDF2;
+  background: #FFFFFF;
+  color: #4E5969;
 
   .ataas-route-workbench-title {
     display: flex;
-    align-items: baseline;
-    gap: 12px;
+    flex: none;
     min-width: 0;
+    align-items: center;
+    gap: 10px;
+
+    strong {
+      color: #1D2129;
+      font-size: 15px;
+      font-weight: 600;
+      line-height: 20px;
+      white-space: nowrap;
+    }
+  }
+
+  .ataas-route-workbench-title-meta {
+    color: #86909C;
+    font-size: 12px;
+    line-height: 18px;
+    white-space: nowrap;
+  }
+
+  .ataas-route-workbench-title-divider {
+    display: block;
+    width: 1px;
+    height: 20px;
+    flex: none;
+    margin: 0 16px;
+    background: #EAEDF2;
   }
 
   .ataas-route-workbench-toolbar-actions,
-  .ataas-route-workbench-toolbar-field {
+  .ataas-route-workbench-primary-controls,
+  .ataas-route-workbench-utility-controls,
+  .ataas-route-workbench-toolbar-field,
+  .ataas-route-workbench-level-readout,
+  .ataas-route-workbench-level-actions {
     display: flex;
     align-items: center;
   }
 
   .ataas-route-workbench-toolbar-actions {
-    height: 36px;
+    min-width: 0;
+    flex: 1;
+    height: 100%;
+    margin-left: 0;
+    gap: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
+  .ataas-route-workbench-primary-controls {
+    height: 28px;
+    flex: none;
+    gap: 14px;
+  }
+
+  .ataas-route-workbench-level-readout {
+    width: auto;
+    min-width: 0;
+    gap: 8px;
+    padding-right: 6px;
+    white-space: nowrap;
+
+    b {
+      color: #1D2129;
+      font-size: 13px;
+      font-weight: 500;
+    }
+  }
+
+  .ataas-route-workbench-toolbar-label,
+  .ataas-route-workbench-ingress-total {
+    color: #86909C;
+    font-size: 12px;
+    line-height: 18px;
+    white-space: nowrap;
+  }
+
+  .ataas-route-workbench-level-actions {
+    gap: 6px;
+
+    .ant-btn {
+      width: 72px;
+      min-width: 72px;
+      max-width: 72px;
+      display: inline-flex !important;
+      height: 28px !important;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      box-sizing: border-box;
+      border: 1px solid #6951FF;
+      border-radius: 4px;
+      background: #FFFFFF;
+      color: #6951FF;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 26px !important;
+
+      span {
+        color: inherit;
+      }
+
+      &:hover {
+        border-color: #4F3DDB;
+        background: #F5F3FF;
+        color: #4F3DDB;
+      }
+
+      &.ant-btn-primary:not(:disabled),
+      &.ant-btn-primary:not(:disabled) span {
+        border-color: #6951FF;
+        background: #FFFFFF;
+        color: #6951FF !important;
+      }
+
+      &:disabled,
+      &.ant-btn-primary:disabled {
+        border-color: #D8D0FF !important;
+        background: #FFFFFF !important;
+        color: #A79CFF !important;
+
+        span {
+          color: #A79CFF !important;
+        }
+      }
+    }
+
+    // 覆盖全局主按钮的 31px 规范，两个层级按钮必须保持同一套紧凑尺寸。
+    .ant-btn.ant-btn-primary:not(.ant-btn-sm):not(.ant-btn-lg):not(.ant-btn-block) {
+      height: 28px !important;
+      min-height: 28px !important;
+      max-height: 28px !important;
+      line-height: 26px !important;
+    }
+  }
+
+  .ataas-route-workbench-toolbar-spacer {
+    display: none;
+  }
+
+  .ataas-route-workbench-utility-controls {
+    height: 28px;
+    flex: none;
     gap: 12px;
-    color: #4E5969;
-    font-size: 14px;
-    font-weight: 400;
+  }
+
+  .ataas-route-workbench-toolbar-divider {
+    display: block;
+    width: 1px;
+    height: 20px;
+    flex: none;
+    background: #EAEDF2;
   }
 
   .ataas-route-workbench-toolbar-field {
-    gap: 4px;
-    height: 36px;
-  }
-
-  .ataas-route-workbench-level-control {
-    display: flex;
-    height: 36px;
-    align-items: center;
     gap: 6px;
-    padding: 0 4px 0 10px;
-    border: 1px solid #E5EAF2;
-    border-radius: 6px;
-    background: #F7F9FC;
-
-    > span {
-      min-width: 104px;
-      color: #4E5969;
-      font-size: 14px;
-      font-weight: 400;
-    }
-
-    .ant-btn {
-      height: 28px;
-      padding: 0 10px;
-    }
+    height: 28px;
   }
 
-  strong {
-    color: #1D2129;
-    font-size: 16px;
-    font-weight: 500;
+  .ataas-route-workbench-sort-control,
+  .ataas-route-workbench-search-control {
+    height: 28px;
+    flex: none;
   }
 
-  .ataas-route-workbench-title > span {
-    color: #86909C;
-    font-size: 12px;
-    font-weight: 400;
-  }
-
-  .ant-btn {
-    height: 36px;
-    border-radius: 6px;
+  .ataas-route-workbench-more-button.ant-btn {
+    width: 28px;
+    min-width: 28px;
+    height: 28px;
+    min-height: 28px !important;
+    max-height: 28px !important;
+    padding: 0;
+    border-color: #E5E6EB;
+    border-radius: 4px !important;
     color: #4E5969;
-    font-size: 14px;
-    font-weight: 400;
+    font-size: 12px !important;
+    line-height: 26px !important;
+  }
+
+  .ant-btn:disabled,
+  .ant-btn-primary:disabled {
+    opacity: 1 !important;
+    border-color: transparent !important;
+    background: transparent !important;
+    color: #86909C !important;
+
+    span {
+      color: #86909C !important;
+    }
   }
 
   .ataas-route-workbench-toolbar-actions .ant-select-selection-item,
@@ -112,7 +241,7 @@
   .ataas-route-workbench-toolbar-actions .ant-input-number,
   .ataas-route-workbench-toolbar-actions .ant-input-affix-wrapper {
     color: #4E5969;
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 400;
   }
 
@@ -121,42 +250,177 @@
   }
 
   .ant-select,
-  .ant-input-affix-wrapper,
-  .ant-input-search {
-    height: 36px;
+  .ant-input-number,
+  .ant-input-search,
+  .ant-input-affix-wrapper {
+    height: 28px;
   }
 
-  .ant-input-search .ant-input,
-  .ant-input-search-button {
-    height: 36px;
-  }
-
-  .ant-input-search .ant-input {
-    height: 34px;
-    padding: 0 12px;
-    line-height: 32px;
-  }
-
-  .ant-input-search .ant-input-group-addon,
-  .ant-input-search .ant-input-search-button {
-    vertical-align: middle;
-  }
-
-  .ant-input-search .ant-input-search-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 12px;
+  .ataas-route-workbench-sort-control .ant-select {
+    --ant-border-radius: 4px;
+    border-radius: 4px !important;
+    font-size: 12px !important;
   }
 
   .ant-select-selector {
-    height: 36px !important;
-    align-items: center;
+    display: flex !important;
+    align-items: center !important;
+    height: 28px !important;
+    padding: 0 8px !important;
+    border-color: #E5E6EB !important;
+    border-radius: 4px !important;
   }
 
-  .ant-btn-primary,
-  .ant-btn-primary span {
+  .ant-select-selection-item {
+    display: flex !important;
+    align-items: center;
+    height: 26px;
+    line-height: 20px !important;
+  }
+
+  .ataas-route-workbench-sort-control {
+    .ant-select-content {
+      display: flex;
+      height: 26px;
+      align-items: center;
+      color: #4E5969;
+      font-size: 12px !important;
+      font-weight: 500;
+      line-height: 26px !important;
+      transform: translateY(-1px);
+    }
+
+    .ant-select-suffix {
+      color: #86909C;
+      font-size: 10px;
+    }
+
+    .ant-select-selection-item {
+      font-size: 12px !important;
+    }
+
+    .ant-select-arrow {
+      display: flex;
+      align-items: center;
+      height: 26px;
+      color: #86909C;
+      font-size: 10px;
+    }
+  }
+
+  .ant-input-number {
+    border-color: #E5E6EB;
+    border-radius: 4px;
+  }
+
+  .ant-input-number-input-wrap,
+  .ant-input-number-input {
+    height: 26px;
+  }
+
+  .ant-input-number-input {
+    padding: 0 8px;
+  }
+
+  .ant-input-search .ant-input {
+    height: 26px;
+    padding: 0 4px;
+    line-height: 18px;
+    transform: translateY(-2px);
+  }
+
+  .ant-input-search .ant-input-affix-wrapper {
+    height: 28px;
+    border-color: #E5E6EB;
+    border-radius: 4px 0 0 4px;
+    font-size: 12px !important;
+  }
+
+  .ant-input-search .ant-input-group {
+    display: flex;
+    height: 28px;
+  }
+
+  .ant-input-search .ant-input-group-addon {
+    display: flex;
+    height: 28px;
+  }
+
+  .ant-input-search-button {
+    display: inline-flex !important;
+    width: 28px;
+    height: 28px;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border-color: #E5E6EB;
+
+    .anticon {
+      display: flex;
+      align-items: center;
+      line-height: 1;
+      transform: translateY(-1px);
+    }
+  }
+
+  .ant-input-search-btn.ant-btn {
+    width: 28px;
+    min-width: 28px;
+    height: 28px;
+    min-height: 28px !important;
+    max-height: 28px !important;
+    border-radius: 0 4px 4px 0;
+    font-size: 12px !important;
+    line-height: 26px !important;
+  }
+
+  .ant-btn-primary:not(:disabled),
+  .ant-btn-primary:not(:disabled) span {
     color: #FFFFFF;
+  }
+}
+
+@media (max-width: 1220px) {
+  .ataas-route-workbench-topbar {
+    display: grid;
+    height: 88px;
+    min-height: 88px;
+    box-sizing: border-box;
+    grid-template-rows: 20px 32px;
+    align-content: center;
+    row-gap: 6px;
+    padding: 8px 20px;
+
+    .ataas-route-workbench-toolbar-actions {
+      width: 100%;
+      height: 32px;
+      margin-left: 0;
+    }
+
+    .ataas-route-workbench-title-divider {
+      display: none;
+    }
+  }
+}
+
+// 中等宽度保持单行：优先保留操作控件，隐藏重复的说明文本。
+@media (min-width: 1221px) and (max-width: 1360px) {
+  .ataas-route-workbench-topbar {
+    .ataas-route-workbench-title {
+      gap: 0;
+    }
+
+    .ataas-route-workbench-title-meta {
+      display: none;
+    }
+
+    .ataas-route-workbench-title-divider {
+      margin: 0 12px;
+    }
+
+    .ataas-route-workbench-utility-controls {
+      gap: 8px;
+    }
   }
 }
 

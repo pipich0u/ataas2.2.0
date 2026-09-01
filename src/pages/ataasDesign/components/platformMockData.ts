@@ -8,11 +8,12 @@ export type PlatformGpuNode = {
   gpuVendor: 'NVIDIA'; gpuModel: 'B300'; gpuCount: 8; utilization: number; temperature: number; power: number;
   status: PlatformNodeStatus; bookable: boolean; pods: string[];
 };
+export type PlatformUnassignedGpuNode = Omit<PlatformGpuNode, 'inferenceGroupId' | 'role' | 'roleIndex' | 'status' | 'bookable' | 'pods'>;
 export type PlatformInferenceGroup = {
   id: string; name: string; clusterId: string; model: string; color: string; serviceName: string; routeIds: string[]; ingressNames: string[];
   router: { name: string; placement: 'co-located-with-pd'; primaryNodeId: string; eligibleNodeIds: string[] };
   prefillNodeIds: string[]; decodeNodeIds: string[];
-  mooncake: { placement: 'reuse-pd-nodes'; nodeIds: string[] };
+  mooncake: { placement: 'reuse-pd-nodes'; nodeIds: string[]; master: { name: string; nodeId: string } };
 };
 
 const serviceEntryNames = Array.from(new Set(DEFAULT_ROUTE_CONFIGS.map((route) => route.serviceEntry)));
@@ -42,6 +43,18 @@ export const PLATFORM_GPU_NODES: PlatformGpuNode[] = serviceEntryNames.flatMap((
     };
   }),
 );
+export const PLATFORM_UNASSIGNED_GPU_NODES: PlatformUnassignedGpuNode[] = Array.from({ length: 3 }, (_, index) => ({
+  id: `node-st1-${String(PLATFORM_GPU_NODES.length + index + 1).padStart(3, '0')}`,
+  name: `st-gpu-${String(PLATFORM_GPU_NODES.length + index + 1).padStart(3, '0')}`,
+  ip: `192.168.100.${20 + PLATFORM_GPU_NODES.length + index}`,
+  clusterId: PLATFORM_CLUSTER.id,
+  gpuVendor: 'NVIDIA' as const,
+  gpuModel: 'B300' as const,
+  gpuCount: 8 as const,
+  utilization: 0,
+  temperature: 0,
+  power: 0,
+}));
 export const PLATFORM_INFERENCE_GROUPS: PlatformInferenceGroup[] = serviceEntryNames.map((groupId, groupIndex) => {
   const routes = DEFAULT_ROUTE_CONFIGS.filter((route) => route.serviceEntry === groupId);
   const nodes = PLATFORM_GPU_NODES.filter((node) => node.inferenceGroupId === groupId);
@@ -52,7 +65,11 @@ export const PLATFORM_INFERENCE_GROUPS: PlatformInferenceGroup[] = serviceEntryN
     routeIds: routes.map((route) => route.id), ingressNames: routes.map((route) => route.name),
     router: { name: `${groupId}-router-0`, placement: 'co-located-with-pd', primaryNodeId: prefillNodes[0].id, eligibleNodeIds: nodes.map((node) => node.id) },
     prefillNodeIds: prefillNodes.map((node) => node.id), decodeNodeIds: decodeNodes.map((node) => node.id),
-    mooncake: { placement: 'reuse-pd-nodes', nodeIds: nodes.map((node) => node.id) },
+    mooncake: {
+      placement: 'reuse-pd-nodes',
+      nodeIds: nodes.map((node) => node.id),
+      master: { name: `${groupId}-mooncake-master-${groupIndex + 1}`, nodeId: prefillNodes[0].id },
+    },
   };
 });
 export const PLATFORM_NODE_BY_ID = new Map(PLATFORM_GPU_NODES.map((node) => [node.id, node]));
@@ -67,6 +84,7 @@ export const validatePlatformMockRelations = () => {
     pd.forEach((id) => { if (occupied.has(id)) errors.push(`${id}: occupied twice`); occupied.add(id); });
     if (!group.router.eligibleNodeIds.every((id) => pd.includes(id))) errors.push(`${group.id}: router outside P/D nodes`);
     if (!group.mooncake.nodeIds.every((id) => pd.includes(id))) errors.push(`${group.id}: Mooncake outside P/D nodes`);
+    if (!group.mooncake.nodeIds.includes(group.mooncake.master.nodeId)) errors.push(`${group.id}: Mooncake master outside P/D nodes`);
   });
   if (occupied.size !== PLATFORM_GPU_NODES.length) errors.push('GPU node inventory is not fully assigned to inference groups');
   return errors;

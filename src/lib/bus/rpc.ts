@@ -18,6 +18,35 @@ type ConfigFile = {
 
 const STORAGE_KEY = 'ataas.mock.configs.repo.v1';
 const WORKERS_GLM51_CACHE_LAYER_SPLIT_PATH = 'glm/bx_config/workers-glm51-index-cache-layer-split.yaml';
+const MOONCAKE_TEMPLATE_PATHS = [
+  'mooncake/group/bd/mooncake-v1.2.0-huge-page-glm53.yaml',
+  'mooncake/group/bd/mooncake-v1.1.0-standard.yaml',
+] as const;
+
+function mooncakeTemplateYaml(path: string) {
+  const isHuge = path.includes('huge-page');
+  const storeProfile = isHuge ? 'store-huge-page' : 'store-1000gb';
+  const storeCapacity = isHuge ? 1300 : 1000;
+  const capacityOptions = isHuge ? '\n      capacityOptionsGB: [1300, 1600]' : '';
+  return `apiVersion: ataas.io/v1alpha1
+kind: MooncakeClusterTemplate
+metadata:
+  name: ${path.split('/').pop()?.replace(/\.yaml$/, '')}
+  labels:
+    app.kubernetes.io/part-of: mooncake
+spec:
+  roles:
+    master:
+      replicas: 3
+    store:
+      profile: ${storeProfile}
+      capacityGB: ${storeCapacity}${capacityOptions}
+      replicas: ${isHuge ? 2 : 1}
+      maxReplicas: 8
+    etcd:
+      replicas: 3
+`;
+}
 
 function nowMinus(days: number, hours = 0) {
   return Date.now() - (days * 24 + hours) * 60 * 60 * 1000;
@@ -195,14 +224,22 @@ function normalizeHistoryAuthors(repo: Record<string, ConfigFile>) {
 
 function ensureBuiltInFiles(repo: Record<string, ConfigFile>) {
   normalizeHistoryAuthors(repo);
+  let changed = false;
   if (!repo[WORKERS_GLM51_CACHE_LAYER_SPLIT_PATH]) {
     repo[WORKERS_GLM51_CACHE_LAYER_SPLIT_PATH] = makeFile(
       WORKERS_GLM51_CACHE_LAYER_SPLIT_PATH,
       workersGlm51CacheLayerSplitYaml,
       nowMinus(0, 1),
     );
-    saveRepo(repo);
+    changed = true;
   }
+  MOONCAKE_TEMPLATE_PATHS.forEach((path, index) => {
+    if (!repo[path]) {
+      repo[path] = makeFile(path, mooncakeTemplateYaml(path), nowMinus(index, 2));
+      changed = true;
+    }
+  });
+  if (changed) saveRepo(repo);
   return repo;
 }
 

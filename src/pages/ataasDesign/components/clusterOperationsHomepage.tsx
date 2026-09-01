@@ -2024,6 +2024,7 @@ const getNodeRunningWorkload = (node: NodeRow) => {
 };
 
 const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
+  const tableFrameRef = useRef<HTMLDivElement>(null);
   const [keyword, setKeyword] = useState('');
   const [faultFocus, setFaultFocus] = useState<{ kind: 'node' | 'network' | 'disk'; nodeKey: string } | null>(null);
   const [expandedRowKeys, setExpandedRowKeys] = useState<string[]>([]);
@@ -2273,6 +2274,29 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
     return !keyword || text.includes(keyword.toLowerCase());
   }), [faultFocus, keyword, scopedNodeRows]);
 
+  useEffect(() => {
+    const frame = tableFrameRef.current;
+    const scrollHost = frame?.querySelector<HTMLElement>('.ant-table-content');
+    if (!frame || !scrollHost) return undefined;
+
+    const syncFixedActionShadow = () => {
+      const isAtEnd = scrollHost.scrollWidth <= scrollHost.clientWidth + 1
+        || scrollHost.scrollLeft + scrollHost.clientWidth >= scrollHost.scrollWidth - 1;
+      frame.classList.toggle('is-at-horizontal-scroll-end', isAtEnd);
+    };
+
+    const animationFrame = window.requestAnimationFrame(syncFixedActionShadow);
+    const resizeObserver = new ResizeObserver(syncFixedActionShadow);
+    resizeObserver.observe(scrollHost);
+    scrollHost.addEventListener('scroll', syncFixedActionShadow, { passive: true });
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      resizeObserver.disconnect();
+      scrollHost.removeEventListener('scroll', syncFixedActionShadow);
+    };
+  }, [filteredData.length, selectedClusterKey]);
+
   const columns: ColumnsType<NodeRow> = [
     { title: '节点', key: 'name', width: 200, render: (_, r) => (
       <div className="node-list-identity">
@@ -2458,7 +2482,7 @@ const NodeTable = ({ selectedClusterKey }: { selectedClusterKey: string }) => {
             新增节点
           </Button>
         </div>
-        <div className="node-table-frame">
+        <div ref={tableFrameRef} className="node-table-frame">
           <Table<NodeRow>
             className="node-list-table"
             rowKey="key"

@@ -1,7 +1,7 @@
-import { Button, ConfigProvider, Dropdown, Image, Input, InputNumber, message, Modal, Popconfirm, Select, Slider, Table, Tag, Tooltip } from 'antd';
+import { Button, Checkbox, ConfigProvider, Dropdown, Image, Input, InputNumber, message, Modal, Popconfirm, Select, Slider, Table, Tag, Tooltip } from 'antd';
 import type { ThemeConfig } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { BarChartOutlined, CopyOutlined, DisconnectOutlined, EyeOutlined, FileSearchOutlined, FileTextOutlined, InfoCircleOutlined, LinkOutlined, PlayCircleOutlined, PlusOutlined, PoweroffOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, ArrowRightOutlined, BarChartOutlined, CheckCircleFilled, CopyOutlined, DisconnectOutlined, DownOutlined, ExclamationCircleFilled, EyeOutlined, FileSearchOutlined, FileTextOutlined, InfoCircleOutlined, LinkOutlined, PlayCircleOutlined, PlusOutlined, PoweroffOutlined, ReloadOutlined, SearchOutlined, SettingOutlined } from '@ant-design/icons';
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import deepseekLogo from '../deepseek-logo.svg';
@@ -13,6 +13,9 @@ import qwenLogo from '../qwen-logo.svg';
 import mooncakeLogo from '../mooncake-logo.png';
 import { MODEL_OPS_RESOURCE_SPECS, getModelOpsRoleSummary as getModelOpsSpecRoleSummary, type ModelOpsResourceSpec } from './modelOpsResourceSpec';
 import { PLATFORM_GPU_NODES } from './platformMockData';
+import { rpc } from '../../../lib/bus/rpc';
+import { MonacoEditor } from '../../../components/shared/MonacoEditor';
+import type { ConfigCommitEntry, ConfigTreeNode } from '../../../lib/types';
 
 export type DeployStatus = 'running' | 'loading' | 'error' | 'ready' | 'updating' | 'updatable' | 'warning';
 export type DeployCategory = 'llm' | 'embedding' | 'rerank' | 'vlm';
@@ -20,16 +23,78 @@ export type ViewMode = 'card' | 'mooncake' | 'table';
 
 const normalizeDeployViewMode = (value?: ViewMode): ViewMode => (value === 'card' ? 'mooncake' : value || 'mooncake');
 
+const MOONCAKE_HEALTH_CONFIG: Record<MooncakeHealth, { label: string; className: string }> = {
+  healthy: { label: '健康', className: 'healthy' },
+  degraded: { label: '降级', className: 'degraded' },
+  critical: { label: '严重', className: 'critical' },
+};
+const getMooncakeGroupName = (item: DeployServiceItem) => item.serviceGroupName || item.name;
+
+const getMooncakeHealth = (item: DeployServiceItem, storesStopped: boolean): MooncakeHealth => {
+  if (item.status === 'error' || item.status === 'warning') return 'critical';
+  if (storesStopped || item.status !== 'running') return 'degraded';
+  return 'healthy';
+};
+
+const getMooncakeRuntimeMetrics = (item: DeployServiceItem, nowTick: number, health: MooncakeHealth): MooncakeRuntimeMetrics => {
+  const phase = Math.floor(nowTick / 1000) + item.id * 7;
+  const drift = (Math.sin(phase / 6) + 1) / 2;
+  const requestBase = 3.8 + (item.id % 5) * 0.28 + drift * 0.16;
+  const capacityPercent = Math.round(62 + (item.id % 6) * 4 + drift * 5);
+  const failures = health === 'critical' ? 8 : health === 'degraded' ? 2 : 0;
+  return {
+    requestCount: `${requestBase.toFixed(2)}M`,
+    failures,
+    errors1m: failures,
+    fatal5m: health === 'critical' ? 1 : 0,
+    putP95: `${(0.32 + drift * 0.16).toFixed(2)} ms`,
+    getP95: `${(0.74 + drift * 0.24).toFixed(2)} ms`,
+    readThroughput: `${(10.2 + drift * 2.8).toFixed(1)} GB/s`,
+    writeThroughput: `${(4.6 + drift * 1.9).toFixed(1)} GB/s`,
+    capacity: `${(12.8 + drift * 1.6).toFixed(2)} TiB / 15.63 TiB`,
+    capacityPercent,
+    keys: new Intl.NumberFormat('en-US').format(124_000_000 + item.id * 2_831_071 + Math.floor(drift * 380_000)),
+  };
+};
+
 type DeployLogItem = { id: number; name: string };
 type RestartRecord = { id: number; name: string; works: string; createTime: string; restartTime: string; reasonConsuming: string };
 type InlineGatewayConfig = { enabled: boolean; traffic: Array<{ key: string; label: string; percent: number }> };
-type MooncakeMasterRow = { key: string; name: string; ip: string; ready: string; status: string; age: string; restart: number; levels: string; ops: string; silent?: boolean };
-type MooncakeStoreRow = { key: string; name: string; role: string; pd: 'P' | 'D'; ip: string; ready: string; status: string; age: string; restart: number; logId: number };
-type MooncakeEtcdRow = { key: string; name: string; ip: string; ready: string; status: string; age: string; restart: number };
+type MooncakeMasterRow = { key: string; name: string; node: string; ip: string; ready: string; status: string; age: string; restart: number; levels: string; ops: string; silent?: boolean };
+type MooncakeStoreRow = { key: string; name: string; role: string; pd: 'P' | 'D'; node: string; ip: string; ready: string; status: string; age: string; restart: number; logId: number };
+type MooncakeEtcdRow = { key: string; name: string; node: string; ip: string; ready: string; status: string; age: string; restart: number };
 type MooncakeClusterStatus = {
   masters: MooncakeMasterRow[];
   stores: MooncakeStoreRow[];
   etcds: MooncakeEtcdRow[];
+};
+type MooncakeManifestResource = { key: string; kind: string; name: string; yaml: string };
+export type MooncakeCreatePayload = {
+  name: string;
+  cluster: string;
+  storeReplicas: number;
+  masterReplicas: number;
+  etcdReplicas: number;
+  groupKey: string;
+  template: string;
+  roleType?: string;
+  masterNodes: string[];
+  storeNodes: string[];
+  etcdNodes: string[];
+};
+type MooncakeHealth = 'healthy' | 'degraded' | 'critical';
+type MooncakeRuntimeMetrics = {
+  requestCount: string;
+  failures: number;
+  errors1m: number;
+  fatal5m: number;
+  putP95: string;
+  getP95: string;
+  readThroughput: string;
+  writeThroughput: string;
+  capacity: string;
+  capacityPercent: number;
+  keys: string;
 };
 
 export type DeployServiceItem = {
@@ -226,6 +291,7 @@ interface DeployListProps {
   onAddInstance?: (item: DeployServiceItem) => void;
   onAllocateWeight?: (item: DeployServiceItem) => void;
   onOpenCreate: () => void;
+  onCreateMooncake?: (payload: MooncakeCreatePayload) => void;
   onScalePd?: (item: DeployServiceItem) => void;
   onNodeFilter?: (item: DeployServiceItem) => void;
   onScheduleDetail?: (item: DeployServiceItem) => void;
@@ -241,7 +307,7 @@ interface DeployListProps {
   mode?: 'deploy' | 'modelOps';
 }
 
-export default function DeployList({ data, onDetail, onStop, onMonitor, onMooncakeMonitor, onExperience, onLog, onDeleteInstance, onAddInstance, onAllocateWeight, onOpenCreate, onScalePd, onNodeFilter, onScheduleDetail, onModelOpsYamlPreview, viewModeValue, onViewModeChange, clusterFilterValue, onClusterFilterChange, getModelOpsRowWeight, hideToolbar = false, aggregateModelOpsPods = false, defaultExpandAllModelOps = false, mode = 'deploy' }: DeployListProps) {
+export default function DeployList({ data, onDetail, onStop, onMonitor, onMooncakeMonitor, onExperience, onLog, onDeleteInstance, onAddInstance, onAllocateWeight, onOpenCreate, onCreateMooncake, onScalePd, onNodeFilter, onScheduleDetail, onModelOpsYamlPreview, viewModeValue, onViewModeChange, clusterFilterValue, onClusterFilterChange, getModelOpsRowWeight, hideToolbar = false, aggregateModelOpsPods = false, defaultExpandAllModelOps = false, mode = 'deploy' }: DeployListProps) {
   const [, setViewMode] = useState<ViewMode>('mooncake');
   const [statusFilter, setStatusFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -251,9 +317,17 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
   const [page, setPage] = useState(1);
   const [nowTick, setNowTick] = useState(() => Date.now());
   const [modelInfoPopup, setModelInfoPopup] = useState<{ item: DeployServiceItem; left: number; top: number } | null>(null);
+  const [mooncakeDetailItem, setMooncakeDetailItem] = useState<DeployServiceItem | null>(null);
+  const [mooncakeTemplateItem, setMooncakeTemplateItem] = useState<DeployServiceItem | null>(null);
+  const [mooncakeManifestItem, setMooncakeManifestItem] = useState<DeployServiceItem | null>(null);
+  const [mooncakeManifestKey, setMooncakeManifestKey] = useState('rbg');
   const [mooncakeStatusItem, setMooncakeStatusItem] = useState<DeployServiceItem | null>(null);
   const [mooncakeShutdownItem, setMooncakeShutdownItem] = useState<DeployServiceItem | null>(null);
   const [mooncakeStoppedStores, setMooncakeStoppedStores] = useState<Record<number, boolean>>({});
+  const [mooncakeOfflineStoreKeys, setMooncakeOfflineStoreKeys] = useState<Record<number, string[]>>({});
+  const [mooncakeCreatePage, setMooncakeCreatePage] = useState(false);
+  const [mooncakeStoreScaleItem, setMooncakeStoreScaleItem] = useState<DeployServiceItem | null>(null);
+  const [mooncakeAddedStoreNodes, setMooncakeAddedStoreNodes] = useState<Record<number, string[]>>({});
   const [expandedServiceIds, setExpandedServiceIds] = useState<number[]>([]);
   const [expandedMooncakeKeys, setExpandedMooncakeKeys] = useState<string[]>([]);
   const [inlineGatewayConfigs, setInlineGatewayConfigs] = useState<Record<number, InlineGatewayConfig>>({});
@@ -328,6 +402,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
 
   const paginated = useMemo(() => {
     if (effectiveViewMode === 'table') return filtered;
+    if (effectiveViewMode === 'mooncake') return filtered;
     return filtered.slice(0, page * pageSize);
   }, [filtered, effectiveViewMode, page, pageSize]);
 
@@ -460,14 +535,17 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
     const cluster = getDeployClusterName(item);
     const works = item.modelInfo.works?.split(',').map((work) => work.trim()).filter(Boolean) || [];
     const nodeCount = Math.max(works.length, item.modelInfo.number || 1);
-    const storeCount = Math.max(3, Math.min(8, nodeCount + 3));
-    const runningStoreCount = mooncakeStoppedStores[item.id] ? 0 : storeCount;
+    const baseStoreCount = Math.max(3, Math.min(8, nodeCount + 3));
+    const storeCount = baseStoreCount + (mooncakeAddedStoreNodes[item.id]?.length || 0);
+    const isTakenDown = !!mooncakeStoppedStores[item.id];
+    const offlineStoreCount = mooncakeOfflineStoreKeys[item.id]?.length || 0;
+    const runningStoreCount = isTakenDown ? 0 : Math.max(0, storeCount - offlineStoreCount);
     return {
       cluster,
       nodeCount,
       storeReady: `${runningStoreCount}/${storeCount}`,
-      etcdReady: '3/3',
-      masterReady: '3/3',
+      etcdReady: isTakenDown ? '0/3' : '3/3',
+      masterReady: isTakenDown ? '0/3' : '3/3',
       cache: `${Math.max(1, nodeCount * 1600)} GB`,
       namespace: `${cluster}.mooncake`,
     };
@@ -487,7 +565,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
   const getMooncakeClusterIndex = (item: DeployServiceItem) => {
     const namedIndex = item.name.match(/glm51[_-](\d+)/i)?.[1] || item.modelOpsInstanceKey?.match(/glm51[_-](\d+)/i)?.[1];
     if (namedIndex) return Number(namedIndex);
-    return Math.max(1, Math.min(9, item.modelInfo.number + 5));
+    return Math.max(1, Math.min(99, item.id >= 100 ? item.id - 99 : item.id));
   };
 
   const getMooncakeClusterStatus = (item: DeployServiceItem): MooncakeClusterStatus => {
@@ -496,46 +574,117 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
     const age = getRuntimeText(item);
     const storeCount = Number(meta.storeReady.split('/')[0]) || 5;
     const totalStoreCount = Number(meta.storeReady.split('/')[1]) || storeCount || 5;
-    const storesStopped = mooncakeStoppedStores[item.id];
+    const baseStoreCount = Math.max(3, Math.min(8, meta.nodeCount + 3));
+    const addedStoreNodes = mooncakeAddedStoreNodes[item.id] || [];
+    const clusterStopped = mooncakeStoppedStores[item.id];
+    const offlineStoreKeys = mooncakeOfflineStoreKeys[item.id] || [];
     const masterIps = [`10.42.9.${240 + item.id}`, `10.42.2.${92 + item.id}`, `10.42.1.${214 + item.id}`];
+    const masterNodes = ['baidu01-17', 'baidu01-16', 'baidu01-21'];
     const storeIps = ['10.12.11.61', '10.12.11.60', '10.12.11.65', '10.12.11.63', '10.12.11.12', '10.12.11.18', '10.12.11.29', '10.12.11.36'];
+    const storeNodes = ['baidu01-31', 'baidu01-30', 'baidu01-28', 'baidu01-21', 'baidu01-14', 'baidu01-16', 'baidu01-29', 'baidu01-20'];
     const etcdIps = [`10.42.${item.id % 3}.221`, `10.42.9.${239 + item.id}`, `10.42.2.${93 + item.id}`];
+    const etcdNodes = ['baidu01-22', 'baidu01-23', 'baidu01-24'];
 
     return {
       masters: masterIps.map((ip, index) => ({
         key: `${baseName}-master-${index}`,
         name: `${baseName}-master-${index}`,
+        node: masterNodes[index],
         ip,
-        ready: '1/1',
-        status: 'Running',
+        ready: clusterStopped ? '0/1' : '1/1',
+        status: clusterStopped ? 'Stopped' : 'Running',
         age,
         restart: 0,
         levels: index === 1 ? 'W 0 · E 0 · F 0' : 'silent 60s+',
         ops: '1909505/0',
         silent: index !== 1,
       })),
-      stores: Array.from({ length: totalStoreCount }, (_, index) => ({
-        key: `${baseName}-store-${index}`,
-        name: `${baseName}-store-1300gb-${index}`,
-        role: 'store-1300gb',
-        pd: index === 2 ? 'D' : 'P',
-        ip: storeIps[index % storeIps.length],
-        ready: storesStopped ? '0/2' : '2/2',
-        status: storesStopped ? 'Stopped' : 'Running',
-        age,
-        restart: 0,
-        logId: item.modelInfo.logs[index % Math.max(1, item.modelInfo.logs.length)]?.id || item.id,
-      })),
+      stores: Array.from({ length: totalStoreCount }, (_, index) => {
+        const addedNode = index >= baseStoreCount ? addedStoreNodes[index - baseStoreCount] : undefined;
+        const key = `${baseName}-store-${index}`;
+        const storeStopped = !!clusterStopped || offlineStoreKeys.includes(key);
+        return {
+          key,
+          name: `${baseName}-store-1000gb-${index}`,
+          role: 'store-1000gb',
+          pd: index === 2 ? 'D' : 'P',
+          node: addedNode || storeNodes[index % storeNodes.length],
+          ip: addedNode ? `10.12.12.${80 + index - baseStoreCount}` : storeIps[index % storeIps.length],
+          ready: storeStopped ? '0/2' : '2/2',
+          status: storeStopped ? 'Stopped' : 'Running',
+          age,
+          restart: 0,
+          logId: item.modelInfo.logs[index % Math.max(1, item.modelInfo.logs.length)]?.id || item.id,
+        };
+      }),
       etcds: etcdIps.map((ip, index) => ({
         key: `${baseName}-etcd-${index}`,
         name: `${baseName}-etcd-${index}`,
+        node: etcdNodes[index],
         ip,
-        ready: '1/1',
-        status: 'Running',
+        ready: clusterStopped ? '0/1' : '1/1',
+        status: clusterStopped ? 'Stopped' : 'Running',
         age,
         restart: 0,
       })),
     };
+  };
+
+  const getMooncakeManifestResources = (item: DeployServiceItem): MooncakeManifestResource[] => {
+    const meta = getMooncakeCardMeta(item);
+    const status = getMooncakeClusterStatus(item);
+    const clusterName = `${getMooncakeNamePrefix(item)}-mooncake-${getMooncakeClusterIndex(item)}`;
+    const namespace = 'default';
+    const resources: MooncakeManifestResource[] = [
+      {
+        key: 'rbg', kind: 'RoleBasedGroup', name: clusterName,
+        yaml: `apiVersion: workloads.x-k8s.io/v1alpha1\nkind: RoleBasedGroup\nmetadata:\n  name: ${clusterName}\n  namespace: ${namespace}\n  labels:\n    app.kubernetes.io/part-of: mooncake\n    app.kubernetes.io/managed-by: ataas\nspec:\n  cluster: ${meta.cluster}\n  group: ${getMooncakeGroupName(item)}\n  roles:\n    master:\n      replicas: ${meta.masterReady.split('/')[1]}\n    store:\n      replicas: ${meta.storeReady.split('/')[1]}\n      profile: store-1000gb\n    etcd:\n      replicas: ${meta.etcdReady.split('/')[1]}`,
+      },
+      {
+        key: 'etcd-sts', kind: 'StatefulSet', name: `${clusterName}-etcd`,
+        yaml: `apiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: ${clusterName}-etcd\n  namespace: ${namespace}\n  labels:\n    app.kubernetes.io/name: mooncake-etcd\nspec:\n  serviceName: ${clusterName}-etcd-headless\n  replicas: ${status.etcds.length}\n  selector:\n    matchLabels:\n      app.kubernetes.io/component: etcd\n  template:\n    metadata:\n      labels:\n        app.kubernetes.io/component: etcd\n    spec:\n      containers:\n        - name: etcd\n          image: quay.io/coreos/etcd:v3.5.12`,
+      },
+      ...[
+        { key: 'etcd-headless', name: `${clusterName}-etcd-headless`, selector: 'etcd' },
+        { key: 'etcd-client', name: `${clusterName}-etcd-client`, selector: 'etcd' },
+        { key: 'master-service', name: `${clusterName}-master`, selector: 'master' },
+      ].map(({ key, name, selector }) => ({
+        key, kind: 'Service', name,
+        yaml: `apiVersion: v1\nkind: Service\nmetadata:\n  name: ${name}\n  namespace: ${namespace}\n  labels:\n    app.kubernetes.io/part-of: mooncake\nspec:\n  type: ClusterIP\n  selector:\n    app.kubernetes.io/component: ${selector}\n  ports:\n    - name: metrics\n      port: ${selector === 'master' ? 9003 : 2379}\n      targetPort: ${selector === 'master' ? 9003 : 2379}`,
+      })),
+      ...status.etcds.map((row, index) => ({
+        key: `pvc-${index}`, kind: 'PersistentVolumeClaim', name: `${clusterName}-etcd-data-${row.name}`,
+        yaml: `apiVersion: v1\nkind: PersistentVolumeClaim\nmetadata:\n  name: ${clusterName}-etcd-data-${row.name}\n  namespace: ${namespace}\n  labels:\n    app.kubernetes.io/component: etcd\nspec:\n  accessModes:\n    - ReadWriteOnce\n  resources:\n    requests:\n      storage: 100Gi\n  storageClassName: mooncake-local-ssd`,
+      })),
+      ...status.etcds.map((row, index) => ({
+        key: `pv-${index}`, kind: 'PersistentVolume', name: `${clusterName}-etcd-pv-${index}`,
+        yaml: `apiVersion: v1\nkind: PersistentVolume\nmetadata:\n  name: ${clusterName}-etcd-pv-${index}\n  labels:\n    app.kubernetes.io/component: etcd\n    mooncake.io/node: ${row.node}\nspec:\n  capacity:\n    storage: 100Gi\n  accessModes:\n    - ReadWriteOnce\n  persistentVolumeReclaimPolicy: Retain\n  local:\n    path: /var/lib/mooncake/etcd-${index}`,
+      })),
+    ];
+    return resources;
+  };
+
+  const openMooncakeManifests = (item: DeployServiceItem) => {
+    setMooncakeManifestKey('rbg');
+    setMooncakeManifestItem(item);
+  };
+
+  const requestMooncakeStoreOffline = (item: DeployServiceItem, store: MooncakeStoreRow) => {
+    if (store.status === 'Stopped') return;
+    Modal.confirm({
+      title: '下线 Store 副本？',
+      content: <span>将停止 <strong>{store.name}</strong>。该副本会从当前集群拓扑中退出，Store 就绪数将相应下降。</span>,
+      okText: '确认下线',
+      cancelText: '取消',
+      okButtonProps: { danger: true },
+      onOk: () => {
+        setMooncakeOfflineStoreKeys((previous) => ({
+          ...previous,
+          [item.id]: Array.from(new Set([...(previous[item.id] || []), store.key])),
+        }));
+        message.success(`${store.name} 已下线`);
+      },
+    });
   };
 
   const isMooncakeReadyDegraded = (value: string) => {
@@ -555,6 +704,29 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
       </>
     );
   };
+
+  const hasMooncakeStoreOffline = (item: DeployServiceItem) => (
+    !!mooncakeStoppedStores[item.id] || (mooncakeOfflineStoreKeys[item.id]?.length || 0) > 0
+  );
+
+  const mooncakeFleet = useMemo(() => data.reduce((summary, item) => {
+    const meta = getMooncakeCardMeta(item);
+    const health = getMooncakeHealth(item, hasMooncakeStoreOffline(item));
+    const [masterReady, masterTotal] = meta.masterReady.split('/').map(Number);
+    const [storeReady, storeTotal] = meta.storeReady.split('/').map(Number);
+    summary.total += 1;
+    summary[health] += 1;
+    summary.masterReady += masterReady;
+    summary.masterTotal += masterTotal;
+    summary.storeReady += storeReady;
+    summary.storeTotal += storeTotal;
+    return summary;
+  }, { total: 0, healthy: 0, degraded: 0, critical: 0, masterReady: 0, masterTotal: 0, storeReady: 0, storeTotal: 0 }), [data, mooncakeStoppedStores, mooncakeOfflineStoreKeys, mooncakeAddedStoreNodes]);
+
+  const mooncakeDetailMeta = mooncakeDetailItem ? getMooncakeCardMeta(mooncakeDetailItem) : undefined;
+  const mooncakeDetailHealth = mooncakeDetailItem ? getMooncakeHealth(mooncakeDetailItem, hasMooncakeStoreOffline(mooncakeDetailItem)) : undefined;
+  const mooncakeDetailStatus = mooncakeDetailItem ? getMooncakeClusterStatus(mooncakeDetailItem) : undefined;
+  const mooncakeDetailRuntime = mooncakeDetailItem && mooncakeDetailHealth ? getMooncakeRuntimeMetrics(mooncakeDetailItem, nowTick, mooncakeDetailHealth) : undefined;
 
   const getInlineGatewayConfig = (item: DeployServiceItem): InlineGatewayConfig => {
     const saved = inlineGatewayConfigs[item.id];
@@ -1374,15 +1546,71 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
   return (
     <ConfigProvider theme={DEPLOY_THEME}>
     <div className="ataas-deploy-list">
+      {mooncakeCreatePage ? (
+        <MooncakeCreatePage
+          onBack={() => setMooncakeCreatePage(false)}
+          onConfirm={(payload) => {
+            onCreateMooncake?.(payload);
+            setMooncakeCreatePage(false);
+          }}
+        />
+      ) : mooncakeStoreScaleItem ? (
+        <MooncakeAddStorePage
+          clusterName={`${getMooncakeNamePrefix(mooncakeStoreScaleItem)}-mooncake-${getMooncakeClusterIndex(mooncakeStoreScaleItem)}`}
+          cluster={getMooncakeCardMeta(mooncakeStoreScaleItem).cluster}
+          currentStoreCount={getMooncakeClusterStatus(mooncakeStoreScaleItem).stores.length}
+          existingNodes={getMooncakeClusterStatus(mooncakeStoreScaleItem).stores.map((row) => row.node)}
+          onBack={() => setMooncakeStoreScaleItem(null)}
+          onConfirm={(nodes) => {
+            setMooncakeAddedStoreNodes((previous) => ({
+              ...previous,
+              [mooncakeStoreScaleItem.id]: Array.from(new Set([...(previous[mooncakeStoreScaleItem.id] || []), ...nodes])),
+            }));
+            message.success(`已增加 ${nodes.length} 个 Store 副本`);
+            setMooncakeStoreScaleItem(null);
+          }}
+        />
+      ) : mooncakeDetailItem && mooncakeDetailMeta && mooncakeDetailHealth && mooncakeDetailStatus && mooncakeDetailRuntime ? (
+        <MooncakeClusterDetailPage
+          item={mooncakeDetailItem}
+          meta={mooncakeDetailMeta}
+          health={mooncakeDetailHealth}
+          status={mooncakeDetailStatus}
+          runtime={mooncakeDetailRuntime}
+          endpoint={`etcd://${getMooncakeNamePrefix(mooncakeDetailItem)}-mooncake-${getMooncakeClusterIndex(mooncakeDetailItem)}-etcd-client.default.svc.cluster.local:2379`}
+          groupName={getMooncakeGroupName(mooncakeDetailItem)}
+          clusterName={`${getMooncakeNamePrefix(mooncakeDetailItem)}-mooncake-${getMooncakeClusterIndex(mooncakeDetailItem)}`}
+          namePrefix={getMooncakeNamePrefix(mooncakeDetailItem)}
+          onBack={() => setMooncakeDetailItem(null)}
+          onShutdown={() => setMooncakeShutdownItem(mooncakeDetailItem)}
+          onAddStore={() => setMooncakeStoreScaleItem(mooncakeDetailItem)}
+          onViewManifests={() => openMooncakeManifests(mooncakeDetailItem)}
+          onLog={(logId, podName) => onLog(mooncakeDetailItem, logId, podName)}
+          onOfflineStore={(store) => requestMooncakeStoreOffline(mooncakeDetailItem, store)}
+        />
+      ) : <>
+      {mode !== 'modelOps' && <section className="ataas-mooncake-overview-header">
+        <div>
+          <span className="ataas-mooncake-page-eyebrow">资源管理</span>
+          <h1>Mooncake 集群</h1>
+          <p>共 {mooncakeFleet.total} 个集群 · {mooncakeFleet.healthy} 健康 · {mooncakeFleet.degraded} 降级 · {mooncakeFleet.critical} 严重</p>
+        </div>
+        <div className="ataas-mooncake-overview-header-actions"><span><i />实时同步 · {new Date(nowTick).toLocaleTimeString('zh-CN', { hour12: false })}</span></div>
+      </section>}
+      {mode !== 'modelOps' && <section className="ataas-mooncake-fleet-kpi" aria-label="Mooncake 集群概览">
+        <div><span>集群数</span><strong>{mooncakeFleet.total}</strong><small>{mooncakeFleet.healthy} 健康 · {mooncakeFleet.degraded} 降级 · {mooncakeFleet.critical} 严重</small></div>
+        <div><span>Master 运行</span><strong>{mooncakeFleet.masterReady} / {mooncakeFleet.masterTotal}</strong><small>{mooncakeFleet.masterTotal - mooncakeFleet.masterReady} 个未运行</small></div>
+        <div><span>Store 就绪</span><strong>{mooncakeFleet.storeReady} / {mooncakeFleet.storeTotal}</strong><small>按集群汇总</small></div>
+      </section>}
       {!hideToolbar && <div className="ataas-deploy-list-toolbar">
         {mode !== 'modelOps' && (
           <>
-            <Select className="ataas-deploy-list-select" value={statusFilter} onChange={setStatusFilter} options={SERVICE_STATUS_OPTIONS} placeholder="服务状态" size="middle" />
-            <Select className="ataas-deploy-list-select" value={categoryFilter} onChange={setCategoryFilter} options={CATEGORY_OPTIONS} placeholder="模型类型" size="middle" />
+            <Select className="ataas-deploy-list-select" value={statusFilter} onChange={(value) => { setStatusFilter(value); setPage(1); }} options={SERVICE_STATUS_OPTIONS} placeholder="服务状态" size="middle" />
+            <Select className="ataas-deploy-list-select" value={categoryFilter} onChange={(value) => { setCategoryFilter(value); setPage(1); }} options={CATEGORY_OPTIONS} placeholder="模型类型" size="middle" />
           </>
         )}
         <Select className="ataas-deploy-list-select" value={clusterFilter} onChange={(value) => { setClusterFilter(value); onClusterFilterChange?.(value); setPage(1); }} options={clusterOptions} placeholder="集群名称" size="middle" />
-        <Input.Search className="ataas-deploy-list-search" placeholder={mode === 'modelOps' ? '搜索模型实例...' : '搜索服务名称...'} value={searchText} onChange={(e) => setSearchText(e.target.value)} allowClear size="middle" />
+        <Input.Search className="ataas-deploy-list-search" placeholder={mode === 'modelOps' ? '搜索模型实例...' : '搜索服务名称...'} value={searchText} onChange={(e) => { setSearchText(e.target.value); setPage(1); }} allowClear size="middle" />
         <div style={{ flex: 1 }} />
         {mode === 'modelOps' && onAllocateWeight && (
           <Button
@@ -1410,10 +1638,11 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
           <>
             <div className="ataas-deploy-list-view-toggle" role="group" aria-label="视图切换">
               <button className="active" type="button" onClick={() => { setViewMode('mooncake'); onViewModeChange?.('mooncake'); setPage(1); }}>
-                <img className="ataas-deploy-view-mooncake-icon" src={mooncakeLogo} alt="" />Mooncake 卡片
+                <img className="ataas-deploy-view-mooncake-icon" src={mooncakeLogo} alt="" />
+                Mooncake 卡片
               </button>
             </div>
-            <Button className="ataas-deploy-create-button ataas-page-create-button" type="primary" icon={<PlusOutlined />} onClick={onOpenCreate}>创建 Mooncake</Button>
+            <Button className="ataas-deploy-create-button ataas-page-create-button" type="primary" icon={<PlusOutlined />} onClick={() => setMooncakeCreatePage(true)}>创建 Mooncake</Button>
           </>
         )}
       </div>}
@@ -1490,87 +1719,52 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 14 }}>
             {paginated.map((item) => {
               const meta = getMooncakeCardMeta(item);
+              const health = getMooncakeHealth(item, hasMooncakeStoreOffline(item));
+              const runtime = getMooncakeRuntimeMetrics(item, nowTick, health);
+              const mooncakeName = `${getMooncakeNamePrefix(item)}-mooncake-${getMooncakeClusterIndex(item)}`;
+              const groupName = getMooncakeGroupName(item);
               const etcdEndpoint = `etcd://${getMooncakeNamePrefix(item)}-mooncake-${getMooncakeClusterIndex(item)}-etcd-client.default.svc.cluster.local:2379`;
               return (
                 <div key={item.id} className="ataas-deploy-service-card ataas-deploy-mooncake-card">
                   <div className="ataas-deploy-service-card-glow" />
                   <div className="ataas-deploy-service-card-head">
                     <div style={{ display: 'flex', gap: 12, alignItems: 'center', minWidth: 0 }}>
-                      <div className="ataas-deploy-service-logo ataas-deploy-mooncake-logo">
-                        <img src={mooncakeLogo} alt="" />
-                      </div>
+                      <div className="ataas-deploy-service-logo ataas-deploy-mooncake-logo"><img src={mooncakeLogo} alt="" /></div>
                       <div className="ataas-deploy-service-title-block">
-                        <Tooltip title={`${item.name} Mooncake`}>
-                          <div className="ataas-deploy-service-name">{item.name}</div>
-                        </Tooltip>
+                        <Tooltip title={mooncakeName}><div className="ataas-deploy-service-name">{mooncakeName}</div></Tooltip>
                         <div className="ataas-deploy-service-subline">
                           <span className="ataas-deploy-service-category ataas-deploy-mooncake-category">Mooncake</span>
-                          <Tooltip title={meta.namespace}>
-                            <span className="ataas-deploy-service-type-text">{meta.namespace}</span>
-                          </Tooltip>
+                          <Tooltip title={`cluster=${meta.cluster} · group=${groupName} · ${meta.masterReady} running`}><span className="ataas-deploy-service-type-text">cluster={meta.cluster} · group={groupName}</span></Tooltip>
                         </div>
                       </div>
                     </div>
-                    <div className="ataas-deploy-service-head-right">
-                      <StatusTag item={item} />
-                    </div>
+                    <div className="ataas-deploy-service-head-right"><StatusTag item={item} /></div>
                   </div>
-
                   <div className="ataas-deploy-mooncake-metric-row">
-                    <div className={isMooncakeReadyDegraded(meta.storeReady) ? 'is-degraded' : ''}>
-                      <span>Store</span>
-                      {renderMooncakeReadyValue(meta.storeReady)}
-                    </div>
-                    <div className={isMooncakeReadyDegraded(meta.masterReady) ? 'is-degraded' : ''}>
-                      <span>Master</span>
-                      {renderMooncakeReadyValue(meta.masterReady)}
-                    </div>
-                    <div className={isMooncakeReadyDegraded(meta.etcdReady) ? 'is-degraded' : ''}>
-                      <span>Etcd</span>
-                      {renderMooncakeReadyValue(meta.etcdReady)}
-                    </div>
+                    <div className={isMooncakeReadyDegraded(meta.storeReady) ? 'is-degraded' : ''}><span>Store</span>{renderMooncakeReadyValue(meta.storeReady)}</div>
+                    <div className={isMooncakeReadyDegraded(meta.masterReady) ? 'is-degraded' : ''}><span>Master</span>{renderMooncakeReadyValue(meta.masterReady)}</div>
+                    <div className={isMooncakeReadyDegraded(meta.etcdReady) ? 'is-degraded' : ''}><span>Etcd</span>{renderMooncakeReadyValue(meta.etcdReady)}</div>
                   </div>
-
                   <div className="ataas-deploy-service-meta-grid ataas-deploy-mooncake-meta-grid">
-                    <div>部署集群 <MetaValue title={meta.cluster}>{meta.cluster}</MetaValue></div>
-                    <div>master容量 <MetaValue title="13.98 TiB / 15.63 TiB">13.98 TiB / 15.63 TiB</MetaValue></div>
-                    <div>主备节点 <MetaValue title="1 / 3">1 / 3</MetaValue></div>
-                    <div>模型实例 <MetaValue title={item.name}>{item.name}</MetaValue></div>
+                    <div>集群 <MetaValue title={meta.cluster}>{meta.cluster}</MetaValue></div>
+                    <div>推理组 <MetaValue title={groupName}>{groupName}</MetaValue></div>
+                    <div>Master <MetaValue title={`${meta.masterReady} running`}>{meta.masterReady} running</MetaValue></div>
+                    <div>Ops · Req/Fail <MetaValue title={`${runtime.requestCount} / ${runtime.failures}`}>{runtime.requestCount} / {runtime.failures}</MetaValue></div>
                   </div>
-
                   <div className="ataas-deploy-mooncake-etcd-endpoint">
-                    <Tooltip title={etcdEndpoint}>
-                      <span>{etcdEndpoint}</span>
-                    </Tooltip>
-                    <Tooltip title="复制">
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          navigator.clipboard?.writeText(etcdEndpoint);
-                          message.success('已复制 etcd 地址');
-                        }}
-                      >
-                        <CopyOutlined />
-                      </button>
-                    </Tooltip>
+                    <strong>Master 地址</strong>
+                    <Tooltip title={etcdEndpoint}><span>{etcdEndpoint}</span></Tooltip>
+                    <Tooltip title="复制"><button type="button" onClick={(event) => { event.stopPropagation(); navigator.clipboard?.writeText(etcdEndpoint); message.success('已复制 etcd 地址'); }}><CopyOutlined /></button></Tooltip>
                   </div>
-
                   <div className="ataas-deploy-service-actions ataas-deploy-mooncake-actions">
-                    <IconActionButton title="查看模型部署" icon={<InfoCircleOutlined />} disabled={item.status === 'loading'} onClick={() => onDetail(item)} />
-                    <IconActionButton title="Mooncake 集群状态" icon={<EyeOutlined />} disabled={item.status === 'loading'} onClick={() => setMooncakeStatusItem(item)} />
-                    <IconActionButton title="监控" icon={<BarChartOutlined />} disabled={item.status !== 'running'} onClick={() => (onMooncakeMonitor || onMonitor)(item)} />
-                    <IconActionButton title={mooncakeStoppedStores[item.id] ? 'Store 已关停' : '关停 Store'} icon={<PoweroffOutlined />} disabled={!!mooncakeStoppedStores[item.id]} onClick={() => setMooncakeShutdownItem(item)} />
+                    <IconActionButton title="查看模板" icon={<FileTextOutlined />} onClick={() => setMooncakeTemplateItem(item)} />
+                    <IconActionButton title={mooncakeStoppedStores[item.id] ? '集群已下线' : '下线集群'} icon={<PoweroffOutlined />} disabled={!!mooncakeStoppedStores[item.id]} onClick={() => setMooncakeShutdownItem(item)} />
+                    <IconActionButton title="打开集群" icon={<ArrowRightOutlined />} disabled={item.status === 'loading'} onClick={() => setMooncakeDetailItem(item)} />
                   </div>
                 </div>
               );
             })}
           </div>
-          {hasMore && (
-            <div style={{ textAlign: 'center', marginTop: 20 }}>
-              <Button type="text" onClick={() => setPage((p) => p + 1)}>加载更多</Button>
-            </div>
-          )}
           {paginated.length === 0 && (
             <div style={{ textAlign: 'center', padding: '60px 0', color: '#86909c' }}>
               <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.3 }}>◻</div>
@@ -1602,6 +1796,7 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
             />
           </div>
       )}
+      </>}
     </div>
     <Modal
       className="ataas-model-ops-router-link-modal"
@@ -1731,6 +1926,36 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
       })()}
     </Modal>
     <Modal
+      className="ataas-mooncake-template-modal"
+      title={mooncakeTemplateItem ? `Mooncake 模板 · ${getMooncakeNamePrefix(mooncakeTemplateItem)}-mooncake-${getMooncakeClusterIndex(mooncakeTemplateItem)}` : 'Mooncake 模板'}
+      open={!!mooncakeTemplateItem}
+      width={680}
+      footer={<Button onClick={() => setMooncakeTemplateItem(null)}>关闭</Button>}
+      destroyOnHidden
+      onCancel={() => setMooncakeTemplateItem(null)}
+    >
+      {mooncakeTemplateItem && (() => {
+        const meta = getMooncakeCardMeta(mooncakeTemplateItem);
+        const clusterName = `${getMooncakeNamePrefix(mooncakeTemplateItem)}-mooncake-${getMooncakeClusterIndex(mooncakeTemplateItem)}`;
+        return <pre>{`apiVersion: ataas.io/v1\nkind: MooncakeCluster\nmetadata:\n  name: ${clusterName}\nspec:\n  cluster: ${meta.cluster}\n  group: ${getMooncakeGroupName(mooncakeTemplateItem)}\n  masterReplicas: ${meta.masterReady.split('/')[1]}\n  storeReplicas: ${meta.storeReady.split('/')[1]}\n  etcdReplicas: ${meta.etcdReady.split('/')[1]}`}</pre>;
+      })()}
+    </Modal>
+    <Modal
+      className="ataas-mooncake-manifest-modal"
+      title={mooncakeManifestItem ? `Manifests · ${getMooncakeNamePrefix(mooncakeManifestItem)}-mooncake-${getMooncakeClusterIndex(mooncakeManifestItem)}` : 'Manifests'}
+      open={!!mooncakeManifestItem}
+      width="calc(100vw - 112px)"
+      footer={null}
+      destroyOnHidden
+      onCancel={() => setMooncakeManifestItem(null)}
+    >
+      {mooncakeManifestItem && <MooncakeManifestBrowser
+        resources={getMooncakeManifestResources(mooncakeManifestItem)}
+        selectedKey={mooncakeManifestKey}
+        onSelect={setMooncakeManifestKey}
+      />}
+    </Modal>
+    <Modal
       className="ataas-mooncake-status-modal"
       title={mooncakeStatusItem ? (
         <span className="ataas-mooncake-status-title">
@@ -1852,35 +2077,40 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
       title={mooncakeShutdownItem ? (
         <span className="ataas-mooncake-shutdown-title">
           <PoweroffOutlined />
-          <strong>关停 Mooncake Store</strong>
-          <span>{mooncakeShutdownItem.name}</span>
+          <strong>下线 Mooncake 集群</strong>
+          <span>{getMooncakeNamePrefix(mooncakeShutdownItem)}-mooncake-{getMooncakeClusterIndex(mooncakeShutdownItem)}</span>
         </span>
-      ) : '关停 Mooncake Store'}
+      ) : '下线 Mooncake 集群'}
       open={!!mooncakeShutdownItem}
       width={620}
       destroyOnHidden
-      okText="确定关停"
+      okText="确定下线"
       cancelText="取消"
       okButtonProps={{ danger: true }}
       onCancel={() => setMooncakeShutdownItem(null)}
       onOk={() => {
         if (!mooncakeShutdownItem) return;
         setMooncakeStoppedStores((prev) => ({ ...prev, [mooncakeShutdownItem.id]: true }));
-        message.success('Store Pod 已全部关停');
+        message.success('Mooncake 集群已下线');
         setMooncakeShutdownItem(null);
       }}
     >
       {mooncakeShutdownItem && (() => {
         const status = getMooncakeClusterStatus(mooncakeShutdownItem);
+        const pods = [
+          ...status.masters.map((pod) => ({ ...pod, type: 'Master' })),
+          ...status.stores.map((pod) => ({ ...pod, type: 'Store' })),
+          ...status.etcds.map((pod) => ({ ...pod, type: 'Etcd' })),
+        ];
         return (
           <div className="ataas-mooncake-shutdown">
-            <p>将关停以下 Store Pod，确认后 Mooncake 卡片 Store 状态会变为 0/{status.stores.length}。</p>
+            <p>将下线该集群的 Master、Store 与 Etcd Pod，确认后卡片就绪状态会全部变为 0。</p>
             <div className="ataas-mooncake-shutdown-list">
-              {status.stores.map((store) => (
-                <div key={store.key} className="ataas-mooncake-shutdown-row">
-                  <strong>{store.name}</strong>
-                  <span>{store.ip}</span>
-                  <em>{store.ready}</em>
+              {pods.map((pod) => (
+                <div key={pod.key} className="ataas-mooncake-shutdown-row">
+                  <strong>{pod.type} · {pod.name}</strong>
+                  <span>{pod.ip}</span>
+                  <em>{pod.ready}</em>
                 </div>
               ))}
             </div>
@@ -1905,6 +2135,798 @@ export default function DeployList({ data, onDetail, onStop, onMonitor, onMoonca
   );
 }
 
+function MooncakeClusterDetailPage({
+  item,
+  meta,
+  health,
+  status,
+  runtime,
+  endpoint,
+  groupName,
+  clusterName,
+  namePrefix,
+  onBack,
+  onShutdown,
+  onAddStore,
+  onViewManifests,
+  onLog,
+  onOfflineStore,
+}: {
+  item: DeployServiceItem;
+  meta: { cluster: string; nodeCount: number; storeReady: string; etcdReady: string; masterReady: string; cache: string; namespace: string };
+  health: MooncakeHealth;
+  status: MooncakeClusterStatus;
+  runtime: MooncakeRuntimeMetrics;
+  endpoint: string;
+  groupName: string;
+  clusterName: string;
+  namePrefix: string;
+  onBack: () => void;
+  onShutdown: () => void;
+  onAddStore: () => void;
+  onViewManifests: () => void;
+  onLog: (logId: number, podName: string) => void;
+  onOfflineStore: (store: MooncakeStoreRow) => void;
+}) {
+  const healthConfig = MOONCAKE_HEALTH_CONFIG[health];
+  const runningMasters = status.masters.filter((row) => row.status === 'Running').length;
+  const topologyReady = health === 'healthy';
+  const renderPodStatus = (row: { status: string; age: string }) => <span className={row.status === 'Stopped' ? 'ataas-mooncake-status-running stopped' : 'ataas-mooncake-status-running'}><i />{row.status} · {row.age}</span>;
+
+  return (
+    <section className="ataas-mooncake-detail-page">
+      <header className="ataas-mooncake-detail-header">
+        <div>
+          <div className="ataas-mooncake-breadcrumb"><button type="button" onClick={onBack}><ArrowLeftOutlined />Mooncake 集群</button><span>/</span><span>{meta.cluster}</span></div>
+          <h1>{clusterName}</h1>
+          <p>{meta.cluster} · {meta.namespace} · 推理组 {groupName}</p>
+        </div>
+        <div className="ataas-mooncake-detail-header-actions">
+          <span><i />模拟实时 · 1 秒刷新</span>
+          <Button danger icon={<PoweroffOutlined />} onClick={onShutdown}>下线集群</Button>
+        </div>
+      </header>
+
+      <section className={`ataas-mooncake-health-banner ${healthConfig.className}`}>
+        {topologyReady ? <CheckCircleFilled /> : <ExclamationCircleFilled />}
+        <strong>{healthConfig.label}</strong>
+        <span>{runningMasters === status.masters.length ? `全部 ${status.masters.length} 个 Master 正在运行` : `${runningMasters}/${status.masters.length} 个 Master 正在运行`} · 近 5 分钟 {runtime.fatal5m} 个严重错误</span>
+        <em>Masters {runningMasters}/{status.masters.length}</em>
+      </section>
+
+      <section className="ataas-mooncake-detail-summary-grid">
+        <article className="wide"><span>Master 运行</span><strong>{runningMasters} <em>/ {status.masters.length}</em></strong><i><b style={{ width: `${(runningMasters / status.masters.length) * 100}%` }} /></i><small>{runningMasters === status.masters.length ? '全部运行正常' : '存在未就绪 Master'}</small></article>
+        <article><span>错误 · 1 分钟</span><strong>{runtime.errors1m}</strong><small>{runtime.errors1m ? '需要关注' : '无错误'}</small></article>
+        <article><span>严重错误 · 5 分钟</span><strong>{runtime.fatal5m}</strong><small>{runtime.fatal5m ? '存在严重异常' : '无严重异常'}</small></article>
+        <article><span>拓扑状态</span><strong className={topologyReady ? 'ok' : 'warn'}>{topologyReady ? '✓' : '!'}</strong><small>RBG · Etcd {topologyReady ? '正常' : '待检查'}</small></article>
+      </section>
+
+      <section className="ataas-mooncake-detail-metrics">
+        <header><div><strong>集群指标</strong><span>模拟实时 · 1 秒刷新</span></div><span>当前 Master 存储与访问性能</span></header>
+        <div>
+          <article><span>PUT P95</span><strong>{runtime.putP95}</strong></article>
+          <article><span>GET P95</span><strong>{runtime.getP95}</strong></article>
+          <article><span>读吞吐</span><strong>{runtime.readThroughput}</strong></article>
+          <article><span>写吞吐</span><strong>{runtime.writeThroughput}</strong></article>
+          <article><span>存储用量（Master）</span><strong className="capacity">{runtime.capacityPercent}%</strong><small>{runtime.capacity}</small></article>
+          <article><span>Keys（Master）</span><strong>{runtime.keys}</strong></article>
+        </div>
+      </section>
+
+      <section className="ataas-mooncake-detail-endpoint"><span>Master 地址</span><code>{endpoint}</code><button type="button" onClick={() => { navigator.clipboard?.writeText(endpoint); message.success('已复制 Master 地址'); }} aria-label="复制 Master 地址"><CopyOutlined /></button></section>
+      <section className="ataas-mooncake-detail-topology">
+        <span>拓扑</span><div><em />RBG <strong>{namePrefix}-mooncake-rbg</strong><em />Etcd <strong>{namePrefix}-mooncake-etcd</strong><i />Master {meta.masterReady}<i />Store {meta.storeReady}<i />Etcd {meta.etcdReady}</div><Button size="small" icon={<FileTextOutlined />} onClick={onViewManifests}>查看清单</Button>
+      </section>
+
+      <div className="ataas-mooncake-detail-pods">
+        <MooncakeStatusSection accent="#2F6BFF" title="Masters" meta={`${status.masters.length} 个 Pod · ${runningMasters} 个运行中 · ${runtime.errors1m} E · ${runtime.fatal5m} F`}>
+          <table className="ataas-mooncake-status-table ataas-mooncake-status-table--master-detail">
+            <thead><tr><th>名称</th><th>节点</th><th>IP</th><th>Ready</th><th>状态</th><th>重启</th><th>Levels · 1m</th><th>Ops · Req/Fail</th><th>操作</th></tr></thead>
+            <tbody>{status.masters.map((row) => <tr key={row.key} className={row.silent ? 'is-muted' : ''}><td><Tooltip title={row.name}><span className="ataas-mooncake-pod-name">{row.name}</span></Tooltip></td><td>{row.node}</td><td>{row.ip}<CopyTiny /></td><td>{row.ready}</td><td>{renderPodStatus(row)}</td><td>{row.restart}</td><td className={row.silent ? 'is-danger' : ''}>{row.levels}</td><td>{row.ops}</td><td><button type="button" className="ataas-mooncake-row-log-action" onClick={() => onLog(item.modelInfo.logs[0]?.id || item.id, row.name)}><FileSearchOutlined />查看日志</button></td></tr>)}</tbody>
+          </table>
+        </MooncakeStatusSection>
+
+        <MooncakeStatusSection accent="#8B3DFF" title="Stores" meta={`${status.stores.length} 个 Pod`}>
+          <div className="ataas-mooncake-store-summary">
+            <div><span className="ataas-mooncake-role-chip">{status.stores[0]?.role || 'store-1000gb'}</span><span>{status.stores.length} 副本</span></div>
+            <span>{meta.storeReady} 就绪</span>
+          </div>
+          <table className="ataas-mooncake-status-table ataas-mooncake-status-table--store-detail">
+            <thead><tr><th>名称</th><th>PD</th><th>节点</th><th>IP</th><th>Ready</th><th>状态</th><th>重启</th><th>操作</th></tr></thead>
+            <tbody>{status.stores.map((row) => <tr key={row.key}><td><Tooltip title={row.name}><span className="ataas-mooncake-pod-name">{row.name}</span></Tooltip></td><td><span className={row.pd === 'D' ? 'ataas-mooncake-pd decode' : 'ataas-mooncake-pd'}>{row.pd}</span></td><td>{row.node}</td><td>{row.ip}<CopyTiny /></td><td>{row.ready}</td><td>{renderPodStatus(row)}</td><td>{row.restart}</td><td><div className="ataas-mooncake-store-row-actions"><button type="button" className="log" onClick={() => onLog(row.logId, row.name)}><FileSearchOutlined />查看日志</button><button type="button" className="offline" disabled={row.status === 'Stopped'} onClick={() => onOfflineStore(row)}><PoweroffOutlined />{row.status === 'Stopped' ? '已下线' : '下线'}</button></div></td></tr>)}</tbody>
+          </table>
+          <footer className="ataas-mooncake-store-add">
+            <button type="button" onClick={onAddStore}><PlusOutlined />增加一个 Store 副本</button>
+            <span>{status.stores.length} → {status.stores.length + 1}</span>
+          </footer>
+        </MooncakeStatusSection>
+
+        <MooncakeStatusSection accent="#D98B00" title="Etcd" meta={`${status.etcds.length} 个 Pod · ${meta.etcdReady} 就绪`}>
+          <table className="ataas-mooncake-status-table ataas-mooncake-status-table--etcd-detail">
+            <thead><tr><th>名称</th><th>节点</th><th>IP</th><th>Ready</th><th>状态</th><th>重启</th><th>操作</th></tr></thead>
+            <tbody>{status.etcds.map((row) => <tr key={row.key}><td><Tooltip title={row.name}><span className="ataas-mooncake-pod-name">{row.name}</span></Tooltip></td><td>{row.node}</td><td>{row.ip}<CopyTiny /></td><td>{row.ready}</td><td>{renderPodStatus(row)}</td><td>{row.restart}</td><td><button type="button" className="ataas-mooncake-row-log-action" onClick={() => onLog(item.modelInfo.logs[0]?.id || item.id, row.name)}><FileSearchOutlined />查看日志</button></td></tr>)}</tbody>
+          </table>
+        </MooncakeStatusSection>
+      </div>
+    </section>
+  );
+}
+
+type MooncakeRole = 'master' | 'store' | 'etcd';
+type MooncakeNodeCandidate = {
+  name: string;
+  roles: MooncakeRole[];
+  cpuFree: number;
+  memoryFreeGb: number;
+  localSsd: boolean;
+  rdma: boolean;
+  ready: boolean;
+  schedulable: boolean;
+};
+type MooncakeNodeInventory = { nodes: MooncakeNodeCandidate[] };
+type MooncakeTemplateSpec = { masterReplicas: number; storeMinReplicas: number; storeMaxReplicas: number; storeProfile: string; storeCapacityGb: number; storeCapacityOptionsGb: number[]; etcdReplicas: number };
+
+const makeMooncakeNodeInventory = (nameFor: (index: number) => string, offset = 0): MooncakeNodeInventory => ({
+  nodes: [
+    { name: nameFor(offset + 1), roles: ['master', 'store'], cpuFree: 28, memoryFreeGb: 1600, localSsd: true, rdma: true, ready: true, schedulable: true },
+    { name: nameFor(offset + 2), roles: ['master', 'store'], cpuFree: 24, memoryFreeGb: 1480, localSsd: true, rdma: true, ready: true, schedulable: true },
+    { name: nameFor(offset + 3), roles: ['master', 'etcd'], cpuFree: 18, memoryFreeGb: 256, localSsd: true, rdma: false, ready: true, schedulable: true },
+    { name: nameFor(offset + 4), roles: ['master', 'etcd'], cpuFree: 16, memoryFreeGb: 192, localSsd: true, rdma: false, ready: true, schedulable: true },
+    { name: nameFor(offset + 5), roles: ['store'], cpuFree: 32, memoryFreeGb: 1800, localSsd: true, rdma: true, ready: true, schedulable: true },
+    { name: nameFor(offset + 6), roles: ['store'], cpuFree: 24, memoryFreeGb: 1420, localSsd: true, rdma: true, ready: true, schedulable: true },
+    { name: nameFor(offset + 7), roles: ['store'], cpuFree: 20, memoryFreeGb: 1180, localSsd: true, rdma: true, ready: true, schedulable: true },
+    { name: nameFor(offset + 8), roles: ['store'], cpuFree: 18, memoryFreeGb: 1120, localSsd: true, rdma: true, ready: true, schedulable: true },
+    { name: nameFor(offset + 9), roles: ['store'], cpuFree: 16, memoryFreeGb: 1040, localSsd: true, rdma: true, ready: true, schedulable: true },
+    { name: nameFor(offset + 10), roles: ['store'], cpuFree: 12, memoryFreeGb: 980, localSsd: true, rdma: true, ready: true, schedulable: true },
+    { name: nameFor(offset + 11), roles: ['etcd'], cpuFree: 12, memoryFreeGb: 96, localSsd: true, rdma: false, ready: true, schedulable: true },
+    { name: nameFor(offset + 12), roles: ['etcd'], cpuFree: 10, memoryFreeGb: 80, localSsd: true, rdma: false, ready: true, schedulable: true },
+    { name: nameFor(offset + 13), roles: ['store', 'etcd'], cpuFree: 20, memoryFreeGb: 1440, localSsd: true, rdma: true, ready: true, schedulable: false },
+  ],
+});
+
+const MOONCAKE_GROUP_NODE_INVENTORIES: Record<string, Record<string, MooncakeNodeInventory>> = {
+  bd: {
+    glm51_1: makeMooncakeNodeInventory((index) => `baidu01-${String(index + 16).padStart(2, '0')}`),
+    glm51_2: makeMooncakeNodeInventory((index) => `baidu02-${String(index + 16).padStart(2, '0')}`),
+  },
+  st1: {
+    glm51_1: makeMooncakeNodeInventory((index) => `st-gpu-${String(index).padStart(3, '0')}`),
+    glm51_2: makeMooncakeNodeInventory((index) => `st-gpu-${String(index).padStart(3, '0')}`, 14),
+  },
+};
+
+const DEFAULT_MOONCAKE_TEMPLATE_SPEC: MooncakeTemplateSpec = {
+  masterReplicas: 3,
+  storeMinReplicas: 1,
+  storeMaxReplicas: 8,
+  storeProfile: 'store-1000gb',
+  storeCapacityGb: 1000,
+  storeCapacityOptionsGb: [1000],
+  etcdReplicas: 3,
+};
+
+const readYamlReplica = (yaml: string, role: 'master' | 'store' | 'etcd', fallback: number) => {
+  const directMatch = yaml.match(new RegExp(`(?:${role}[_-]?replicas|${role}Replicas)\\s*:\\s*(\\d+)`, 'i'));
+  const roleBlock = yaml.match(new RegExp(`(?:^|\\n)\\s*${role}:\\s*\\n([\\s\\S]{0,260}?)(?=\\n\\s{0,4}[A-Za-z][\\w-]*:\\s|$)`, 'i'));
+  const nestedMatch = roleBlock?.[1].match(/replicas\s*:\s*(\d+)/i);
+  return Number(directMatch?.[1] || nestedMatch?.[1] || fallback);
+};
+
+const readMooncakeTemplateSpec = (yaml: string): MooncakeTemplateSpec => {
+  const storeProfile = yaml.match(/(?:store[_-]?profile|profile)\s*:\s*["']?([\w.-]+)/i)?.[1] || DEFAULT_MOONCAKE_TEMPLATE_SPEC.storeProfile;
+  const storeBlock = yaml.match(/(?:^|\n)\s*store:\s*\n([\s\S]{0,320}?)(?=\n\s{0,4}[A-Za-z][\w-]*:\s|$)/i)?.[1] || '';
+  const declaredCapacity = storeBlock.match(/(?:capacity(?:GB)?|size(?:GB)?)\s*:\s*(\d+)/i)?.[1];
+  const profileCapacity = storeProfile.match(/(\d+)\s*gb/i)?.[1];
+  const inlineCapacityOptions = storeBlock.match(/capacityOptions(?:GB)?\s*:\s*\[([^\]]*)\]/i)?.[1] || '';
+  const blockCapacityOptions = storeBlock.match(/capacityOptions(?:GB)?\s*:\s*\n((?:\s*-\s*\d+\s*\n?)+)/i)?.[1] || '';
+  const storeCapacityGb = Number(declaredCapacity || profileCapacity || DEFAULT_MOONCAKE_TEMPLATE_SPEC.storeCapacityGb);
+  const storeCapacityOptionsGb = Array.from(new Set([
+    storeCapacityGb,
+    ...`${inlineCapacityOptions}\n${blockCapacityOptions}`.match(/\d+/g)?.map(Number) || [],
+  ])).filter((value) => Number.isFinite(value) && value > 0).sort((left, right) => left - right);
+  const storeReplicas = readYamlReplica(yaml, 'store', DEFAULT_MOONCAKE_TEMPLATE_SPEC.storeMinReplicas);
+  return {
+    masterReplicas: readYamlReplica(yaml, 'master', DEFAULT_MOONCAKE_TEMPLATE_SPEC.masterReplicas),
+    storeMinReplicas: storeReplicas,
+    storeMaxReplicas: Math.max(storeReplicas, DEFAULT_MOONCAKE_TEMPLATE_SPEC.storeMaxReplicas),
+    storeProfile,
+    storeCapacityGb,
+    storeCapacityOptionsGb,
+    etcdReplicas: readYamlReplica(yaml, 'etcd', DEFAULT_MOONCAKE_TEMPLATE_SPEC.etcdReplicas),
+  };
+};
+
+const isYamlFile = (node: ConfigTreeNode) => !node.is_dir && /\.ya?ml$/i.test(node.name);
+
+const hasYamlDescendant = (node: ConfigTreeNode): boolean => isYamlFile(node) || Boolean(node.children?.some(hasYamlDescendant));
+
+function MooncakeYamlTemplatePicker({
+  open,
+  currentPath,
+  onCancel,
+  onSelect,
+}: {
+  open: boolean;
+  currentPath: string;
+  onCancel: () => void;
+  onSelect: (path: string, yaml: string) => void;
+}) {
+  const [tree, setTree] = useState<ConfigTreeNode | null>(null);
+  const [selectedPath, setSelectedPath] = useState('');
+  const [latestYaml, setLatestYaml] = useState('');
+  const [draftYaml, setDraftYaml] = useState('');
+  const [previewYaml, setPreviewYaml] = useState('');
+  const [history, setHistory] = useState<ConfigCommitEntry[]>([]);
+  const [versionKey, setVersionKey] = useState('latest');
+  const [loading, setLoading] = useState(false);
+
+  const selectFile = async (path: string) => {
+    setSelectedPath(path);
+    setVersionKey('latest');
+    setLoading(true);
+    try {
+      const [file, versions] = await Promise.all([
+        rpc('config.get', { path }),
+        rpc('config.history', { path }),
+      ]);
+      const yaml = file.yaml || '';
+      setLatestYaml(yaml);
+      setDraftYaml(yaml);
+      setPreviewYaml(yaml);
+      setHistory(versions.commits || []);
+    } catch {
+      message.error('YAML 文件读取失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    let disposed = false;
+    setLoading(true);
+    rpc('config.list_tree')
+      .then((response) => { if (!disposed) setTree(response.root); })
+      .catch(() => { if (!disposed) message.error('资源文件加载失败'); })
+      .finally(() => { if (!disposed) setLoading(false); });
+    return () => { disposed = true; };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (currentPath) {
+      void selectFile(currentPath);
+      return;
+    }
+    setSelectedPath('');
+    setLatestYaml('');
+    setDraftYaml('');
+    setPreviewYaml('');
+    setHistory([]);
+    setVersionKey('latest');
+  }, [open, currentPath]);
+
+  const previewVersion = async (nextVersion: string) => {
+    if (!selectedPath) return;
+    setVersionKey(nextVersion);
+    if (nextVersion === 'latest') {
+      setPreviewYaml(draftYaml);
+      return;
+    }
+    setLoading(true);
+    try {
+      const response = await rpc('config.show_commit', { path: selectedPath, hash: nextVersion });
+      setPreviewYaml(response.yaml || '');
+    } catch {
+      message.error('历史版本读取失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const confirmSelection = async () => {
+    if (!selectedPath || !previewYaml.trim()) return;
+    if (versionKey === 'latest' && draftYaml !== latestYaml) {
+      setLoading(true);
+      try {
+        await rpc('config.commit', {
+          writes: [{ path: selectedPath, yaml: draftYaml }],
+          message: 'update Mooncake template before creation',
+        });
+        setLatestYaml(draftYaml);
+        message.success('YAML 修改已保存');
+      } catch {
+        message.error('YAML 保存失败');
+        return;
+      } finally {
+        setLoading(false);
+      }
+    }
+    onSelect(selectedPath, previewYaml);
+  };
+
+  const formatHistoryTime = (ts?: number) => {
+    if (!ts) return '';
+    const diffHours = Math.max(1, Math.round((Date.now() - ts) / 3600000));
+    return diffHours < 24 ? `${diffHours}h ago` : `${Math.round(diffHours / 24)}d ago`;
+  };
+
+  const mooncakeTree = tree?.children?.find((child) => child.is_dir && child.path === 'mooncake') || tree;
+  const renderTree = (node: ConfigTreeNode, depth = 0): ReactNode => (node.children || [])
+    .filter((child) => child.is_dir ? hasYamlDescendant(child) : isYamlFile(child))
+    .map((child) => {
+      if (child.is_dir) {
+        return <div key={child.path}>
+          <div className="ataas-config-yaml-picker-dir" style={{ paddingLeft: 12 + depth * 14 }}><DownOutlined /><span>{child.name}</span></div>
+          {renderTree(child, depth + 1)}
+        </div>;
+      }
+      return <button
+        key={child.path}
+        type="button"
+        className={'ataas-config-yaml-picker-file' + (selectedPath === child.path ? ' selected' : '')}
+        style={{ paddingLeft: 24 + depth * 14 }}
+        onClick={() => void selectFile(child.path)}
+      ><FileTextOutlined /><span title={child.path}>{child.name}</span></button>;
+    });
+  const renderMooncakeTree = () => {
+    if (!mooncakeTree) return <div className="ataas-config-yaml-picker-empty">暂无 Mooncake YAML 文件</div>;
+    if (mooncakeTree === tree) return renderTree(mooncakeTree);
+    return <div>
+      <div className="ataas-config-yaml-picker-dir" style={{ paddingLeft: 12 }}><DownOutlined /><span>{mooncakeTree.name}</span></div>
+      {renderTree(mooncakeTree, 1)}
+    </div>;
+  };
+
+  return <Modal
+    className="ataas-config-yaml-picker-modal"
+    title="选择并编辑 YAML 模板"
+    open={open}
+    width={1140}
+    destroyOnHidden
+    onCancel={onCancel}
+    footer={<div className="ataas-config-yaml-picker-footer">
+      <span className="ataas-config-yaml-picker-warning"><InfoCircleOutlined />最新版本可直接编辑并保存；历史版本可查看和选择。</span>
+      <div><Button onClick={onCancel}>取消</Button><Button type="primary" loading={loading} disabled={!selectedPath || !previewYaml.trim()} onClick={() => void confirmSelection()}>确认选择</Button></div>
+    </div>}
+  >
+    <div className={'ataas-config-yaml-picker' + (selectedPath ? ' has-history' : '')}>
+      <div className="ataas-config-yaml-picker-tree">
+        <div className="ataas-config-yaml-picker-title">文件</div>
+        <div className="ataas-config-yaml-picker-tree-body">{loading && !tree ? <div className="ataas-config-yaml-picker-empty">加载中...</div> : renderMooncakeTree()}</div>
+      </div>
+      {selectedPath && <div className="ataas-config-yaml-picker-history">
+        <div className="ataas-config-yaml-picker-title">历史版本</div>
+        <div className="ataas-config-yaml-picker-history-body">
+          <button type="button" className={'ataas-config-yaml-picker-version' + (versionKey === 'latest' ? ' selected' : '')} onClick={() => void previewVersion('latest')}><strong>latest（最新）</strong></button>
+          {history.map((entry) => <button type="button" key={entry.hash} className={'ataas-config-yaml-picker-version' + (versionKey === entry.hash ? ' selected' : '')} onClick={() => void previewVersion(entry.hash)}><span><em>{entry.hash.slice(0, 6)}</em>{entry.message}</span><small>{formatHistoryTime(entry.ts_ms)}</small></button>)}
+        </div>
+      </div>}
+      <div className="ataas-config-yaml-picker-preview">
+        <div className="ataas-config-yaml-picker-title">{selectedPath ? `${selectedPath.toUpperCase()} ${versionKey === 'latest' ? 'LATEST（可编辑）' : versionKey.slice(0, 6)}` : 'YAML 内容'}</div>
+        {selectedPath ? <MonacoEditor
+          key={`${selectedPath}-${versionKey}`}
+          value={previewYaml}
+          language="yaml"
+          height="100%"
+          className="ataas-config-yaml-picker-editor"
+          onChange={versionKey === 'latest' ? (next) => { setPreviewYaml(next); setDraftYaml(next); } : undefined}
+          options={{
+            fontSize: 11,
+            lineHeight: 18,
+            fontWeight: '400',
+            minimap: { enabled: true, side: 'right', size: 'proportional', showSlider: 'mouseover' },
+            scrollbar: { verticalScrollbarSize: 9, horizontalScrollbarSize: 9 },
+            overviewRulerLanes: 0,
+            renderLineHighlight: 'line',
+            wordWrap: 'off',
+            readOnly: versionKey !== 'latest',
+            domReadOnly: versionKey !== 'latest',
+          }}
+        /> : <div className="ataas-config-yaml-picker-empty-preview">请在左侧选择一个 YAML 文件</div>}
+      </div>
+    </div>
+  </Modal>;
+}
+
+function MooncakeCreatePage({ onBack, onConfirm }: { onBack: () => void; onConfirm: (payload: MooncakeCreatePayload) => void }) {
+  const [cluster, setCluster] = useState('bd');
+  const [template, setTemplate] = useState('');
+  const [groupKey, setGroupKey] = useState('');
+  const [roleType, setRoleType] = useState<string | undefined>();
+  const [standalone, setStandalone] = useState(false);
+  const [masterNodes, setMasterNodes] = useState<string[]>([]);
+  const [storeNodes, setStoreNodes] = useState<string[]>([]);
+  const [etcdNodes, setEtcdNodes] = useState<string[]>([]);
+  const [stepConfirm, setStepConfirm] = useState(false);
+  const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
+  const [selectedTemplateYaml, setSelectedTemplateYaml] = useState('');
+  const [templateSpec, setTemplateSpec] = useState<MooncakeTemplateSpec>(DEFAULT_MOONCAKE_TEMPLATE_SPEC);
+  const [storeCapacityGb, setStoreCapacityGb] = useState(DEFAULT_MOONCAKE_TEMPLATE_SPEC.storeCapacityGb);
+
+  useEffect(() => {
+    let disposed = false;
+    if (!template) {
+      setTemplateSpec(DEFAULT_MOONCAKE_TEMPLATE_SPEC);
+      setStoreCapacityGb(DEFAULT_MOONCAKE_TEMPLATE_SPEC.storeCapacityGb);
+      return () => { disposed = true; };
+    }
+    if (selectedTemplateYaml) {
+      const nextSpec = readMooncakeTemplateSpec(selectedTemplateYaml);
+      setTemplateSpec(nextSpec);
+      setStoreCapacityGb(nextSpec.storeCapacityGb);
+      return () => { disposed = true; };
+    }
+    rpc('config.get', { path: template })
+      .then((response) => {
+        if (disposed) return;
+        const nextSpec = readMooncakeTemplateSpec(response.yaml || '');
+        setTemplateSpec(nextSpec);
+        setStoreCapacityGb(nextSpec.storeCapacityGb);
+      })
+      .catch(() => {
+        if (!disposed) {
+          setTemplateSpec(DEFAULT_MOONCAKE_TEMPLATE_SPEC);
+          setStoreCapacityGb(DEFAULT_MOONCAKE_TEMPLATE_SPEC.storeCapacityGb);
+        }
+      });
+    return () => { disposed = true; };
+  }, [template, selectedTemplateYaml]);
+
+  const toggleNode = (node: string, selected: string[], setSelected: (value: string[]) => void, limit: number, occupiedByOtherRoles: string[]) => {
+    if (occupiedByOtherRoles.includes(node)) {
+      message.warning('一个节点只能分配给一个 Mooncake 角色');
+      return;
+    }
+    if (selected.includes(node)) {
+      setSelected(selected.filter((item) => item !== node));
+      return;
+    }
+    if (selected.length >= limit) {
+      message.warning(`该角色最多选择 ${limit} 个节点`);
+      return;
+    }
+    setSelected([...selected, node]);
+  };
+  const groupKeyOptions = Object.keys(MOONCAKE_GROUP_NODE_INVENTORIES[cluster] || {});
+  const selectedNodeInventory = groupKey ? MOONCAKE_GROUP_NODE_INVENTORIES[cluster]?.[groupKey] : undefined;
+  const isStoreNodeEligible = (node: MooncakeNodeCandidate, capacityGb = storeCapacityGb) => node.cpuFree >= 8 && node.memoryFreeGb >= capacityGb && node.localSsd && node.rdma;
+  const nodeMatchesRole = (node: MooncakeNodeCandidate, role: MooncakeRole) => {
+    if (!node.ready || !node.schedulable || !node.roles.includes(role)) return false;
+    if (role === 'master') return node.cpuFree >= 8 && node.memoryFreeGb >= 16;
+    if (role === 'store') return isStoreNodeEligible(node);
+    return node.cpuFree >= 4 && node.memoryFreeGb >= 8 && node.localSsd;
+  };
+  const selectedRoleForNode = (node: string): string | undefined => {
+    if (masterNodes.includes(node)) return 'Master';
+    if (storeNodes.includes(node)) return 'Store';
+    if (etcdNodes.includes(node)) return 'Etcd';
+    return undefined;
+  };
+  const getRoleNodes = (role: MooncakeRole) => selectedNodeInventory?.nodes.filter((node) => nodeMatchesRole(node, role)).map((node) => node.name) || [];
+  const changeStoreCapacity = (nextCapacityGb: number) => {
+    setStoreCapacityGb(nextCapacityGb);
+    if (!selectedNodeInventory) return;
+    const eligibleStoreNodes = selectedNodeInventory.nodes
+      .filter((node) => node.ready && node.schedulable && node.roles.includes('store') && isStoreNodeEligible(node, nextCapacityGb))
+      .map((node) => node.name);
+    setStoreNodes((current) => current.filter((node) => eligibleStoreNodes.includes(node)));
+  };
+  const resetNodeSelections = () => {
+    setMasterNodes([]);
+    setStoreNodes([]);
+    setEtcdNodes([]);
+  };
+  const selectCluster = (value: string) => {
+    setCluster(value);
+    setGroupKey('');
+    resetNodeSelections();
+  };
+  const selectGroupKey = (value: string) => {
+    setGroupKey(value);
+    resetNodeSelections();
+  };
+  const selectTemplate = (value: string, yaml: string) => {
+    setTemplate(value);
+    setSelectedTemplateYaml(yaml);
+    resetNodeSelections();
+  };
+  const canCreate = Boolean(template && selectedNodeInventory && masterNodes.length === templateSpec.masterReplicas && storeNodes.length >= templateSpec.storeMinReplicas && etcdNodes.length === templateSpec.etcdReplicas && stepConfirm);
+  const groupName = groupKey ? (() => {
+    const [prefix, index] = groupKey.split('_');
+    return `${prefix}-mooncake-${index || 'new'}`;
+  })() : '待生成';
+  const steps = [
+    {
+      title: '创建 Services', mode: '手动确认', ready: Boolean(template && groupKey),
+      detail: '根据模板渲染并创建 Mooncake 的 Service 资源。',
+      fields: [['目标 cluster', cluster], ['模板文件', template || '未选择']],
+    },
+    {
+      title: '创建 etcd StatefulSet', mode: '手动确认', ready: etcdNodes.length === templateSpec.etcdReplicas,
+      detail: '为已选 Etcd 节点创建 StatefulSet 和持久化存储。',
+      fields: [['Etcd 节点', etcdNodes.length ? etcdNodes.join('、') : '未选择'], ['副本数', `${etcdNodes.length || 0} / ${templateSpec.etcdReplicas}`]],
+    },
+    {
+      title: '创建 RBG', mode: '手动确认', ready: masterNodes.length === templateSpec.masterReplicas && storeNodes.length >= templateSpec.storeMinReplicas,
+      detail: '关联 Master 和 Store 节点，创建 Mooncake RoleBasedGroup。',
+      fields: [['RBG 名称', `default/${groupName}`], ['节点规格', `Master ${masterNodes.length} / Store ${storeNodes.length}`]],
+    },
+    {
+      title: '等待 RBG Ready', mode: '自动', ready: masterNodes.length === templateSpec.masterReplicas && storeNodes.length >= templateSpec.storeMinReplicas && etcdNodes.length === templateSpec.etcdReplicas,
+      detail: '等待全部 Pod 就绪，并校验集群拓扑状态。',
+      fields: [['等待条件', 'RBG Ready'], ['超时时间', '600s']],
+    },
+  ];
+  const roleDefinitions = selectedNodeInventory ? [
+    { role: 'master' as const, title: 'Master 节点', yamlSpec: `YAML：${templateSpec.masterReplicas} 副本`, hint: `需选择 ${templateSpec.masterReplicas} 个`, nodes: getRoleNodes('master'), selected: masterNodes, setSelected: setMasterNodes, occupiedByOtherRoles: [...storeNodes, ...etcdNodes], limit: templateSpec.masterReplicas, className: 'master' },
+    { role: 'store' as const, title: 'Store 节点', yamlSpec: `模板规格：${templateSpec.storeProfile} · ${templateSpec.storeMinReplicas}–${templateSpec.storeMaxReplicas} 副本`, hint: `至少选择 ${templateSpec.storeMinReplicas} 个`, nodes: getRoleNodes('store'), selected: storeNodes, setSelected: setStoreNodes, occupiedByOtherRoles: [...masterNodes, ...etcdNodes], limit: templateSpec.storeMaxReplicas, className: 'store' },
+    { role: 'etcd' as const, title: 'Etcd 节点', yamlSpec: `YAML：${templateSpec.etcdReplicas} 副本`, hint: `需选择 ${templateSpec.etcdReplicas} 个`, nodes: getRoleNodes('etcd'), selected: etcdNodes, setSelected: setEtcdNodes, occupiedByOtherRoles: [...masterNodes, ...storeNodes], limit: templateSpec.etcdReplicas, className: 'etcd' },
+  ] : [];
+
+  return (
+    <section className="ataas-mooncake-create-page">
+      <header className="ataas-mooncake-create-header">
+        <Button icon={<ArrowLeftOutlined />} onClick={onBack}>返回</Button>
+        <h1>新建 Mooncake</h1>
+      </header>
+
+      <main className="ataas-mooncake-create-layout">
+        <div className="ataas-mooncake-create-main">
+          <section className="ataas-mooncake-create-block">
+            <div className="ataas-mooncake-create-section-head">
+              <span>01</span>
+              <div><strong>目标与模板</strong><em>先确定创建到哪个 cluster，并选择用于渲染 Mooncake 的 YAML 模板。</em></div>
+            </div>
+            <div className="ataas-mooncake-create-field-grid three">
+              <label>
+                <span>目标 cluster <b>*</b></span>
+                <Select value={cluster} onChange={selectCluster} options={[{ value: 'bd', label: 'bd' }, { value: 'st1', label: 'st1' }]} />
+              </label>
+              <label>
+                <span>YAML 模板文件 <b>*</b></span>
+                <Button className={'ataas-mooncake-create-template-trigger' + (template ? ' selected' : '')} icon={<FileTextOutlined />} onClick={() => setTemplatePickerOpen(true)}>
+                  <span title={template || undefined}>{template || '从资源文件选择 YAML'}</span>
+                  {template && <em>查看 / 修改</em>}
+                </Button>
+              </label>
+              <label className="ataas-mooncake-create-capacity-field">
+                <span>Store 容量（每副本）</span>
+                {!template ? <Input disabled value="" placeholder="选择模板后带出" /> : templateSpec.storeCapacityOptionsGb.length > 1 ? <Select value={storeCapacityGb} onChange={changeStoreCapacity} options={templateSpec.storeCapacityOptionsGb.map((value) => ({ value, label: `${value.toLocaleString()} GB` }))} /> : <Input readOnly value={`${storeCapacityGb.toLocaleString()} GB`} />}
+                <em>{!template ? '由 YAML 模板决定' : templateSpec.storeCapacityOptionsGb.length > 1 ? 'YAML 已开放可选容量档' : 'YAML 固定值'}</em>
+              </label>
+            </div>
+          </section>
+
+          <section className="ataas-mooncake-create-block">
+            <div className="ataas-mooncake-create-section-head">
+              <span>02</span>
+              <div><strong>集群标识</strong><em>选择 Group Key 来确定集群名称及可选节点的过滤范围。</em></div>
+            </div>
+            <div className="ataas-mooncake-create-identity">
+              <div className="ataas-mooncake-create-key-field">
+              <span>Group Key <b>*</b></span>
+              <div className="ataas-mooncake-create-key-list">
+                  {groupKeyOptions.map((key) => <button type="button" key={key} disabled={!template} className={groupKey === key ? 'selected' : ''} onClick={() => selectGroupKey(key)}>{key}</button>)}
+              </div>
+              </div>
+              <label>
+                <span>角色类型（可选）</span>
+                <Select allowClear value={roleType} onChange={setRoleType} placeholder="测试 / 线上 / 开发" options={['测试', '线上', '开发'].map((value) => ({ value, label: value }))} />
+              </label>
+              <label className="ataas-mooncake-create-standalone">
+                <span>集群模式</span>
+                <Checkbox checked={standalone} onChange={(event) => setStandalone(event.target.checked)}>独立测试集群（无 SGLang 关联）</Checkbox>
+              </label>
+            </div>
+          </section>
+
+          <section className="ataas-mooncake-create-block">
+            <div className="ataas-mooncake-create-section-head">
+              <span>03</span>
+              <div><strong>节点与运行规格</strong><em>YAML 定义副本与 Store 容量档；候选节点按 mock 运行快照的可用资源和角色能力过滤。具备多种能力的节点会同时出现，选中后会在其他角色中置灰。</em></div>
+            </div>
+            <div className="ataas-mooncake-create-node-columns">
+              {!template && <div className="ataas-mooncake-create-node-empty">请先选择 YAML 模板文件，再选择 Group Key。</div>}
+              {template && !groupKey && <div className="ataas-mooncake-create-node-empty">请选择 Group Key，以加载该组的 mock 运行节点快照。</div>}
+              {template && groupKey && !selectedNodeInventory && <div className="ataas-mooncake-create-node-empty">当前 cluster 与 Group Key 没有匹配的节点资源，请重新选择。</div>}
+              {selectedNodeInventory && <div className="ataas-mooncake-create-node-runtime-note"><InfoCircleOutlined />Mock 运行快照：仅显示 Ready、可调度且满足该角色资源条件的节点；Store 还需匹配当前 {storeCapacityGb.toLocaleString()} GB 容量档、SSD 与 RDMA 条件。</div>}
+              {roleDefinitions.map((role) => (
+                <div className="ataas-mooncake-create-role-block" key={role.title}>
+                  <div className="ataas-mooncake-create-role-title"><div><strong>{role.title}</strong><span>{role.yamlSpec}</span></div><em>{role.selected.length} selected · {role.hint}</em></div>
+                  <div className="ataas-mooncake-create-node-list">
+                    {role.nodes.map((node) => {
+                      const selected = role.selected.includes(node);
+                      const selectedForOtherRole = role.occupiedByOtherRoles.includes(node);
+                      const selectedRole = selectedRoleForNode(node);
+                      return <button type="button" key={node} disabled={selectedForOtherRole} title={selectedForOtherRole ? `已选择为 ${selectedRole}` : undefined} className={`${role.className} ${selected ? 'selected' : ''} ${selectedForOtherRole ? 'occupied' : ''}`} onClick={() => toggleNode(node, role.selected, role.setSelected, role.limit, role.occupiedByOtherRoles)}>{selected ? <CheckCircleFilled /> : <i />}<span>{node}</span><small>{selectedForOtherRole ? `已选 ${selectedRole}` : selected ? '已选择' : '可选'}</small></button>;
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+
+        <aside className="ataas-mooncake-create-plan">
+          <section>
+            <div className="ataas-mooncake-create-guide-head">
+              <strong>执行计划</strong>
+              <span>{steps.every((step) => step.ready) ? '参数已就绪 · 4 步' : `待补充 ${steps.filter((step) => !step.ready).length} 项`}</span>
+            </div>
+            <div className="ataas-mooncake-create-step-list">
+              {steps.map((step, index) => <article className={step.ready ? 'ready' : ''} key={step.title}>
+                <div className="ataas-mooncake-create-step-trigger">
+                  <i>{step.ready ? <CheckCircleFilled /> : index + 1}</i>
+                  <span>
+                    <span className="ataas-mooncake-create-step-title"><strong>{step.title}</strong><small className={step.mode === '自动' ? 'auto' : ''}>{step.mode}</small></span>
+                    <em>{step.detail}</em>
+                  </span>
+                  <b>{step.ready ? '已就绪' : '待配置'}</b>
+                </div>
+                <div className="ataas-mooncake-create-step-detail">
+                  {step.fields.map(([label, value]) => <div key={label}><span>{label}</span><strong title={value}>{value}</strong></div>)}
+                </div>
+              </article>)}
+            </div>
+            <div className="ataas-mooncake-create-footer">
+              <Checkbox checked={stepConfirm} onChange={(event) => setStepConfirm(event.target.checked)}>
+                <span className="ataas-mooncake-create-confirm-copy"><strong>执行前确认</strong><em>我已检查节点、YAML 与集群标识</em></span>
+              </Checkbox>
+              <div>
+                <Button onClick={onBack}>取消</Button>
+                <Button type="primary" icon={<PlayCircleOutlined />} disabled={!canCreate} onClick={() => onConfirm({
+                  name: groupName,
+                  cluster,
+                  storeReplicas: storeNodes.length,
+                  masterReplicas: masterNodes.length,
+                  etcdReplicas: etcdNodes.length,
+                  groupKey,
+                  template,
+                  roleType,
+                  masterNodes,
+                  storeNodes,
+                  etcdNodes,
+                })}>创建 Mooncake</Button>
+              </div>
+            </div>
+          </section>
+        </aside>
+      </main>
+      <MooncakeYamlTemplatePicker
+        open={templatePickerOpen}
+        currentPath={template}
+        onCancel={() => setTemplatePickerOpen(false)}
+        onSelect={(path, yaml) => {
+          selectTemplate(path, yaml);
+          setTemplatePickerOpen(false);
+        }}
+      />
+    </section>
+  );
+}
+
+function MooncakeAddStorePage({
+  clusterName,
+  cluster,
+  currentStoreCount,
+  existingNodes,
+  onBack,
+  onConfirm,
+}: {
+  clusterName: string;
+  cluster: string;
+  currentStoreCount: number;
+  existingNodes: string[];
+  onBack: () => void;
+  onConfirm: (nodes: string[]) => void;
+}) {
+  const [nodeSearch, setNodeSearch] = useState('');
+  const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
+  const nodeOptions = ['baidu01-33', 'baidu01-34', 'baidu01-35', 'baidu01-36', 'baidu02-01', 'baidu02-02', 'baidu02-03', 'baidu02-04'];
+  const visibleNodes = nodeOptions
+    .filter((node) => !existingNodes.includes(node))
+    .filter((node) => node.toLowerCase().includes(nodeSearch.trim().toLowerCase()));
+  const toggleNode = (node: string) => setSelectedNodes((previous) => previous.includes(node)
+    ? previous.filter((item) => item !== node)
+    : [...previous, node]);
+
+  const steps = [
+    {
+      title: '基线校验', mode: '自动', ready: true,
+      detail: `检查 ${clusterName} 当前 Store 是否全部就绪。`,
+      fields: [['目标 cluster', cluster], ['当前 Store', `${currentStoreCount} 个副本`]],
+    },
+    {
+      title: '为新节点打 Store 标签', mode: '手动确认', ready: selectedNodes.length > 0,
+      detail: '为选中节点设置 Store 标签和统一的容量规格。',
+      fields: [['Store 规格', 'store-1000gb'], ['目标节点', selectedNodes.length ? selectedNodes.join('、') : '未选择']],
+    },
+    {
+      title: '创建 Store 副本', mode: '手动确认', ready: selectedNodes.length > 0,
+      detail: '根据所选节点扩展 Store StatefulSet 副本数。',
+      fields: [['副本变更', `${currentStoreCount} → ${currentStoreCount + selectedNodes.length}`], ['新增副本', `${selectedNodes.length} 个`]],
+    },
+    {
+      title: '等待新副本就绪', mode: '自动', ready: selectedNodes.length > 0,
+      detail: '确认新 Pod Ready 2/2，并加入 Mooncake 集群拓扑。',
+      fields: [['等待条件', 'Ready 2/2'], ['集群名称', clusterName]],
+    },
+  ];
+
+  return (
+    <section className="ataas-mooncake-store-scale-page">
+      <header className="ataas-mooncake-store-scale-header">
+        <Button icon={<ArrowLeftOutlined />} onClick={onBack}>返回</Button>
+        <h1>增加 Store 副本</h1>
+      </header>
+
+      <main className="ataas-mooncake-store-scale-layout">
+        <div className="ataas-mooncake-store-scale-main">
+          <section className="ataas-mooncake-store-scale-block">
+            <div className="ataas-mooncake-store-scale-section-head">
+              <span>01</span>
+              <div><strong>目标与 Store 规格</strong><em>扩容目标由当前 Mooncake 集群决定，新增副本沿用现有 Store 的容量规格。</em></div>
+            </div>
+            <div className="ataas-mooncake-store-scale-field-grid">
+              <label><span>目标 cluster</span><Input value={cluster} readOnly /></label>
+              <label><span>Store 规格</span><Input value="store-1000gb" readOnly /></label>
+            </div>
+          </section>
+
+          <section className="ataas-mooncake-store-scale-block">
+            <div className="ataas-mooncake-store-scale-section-head">
+              <span>02</span>
+              <div><strong>选择扩容节点</strong><em>仅展示当前集群中可用于扩容的空闲节点；支持一次增加多个 Store 副本。</em></div>
+            </div>
+            <div className="ataas-mooncake-store-scale-node-toolbar">
+              <Input prefix={<SearchOutlined />} value={nodeSearch} onChange={(event) => setNodeSearch(event.target.value)} placeholder="搜索节点名称" allowClear />
+              <span>{selectedNodes.length} selected</span>
+            </div>
+            <div className="ataas-mooncake-store-node-list">
+              {visibleNodes.map((node) => {
+                const selected = selectedNodes.includes(node);
+                return <button type="button" key={node} className={selected ? 'selected' : ''} onClick={() => toggleNode(node)}>{selected ? <CheckCircleFilled /> : <i />}{node}<small>空闲</small></button>;
+              })}
+            </div>
+            <p className="ataas-mooncake-store-scale-node-note">当前已有 {existingNodes.length} 个 Store 节点；仅展示可用于扩容的空闲节点。</p>
+          </section>
+        </div>
+
+        <aside className="ataas-mooncake-store-scale-plan">
+          <section>
+            <div className="ataas-mooncake-store-scale-plan-head">
+              <strong>执行计划</strong>
+              <span>{selectedNodes.length ? '参数已就绪 · 4 步' : '待补充 1 项'}</span>
+            </div>
+            <div className="ataas-mooncake-store-scale-step-list">
+              {steps.map((step, index) => (
+                <article key={step.title} className={step.ready ? 'ready' : ''}>
+                  <div className="ataas-mooncake-store-scale-step-trigger">
+                    <i>{step.ready ? <CheckCircleFilled /> : index + 1}</i>
+                    <span>
+                      <span className="ataas-mooncake-store-scale-step-title"><strong>{step.title}</strong><small className={step.mode === '自动' ? 'auto' : ''}>{step.mode}</small></span>
+                      <em>{step.detail}</em>
+                    </span>
+                    <b>{step.ready ? '已就绪' : '待配置'}</b>
+                  </div>
+                  <div className="ataas-mooncake-store-scale-step-detail">
+                    {step.fields.map(([label, value]) => <div key={label}><span>{label}</span><strong title={value}>{value}</strong></div>)}
+                  </div>
+                </article>
+              ))}
+            </div>
+            <footer className="ataas-mooncake-store-scale-footer">
+              <Button onClick={onBack}>取消</Button>
+              <Button type="primary" icon={<PlusOutlined />} disabled={selectedNodes.length === 0} onClick={() => onConfirm(selectedNodes)}>确认增加 Store</Button>
+            </footer>
+          </section>
+        </aside>
+      </main>
+    </section>
+  );
+}
+
 function MooncakeStatusSection({ accent, title, meta, children }: { accent: string; title: string; meta: string; children: ReactNode }) {
   return (
     <section className="ataas-mooncake-status-section" style={{ ['--mooncake-accent' as string]: accent }}>
@@ -1914,6 +2936,35 @@ function MooncakeStatusSection({ accent, title, meta, children }: { accent: stri
       </header>
       <div className="ataas-mooncake-status-scroll">{children}</div>
     </section>
+  );
+}
+
+function MooncakeManifestBrowser({ resources, selectedKey, onSelect }: { resources: MooncakeManifestResource[]; selectedKey: string; onSelect: (key: string) => void }) {
+  const selected = resources.find((resource) => resource.key === selectedKey) || resources[0];
+  const groups = resources.reduce<Record<string, MooncakeManifestResource[]>>((result, resource) => {
+    result[resource.kind] = [...(result[resource.kind] || []), resource];
+    return result;
+  }, {});
+
+  return (
+    <div className="ataas-mooncake-manifest-browser">
+      <p>当前集群关联资源，共 {resources.length} 个；展示原始 YAML 内容，包含 metadata 与状态字段，仅供查看。</p>
+      <div className="ataas-mooncake-manifest-tabs"><button className="active" type="button">按资源分类</button><button type="button">全部（{resources.length}）</button></div>
+      <div className="ataas-mooncake-manifest-body">
+        <aside>
+          {Object.entries(groups).map(([kind, entries]) => (
+            <section key={kind}>
+              <strong>{kind.toUpperCase()}（{entries.length}）</strong>
+              {entries.map((resource) => <button type="button" key={resource.key} className={resource.key === selected?.key ? 'active' : ''} onClick={() => onSelect(resource.key)}><i />{resource.name}</button>)}
+            </section>
+          ))}
+        </aside>
+        {selected && <section className="ataas-mooncake-manifest-code">
+          <header><span>{selected.kind} · {selected.name}</span><button type="button" aria-label="复制 YAML" onClick={() => { navigator.clipboard?.writeText(selected.yaml); message.success('YAML 已复制'); }}><CopyOutlined /></button></header>
+          <ol>{selected.yaml.split('\n').map((line, index) => <li key={`${index}-${line}`}><code>{line || ' '}</code></li>)}</ol>
+        </section>}
+      </div>
+    </div>
   );
 }
 
